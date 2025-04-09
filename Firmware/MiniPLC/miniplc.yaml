@@ -19,21 +19,29 @@ ota:
   - platform: esphome
     password: "047c7b55a890fa60e31d671679c0555c"
 
-#wifi:
-#  ssid: !secret wifi_ssid
-#  password: !secret wifi_password
-#  ap:
-#    ssid: "MiniPLC Fallback Hotspot"
-#    password: "12345678"
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: "MiniPLC Fallback Hotspot"
+    password: "12345678"
+  manual_ip:
+    # Set this to the IP of the ESP
+    static_ip: 192.168.1.19
+    # Set this to the IP address of the router. Often ends with .1
+    gateway: 192.168.1.1
+    # The subnet of the network. 255.255.255.0 works for most home networks.
+    subnet: 255.255.255.0
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
 
-#captive_portal:
+captive_portal:
 
-ethernet:
-  type: LAN8720
-  mdc_pin: GPIO23
-  mdio_pin: GPIO18
-  clk_mode: GPIO0_OUT
-  phy_addr: 1
+#ethernet:
+#  type: LAN8720
+#  mdc_pin: GPIO23
+#  mdio_pin: GPIO18
+#  clk_mode: GPIO0_OUT
+#  phy_addr: 1
 
 web_server: 
   port: 80
@@ -53,7 +61,7 @@ modbus:
 modbus_controller:
 - id: modbus_device
   address: 0x1   ## address of the Modbus slave device on the bus
-  update_interval: 1s
+  update_interval: 60s
   modbus_id: mod_bus
   setup_priority: -10
 
@@ -70,7 +78,11 @@ i2c:
     sda: 32
     scl: 33
     frequency: 400kHz
+    timeout: 1s
     scan: true
+    
+
+
 
 time:
   - platform: pcf8563
@@ -94,19 +106,6 @@ pcf8574:
 ads1115:
   - address: 0x48
 
-font:
-  - file: "gfonts://Roboto"
-    id: roboto
-
-display:
-  - platform: ssd1306_i2c
-    model: "SH1106 128x64"
-    address: 0x3C
-    rotation: 180
-    id: oled_display
-    lambda: |-
-      it.print(0, 0, id(roboto), "HOMEMASTER!");
-
 spi:
   miso_pin: GPIO12
   mosi_pin: GPIO13
@@ -115,12 +114,42 @@ spi:
 text_sensor:
   - platform: template
     name: "Current time"
+    id: current_time
     lambda: |-
       char str[17];
       time_t currTime = id(pcf8563_time).now().timestamp;
       strftime(str, sizeof(str), "%Y-%m-%d %H:%M", localtime(&currTime));
       return  { str };
     update_interval: 60s
+
+
+font:
+  - file: "gfonts://Roboto"
+    id: font1
+    size: 8
+
+  - file: "gfonts://Roboto"
+    id: font2
+    size: 48
+
+  - file: "gfonts://Roboto"
+    id: font3
+    size: 14
+
+display:
+  - platform: ssd1306_i2c
+    model: "SH1106 128x64"
+    address: 0x3C
+    rotation: 180
+    contrast: 100%
+    id: oled_display
+    update_interval: 1s
+    lambda: |-
+       // Print "Mitt Smarta Hus" in top center.
+       it.printf(64, 0, id(font1), TextAlign::TOP_CENTER, "HOMEMASTER");
+
+       // Print time in HH:MM format
+       it.strftime(0, 60, id(font2), TextAlign::BASELINE_LEFT, "%H:%M", id(pcf8563_time).now());
 
 binary_sensor:
   - platform: gpio
@@ -256,12 +285,12 @@ sensor:
     one_wire_id: hub_1
     address: 0x6f7c86e908646128
     name: "1-WIRE Dallas temperature BUS1"
-    update_interval: 5s
+    update_interval: 60s
   - platform: dallas_temp
     one_wire_id: hub_2
     address: 0xbc3c01d075cb5128
     name: "1-WIRE Dallas temperature BUS2"
-    update_interval: 5s
+    update_interval: 60s
  #MAX 31865 RTD 
   - platform: max31865
     name: "MAX 31856 Temperature 1"
@@ -279,21 +308,30 @@ sensor:
     multiplexer: 'A0_GND'
     gain: 6.144
     name: "ADC AI4"
+    update_interval: 60s
+    filters:
+      - multiply: 3
   - platform: ads1115
     multiplexer: 'A1_GND'
     gain: 6.144
     name: "ADC AI3"
-    update_interval: 5s
+    update_interval: 60s
     filters:
       - multiply: 3
   - platform: ads1115
     multiplexer: 'A2_GND'
     gain: 6.144
     name: "ADC AI2"
+    update_interval: 60s
+    filters:
+      - multiply: 3
   - platform: ads1115
     multiplexer: 'A3_GND'
     gain: 6.144
     name: "ADC AI1"
+    update_interval: 60s
+    filters:
+      - multiply: 3
   - platform: modbus_controller
     modbus_controller_id: modbus_device
     name: "Modbus Sensor"
