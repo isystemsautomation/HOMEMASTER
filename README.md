@@ -26,6 +26,6 @@ Electrical schematics and wiring diagrams for HomeMaster hardware, facilitating 
 📬 Support & Contact
 For support, questions, or feedback, please reach out to us:
 
-Email: support@homemaster.eu
+Email: support@home-master.eu
 
-Website: https://www.homemaster.eu
+Website: https://www.home-master.eu
