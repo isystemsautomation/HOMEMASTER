@@ -2,7 +2,7 @@
 
 Welcome to the official HomeMaster GitHub repository — your central hub for open-source resources related to our smart automation products. This repository provides comprehensive documentation, firmware, and schematics to support developers, integrators, and DIY enthusiasts working with HomeMaster devices.
 
-![alt text]([https://github.com/isystemsautomation/HOMEMASTER/MiniPLC/Images/MiniPLC.png](https://github.com/isystemsautomation/HOMEMASTER/blob/main/MiniPLC/Images/MiniPLC%201.png?raw=true) "Logo Title Text 1")
+![alt text]([[https://github.com/isystemsautomation/HOMEMASTER/MiniPLC/Images/MiniPLC.png](https://github.com/isystemsautomation/HOMEMASTER/blob/main/MiniPLC/Images/MiniPLC.png?raw=true)](https://github.com/isystemsautomation/HOMEMASTER/blob/main/MiniPLC/Images/MiniPLC%201.png?raw=true) "Logo Title Text 1")
 🧠 HomeMaster MiniPLC
 
 The ESP32 MiniPLC is a powerful and compact automation controller designed for advanced smart home and industrial applications. Built around the ESP32-WROOM-32D and preloaded with ESPHome, it features:
