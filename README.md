@@ -14,3 +14,12 @@ User guides and technical documentation for HomeMaster products, offering step-b
 
 Schematic/
 Electrical schematics and wiring diagrams for HomeMaster hardware, facilitating understanding and customization of device connections.
+
+
+
+📬 Support & Contact
+For support, questions, or feedback, please reach out to us:
+
+Email: support@homemaster.eu
+
+Website: https://www.homemaster.eu
