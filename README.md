@@ -3,6 +3,7 @@
 Welcome to the official HomeMaster GitHub repository — your central hub for open-source resources related to our smart automation products. This repository provides comprehensive documentation, firmware, and schematics to support developers, integrators, and DIY enthusiasts working with HomeMaster devices.
 
 📂 Repository Structure
+
 Firmware/
 Contains yaml configurations for seamless integration with platforms like Home Assistant.​
 
