@@ -1,8 +1,8 @@
-# HOMEMASTER-ESP32
+# HOMEMASTER
 
 Welcome to the official HomeMaster GitHub repository — your central hub for open-source resources related to our smart automation products With flexible integration into platforms like Home Assistant. This repository provides comprehensive documentation, firmware, and schematics to support developers, integrators, and DIY enthusiasts working with HomeMaster devices.
 
-<h2><b>HomeMaster MiniPLC</b></h2> <br>
+<h2><b>HOMEMASTER ESP32 MiniPLC</b></h2> <br>
 
 ![HomeMaster MiniPLC](https://github.com/isystemsautomation/HOMEMASTER/blob/main/MiniPLC/Images/MiniPLC2.png "HomeMaster MiniPLC")
 
