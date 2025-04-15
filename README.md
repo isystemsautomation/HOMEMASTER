@@ -9,7 +9,9 @@ Welcome to the official HomeMaster GitHub repository — your central hub for op
 The ESP32 MiniPLC is a powerful and compact automation controller designed for advanced smart home and industrial applications. Built around the ESP32-WROOM-32D and preloaded with ESPHome, it features: ✅ 6 relay outputs, 🔌 Digital & analog I/Os, 🌡 RTD temperature sensor support, 🖥 Front panel with OLED display, buttons, and status LEDs, 📶 Wi-Fi, RS-485 Modbus, and Ethernet (LAN8720A) connectivity, 🕒 RTC module, buzzer, and MicroSD slot
 
 <h2><b>HOMEMASTER ESP32 MicroPLC</b></h2> <br>
+
 ![HomeMaster MicroPLC](https://github.com/isystemsautomation/HOMEMASTER/blob/main/MicroPLC/Images/MicroPLC.png "HomeMaster MicroPLC")
+
 The ESP32 MicroPLC is a compact, DIN-rail-mountable programmable logic controller designed for home automation and small industrial applications. Built around the ESP32-WROOM-32D microcontroller, it comes pre-installed with ESPHome firmware, ensuring seamless integration with platforms like Home Assistant.​ It features:
 
 Key Features:
