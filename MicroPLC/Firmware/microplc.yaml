@@ -1,0 +1,93 @@
+# Define the name and friendly name for this ESPHome node
+esphome:
+  name: microplc
+  friendly_name: MicroPLC
+
+# Specify the target board and framework
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+    version: latest  # Use the latest ESP-IDF framework version
+
+# Enable logging over serial
+logger:
+
+# Enable communication with Home Assistant using ESPHome API
+api:
+  encryption:
+    key: "Bh8a0zCOE6V/z27+omhUZ/+AbqP2Q8HLbTwfQn4MsW8="  # Optional encryption key for secure API
+
+# Enable OTA updates
+ota:
+  - platform: esphome
+    password: "5a449032ac09fbbdd112904529b114bc"  # Password required for over-the-air firmware updates
+
+# WiFi configuration
+wifi:
+  ssid: !secret wifi_ssid  # WiFi SSID stored in secrets.yaml
+  password: !secret wifi_password  # WiFi password stored in secrets.yaml
+
+  # Fallback hotspot configuration if main WiFi fails
+  ap:
+    ssid: "Microplc Fallback Hotspot"
+    password: "lzDlyYzeJGZU"
+
+# Captive portal for fallback hotspot
+captive_portal:
+
+# UART interface configuration (typically used for RS485/Modbus communication)
+uart:
+  tx_pin: 17
+  rx_pin: 16
+  baud_rate: 115200
+  id: mod_uart  # Identifier for UART interface
+
+# Uncomment the following to enable Modbus RTU master configuration
+#modbus:
+#  send_wait_time: 500ms  # Wait time between sending requests
+#  uart_id: mod_uart  # Reference to the UART interface
+#  id: mod_bus  # Identifier for Modbus bus
+
+# Uncomment the following to define a Modbus controller (slave device)
+#modbus_controller:
+#- id: modbus_device
+#  address: 0x1  # Modbus slave address
+#  update_interval: 1s  # Polling interval
+#  modbus_id: mod_bus  # Reference to Modbus bus
+#  setup_priority: -10  # Initialization priority
+
+# Enable a web server for basic local status page
+web_server: 
+  port: 80  # Default HTTP port
+
+# Configure a real-time clock (RTC) over I2C
+time:
+  - platform: pcf8563
+    id: pcf8563_time
+    address: 0x51  # I2C address of PCF8563 RTC module
+
+# I2C bus configuration
+i2c:
+  - id: bus_a
+    sda: 32  # SDA pin
+    scl: 33  # SCL pin
+    scan: true  # Scan for connected I2C devices on startup
+
+# OneWire bus configuration (e.g., for DS18B20 temperature sensors)
+one_wire:
+  - platform: gpio
+    pin: GPIO05
+    id: hub_1  # Identifier for OneWire bus
+
+# GPIO switch (e.g., to control a relay)
+switch:
+  - platform: gpio
+    name: "Relay"  # Switch name shown in Home Assistant
+    pin: 26  # GPIO pin connected to the relay
+
+# Status LED indicator configuration
+status_led:
+  pin:
+    number: GPIO25  # GPIO pin connected to status LED
+    inverted: true  # Invert logic (LED on = LOW)
