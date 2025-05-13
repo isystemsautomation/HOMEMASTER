@@ -6,7 +6,7 @@ Welcome to the official HomeMaster GitHub repository — your central hub for op
 
 ![HomeMaster MiniPLC](https://github.com/isystemsautomation/HOMEMASTER/blob/main/MiniPLC/Images/MiniPLC2.png "HomeMaster MiniPLC")
 
-The ESP32 MiniPLC is a powerful and compact automation controller designed for advanced smart home and industrial applications. Built around the ESP32-WROOM-32D and preloaded with ESPHome.
+The ESP32 MiniPLC is a powerful and compact automation controller designed for advanced smart home applications. Built around the ESP32-WROOM-32U and preloaded with ESPHome.
 
 Key Features:
 
