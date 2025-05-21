@@ -1,12 +1,5 @@
+#Homemaster-MiniPLC
 
----
-title: Homemaster-MiniPLC
-date-published: 2025-05-13
-type: relay
-standard: global
-board: esp32
-project-url: https://github.com/isystemsautomation/HOMEMASTER/tree/main/MiniPLC
-difficulty: 1
 ---
 
 ![alt text](./MiniPLC.png "HOMAMASTER MiniPLC")
