@@ -1,7 +1,7 @@
 Homemaster-MiniPLC
 ---
 
-![alt text](./MiniPLC.png "HOMAMASTER MiniPLC")
+![alt text](./MiniPLC2.png "HOMAMASTER MiniPLC")
 
 ## Product description
 
