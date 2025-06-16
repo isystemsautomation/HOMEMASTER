@@ -1,46 +1,70 @@
-# HOMEMASTER
+# HOMEMASTER – Open Automation Hardware & Firmware
 
-Welcome to the official HomeMaster GitHub repository — your central hub for open-source resources related to our smart automation products With flexible integration into platforms like Home Assistant. This repository provides comprehensive documentation, firmware, and schematics to support developers, integrators, and DIY enthusiasts working with HomeMaster devices.
+Welcome to the official GitHub repository for **HOMEMASTER** – a suite of open-source, industrial-grade smart automation controllers and modules. Here you'll find resources for our flagship products: **MiniPLC**, **MicroPLC**, **Opentherm Gateway**, and various **expansion modules**.
 
-<h2><b>HOMEMASTER ESP32 MiniPLC</b></h2> <br>
+---
 
+## 🔧 Products Covered
+
+### 🟢 MiniPLC
 ![HomeMaster MiniPLC](https://github.com/isystemsautomation/HOMEMASTER/blob/main/MiniPLC/Images/MiniPLC2.png "HomeMaster MiniPLC")
 
-The ESP32 MiniPLC is a powerful and compact automation controller designed for advanced smart home applications. Built around the ESP32-WROOM-32U and preloaded with ESPHome.
+A compact, DIN-rail mountable programmable logic controller featuring:
+- 6 relay outputs
+- Isolated digital inputs (24V with ISO1212 support)
+- Analog I/O (ADS1115 / MCP4725)
+- RTD (MAX31865) temperature input
+- RS-485 with Modbus
+- MicroSD logging
+- OLED display, RTC, buzzer
+- ESP32-WROOM-32U core
+- ESPHome/Home Assistant ready
 
-Key Features:
-
-✅ 6 relay outputs, 🔌 Digital & analog I/Os, 🌡 RTD temperature sensor support, 🖥 Front panel with OLED display, buttons, and status LEDs, 📶 Wi-Fi, RS-485 Modbus, and Ethernet (LAN8720A) connectivity, 🕒 RTC module, buzzer, and MicroSD slot
-
-<h2><b>HOMEMASTER ESP32 MicroPLC</b></h2> <br>
-
+### 🔵 MicroPLC
 ![HomeMaster MicroPLC](https://github.com/isystemsautomation/HOMEMASTER/blob/main/MicroPLC/Images/MicroPLC.png "HomeMaster MicroPLC")
 
-The ESP32 MicroPLC is a compact, DIN-rail-mountable programmable logic controller designed for home automation and small industrial applications. Built around the ESP32-WROOM-32D microcontroller, it comes pre-installed with ESPHome firmware, ensuring seamless integration with platforms like Home Assistant.​ 
+A smaller, more affordable controller for basic automation tasks:
+- Relay & digital outputs
+- RS-485 with Modbus
+- RTC
+- ESP32-WROOM-32U core
+- ESPHome/Home Assistant ready
 
-Key Features:
+### 🔶 Opentherm Gateway
+A communication bridge between ESP-based systems and OpenTherm-compatible boilers:
+- ESP32 with OpenTherm protocol
+- Home Assistant integration via ESPHome
+- Useful for custom heating control setups
 
-Input Voltage: 24V DC​, Connectivity: Built-in Wi-Fi and Bluetooth for wireless communication, USB Type-C port for programming and debugging​, 
-I/O Capabilities: 1 relay output, 1 digital input (24V DC), 1 channels supporting 1-Wire bus communication​, Expansion: RS-485 Modbus interface for connecting extension modules, User Interface: LED indicators and a user-configurable button on the front panel​, Additional Components: PCF8563 real-time clock (RTC) module
+### 🧩 Extension Modules
+Add-on boards to expand I/O capabilities:
+- Digital input modules
+- Analog expansion boards
+- Isolated output boards
+- Sensor interfaces (current, temperature, etc.)
 
-📂 Repository Structure​
+## 📁 Repository Structure
 
+/schematics/ → PDF project files for all products
 
+/firmware/ → ESPHome YAMLs & Arduino examples
 
-Firmware/
-Contains yaml configurations for seamless integration with platforms like Home Assistant.​
+/manuals/ → PDF setup and wiring guides
 
-Manuals/
-User guides and technical documentation for HomeMaster products, offering step-by-step instructions for setup and operation.​
+/resources/ → Logos, icons, branding, and images
 
-Schematic/
-Electrical schematics and wiring diagrams for HomeMaster hardware, facilitating understanding and customization of device connections.
+## 📬 Contact & Support
 
+- 🌐 Website: [www.home-master.eu](https://www.home-master.eu)  
+- 📧 Email: contact@home-master.eu
 
+---
 
-📬 Support & Contact
-For support, questions, or feedback, please reach out to us:
+## 📄 License
 
-Email: support@home-master.eu
+All hardware design files and documentation are licensed under **CERN-OHL-W 2.0**.  
+Firmware and code samples are released under the **GNU General Public License v3 (GPLv3)** unless otherwise noted.
 
-Website: https://www.home-master.eu
+---
+
+> 🔧 **HOMEMASTER – Open Automation. Real Control.**
