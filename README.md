@@ -29,7 +29,8 @@ A compact, DIN-rail mountable programmable logic controller featuring:
 ![HomeMaster MicroPLC](https://github.com/isystemsautomation/HOMEMASTER/blob/main/MicroPLC/Images/MicroPLC.png "HomeMaster MicroPLC")
 
 A smaller, more affordable controller for basic automation tasks:
-- Relay & digital outputs
+- Relay output
+- 1-wire
 - RS-485 with Modbus
 - RTC
 - ESP32-WROOM-32U core
