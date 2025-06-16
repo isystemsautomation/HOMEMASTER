@@ -1,10 +1,15 @@
 # HOMEMASTER – Open Automation Hardware & Firmware
 
-Welcome to the official GitHub repository for **HOMEMASTER** – a suite of open-source, industrial-grade smart automation controllers and modules. Here you'll find resources for our flagship products: **MiniPLC**, **MicroPLC**, **Opentherm Gateway**, and various **expansion modules**.
+Welcome to the official GitHub repository for **HOMEMASTER** – a suite of open-source, industrial-grade smart automation controllers with a modular family of I/O expansion modules. 
+This repository includes schematics, firmware and manuals for:
+
+- ✅ MiniPLC & MicroPLC controllers  
+- ✅ OpenTherm Gateway  
+- ✅ A full range of extension modules  
 
 ---
 
-## 🔧 Products Covered
+## 🔧 Core Controllers
 
 ### 🟢 MiniPLC
 ![HomeMaster MiniPLC](https://github.com/isystemsautomation/HOMEMASTER/blob/main/MiniPLC/Images/MiniPLC2.png "HomeMaster MiniPLC")
@@ -36,12 +41,18 @@ A communication bridge between ESP-based systems and OpenTherm-compatible boiler
 - Home Assistant integration via ESPHome
 - Useful for custom heating control setups
 
-### 🧩 Extension Modules
-Add-on boards to expand I/O capabilities:
-- Digital input modules
-- Analog expansion boards
-- Isolated output boards
-- Sensor interfaces (current, temperature, etc.)
+## 🧩 Extension Modules
+
+| Module Code    | Name / Function |
+|----------------|------------------|
+| **AIO-422-R1** | Analog I/O Module with 2 RTD, 4 analog inputs (0–10V), 2 analog outputs (0–10V) |
+| **ALM-173-R1** | Alarm Input & Relay Output Module with 17 alarm inputs, 3 relay outputs |
+| **DIM-420-R1** | 2-Channel Dimmer Module with 4 digital inputs – ideal for smart lighting |
+| **DIO-430-R1** | General-purpose Digital Input/Output Module |
+| **ENM-223-R1** | 3-Phase Energy Monitor with 2 relays, 2 DI, 1 PWM, 1 analog output |
+| **RGB-620-R1** | RGB Lighting Control Module – 6 MOSFET LED channels, 2 DI, Modbus |
+| **STR-3222-R1**| Stair LED Controller – 32 LED outputs, 2 presence sensors, 1 switch input |
+| **WLD-333-R1** | Water Leak Detector & Valve Controller – 3 leak inputs, 3 water meter inputs, 3 relays |
 
 ## 📁 Repository Structure
 
