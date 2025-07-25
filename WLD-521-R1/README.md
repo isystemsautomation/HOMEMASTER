@@ -36,7 +36,7 @@ The **WLD-521-R1** is a smart and reliable input/control module designed for **l
 
 | Parameter                         | Value                              |
 |----------------------------------|------------------------------------|
-| Power Supply                     | 9–28 V DC                          |
+| Power Supply                     | 24 V DC                            |
 | Digital Inputs                   | 5 opto-isolated, dry contact       |
 | Input Voltage (trigger)          | ~14 V                              |
 | Input Current                    | ~6 mA                              |
