@@ -51,7 +51,7 @@ When paired with a MiniPLC or MicroPLC running **ESPHome**, the STR-3222-R1 inte
 | LED Channels            | 32 (via 4× TLC59208F, constant current)|
 | Output Voltage Range    | 12 V / 24 V DC                         |
 | Switch Type             | SI2307A MOSFET per channel            |
-| Digital Inputs          | 3× opto-isolated (24 VDC compatible)  |
+| Digital Inputs          | 3× isolated                           |
 | Interface               | RS‑485 (Modbus RTU)                   |
 | Local Control           | 2× buttons, status LEDs               |
 | Configuration           | USB Type‑C                            |
