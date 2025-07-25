@@ -33,7 +33,7 @@ With **ESPHome** support, the module is fully compatible with **Home Assistant**
 
 ## 🧠 Smart Home Integration
 
-Pair the RGB-621-R1 with **ESPHome-enabled controllers** to expose all LED channels and inputs directly in **Home Assistant**, allowing you to:
+Pair the RGB-621-R1 with **MicroPLC/MiniPLC controllers** to expose all LED channels and inputs directly in **Home Assistant**, allowing you to:
 
 - Automate scenes (sunrise/sunset, motion, schedules)
 - Control color, brightness, and temperature via UI or voice
