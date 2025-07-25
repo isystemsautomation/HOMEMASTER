@@ -61,7 +61,7 @@ Pair the RGB-621-R1 with **MicroPLC/MiniPLC controllers** to expose all LED chan
 |---------------------------|----------------------------------------|
 | Power Supply              | 24 V DC                                |
 | PWM Outputs               | 5 × 12/24 V channels (0–100% duty)      |
-| Digital Inputs            | 2 × opto-isolated (dry contact)        |
+| Digital Inputs            | 2 × isolated (dry contact)        |
 | Relay Output              | max 16 A                       |
 | Interface                 | RS‑485 (Modbus RTU)                     |
 | USB Port                  | USB Type‑C                              |
