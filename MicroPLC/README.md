@@ -62,6 +62,6 @@ Out of the box, MicroPLC comes with ESPHome pre-installed and ready to integrate
 | RTC                  | PCF8563                              |
 | 1-Wire               | 1 channel (ESD/OVP protected)        |
 | Mounting             | DIN-rail                             |
-| Firmware             | ESPHome (pre-installed), Arduino, uPython |
+| Firmware             | ESPHome (pre-installed), Arduino |
 
 
