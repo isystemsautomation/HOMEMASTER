@@ -49,17 +49,17 @@ A communication bridge between ESP-based systems and OpenTherm-compatible boiler
 | **AIO-422-R1** | Analog I/O Module with 2 RTD, 4 analog inputs (0–10V), 2 analog outputs (0–10V) |
 | **ALM-173-R1** | Alarm Input & Relay Output Module with 17 alarm inputs, 3 relay outputs |
 | **DIM-420-R1** | 2-Channel Dimmer Module with 4 digital inputs – ideal for smart lighting |
-| **DIO-430-R1** | General-purpose Digital Input/Output Module |
-| **ENM-223-R1** | 3-Phase Energy Monitor with 2 relays, 2 DI, 1 PWM, 1 analog output |
+| **DIO-430-R1** | General-purpose Digital 4 Input 3 Relay Output Module |
+| **ENM-223-R1** | 3-Phase Energy Monitor with 2 relays |
 | **RGB-620-R1** | RGB Lighting Control Module – 6 MOSFET LED channels, 2 DI, Modbus |
-| **STR-3222-R1**| Stair LED Controller – 32 LED outputs, 2 presence sensors, 1 switch input |
-| **WLD-333-R1** | Water Leak Detector & Valve Controller – 3 leak inputs, 3 water meter inputs, 3 relays |
+| **STR-3221-R1**| Stair LED Controller – 32 LED outputs, 2 presence sensors, 1 switch input |
+| **WLD-521-R1** | Water Leak Detector & Valve Controller – 5 leak/pulse inputs, 2 relays, 1-Wire bus |
 
 ## 📁 Repository Structure
 
 /schematics/ → PDF project files for all products
 
-/firmware/ → ESPHome YAMLs & Arduino examples
+/firmware/ → ESPHome YAMLs & MicroPython for RP2350A extension modules
 
 /manuals/ → PDF setup and wiring guides
 
