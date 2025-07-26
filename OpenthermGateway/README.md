@@ -45,5 +45,12 @@ When flashed with ESPHome, the Opentherm Gateway exposes the following entities 
 
 These enable complex automations like zone heating, backup switching, or temperature-based schedules—all managed within Home Assistant.
 
+## 📄 License
 
+All hardware design files and documentation are licensed under **CERN-OHL-W 2.0**.  
+Firmware and code samples are released under the **GNU General Public License v3 (GPLv3)** unless otherwise noted.
+
+---
+
+> 🔧 **HOMEMASTER – Modular control. Custom logic.**
 
