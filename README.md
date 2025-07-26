@@ -59,7 +59,7 @@ A communication bridge between ESP-based systems and OpenTherm-compatible boiler
 
 /schematics/ → PDF project files for all products
 
-/firmware/ → ESPHome YAMLs & Arduino examples
+/firmware/ → ESPHome YAMLs & MicroPython for RP2350A extension modules
 
 /manuals/ → PDF setup and wiring guides
 
