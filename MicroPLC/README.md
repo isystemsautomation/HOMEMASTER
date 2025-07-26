@@ -55,7 +55,7 @@ Out of the box, MicroPLC comes with ESPHome pre-installed and ready to integrate
 | Feature              | Details                              |
 |----------------------|--------------------------------------|
 | Microcontroller      | ESP32-WROOM-32U                      |
-| Power Supply         | 5V via USB-C or 24V via terminal     |
+| Power Supply         | 5V via USB-C for programming or 24V via terminal     |
 | Relay Output         | 1x 16A (optically isolated)     |
 | Digital Input        | 1x 24V DI (ISO1212-based)            |
 | Communication        | RS-485, Wi-Fi, Bluetooth, USB-C      |
