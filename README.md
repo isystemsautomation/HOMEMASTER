@@ -47,13 +47,13 @@ A communication bridge between ESP-based systems and OpenTherm-compatible boiler
 | Module Code    | Name / Function |
 |----------------|------------------|
 | [**AIO-422-R1**](https://github.com/isystemsautomation/HOMEMASTER/tree/main/AIO-422-R1) | Analog I/O Module with 2 RTD, 4 analog inputs (0–10V), 2 analog outputs (0–10V) |
-| **ALM-173-R1** | Alarm Input & Relay Output Module with 17 alarm inputs, 3 relay outputs |
-| **DIM-420-R1** | 2-Channel Dimmer Module with 4 digital inputs – ideal for smart lighting |
-| **DIO-430-R1** | General-purpose Digital 4 Input 3 Relay Output Module |
-| **ENM-223-R1** | 3-Phase Energy Monitor with 2 relays |
-| **RGB-620-R1** | RGB Lighting Control Module – 6 MOSFET LED channels, 2 DI, Modbus |
-| **STR-3221-R1**| Stair LED Controller – 32 LED outputs, 2 presence sensors, 1 switch input |
-| **WLD-521-R1** | Water Leak Detector & Valve Controller – 5 leak/pulse inputs, 2 relays, 1-Wire bus |
+| [**ALM-173-R1**](https://github.com/isystemsautomation/HOMEMASTER/tree/main/ALM-173-R1) | Alarm Input & Relay Output Module with 17 alarm inputs, 3 relay outputs |
+| [**DIM-420-R1**](https://github.com/isystemsautomation/HOMEMASTER/tree/main/DIM-420-R1) | 2-Channel Dimmer Module with 4 digital inputs – ideal for smart lighting |
+| [**DIO-430-R1**](https://github.com/isystemsautomation/HOMEMASTER/tree/main/DIO-430-R1) | General-purpose Digital 4 Input 3 Relay Output Module |
+| [**ENM-223-R1**](https://github.com/isystemsautomation/HOMEMASTER/tree/main/ENM-223-R1) | 3-Phase Energy Monitor with 2 relays |
+| [**RGB-620-R1**](https://github.com/isystemsautomation/HOMEMASTER/tree/main/RGB-621-R1) | RGB Lighting Control Module – 6 MOSFET LED channels, 2 DI, Modbus |
+| [**STR-3221-R1**](https://github.com/isystemsautomation/HOMEMASTER/tree/main/STR-3221-R1)| Stair LED Controller – 32 LED outputs, 2 presence sensors, 1 switch input |
+| [**WLD-521-R1**](https://github.com/isystemsautomation/HOMEMASTER/tree/main/WLD-521-R1) | Water Leak Detector & Valve Controller – 5 leak/pulse inputs, 2 relays, 1-Wire bus |
 
 ## 📁 Repository Structure
 
