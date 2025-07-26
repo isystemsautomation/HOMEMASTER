@@ -73,3 +73,11 @@ When paired with a MiniPLC or MicroPLC running **ESPHome**, the STR-3222-R1 inte
 
 The STR-3222-R1 is fully open for development. Use **MicroPython**, **C/C++**, or the **Arduino IDE** to build custom step animations, timing logic, and smart integrations. Firmware updates and serial debugging are available via USB-C.
 
+## 📄 License
+
+All hardware design files and documentation are licensed under **CERN-OHL-W 2.0**.  
+Firmware and code samples are released under the **GNU General Public License v3 (GPLv3)** unless otherwise noted.
+
+---
+
+> 🔧 **HOMEMASTER – Modular control. Custom logic.**
