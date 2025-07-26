@@ -54,5 +54,11 @@ The ALM-173-R1 is fully open source. It is shipped with MicroPython firmware and
 
 
 ---
+## 📄 License
 
-**HomeMaster – Modular Control. Custom Logic.**
+All hardware design files and documentation are licensed under **CERN-OHL-W 2.0**.  
+Firmware and code samples are released under the **GNU General Public License v3 (GPLv3)** unless otherwise noted.
+
+---
+
+> 🔧 **HOMEMASTER – Modular control. Custom logic.**

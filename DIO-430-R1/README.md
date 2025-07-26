@@ -71,4 +71,11 @@ Using a **MicroPLC or MiniPLC with ESPHome**, the DIO-430-R1 becomes fully compa
 
 The DIO-430-R1 is fully open source. Schematics, firmware, and example configurations are available in this repository for complete transparency and user-driven development.
 
+## 📄 License
 
+All hardware design files and documentation are licensed under **CERN-OHL-W 2.0**.  
+Firmware and code samples are released under the **GNU General Public License v3 (GPLv3)** unless otherwise noted.
+
+---
+
+> 🔧 **HOMEMASTER – Modular control. Custom logic.**

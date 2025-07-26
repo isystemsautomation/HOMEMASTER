@@ -76,4 +76,11 @@ Pair the RGB-621-R1 with **MicroPLC/MiniPLC controllers** to expose all LED chan
 - Human-centric lighting with tunable white control
 - Smart LED strip control with wall switch fallback
 - Color-based status indicators in automation systems
+## 📄 License
 
+All hardware design files and documentation are licensed under **CERN-OHL-W 2.0**.  
+Firmware and code samples are released under the **GNU General Public License v3 (GPLv3)** unless otherwise noted.
+
+---
+
+> 🔧 **HOMEMASTER – Modular control. Custom logic.**

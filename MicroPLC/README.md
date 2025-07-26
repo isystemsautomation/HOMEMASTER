@@ -64,4 +64,11 @@ Out of the box, MicroPLC comes with ESPHome pre-installed and ready to integrate
 | Mounting             | DIN-rail                             |
 | Firmware             | ESPHome (pre-installed), Arduino |
 
+## 📄 License
 
+All hardware design files and documentation are licensed under **CERN-OHL-W 2.0**.  
+Firmware and code samples are released under the **GNU General Public License v3 (GPLv3)** unless otherwise noted.
+
+---
+
+> 🔧 **HOMEMASTER – Modular control. Custom logic.**

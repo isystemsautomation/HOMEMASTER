@@ -14,3 +14,12 @@ The **DIM-420-R1** is a smart lighting control module designed for modular integ
 - Comes pre-installed with MicroPython firmware and predefined Modbus register map.
 - Built on the RP2350A microcontroller with support for MicroPython and Arduino IDE.
 - Seamless Home Assistant integration via MicroPLC or MiniPLC.
+
+## 📄 License
+
+All hardware design files and documentation are licensed under **CERN-OHL-W 2.0**.  
+Firmware and code samples are released under the **GNU General Public License v3 (GPLv3)** unless otherwise noted.
+
+---
+
+> 🔧 **HOMEMASTER – Modular control. Custom logic.**
