@@ -79,4 +79,4 @@ Firmware and code samples are released under the **GNU General Public License v3
 
 ---
 
-> 🔧 **HOMEMASTER – Open Automation. Real Control.**
+> 🔧 **HOMEMASTER – Modular control. Custom logic.**
