@@ -51,14 +51,6 @@ The AIO-422-R1 works out of the box with MicroPLC or MiniPLC systems and can be 
 
 ---
 
-## 📚 Documentation
-
-- [User Manual (PDF)](link-to-manual)
-- [Modbus Register Map](link-to-register-map)
-- [Wiring Diagrams & Examples](link-to-wiring)
-
----
-
 ## ⚙️ Technical Specifications
 
 | Parameter                     | Value                                |
