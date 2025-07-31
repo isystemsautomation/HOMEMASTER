@@ -8,6 +8,8 @@ SimpleWebSerial WebSerial;
 JSONVar modbus;
 JSONVar inputs;
 JSONVar relayStates;
+JSONVar ButtonStates;
+
 
 #define SDA 6
 #define SCL 7
@@ -45,7 +47,11 @@ struct Config {
 
 Config digitalInputs[17];
 Config relayConfigs[3];
+Config ButtonConfigs[4];
+
 bool relayState[3] = {false, false, false};
+bool ButtonState[4] = {false, false, false, false};
+
 
 void setup() {
   Serial.begin(57600);
@@ -54,11 +60,15 @@ void setup() {
   WebSerial.on("groupList", handleGroupList);
   WebSerial.on("enableList", handleEnableList);
 
-  WebSerial.on("relayStateList", handleRelayStateList);
+//  WebSerial.on("relayStateList", handleRelayStateList);
   WebSerial.on("relayInvertList", handleRelayInvertList);
   WebSerial.on("relayGroupList", handleRelayGroupList);
   WebSerial.on("relayEnableList", handleRelayEnableList);
 
+//  WebSerial.on("ButtonStateList", handleButtonStateList);
+  WebSerial.on("ButtonGroupList", handleButtonGroupList); 
+
+  
   for (int i = 0; i < 17; i++) {
     digitalInputs[i] = {true, false, 0};
   }
@@ -66,6 +76,7 @@ void setup() {
     relayConfigs[i] = {true, false, 0};
     relayState[i] = false;
   }
+
 
   Wire1.setSDA(SDA);
   Wire1.setSCL(SCL);
@@ -130,6 +141,14 @@ void handleRelayEnableList(JSONVar list) {
   for (int i = 0; i < 3 && i < list.length(); i++)
     relayConfigs[i].enabled = (bool)list[i];
 }
+void handleButtonStateList(JSONVar list) {
+  for (int i = 0; i < 4 && i < list.length(); i++)
+    ButtonState[i] = (bool)list[i];
+}
+void handleButtonGroupList(JSONVar list) {
+  for (int i = 0; i < 4 && i < list.length(); i++)
+    ButtonConfigs[i].group = (int)list[i];
+}
 
 void loop() {
   unsigned long now = millis();
@@ -140,7 +159,9 @@ void loop() {
 
   mb.task();
   mb.setCoil(SwitchIsts, pcf20.read(1));
-
+  for (int i = 0; i < 4; i++) {
+    ButtonState[i] = !pcf27.read(i);  // Assume active-low buttons
+  }
   // Handle relays with config
   for (int i = 0; i < 3; i++) {
     bool val = relayState[i];
@@ -180,6 +201,7 @@ void loop() {
   // Prepare config arrays
   JSONVar invertList, groupList, enableList;
   JSONVar relayStateList, relayInvertList, relayGroupList, relayEnableList;
+  JSONVar ButtonStateList, ButtonGroupList;
 
   for (int i = 0; i < 17; i++) {
     invertList[i] = digitalInputs[i].inverted;
@@ -194,6 +216,11 @@ void loop() {
     relayEnableList[i] = relayConfigs[i].enabled;
   }
 
+  for (int i = 0; i < 4; i++) {
+    ButtonStateList[i]  = ButtonState[i];
+    ButtonGroupList[i]  = ButtonConfigs[i].group;
+  }
+
   // Send all data to UI
   WebSerial.check();
   WebSerial.send("status", modbus);
@@ -206,6 +233,9 @@ void loop() {
   WebSerial.send("relayInvertList", relayInvertList);
   WebSerial.send("relayGroupList", relayGroupList);
   WebSerial.send("relayEnableList", relayEnableList);
+
+  WebSerial.send("ButtonStateList", ButtonStateList);
+  WebSerial.send("ButtonGroupList", ButtonGroupList);
 
   delay(5);
 }
