@@ -1,0 +1,231 @@
+<section style="font-family: 'Segoe UI', sans-serif; padding: 2rem; max-width: 960px; margin: auto;">
+  <div id="log-line" style="margin-bottom: 1.5rem; padding: 1rem; background: #f9f9f9; border: 1px solid #ccc; border-radius: 6px; font-size: 0.9rem; color: #333; font-family: monospace;">
+    <strong>Serial Log:</strong>
+    <div id="log-content" style="white-space: pre-wrap;"></div>
+  </div>
+
+  <div style="text-align: center; margin-bottom: 2rem;">
+    <img src="https://www.home-master.eu/web/image/product.product/719/image_1024/ALM-173-R1%20Module%20for%20Alarm%20Systems?unique=f079b61" alt="ALM-173-R1" style="max-width: 300px; border-radius: 8px;" loading="lazy">
+    <h2>ALM-173-R1 Module Configuration</h2>
+    <p>Configure Modbus address, baud rate, inputs, and relays via Web Serial.</p>
+  </div>
+
+  <div style="background: #f1f1f1; padding: 1rem 1.5rem; margin-bottom: 2rem; border-radius: 6px; border-left: 4px solid #007bff;">
+    <strong>Active Modbus Configuration</strong><br>
+    Address: <span id="live-address" style="font-weight: 600;">--</span> |
+    Baud Rate: <span id="live-baud" style="font-weight: 600;">--</span>
+  </div>
+
+  <form id="modbus-config" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+    <div>
+      <label for="modbus-address"><strong>Modbus Address</strong></label>
+      <select id="modbus-address" style="width: 100%; padding: 10px; border-radius: 4px;"></select>
+    </div>
+    <div>
+      <label for="modbus-baud"><strong>Baud Rate</strong></label>
+      <select id="modbus-baud" style="width: 100%; padding: 10px; border-radius: 4px;">
+        <option>9600</option>
+        <option>19200</option>
+        <option>38400</option>
+        <option>57600</option>
+        <option>115200</option>
+      </select>
+    </div>
+    <div style="grid-column: span 2; text-align: right;">
+      <button id="connect-button" type="button" style="padding: 10px 20px; background: #007bff; color: #fff; border: none; border-radius: 4px;">Connect</button>
+    </div>
+  </form>
+
+  <section>
+    <h2 style="font-size: 1.2rem;">Digital Inputs Configuration</h2>
+    <div id="inputs-config" style="display: grid; grid-template-columns: repeat(auto-fill,minmax(250px,1fr)); gap: 1rem;"></div>
+  </section>
+
+  <section>
+    <h2 style="font-size: 1.2rem;">Relays Configuration</h2>
+    <div id="relays-config" style="display: grid; grid-template-columns: repeat(auto-fill,minmax(250px,1fr)); gap: 1rem;"></div>
+  </section>
+
+  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
+  <script>
+    const addrSelect = document.getElementById('modbus-address');
+    for (let i = 1; i <= 255; i++) {
+      const opt = document.createElement('option');
+      opt.value = i;
+      opt.textContent = i;
+      addrSelect.appendChild(opt);
+    }
+
+    const connection = SimpleWebSerial.setupSerialConnection({
+      requestAccessOnPageLoad: false,
+      requestElement: 'connect-button'
+    });
+
+    function appendLog(label, data) {
+      const log = document.getElementById("log-content");
+      const time = new Date().toLocaleTimeString();
+      log.innerText = `[${time}] ${label}: ${JSON.stringify(data)}\n` + log.innerText;
+    }
+
+    connection.on('status', modbus => {
+      document.getElementById('live-address').textContent = modbus.address ?? '--';
+      document.getElementById('live-baud').textContent = modbus.baud ?? '--';
+      if (modbus.address) document.getElementById('modbus-address').value = modbus.address;
+      if (modbus.baud) document.getElementById('modbus-baud').value = String(modbus.baud);
+    });
+
+    connection.on('message', msg => appendLog("Arduino", msg));
+
+    document.getElementById('modbus-address').addEventListener('input', updateModbus);
+    document.getElementById('modbus-baud').addEventListener('input', updateModbus);
+
+    async function updateModbus() {
+      const mb_address = parseInt(document.getElementById('modbus-address').value);
+      const mb_baud = parseInt(document.getElementById('modbus-baud').value);
+      await connection.send("values", { mb_address, mb_baud });
+    }
+
+    // === Inputs UI ===
+    const inputsContainer = document.getElementById('inputs-config');
+    for (let i = 1; i <= 17; i++) {
+      const div = document.createElement('div');
+      div.innerHTML = `
+        <div style="border: 1px solid #ccc; border-radius: 6px; background: #e6f7e8; padding: 1rem;">
+          <div style="display: flex; justify-content: space-between; font-weight: 600;">IN${i}
+            <span id="state-in${i}" style="width: 12px; height: 12px; background: #ccc; border-radius: 50%; display: inline-block;"></span>
+          </div>
+          <label><input type="checkbox" id="enable-in${i}"> Enabled</label><br>
+          <label><input type="checkbox" id="invert-in${i}"> Inverted</label><br>
+          <label>Alarm Group:
+            <select id="group-in${i}" style="width: 100%; padding: 6px; border-radius: 4px;">
+              <option value="0">None</option>
+              <option value="1">Group 1</option>
+              <option value="2">Group 2</option>
+              <option value="3">Group 3</option>
+            </select>
+          </label>
+        </div>`;
+      inputsContainer.appendChild(div);
+    }
+
+    // === Relays UI ===
+    const relaysContainer = document.getElementById('relays-config');
+    for (let i = 1; i <= 3; i++) {
+      const div = document.createElement('div');
+      div.innerHTML = `
+        <div style="border: 1px solid #ccc; border-radius: 6px; background: #f1f1f1; padding: 1rem;">
+          <div style="font-weight: 600;">Relay ${i}
+            <span style="float:right;">
+              <input type="checkbox" id="state-relay${i}" disabled>
+            </span>
+          </div>
+          <label><input type="checkbox" id="enable-relay${i}"> Enabled</label><br>
+          <label><input type="checkbox" id="invert-relay${i}"> Inverted</label><br>
+          <label>Alarm Group:
+            <select id="group-relay${i}" style="width: 100%; padding: 6px; border-radius: 4px;">
+              <option value="0">None</option>
+              <option value="1">Group 1</option>
+              <option value="2">Group 2</option>
+              <option value="3">Group 3</option>
+            </select>
+          </label>
+        </div>`;
+      relaysContainer.appendChild(div);
+    }
+
+    // === Handlers for Receiving Config and State ===
+    connection.on('inputs', list => {
+      list.forEach((val, idx) => {
+        const dot = document.getElementById(`state-in${idx + 1}`);
+        if (dot) dot.style.background = val ? '#4caf50' : '#ccc';
+      });
+    });
+
+    connection.on('enableList', list => {
+      list.forEach((val, idx) => {
+        const cb = document.getElementById(`enable-in${idx + 1}`);
+        if (cb) cb.checked = !!val;
+      });
+    });
+
+    connection.on('invertList', list => {
+      list.forEach((val, idx) => {
+        const cb = document.getElementById(`invert-in${idx + 1}`);
+        if (cb) cb.checked = !!val;
+      });
+    });
+
+    connection.on('groupList', list => {
+      list.forEach((val, idx) => {
+        const sel = document.getElementById(`group-in${idx + 1}`);
+        if (sel) sel.value = String(val || 0);
+      });
+    });
+
+    connection.on('relayStateList', list => {
+      list.forEach((val, idx) => {
+        const cb = document.getElementById(`state-relay${idx + 1}`);
+        if (cb) cb.checked = !!val;
+      });
+    });
+
+    connection.on('relayEnableList', list => {
+      list.forEach((val, idx) => {
+        const cb = document.getElementById(`enable-relay${idx + 1}`);
+        if (cb) cb.checked = !!val;
+      });
+    });
+
+    connection.on('relayInvertList', list => {
+      list.forEach((val, idx) => {
+        const cb = document.getElementById(`invert-relay${idx + 1}`);
+        if (cb) cb.checked = !!val;
+      });
+    });
+
+    connection.on('relayGroupList', list => {
+      list.forEach((val, idx) => {
+        const sel = document.getElementById(`group-relay${idx + 1}`);
+        if (sel) sel.value = String(val || 0);
+      });
+    });
+
+    // === Input Config Change Events ===
+    for (let i = 1; i <= 17; i++) {
+      document.getElementById(`enable-in${i}`).addEventListener('change', sendInputConfig);
+      document.getElementById(`invert-in${i}`).addEventListener('change', sendInputConfig);
+      document.getElementById(`group-in${i}`).addEventListener('change', sendInputConfig);
+    }
+
+    // === Relay Config Change Events ===
+    for (let i = 1; i <= 3; i++) {
+      document.getElementById(`enable-relay${i}`).addEventListener('change', sendRelayConfig);
+      document.getElementById(`invert-relay${i}`).addEventListener('change', sendRelayConfig);
+      document.getElementById(`group-relay${i}`).addEventListener('change', sendRelayConfig);
+    }
+
+    async function sendInputConfig() {
+      const enable = [], invert = [], group = [];
+      for (let i = 1; i <= 17; i++) {
+        enable.push(document.getElementById(`enable-in${i}`).checked);
+        invert.push(document.getElementById(`invert-in${i}`).checked);
+        group.push(parseInt(document.getElementById(`group-in${i}`).value || "0"));
+      }
+      await connection.send("inputEnableList", enable);
+      await connection.send("inputInvertList", invert);
+      await connection.send("inputGroupList", group);
+    }
+
+    async function sendRelayConfig() {
+      const enable = [], invert = [], group = [];
+      for (let i = 1; i <= 3; i++) {
+        enable.push(document.getElementById(`enable-relay${i}`).checked);
+        invert.push(document.getElementById(`invert-relay${i}`).checked);
+        group.push(parseInt(document.getElementById(`group-relay${i}`).value || "0"));
+      }
+      await connection.send("relayEnableList", enable);
+      await connection.send("relayInvertList", invert);
+      await connection.send("relayGroupList", group);
+    }
+  </script>
+</section>
