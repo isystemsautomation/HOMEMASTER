@@ -142,6 +142,7 @@ void handleValues(JSONVar values) {
 #endif
   modbusStatus["address"] = addr;
   modbusStatus["baud"]    = baud;
+  WebSerial.send("message", "Modbus configuration updated");
 }
 
 // Unified Config router: expects { t:"...", list:[...] }
@@ -157,23 +158,28 @@ void handleUnifiedConfig(JSONVar obj) {
     WebSerial.send("message", "Input Enabled list updated"); 
   } else if (type == "inputInvert") {
     for (int i=0;i<17 && i<list.length();i++) digitalInputs[i].inverted = (bool)list[i];
+    WebSerial.send("message", "Input Invert list updated");
   } else if (type == "inputGroup") {
     for (int i=0;i<17 && i<list.length();i++) digitalInputs[i].group = (uint8_t)(int)list[i];
+    WebSerial.send("message", "Input Alarm Group list updated");
   } else if (type == "relays") {
     for (int i = 0; i < 3 && i < list.length(); i++) {
       relayConfigs[i].enabled  = (bool)list[i]["enabled"];
       relayConfigs[i].inverted = (bool)list[i]["inverted"];
       relayConfigs[i].group    = (uint8_t)(int)list[i]["group"];
     }
+    WebSerial.send("message", "Relay Configuration updated");
   } else if (type == "buttons") {
     for (int i = 0; i < 4 && i < list.length(); i++) {
-      buttonCfg[i].action = (uint8_t)constrain((int)list[i]["action"], 0, 7);
+      buttonCfg[i].action = (uint8_t)constrain((int)list[i]["action"], 0, 7);      
     }
+    WebSerial.send("message", "Buttons Configuration updated");
   } else if (type == "leds") {
     for (int i = 0; i < 4 && i < list.length(); i++) {
       ledCfg[i].mode   = (uint8_t)constrain((int)list[i]["mode"],   0, 1);
       ledCfg[i].source = (uint8_t)constrain((int)list[i]["source"], 0, 7);
     }
+    WebSerial.send("message", "LEDs Configuration updated");
   } else if (type == "alarms") {
     for (int g = 0; g < 3 && g < list.length(); g++) {
       uint8_t m = (uint8_t)constrain((int)list[g], 0, 2);
@@ -183,8 +189,9 @@ void handleUnifiedConfig(JSONVar obj) {
       }
       alarmModeList[g] = m;
     }
+    WebSerial.send("message", "Alarms Configuration updated");
   } else {
-    // unknown type: ignore
+    WebSerial.send("message", "Unknown command recived");// unknown type: ignore
   }
 }
 

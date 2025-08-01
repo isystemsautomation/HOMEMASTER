@@ -26,6 +26,7 @@
       <button id="connect-button" type="button" style="padding:10px 20px;background:#007bff;color:#fff;border:none;border-radius:4px;">Connect</button>
     </div>
   </form>
+
   <div id="log-line" style="margin-bottom:1.5rem;padding:1rem;background:#f9f9f9;border:1px solid #ccc;border-radius:6px;font-size:0.9rem;color:#333;font-family:monospace;">
     <strong>Serial Log:</strong>
     <div id="log-content" style="white-space:pre-wrap;"></div>
@@ -81,38 +82,44 @@
     </div>
   </section>
 
-  
   <section>
     <h2 style="font-size:1.2rem;">Digital Inputs (17)</h2>
     <div id="inputs-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
   </section>
 
-  
   <section>
     <h2 style="font-size:1.2rem;">Relays (3)</h2>
     <div id="relays-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
   </section>
 
-  
   <section>
     <h2 style="font-size:1.2rem;">Buttons (4)</h2>
     <div id="buttons-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
   </section>
 
-  
   <section>
     <h2 style="font-size:1.2rem;">User LEDs (4)</h2>
     <div id="leds-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
   </section>
 
-  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
+  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
+  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
+  <script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
+
   <script>
     // -------- Utilities --------
+    const LOG_MAX = 3;               // keep only the last 3 log messages
+    const logBuffer = [];            // newest first
+
     function appendLog(label, data) {
-      const log = document.getElementById("log-content");
+      const logEl = document.getElementById("log-content");
       const time = new Date().toLocaleTimeString();
-      log.innerText = `[${time}] ${label}: ${typeof data === 'string' ? data : JSON.stringify(data)}\n` + log.innerText;
+      const line = `[${time}] ${label}: ${typeof data === 'string' ? data : JSON.stringify(data)}`;
+      logBuffer.unshift(line);
+      if (logBuffer.length > LOG_MAX) logBuffer.pop();
+      logEl.innerText = logBuffer.join('\n');
     }
+
     function setDot(id, active, onColor='#e53935') {
       const el = document.getElementById(id);
       if (el) el.style.background = active ? onColor : '#ccc';
@@ -335,19 +342,16 @@
     }));
 
     // ===== CHANGE HANDLERS -> unified sends =====
-    // Inputs: send separately by kind (via 'Config')
     for (let i = 1; i <= 17; i++) {
       document.getElementById(`enable-in${i}`).addEventListener('change', sendInputEnable);
       document.getElementById(`invert-in${i}`).addEventListener('change', sendInputInvert);
       document.getElementById(`group-in${i}`).addEventListener('change',  sendInputGroup);
     }
-    // Relays (unified)
     for (let i = 1; i <= 3; i++) {
       document.getElementById(`enable-relay${i}`).addEventListener('change', sendRelayConfig);
       document.getElementById(`invert-relay${i}`).addEventListener('change', sendRelayConfig);
       document.getElementById(`group-relay${i}`).addEventListener('change',  sendRelayConfig);
     }
-    // Buttons + LEDs (unified)
     for (let i = 1; i <= 4; i++) {
       document.getElementById(`action-button${i}`).addEventListener('change', sendButtonConfig);
       document.getElementById(`mode-led${i}`).addEventListener('change',    sendLedConfig);
