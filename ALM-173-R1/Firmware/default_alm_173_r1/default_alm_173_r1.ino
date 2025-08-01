@@ -25,7 +25,7 @@ const int SwitchIsts = 11;
 PCF8574 pcf20(0x20, &Wire1); // IN1..IN8
 PCF8574 pcf21(0x21, &Wire1); // IN9..IN16
 PCF8574 pcf23(0x23, &Wire1); // Relays + IN17 + user LEDs
-PCF8574 pcf27(0x27, &Wire1); // Lamps + Buttons (P0..P3 buttons, P4..P7 lamps)
+PCF8574 pcf27(0x27, &Wire1); // Lamps (P4..P7). P0..P3 unused (no buttons)
 
 // ===== Config structures =====
 struct ThreeCfg {
@@ -39,19 +39,17 @@ struct LedCfg {
   uint8_t  source;     // 0=None,1=Any,2=G1,3=G2,4=G3,5=R1 Overr.,6=R2 Overr.,7=R3 Overr.
 };
 
-struct ButtonCfg {
-  uint8_t  action;     // 0=None,1=AckAll,2..4=Ack G1..G3,5..7=Relay1..3 override toggle
-};
-
 // ===== Runtime state =====
 ThreeCfg  digitalInputs[17];
 ThreeCfg  relayConfigs[3];
 LedCfg    ledCfg[4];
-ButtonCfg buttonCfg[4];
 
-bool buttonState[4]   = {false,false,false,false}; // live read
-bool buttonPrev[4]    = {false,false,false,false}; // for edge detect
-bool relayOverride[3] = {false,false,false};       // used by LED sources 5..7
+// If LED sources 5..7 are kept, these flags exist but remain false without buttons.
+bool relayOverride[3] = {false,false,false};
+
+// Alarm modes: 0=None, 1=non-latched, 2=latched
+uint8_t alarmModeList[3] = {0,0,0};
+bool latchedGroup[4] = {false,false,false,false}; // use indexes 1..3
 
 // ===== LED pin mapping on pcf23 =====
 // pcf23 P0=IN17, P3/P6/P7=relays; use P1,P2,P4,P5 for user LEDs 1..4
@@ -76,31 +74,28 @@ void handleInputInvertList(JSONVar list);
 void handleInputGroupList(JSONVar list);
 void handleRelayConfigList(JSONVar list);
 void handleLedConfigList(JSONVar list);
-void handleButtonConfigList(JSONVar list);
+void handleAlarmModeList(JSONVar list);
 
 bool evalLedSource(uint8_t source, bool anyAlarm, const bool grpActive[4]);
 JSONVar LedConfigListFromCfg();
 
-// Optional stubs for acknowledgements (replace with your alarm logic)
-void ackAll() { WebSerial.send("message", "AckAll"); }
-void ackGroup(uint8_t g) { JSONVar m; m["ackGroup"]=g; WebSerial.send("message", m); }
-
+// ===== Setup =====
 void setup() {
   Serial.begin(57600);
 
   // Defaults
   for (int i = 0; i < 17; i++) digitalInputs[i] = { true, false, 0 };
   for (int i = 0; i < 3;  i++) relayConfigs[i]   = { true, false, 0 };
-  for (int i = 0; i < 4;  i++) { ledCfg[i] = { 0, 0 }; buttonCfg[i] = { 0 }; }
+  for (int i = 0; i < 4;  i++) ledCfg[i] = { 0, 0 };
 
-  // WebSerial handlers
+  // WebSerial handlers (all take JSONVar)
   WebSerial.on("values",            handleSetValues);
   WebSerial.on("inputEnableList",   handleInputEnableList);
   WebSerial.on("inputInvertList",   handleInputInvertList);
   WebSerial.on("inputGroupList",    handleInputGroupList);
-  WebSerial.on("relayConfigList",   handleRelayConfigList);   // [{enabled,inverted,group} x3]
-  WebSerial.on("LedConfigList",     handleLedConfigList);     // [{mode,source} x4]
-  WebSerial.on("ButtonConfigList",  handleButtonConfigList);  // [{action} x4]
+  WebSerial.on("relayConfigList",   handleRelayConfigList);
+  WebSerial.on("LedConfigList",     handleLedConfigList);
+  WebSerial.on("AlarmModeList",     handleAlarmModeList);   // [g1,g2,g3] each 0|1|2
 
   // I2C init
   Wire1.setSDA(SDA);
@@ -112,7 +107,7 @@ void setup() {
   Serial2.setTX(TX2); Serial2.setRX(RX2);
   Serial2.begin(19200);
   mb.config(19200);
-  mb.setAdditionalServerData("LAMP");
+  mb.setAdditionalServerData("ALM173");
 
   // Coils
   mb.addCoil(Lamp1Coil); mb.addCoil(Lamp2Coil); mb.addCoil(Lamp3Coil); mb.addCoil(Lamp4Coil);
@@ -124,7 +119,12 @@ void setup() {
   modbusStatus["baud"]    = 19200;
   modbusStatus["state"]   = 0;
 
-  WebSerial.send("message", "Boot OK (with button support)");
+  // Send initial alarm modes so UI shows defaults
+  JSONVar am;
+  for (int g = 0; g < 3; g++) am[g] = alarmModeList[g];
+  WebSerial.send("AlarmModeList", am);
+
+  WebSerial.send("message", "Boot OK (no buttons)");
 }
 
 // ===== Handlers =====
@@ -160,14 +160,21 @@ void handleLedConfigList(JSONVar list) {
     ledCfg[i].mode   = (uint8_t)constrain((int)list[i]["mode"],   0, 1);
     ledCfg[i].source = (uint8_t)constrain((int)list[i]["source"], 0, 7);
   }
-  WebSerial.send("message", "LED config applied");
 }
 
-void handleButtonConfigList(JSONVar list) {
-  for (int i = 0; i < 4 && i < list.length(); i++) {
-    buttonCfg[i].action = (uint8_t)constrain((int)list[i]["action"], 0, 7);
+void handleAlarmModeList(JSONVar list) {
+  for (int g = 0; g < 3 && g < list.length(); g++) {
+    uint8_t m = (uint8_t)constrain((int)list[g], 0, 2);
+    if (alarmModeList[g] != m && m != 2) {
+      // leaving latched mode -> clear latch
+      latchedGroup[g+1] = false; // latch indexes are 1..3
+    }
+    alarmModeList[g] = m;
   }
-  WebSerial.send("message", "Button config applied");
+  // Echo back for UI
+  JSONVar out;
+  for (int g = 0; g < 3; g++) out[g] = alarmModeList[g];
+  WebSerial.send("AlarmModeList", out);
 }
 
 // ===== Main loop =====
@@ -186,27 +193,8 @@ void loop() {
     // Modbus
     mb.task();
 
-    // Example: map input to coil for demo
+    // Example: mirror an input to a coil for demo
     mb.setCoil(SwitchIsts, pcf20.read(1));
-
-    // -------- Buttons: read (active-low on pcf27 P0..P3), rising edge ----------
-    for (int i = 0; i < 4; i++) {
-      bool raw = !pcf27.read(i); // P0..P3
-      buttonPrev[i] = buttonState[i];
-      buttonState[i] = raw;
-
-      if (!buttonPrev[i] && buttonState[i]) {
-        uint8_t act = buttonCfg[i].action;
-        if (act == 1) {               // Ack All
-          ackAll();
-        } else if (act >= 2 && act <= 4) { // Ack Group 1..3
-          ackGroup(act - 1);
-        } else if (act >= 5 && act <= 7) { // Toggle relay override flags
-          int r = act - 5; // 0..2
-          relayOverride[r] = !relayOverride[r];
-        }
-      }
-    }
 
     // -------- Relays from Modbus coils ----------
     JSONVar relayStateList;
@@ -218,6 +206,7 @@ void loop() {
       if (!relayConfigs[i].enabled) outVal = false;
       if (relayConfigs[i].inverted) outVal = !outVal;
 
+      // write to pcf23 pins (adjust if wiring differs)
       switch (i) {
         case 0: pcf23.write(3, outVal); break;
         case 1: pcf23.write(7, outVal); break;
@@ -231,11 +220,10 @@ void loop() {
     pcf27.write(5, mb.Coil(Lamp3Coil));
     pcf27.write(4, mb.Coil(Lamp4Coil));
 
-    // -------- Inputs + simple alarm derivation ----------
-    bool grpActive[4] = {false,false,false,false}; // 1..3 used
-    bool anyAlarm = false;
-
+    // -------- Inputs (17) + Alarm evaluation ----------
+    bool grpCondition[4] = {false,false,false,false}; // per-group condition (1..3)
     JSONVar inputs;
+
     for (int i = 0; i < 17; i++) {
       bool val = false;
       if (digitalInputs[i].enabled) {
@@ -247,19 +235,36 @@ void loop() {
       inputs[i] = val;
 
       uint8_t g = digitalInputs[i].group; // 0..3
-      if (val) {
-        if (g >= 1 && g <= 3) grpActive[g] = true;
-        if (g != 0) anyAlarm = true;
+      if (val && g >= 1 && g <= 3) grpCondition[g] = true;
+    }
+
+    // Compute alarm active per group based on mode + latches
+    bool grpAlarmActive[4] = {false,false,false,false};
+    for (int g = 1; g <= 3; g++) {
+      switch (alarmModeList[g-1]) {
+        case 0: // None
+          grpAlarmActive[g] = false;
+          latchedGroup[g] = false;
+          break;
+        case 1: // Non-latched
+          grpAlarmActive[g] = grpCondition[g];
+          latchedGroup[g] = false;
+          break;
+        case 2: // Latched
+          if (grpCondition[g]) latchedGroup[g] = true;   // set latch when condition true
+          grpAlarmActive[g] = grpCondition[g] || latchedGroup[g];
+          break;
       }
     }
+    bool anyAlarmActive = grpAlarmActive[1] || grpAlarmActive[2] || grpAlarmActive[3];
 
     // -------- User LEDs ----------
     JSONVar LedStateList;
     for (int i = 0; i < 4; i++) {
-      bool active = evalLedSource(ledCfg[i].source, anyAlarm, grpActive);
+      bool active = evalLedSource(ledCfg[i].source, anyAlarmActive, grpAlarmActive);
       bool phys = (ledCfg[i].mode == 0) ? active : (active && blinkPhase);
       LedStateList[i] = phys;
-      pcf23.write(LED_PINS[i], phys);
+      pcf23.write(LED_PINS[i], phys); // active-high; invert here if HW is active-low
     }
 
     // -------- Echo config arrays for UI sync ----------
@@ -277,11 +282,19 @@ void loop() {
       relayGroupList[i]  = relayConfigs[i].group;
     }
 
-    // Buttons state + configured actions
-    JSONVar ButtonStateList, ButtonGroupList;
-    for (int i = 0; i < 4; i++) {
-      ButtonStateList[i] = buttonState[i];
-      ButtonGroupList[i] = buttonCfg[i].action;
+    JSONVar LedConfigList = LedConfigListFromCfg();
+
+    // Alarm Mode echo
+    JSONVar AlarmModeList;
+    for (int g = 0; g < 3; g++) AlarmModeList[g] = alarmModeList[g];
+
+    // Alarm State { any, groups:[g1,g2,g3] }
+    JSONVar AlarmState;
+    AlarmState["any"] = anyAlarmActive;
+    {
+      JSONVar groups;
+      for (int g = 1; g <= 3; g++) groups[g-1] = grpAlarmActive[g];
+      AlarmState["groups"] = groups;
     }
 
     // -------- Send to Web --------
@@ -298,11 +311,11 @@ void loop() {
     WebSerial.send("relayInvertList", relayInvertList);
     WebSerial.send("relayGroupList", relayGroupList);
 
-    WebSerial.send("ButtonStateList", ButtonStateList);
-    WebSerial.send("ButtonGroupList", ButtonGroupList);
-
-    WebSerial.send("LedConfigList", LedConfigListFromCfg());
+    WebSerial.send("LedConfigList", LedConfigList);
     WebSerial.send("LedStateList", LedStateList);
+
+    WebSerial.send("AlarmModeList", AlarmModeList); // echo
+    WebSerial.send("AlarmState",   AlarmState);     // live state
   }
 }
 
@@ -319,11 +332,11 @@ JSONVar LedConfigListFromCfg() {
 bool evalLedSource(uint8_t source, bool anyAlarm, const bool grpActive[4]) {
   switch (source) {
     case 0: return false;            // None
-    case 1: return anyAlarm;         // Any alarm
+    case 1: return anyAlarm;         // Any alarm active
     case 2: return grpActive[1];     // Group 1
     case 3: return grpActive[2];     // Group 2
     case 4: return grpActive[3];     // Group 3
-    case 5: return relayOverride[0]; // Relay 1 overridden
+    case 5: return relayOverride[0]; // Relay 1 overridden (unused without buttons)
     case 6: return relayOverride[1]; // Relay 2 overridden
     case 7: return relayOverride[2]; // Relay 3 overridden
     default: return false;
