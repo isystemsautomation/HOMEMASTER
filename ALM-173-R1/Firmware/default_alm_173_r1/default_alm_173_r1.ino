@@ -4,6 +4,16 @@
 #include <ModbusSerial.h>
 #include <SimpleWebSerial.h>
 #include <Arduino_JSON.h>   // JSONVar
+#include "hardware/watchdog.h"
+
+// ===== Optional architecture-specific includes for reset =====
+#if defined(ARDUINO_ARCH_AVR)
+  #include <avr/wdt.h>
+#endif
+#if defined(ARDUINO_ARCH_ESP32)
+  #include <esp_system.h>
+  #include <ESP.h>
+#endif
 
 // ===== Hardware pins (adjust for your board) =====
 #define SDA 6
@@ -77,6 +87,10 @@ bool blinkPhase = false;
 void handleValues(JSONVar values);
 void handleUnifiedConfig(JSONVar obj);
 
+// NEW: reset command handler + reset helper
+void handleCommand(JSONVar obj);
+void performReset();
+
 bool evalLedSource(uint8_t source, bool anyAlarm, const bool grpActive[4]);
 JSONVar LedConfigListFromCfg();
 void sendAllEchoesOnce();
@@ -96,6 +110,7 @@ void setup() {
   // WebSerial handlers
   WebSerial.on("values", handleValues);          // { mb_address, mb_baud }
   WebSerial.on("Config", handleUnifiedConfig);   // { t: "...", list: [...] }
+  WebSerial.on("command", handleCommand);        // { action: "reset" | ... }
 
   // I2C init
   Wire1.setSDA(SDA);
@@ -126,6 +141,34 @@ void setup() {
 
   WebSerial.send("message", "Boot OK");
   sendAllEchoesOnce();
+}
+
+// ===== NEW: Command handler =====
+void handleCommand(JSONVar obj) {
+  const char* actC = (const char*)obj["action"];
+  if (!actC) {
+    WebSerial.send("message", "command: missing 'action'");
+    return;
+  }
+  String act = String(actC);
+  act.toLowerCase();
+
+  if (act == "reset" || act == "reboot") {
+    WebSerial.send("message", "Reset command received. Rebooting...");
+    // small delay to let message flush out over serial bridge
+    delay(100);
+    performReset(); // does not return
+  } else {
+    WebSerial.send("message", String("Unknown command: ") + actC);
+  }
+}
+
+// ===== NEW: Cross-platform reset helper =====
+void performReset() {
+  if (Serial) Serial.flush();   // let pending USB bytes go
+  delay(50);                    // small grace period
+  watchdog_reboot(0, 0, 0);     // immediate reboot (RP2350/Pico SDK)
+  while (true) { __asm__("wfi"); } // wait until reset
 }
 
 // ===== Handlers =====
@@ -191,7 +234,7 @@ void handleUnifiedConfig(JSONVar obj) {
     }
     WebSerial.send("message", "Alarms Configuration updated");
   } else {
-    WebSerial.send("message", "Unknown command recived");// unknown type: ignore
+    WebSerial.send("message", "Unknown command received"); // unknown type: ignore
   }
 }
 
