@@ -1,74 +1,73 @@
-<section style="font-family: 'Segoe UI', sans-serif; padding: 2rem; max-width: 960px; margin: auto;">
-  <div id="log-line" style="margin-bottom: 1.5rem; padding: 1rem; background: #f9f9f9; border: 1px solid #ccc; border-radius: 6px; font-size: 0.9rem; color: #333; font-family: monospace;">
+<section style="font-family:'Segoe UI',sans-serif;padding:2rem;max-width:960px;margin:auto;">
+  <div id="log-line" style="margin-bottom:1.5rem;padding:1rem;background:#f9f9f9;border:1px solid #ccc;border-radius:6px;font-size:0.9rem;color:#333;font-family:monospace;">
     <strong>Serial Log:</strong>
-    <div id="log-content" style="white-space: pre-wrap;"></div>
+    <div id="log-content" style="white-space:pre-wrap;"></div>
   </div>
 
-  <div style="text-align: center; margin-bottom: 2rem;">
-    <img src="https://www.home-master.eu/web/image/product.product/719/image_1024/ALM-173-R1%20Module%20for%20Alarm%20Systems?unique=f079b61" alt="ALM-173-R1" style="max-width: 300px; border-radius: 8px;" loading="lazy">
+  <div style="text-align:center;margin-bottom:2rem;">
+    <img src="https://www.home-master.eu/web/image/product.product/719/image_1024/ALM-173-R1%20Module%20for%20Alarm%20Systems?unique=f079b61" alt="ALM-173-R1" style="max-width:300px;border-radius:8px;" loading="lazy">
     <h2>ALM-173-R1 Module Configuration</h2>
-    <p>Configure Modbus address, baud rate, inputs, relays, and buttons via Web Serial.</p>
+    <p>Configure Modbus address, baud rate, inputs, relays, buttons and user LEDs via Web Serial.</p>
   </div>
 
-  <div style="background: #f1f1f1; padding: 1rem 1.5rem; margin-bottom: 2rem; border-radius: 6px; border-left: 4px solid #007bff;">
+  <div style="background:#f1f1f1;padding:1rem 1.5rem;margin-bottom:2rem;border-radius:6px;border-left:4px solid #007bff;">
     <strong>Active Modbus Configuration</strong><br>
-    Address: <span id="live-address" style="font-weight: 600;">--</span> |
-    Baud Rate: <span id="live-baud" style="font-weight: 600;">--</span>
+    Address: <span id="live-address" style="font-weight:600;">--</span> |
+    Baud Rate: <span id="live-baud" style="font-weight:600;">--</span>
   </div>
 
-  <form id="modbus-config" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+  <form id="modbus-config" style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:2rem;">
     <div>
       <label for="modbus-address"><strong>Modbus Address</strong></label>
-      <select id="modbus-address" style="width: 100%; padding: 10px; border-radius: 4px;"></select>
+      <select id="modbus-address" style="width:100%;padding:10px;border-radius:4px;"></select>
     </div>
     <div>
       <label for="modbus-baud"><strong>Baud Rate</strong></label>
-      <select id="modbus-baud" style="width: 100%; padding: 10px; border-radius: 4px;">
-        <option>9600</option>
-        <option>19200</option>
-        <option>38400</option>
-        <option>57600</option>
-        <option>115200</option>
+      <select id="modbus-baud" style="width:100%;padding:10px;border-radius:4px;">
+        <option>9600</option><option>19200</option><option>38400</option><option>57600</option><option>115200</option>
       </select>
     </div>
-    <div style="grid-column: span 2; text-align: right;">
-      <button id="connect-button" type="button" style="padding: 10px 20px; background: #007bff; color: #fff; border: none; border-radius: 4px;">Connect</button>
+    <div style="grid-column:span 2;text-align:right;">
+      <button id="connect-button" type="button" style="padding:10px 20px;background:#007bff;color:#fff;border:none;border-radius:4px;">Connect</button>
     </div>
   </form>
 
   <section>
-    <h2 style="font-size: 1.2rem;">Digital Inputs Configuration</h2>
-    <div id="inputs-config" style="display: grid; grid-template-columns: repeat(auto-fill,minmax(250px,1fr)); gap: 1rem;"></div>
+    <h2 style="font-size:1.2rem;">Digital Inputs (17)</h2>
+    <div id="inputs-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
   </section>
 
   <section>
-    <h2 style="font-size: 1.2rem;">Relays Configuration</h2>
-    <div id="relays-config" style="display: grid; grid-template-columns: repeat(auto-fill,minmax(250px,1fr)); gap: 1rem;"></div>
+    <h2 style="font-size:1.2rem;">Relays (3)</h2>
+    <div id="relays-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
   </section>
 
   <section>
-    <h2 style="font-size: 1.2rem;">Buttons</h2>
-    <div id="buttons-config" style="display: grid; grid-template-columns: repeat(auto-fill,minmax(250px,1fr)); gap: 1rem;"></div>
+    <h2 style="font-size:1.2rem;">Buttons (4)</h2>
+    <div id="buttons-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
+  </section>
+
+  <section>
+    <h2 style="font-size:1.2rem;">User LEDs (4)</h2>
+    <div id="leds-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
   </section>
 
   <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
   <script>
-    // --- Utility ---
+    // -------- Utilities --------
     function appendLog(label, data) {
       const log = document.getElementById("log-content");
       const time = new Date().toLocaleTimeString();
-      log.innerText = `[${time}] ${label}: ${JSON.stringify(data)}\n` + log.innerText;
+      log.innerText = `[${time}] ${label}: ${typeof data === 'string' ? data : JSON.stringify(data)}\n` + log.innerText;
     }
 
-    // --- Modbus address dropdown ---
+    // Fill Modbus address dropdown
     const addrSelect = document.getElementById('modbus-address');
     for (let i = 1; i <= 255; i++) {
-      const opt = document.createElement('option');
-      opt.value = i; opt.textContent = i;
-      addrSelect.appendChild(opt);
+      const opt = document.createElement('option'); opt.value = i; opt.textContent = i; addrSelect.appendChild(opt);
     }
 
-    // --- Web Serial setup ---
+    // WebSerial setup
     const connection = SimpleWebSerial.setupSerialConnection({
       requestAccessOnPageLoad: false,
       requestElement: 'connect-button'
@@ -85,41 +84,40 @@
     document.getElementById('modbus-address').addEventListener('input', updateModbus);
     document.getElementById('modbus-baud').addEventListener('input', updateModbus);
     async function updateModbus() {
-      const mb_address = parseInt(document.getElementById('modbus-address').value);
-      const mb_baud = parseInt(document.getElementById('modbus-baud').value);
+      const mb_address = parseInt(document.getElementById('modbus-address').value || "1");
+      const mb_baud = parseInt(document.getElementById('modbus-baud').value || "19200");
       await connection.send("values", { mb_address, mb_baud });
     }
 
-    // === Inputs UI ===
+    // -------- Build Inputs UI --------
     const inputsContainer = document.getElementById('inputs-config');
     for (let i = 1; i <= 17; i++) {
       const div = document.createElement('div');
       div.innerHTML = `
-        <div style="border: 1px solid #ccc; border-radius: 6px; background: #e6f7e8; padding: 1rem;">
-          <div style="display: flex; justify-content: space-between; font-weight: 600;">IN${i}
-            <span id="state-in${i}" style="width: 12px; height: 12px; background: #ccc; border-radius: 50%; display: inline-block;"></span>
+        <div style="border:1px solid #ccc;border-radius:6px;background:#e6f7e8;padding:1rem;">
+          <div style="display:flex;justify-content:space-between;font-weight:600;">
+            IN${i}
+            <span id="state-in${i}" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;"></span>
           </div>
           <label><input type="checkbox" id="enable-in${i}"> Enabled</label><br>
           <label><input type="checkbox" id="invert-in${i}"> Inverted</label><br>
           <label>Alarm Group:
-            <select id="group-in${i}" style="width: 100%; padding: 6px; border-radius: 4px;">
-              <option value="0">None</option>
-              <option value="1">Group 1</option>
-              <option value="2">Group 2</option>
-              <option value="3">Group 3</option>
+            <select id="group-in${i}" style="width:100%;padding:6px;border-radius:4px;">
+              <option value="0">None</option><option value="1">Group 1</option><option value="2">Group 2</option><option value="3">Group 3</option>
             </select>
           </label>
         </div>`;
       inputsContainer.appendChild(div);
     }
 
-    // === Relays UI ===
+    // -------- Build Relays UI --------
     const relaysContainer = document.getElementById('relays-config');
     for (let i = 1; i <= 3; i++) {
       const div = document.createElement('div');
       div.innerHTML = `
-        <div style="border: 1px solid #ccc; border-radius: 6px; background: #f1f1f1; padding: 1rem;">
-          <div style="font-weight: 600;">Relay ${i}
+        <div style="border:1px solid #ccc;border-radius:6px;background:#f1f1f1;padding:1rem;">
+          <div style="font-weight:600;">
+            Relay ${i}
             <span style="float:right;">
               <input type="checkbox" id="state-relay${i}" disabled>
             </span>
@@ -127,39 +125,37 @@
           <label><input type="checkbox" id="enable-relay${i}"> Enabled</label><br>
           <label><input type="checkbox" id="invert-relay${i}"> Inverted</label><br>
           <label>Alarm Group:
-            <select id="group-relay${i}" style="width: 100%; padding: 6px; border-radius: 4px;">
-              <option value="0">None</option>
-              <option value="1">Group 1</option>
-              <option value="2">Group 2</option>
-              <option value="3">Group 3</option>
+            <select id="group-relay${i}" style="width:100%;padding:6px;border-radius:4px;">
+              <option value="0">None</option><option value="1">Group 1</option><option value="2">Group 2</option><option value="3">Group 3</option>
             </select>
           </label>
         </div>`;
       relaysContainer.appendChild(div);
     }
 
-    // === Buttons UI ===
+    // -------- Build Buttons UI --------
     const buttonsContainer = document.getElementById('buttons-config');
     const BUTTON_ACTIONS = [
-      {value: 0, label: 'None'},
-      {value: 1, label: 'All alarm acknowledge'},
-      {value: 2, label: 'Alarm group 1 acknowledge'},
-      {value: 3, label: 'Alarm group 2 acknowledge'},
-      {value: 4, label: 'Alarm group 3 acknowledge'},
-      {value: 5, label: 'Relay 1 override (manual)'},
-      {value: 6, label: 'Relay 2 override (manual)'},
-      {value: 7, label: 'Relay 3 override (manual)'}
+      {value:0,label:'None'},
+      {value:1,label:'All alarm acknowledge'},
+      {value:2,label:'Alarm group 1 acknowledge'},
+      {value:3,label:'Alarm group 2 acknowledge'},
+      {value:4,label:'Alarm group 3 acknowledge'},
+      {value:5,label:'Relay 1 override (manual)'},
+      {value:6,label:'Relay 2 override (manual)'},
+      {value:7,label:'Relay 3 override (manual)'},
     ];
     for (let i = 1; i <= 4; i++) {
       const options = BUTTON_ACTIONS.map(a => `<option value="${a.value}">${a.label}</option>`).join('');
       const div = document.createElement('div');
       div.innerHTML = `
-        <div style="border: 1px solid #ccc; border-radius: 6px; background: #cbdcf7; padding: 1rem;">
-          <div style="font-weight: 600;">Button ${i}
-            <span id="state-button${i}" style="width: 12px; height: 12px; background: #ccc; border-radius: 50%; display: inline-block; float:right;"></span>
+        <div style="border:1px solid #ccc;border-radius:6px;background:#cbdcf7;padding:1rem;">
+          <div style="font-weight:600;">
+            Button ${i}
+            <span id="state-button${i}" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;float:right;"></span>
           </div>
           <label>Action:
-            <select id="action-button${i}" style="width: 100%; padding: 6px; border-radius: 4px;">
+            <select id="action-button${i}" style="width:100%;padding:6px;border-radius:4px;">
               ${options}
             </select>
           </label>
@@ -167,49 +163,95 @@
       buttonsContainer.appendChild(div);
     }
 
-    // === Receive states/config from Arduino ===
+    // -------- Build LEDs UI --------
+    const ledsContainer = document.getElementById('leds-config');
+    const LED_MODE = [
+      {value:0,label:'Steady (when active)'},
+      {value:1,label:'Blink (when active)'},
+    ];
+    const LED_SOURCE = [
+      {value:0,label:'None'},
+      {value:1,label:'Any alarm'},
+      {value:2,label:'Alarm group 1'},
+      {value:3,label:'Alarm group 2'},
+      {value:4,label:'Alarm group 3'},
+      {value:5,label:'Relay 1 overridden'},
+      {value:6,label:'Relay 2 overridden'},
+      {value:7,label:'Relay 3 overridden'},
+    ];
+    for (let i = 1; i <= 4; i++) {
+      const modeOpts = LED_MODE.map(a => `<option value="${a.value}">${a.label}</option>`).join('');
+      const srcOpts  = LED_SOURCE.map(a => `<option value="${a.value}">${a.label}</option>`).join('');
+      const div = document.createElement('div');
+      div.innerHTML = `
+        <div style="border:1px solid #ccc;border-radius:6px;background:#f3f5d0;padding:1rem;">
+          <div style="font-weight:600;">
+            User LED ${i}
+            <span id="state-led${i}" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;float:right;"></span>
+          </div>
+          <label>Mode:
+            <select id="mode-led${i}" style="width:100%;padding:6px;border-radius:4px;">${modeOpts}</select>
+          </label><br>
+          <label>Trigger source:
+            <select id="source-led${i}" style="width:100%;padding:6px;border-radius:4px;">${srcOpts}</select>
+          </label>
+        </div>`;
+      ledsContainer.appendChild(div);
+    }
+
+    // -------- Receive: Inputs --------
     connection.on('inputs', list => {
-      list.forEach((val, idx) => {
-        const dot = document.getElementById(`state-in${idx + 1}`);
-        if (dot) dot.style.background = val ? '#4caf50' : '#ccc';
+      list.forEach((v, i) => {
+        const dot = document.getElementById(`state-in${i+1}`);
+        if (dot) dot.style.background = v ? '#4caf50' : '#ccc';
       });
     });
-    connection.on('enableList', list => list.forEach((v, i) => {
-      const cb = document.getElementById(`enable-in${i + 1}`); if (cb) cb.checked = !!v;
+    connection.on('enableList', list => list.forEach((v,i) => {
+      const el = document.getElementById(`enable-in${i+1}`); if (el) el.checked = !!v;
     }));
-    connection.on('invertList', list => list.forEach((v, i) => {
-      const cb = document.getElementById(`invert-in${i + 1}`); if (cb) cb.checked = !!v;
+    connection.on('invertList', list => list.forEach((v,i) => {
+      const el = document.getElementById(`invert-in${i+1}`); if (el) el.checked = !!v;
     }));
-    connection.on('groupList', list => list.forEach((v, i) => {
-      const sel = document.getElementById(`group-in${i + 1}`); if (sel) sel.value = String(v || 0);
-    }));
-
-    // Relay states from Arduino (display-only)
-    connection.on('relayStateList', list => list.forEach((v, i) => {
-      const cb = document.getElementById(`state-relay${i + 1}`); if (cb) cb.checked = !!v;
-    }));
-    // Optional: if Arduino still sends separate relay config lists, keep syncing UI:
-    connection.on('relayEnableList', list => list.forEach((v, i) => {
-      const cb = document.getElementById(`enable-relay${i + 1}`); if (cb) cb.checked = !!v;
-    }));
-    connection.on('relayInvertList', list => list.forEach((v, i) => {
-      const cb = document.getElementById(`invert-relay${i + 1}`); if (cb) cb.checked = !!v;
-    }));
-    connection.on('relayGroupList', list => list.forEach((v, i) => {
-      const sel = document.getElementById(`group-relay${i + 1}`); if (sel) sel.value = String(v || 0);
+    connection.on('groupList', list => list.forEach((v,i) => {
+      const el = document.getElementById(`group-in${i+1}`); if (el) el.value = String(v || 0);
     }));
 
-    // Button states from Arduino
-    connection.on('ButtonStateList', list => list.forEach((v, i) => {
-      const dot = document.getElementById(`state-button${i + 1}`);
+    // -------- Receive: Relays --------
+    connection.on('relayStateList', list => list.forEach((v,i) => {
+      const el = document.getElementById(`state-relay${i+1}`); if (el) el.checked = !!v;
+    }));
+    connection.on('relayEnableList', list => list.forEach((v,i) => {
+      const el = document.getElementById(`enable-relay${i+1}`); if (el) el.checked = !!v;
+    }));
+    connection.on('relayInvertList', list => list.forEach((v,i) => {
+      const el = document.getElementById(`invert-relay${i+1}`); if (el) el.checked = !!v;
+    }));
+    connection.on('relayGroupList', list => list.forEach((v,i) => {
+      const el = document.getElementById(`group-relay${i+1}`); if (el) el.value = String(v || 0);
+    }));
+
+    // -------- Receive: Buttons --------
+    connection.on('ButtonStateList', list => list.forEach((v,i) => {
+      const dot = document.getElementById(`state-button${i+1}`);
       if (dot) dot.style.background = v ? '#4caf50' : '#ccc';
     }));
-    // Optional: If Arduino sends ButtonGroupList for initial fill, sync dropdowns
-    connection.on('ButtonGroupList', list => list.forEach((v, i) => {
-      const sel = document.getElementById(`action-button${i + 1}`); if (sel) sel.value = String(v || 0);
+    connection.on('ButtonGroupList', list => list.forEach((v,i) => {
+      const el = document.getElementById(`action-button${i+1}`); if (el) el.value = String(v || 0);
     }));
 
-    // === Change events -> send combined arrays ===
+    // -------- Receive: LEDs --------
+    connection.on('LedConfigList', list => list.forEach((obj,i) => {
+      const modeEl = document.getElementById(`mode-led${i+1}`);
+      const srcEl  = document.getElementById(`source-led${i+1}`);
+      if (modeEl && typeof obj?.mode !== 'undefined') modeEl.value = String(obj.mode);
+      if (srcEl  && typeof obj?.source !== 'undefined') srcEl.value = String(obj.source);
+    }));
+    connection.on('LedStateList', list => list.forEach((v,i) => {
+      const dot = document.getElementById(`state-led${i+1}`);
+      if (dot) dot.style.background = v ? '#ffb300' : '#ccc';
+    }));
+
+    // -------- Change events -> send combined arrays --------
     for (let i = 1; i <= 17; i++) {
       document.getElementById(`enable-in${i}`).addEventListener('change', sendInputConfig);
       document.getElementById(`invert-in${i}`).addEventListener('change', sendInputConfig);
@@ -222,6 +264,8 @@
     }
     for (let i = 1; i <= 4; i++) {
       document.getElementById(`action-button${i}`).addEventListener('change', sendButtonConfig);
+      document.getElementById(`mode-led${i}`).addEventListener('change', sendLedConfig);
+      document.getElementById(`source-led${i}`).addEventListener('change', sendLedConfig);
     }
 
     async function sendInputConfig() {
@@ -236,7 +280,7 @@
       await connection.send("inputGroupList", group);
     }
 
-    // NEW: combined relay config -> single array of objects
+    // Combined relay config -> single array of objects
     async function sendRelayConfig() {
       const relayConfigs = [];
       for (let i = 1; i <= 3; i++) {
@@ -249,15 +293,25 @@
       await connection.send("relayConfigList", relayConfigs);
     }
 
-    // NEW: buttons config -> single array of objects
+    // Combined button config -> single array of objects
     async function sendButtonConfig() {
       const buttonConfigs = [];
       for (let i = 1; i <= 4; i++) {
-        buttonConfigs.push({
-          action: parseInt(document.getElementById(`action-button${i}`).value || "0")
-        });
+        buttonConfigs.push({ action: parseInt(document.getElementById(`action-button${i}`).value || "0") });
       }
       await connection.send("ButtonConfigList", buttonConfigs);
+    }
+
+    // Combined LED config -> single array of objects
+    async function sendLedConfig() {
+      const ledConfigs = [];
+      for (let i = 1; i <= 4; i++) {
+        ledConfigs.push({
+          mode: parseInt(document.getElementById(`mode-led${i}`).value || "0"),
+          source: parseInt(document.getElementById(`source-led${i}`).value || "0")
+        });
+      }
+      await connection.send("LedConfigList", ledConfigs);
     }
   </script>
 </section>
