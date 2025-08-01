@@ -7,7 +7,7 @@
   <div style="text-align:center;margin-bottom:2rem;">
     <img src="https://www.home-master.eu/web/image/product.product/719/image_1024/ALM-173-R1%20Module%20for%20Alarm%20Systems?unique=f079b61" alt="ALM-173-R1" style="max-width:300px;border-radius:8px;" loading="lazy">
     <h2>ALM-173-R1 Module Configuration</h2>
-    <p>Configure Modbus address, baud rate, inputs, relays, buttons and user LEDs via Web Serial.</p>
+    <p>Configure Modbus address, baud rate, inputs, relays and user LEDs via Web Serial.</p>
   </div>
 
   <div style="background:#f1f1f1;padding:1rem 1.5rem;margin-bottom:2rem;border-radius:6px;border-left:4px solid #007bff;">
@@ -43,16 +43,12 @@
   </section>
 
   <section>
-    <h2 style="font-size:1.2rem;">Buttons (4)</h2>
-    <div id="buttons-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
-  </section>
-
-  <section>
     <h2 style="font-size:1.2rem;">User LEDs (4)</h2>
     <div id="leds-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
   </section>
 
-  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
+  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
+  <script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
   <script>
     // -------- Utilities --------
     function appendLog(label, data) {
@@ -133,36 +129,6 @@
       relaysContainer.appendChild(div);
     }
 
-    // -------- Build Buttons UI --------
-    const buttonsContainer = document.getElementById('buttons-config');
-    const BUTTON_ACTIONS = [
-      {value:0,label:'None'},
-      {value:1,label:'All alarm acknowledge'},
-      {value:2,label:'Alarm group 1 acknowledge'},
-      {value:3,label:'Alarm group 2 acknowledge'},
-      {value:4,label:'Alarm group 3 acknowledge'},
-      {value:5,label:'Relay 1 override (manual)'},
-      {value:6,label:'Relay 2 override (manual)'},
-      {value:7,label:'Relay 3 override (manual)'},
-    ];
-    for (let i = 1; i <= 4; i++) {
-      const options = BUTTON_ACTIONS.map(a => `<option value="${a.value}">${a.label}</option>`).join('');
-      const div = document.createElement('div');
-      div.innerHTML = `
-        <div style="border:1px solid #ccc;border-radius:6px;background:#cbdcf7;padding:1rem;">
-          <div style="font-weight:600;">
-            Button ${i}
-            <span id="state-button${i}" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;float:right;"></span>
-          </div>
-          <label>Action:
-            <select id="action-button${i}" style="width:100%;padding:6px;border-radius:4px;">
-              ${options}
-            </select>
-          </label>
-        </div>`;
-      buttonsContainer.appendChild(div);
-    }
-
     // -------- Build LEDs UI --------
     const ledsContainer = document.getElementById('leds-config');
     const LED_MODE = [
@@ -230,15 +196,6 @@
       const el = document.getElementById(`group-relay${i+1}`); if (el) el.value = String(v || 0);
     }));
 
-    // -------- Receive: Buttons --------
-    connection.on('ButtonStateList', list => list.forEach((v,i) => {
-      const dot = document.getElementById(`state-button${i+1}`);
-      if (dot) dot.style.background = v ? '#4caf50' : '#ccc';
-    }));
-    connection.on('ButtonGroupList', list => list.forEach((v,i) => {
-      const el = document.getElementById(`action-button${i+1}`); if (el) el.value = String(v || 0);
-    }));
-
     // -------- Receive: LEDs --------
     connection.on('LedConfigList', list => list.forEach((obj,i) => {
       const modeEl = document.getElementById(`mode-led${i+1}`);
@@ -263,7 +220,6 @@
       document.getElementById(`group-relay${i}`).addEventListener('change', sendRelayConfig);
     }
     for (let i = 1; i <= 4; i++) {
-      document.getElementById(`action-button${i}`).addEventListener('change', sendButtonConfig);
       document.getElementById(`mode-led${i}`).addEventListener('change', sendLedConfig);
       document.getElementById(`source-led${i}`).addEventListener('change', sendLedConfig);
     }
@@ -291,15 +247,6 @@
         });
       }
       await connection.send("relayConfigList", relayConfigs);
-    }
-
-    // Combined button config -> single array of objects
-    async function sendButtonConfig() {
-      const buttonConfigs = [];
-      for (let i = 1; i <= 4; i++) {
-        buttonConfigs.push({ action: parseInt(document.getElementById(`action-button${i}`).value || "0") });
-      }
-      await connection.send("ButtonConfigList", buttonConfigs);
     }
 
     // Combined LED config -> single array of objects
