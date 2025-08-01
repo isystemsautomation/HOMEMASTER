@@ -7,7 +7,7 @@
   <div style="text-align: center; margin-bottom: 2rem;">
     <img src="https://www.home-master.eu/web/image/product.product/719/image_1024/ALM-173-R1%20Module%20for%20Alarm%20Systems?unique=f079b61" alt="ALM-173-R1" style="max-width: 300px; border-radius: 8px;" loading="lazy">
     <h2>ALM-173-R1 Module Configuration</h2>
-    <p>Configure Modbus address, baud rate, inputs, and relays via Web Serial.</p>
+    <p>Configure Modbus address, baud rate, inputs, relays, and buttons via Web Serial.</p>
   </div>
 
   <div style="background: #f1f1f1; padding: 1rem 1.5rem; margin-bottom: 2rem; border-radius: 6px; border-left: 4px solid #007bff;">
@@ -46,26 +46,33 @@
     <div id="relays-config" style="display: grid; grid-template-columns: repeat(auto-fill,minmax(250px,1fr)); gap: 1rem;"></div>
   </section>
 
+  <section>
+    <h2 style="font-size: 1.2rem;">Buttons</h2>
+    <div id="buttons-config" style="display: grid; grid-template-columns: repeat(auto-fill,minmax(250px,1fr)); gap: 1rem;"></div>
+  </section>
+
   <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
   <script>
-    const addrSelect = document.getElementById('modbus-address');
-    for (let i = 1; i <= 255; i++) {
-      const opt = document.createElement('option');
-      opt.value = i;
-      opt.textContent = i;
-      addrSelect.appendChild(opt);
-    }
-
-    const connection = SimpleWebSerial.setupSerialConnection({
-      requestAccessOnPageLoad: false,
-      requestElement: 'connect-button'
-    });
-
+    // --- Utility ---
     function appendLog(label, data) {
       const log = document.getElementById("log-content");
       const time = new Date().toLocaleTimeString();
       log.innerText = `[${time}] ${label}: ${JSON.stringify(data)}\n` + log.innerText;
     }
+
+    // --- Modbus address dropdown ---
+    const addrSelect = document.getElementById('modbus-address');
+    for (let i = 1; i <= 255; i++) {
+      const opt = document.createElement('option');
+      opt.value = i; opt.textContent = i;
+      addrSelect.appendChild(opt);
+    }
+
+    // --- Web Serial setup ---
+    const connection = SimpleWebSerial.setupSerialConnection({
+      requestAccessOnPageLoad: false,
+      requestElement: 'connect-button'
+    });
 
     connection.on('status', modbus => {
       document.getElementById('live-address').textContent = modbus.address ?? '--';
@@ -73,12 +80,10 @@
       if (modbus.address) document.getElementById('modbus-address').value = modbus.address;
       if (modbus.baud) document.getElementById('modbus-baud').value = String(modbus.baud);
     });
-
     connection.on('message', msg => appendLog("Arduino", msg));
 
     document.getElementById('modbus-address').addEventListener('input', updateModbus);
     document.getElementById('modbus-baud').addEventListener('input', updateModbus);
-
     async function updateModbus() {
       const mb_address = parseInt(document.getElementById('modbus-address').value);
       const mb_baud = parseInt(document.getElementById('modbus-baud').value);
@@ -133,75 +138,90 @@
       relaysContainer.appendChild(div);
     }
 
-    // === Handlers for Receiving Config and State ===
+    // === Buttons UI ===
+    const buttonsContainer = document.getElementById('buttons-config');
+    const BUTTON_ACTIONS = [
+      {value: 0, label: 'None'},
+      {value: 1, label: 'All alarm acknowledge'},
+      {value: 2, label: 'Alarm group 1 acknowledge'},
+      {value: 3, label: 'Alarm group 2 acknowledge'},
+      {value: 4, label: 'Alarm group 3 acknowledge'},
+      {value: 5, label: 'Relay 1 override (manual)'},
+      {value: 6, label: 'Relay 2 override (manual)'},
+      {value: 7, label: 'Relay 3 override (manual)'}
+    ];
+    for (let i = 1; i <= 4; i++) {
+      const options = BUTTON_ACTIONS.map(a => `<option value="${a.value}">${a.label}</option>`).join('');
+      const div = document.createElement('div');
+      div.innerHTML = `
+        <div style="border: 1px solid #ccc; border-radius: 6px; background: #cbdcf7; padding: 1rem;">
+          <div style="font-weight: 600;">Button ${i}
+            <span id="state-button${i}" style="width: 12px; height: 12px; background: #ccc; border-radius: 50%; display: inline-block; float:right;"></span>
+          </div>
+          <label>Action:
+            <select id="action-button${i}" style="width: 100%; padding: 6px; border-radius: 4px;">
+              ${options}
+            </select>
+          </label>
+        </div>`;
+      buttonsContainer.appendChild(div);
+    }
+
+    // === Receive states/config from Arduino ===
     connection.on('inputs', list => {
       list.forEach((val, idx) => {
         const dot = document.getElementById(`state-in${idx + 1}`);
         if (dot) dot.style.background = val ? '#4caf50' : '#ccc';
       });
     });
+    connection.on('enableList', list => list.forEach((v, i) => {
+      const cb = document.getElementById(`enable-in${i + 1}`); if (cb) cb.checked = !!v;
+    }));
+    connection.on('invertList', list => list.forEach((v, i) => {
+      const cb = document.getElementById(`invert-in${i + 1}`); if (cb) cb.checked = !!v;
+    }));
+    connection.on('groupList', list => list.forEach((v, i) => {
+      const sel = document.getElementById(`group-in${i + 1}`); if (sel) sel.value = String(v || 0);
+    }));
 
-    connection.on('enableList', list => {
-      list.forEach((val, idx) => {
-        const cb = document.getElementById(`enable-in${idx + 1}`);
-        if (cb) cb.checked = !!val;
-      });
-    });
+    // Relay states from Arduino (display-only)
+    connection.on('relayStateList', list => list.forEach((v, i) => {
+      const cb = document.getElementById(`state-relay${i + 1}`); if (cb) cb.checked = !!v;
+    }));
+    // Optional: if Arduino still sends separate relay config lists, keep syncing UI:
+    connection.on('relayEnableList', list => list.forEach((v, i) => {
+      const cb = document.getElementById(`enable-relay${i + 1}`); if (cb) cb.checked = !!v;
+    }));
+    connection.on('relayInvertList', list => list.forEach((v, i) => {
+      const cb = document.getElementById(`invert-relay${i + 1}`); if (cb) cb.checked = !!v;
+    }));
+    connection.on('relayGroupList', list => list.forEach((v, i) => {
+      const sel = document.getElementById(`group-relay${i + 1}`); if (sel) sel.value = String(v || 0);
+    }));
 
-    connection.on('invertList', list => {
-      list.forEach((val, idx) => {
-        const cb = document.getElementById(`invert-in${idx + 1}`);
-        if (cb) cb.checked = !!val;
-      });
-    });
+    // Button states from Arduino
+    connection.on('ButtonStateList', list => list.forEach((v, i) => {
+      const dot = document.getElementById(`state-button${i + 1}`);
+      if (dot) dot.style.background = v ? '#4caf50' : '#ccc';
+    }));
+    // Optional: If Arduino sends ButtonGroupList for initial fill, sync dropdowns
+    connection.on('ButtonGroupList', list => list.forEach((v, i) => {
+      const sel = document.getElementById(`action-button${i + 1}`); if (sel) sel.value = String(v || 0);
+    }));
 
-    connection.on('groupList', list => {
-      list.forEach((val, idx) => {
-        const sel = document.getElementById(`group-in${idx + 1}`);
-        if (sel) sel.value = String(val || 0);
-      });
-    });
-
-    connection.on('relayStateList', list => {
-      list.forEach((val, idx) => {
-        const cb = document.getElementById(`state-relay${idx + 1}`);
-        if (cb) cb.checked = !!val;
-      });
-    });
-
-    connection.on('relayEnableList', list => {
-      list.forEach((val, idx) => {
-        const cb = document.getElementById(`enable-relay${idx + 1}`);
-        if (cb) cb.checked = !!val;
-      });
-    });
-
-    connection.on('relayInvertList', list => {
-      list.forEach((val, idx) => {
-        const cb = document.getElementById(`invert-relay${idx + 1}`);
-        if (cb) cb.checked = !!val;
-      });
-    });
-
-    connection.on('relayGroupList', list => {
-      list.forEach((val, idx) => {
-        const sel = document.getElementById(`group-relay${idx + 1}`);
-        if (sel) sel.value = String(val || 0);
-      });
-    });
-
-    // === Input Config Change Events ===
+    // === Change events -> send combined arrays ===
     for (let i = 1; i <= 17; i++) {
       document.getElementById(`enable-in${i}`).addEventListener('change', sendInputConfig);
       document.getElementById(`invert-in${i}`).addEventListener('change', sendInputConfig);
       document.getElementById(`group-in${i}`).addEventListener('change', sendInputConfig);
     }
-
-    // === Relay Config Change Events ===
     for (let i = 1; i <= 3; i++) {
       document.getElementById(`enable-relay${i}`).addEventListener('change', sendRelayConfig);
       document.getElementById(`invert-relay${i}`).addEventListener('change', sendRelayConfig);
       document.getElementById(`group-relay${i}`).addEventListener('change', sendRelayConfig);
+    }
+    for (let i = 1; i <= 4; i++) {
+      document.getElementById(`action-button${i}`).addEventListener('change', sendButtonConfig);
     }
 
     async function sendInputConfig() {
@@ -216,16 +236,28 @@
       await connection.send("inputGroupList", group);
     }
 
+    // NEW: combined relay config -> single array of objects
     async function sendRelayConfig() {
-      const enable = [], invert = [], group = [];
+      const relayConfigs = [];
       for (let i = 1; i <= 3; i++) {
-        enable.push(document.getElementById(`enable-relay${i}`).checked);
-        invert.push(document.getElementById(`invert-relay${i}`).checked);
-        group.push(parseInt(document.getElementById(`group-relay${i}`).value || "0"));
+        relayConfigs.push({
+          enabled: document.getElementById(`enable-relay${i}`).checked,
+          inverted: document.getElementById(`invert-relay${i}`).checked,
+          group: parseInt(document.getElementById(`group-relay${i}`).value || "0")
+        });
       }
-      await connection.send("relayEnableList", enable);
-      await connection.send("relayInvertList", invert);
-      await connection.send("relayGroupList", group);
+      await connection.send("relayConfigList", relayConfigs);
+    }
+
+    // NEW: buttons config -> single array of objects
+    async function sendButtonConfig() {
+      const buttonConfigs = [];
+      for (let i = 1; i <= 4; i++) {
+        buttonConfigs.push({
+          action: parseInt(document.getElementById(`action-button${i}`).value || "0")
+        });
+      }
+      await connection.send("ButtonConfigList", buttonConfigs);
     }
   </script>
 </section>
