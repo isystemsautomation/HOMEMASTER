@@ -1,9 +1,4 @@
 <section style="font-family:'Segoe UI',sans-serif;padding:2rem;max-width:960px;margin:auto;">
-  <div id="log-line" style="margin-bottom:1.5rem;padding:1rem;background:#f9f9f9;border:1px solid #ccc;border-radius:6px;font-size:0.9rem;color:#333;font-family:monospace;">
-    <strong>Serial Log:</strong>
-    <div id="log-content" style="white-space:pre-wrap;"></div>
-  </div>
-
   <div style="text-align:center;margin-bottom:2rem;">
     <img src="https://www.home-master.eu/web/image/product.product/719/image_1024/ALM-173-R1%20Module%20for%20Alarm%20Systems?unique=f079b61" alt="ALM-173-R1" style="max-width:300px;border-radius:8px;" loading="lazy">
     <h2>ALM-173-R1 Module Configuration</h2>
@@ -31,7 +26,10 @@
       <button id="connect-button" type="button" style="padding:10px 20px;background:#007bff;color:#fff;border:none;border-radius:4px;">Connect</button>
     </div>
   </form>
-
+  <div id="log-line" style="margin-bottom:1.5rem;padding:1rem;background:#f9f9f9;border:1px solid #ccc;border-radius:6px;font-size:0.9rem;color:#333;font-family:monospace;">
+    <strong>Serial Log:</strong>
+    <div id="log-content" style="white-space:pre-wrap;"></div>
+  </div>
   
   <section style="margin-bottom:2rem;">
     <h2 style="font-size:1.2rem;">Alarm Status &amp; Modes</h2>
@@ -107,7 +105,7 @@
     <div id="leds-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
   </section>
 
-  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
+  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
   <script>
     // -------- Utilities --------
     function appendLog(label, data) {
@@ -140,6 +138,7 @@
     });
     connection.on('message', msg => appendLog("Arduino", msg));
 
+    // Modbus values
     document.getElementById('modbus-address').addEventListener('input', updateModbus);
     document.getElementById('modbus-baud').addEventListener('input', updateModbus);
     async function updateModbus() {
@@ -148,27 +147,21 @@
       await connection.send("values", { mb_address, mb_baud });
     }
 
-    // ===== Alarm: send/receive =====
+    // ===== Alarm: send/receive via unified channel =====
     const amEls = [
       document.getElementById('alarm-mode-g1'),
       document.getElementById('alarm-mode-g2'),
       document.getElementById('alarm-mode-g3')
     ];
     amEls.forEach(el => el.addEventListener('change', sendAlarmModes));
-
     async function sendAlarmModes() {
-      const list = amEls.map(el => parseInt(el.value || "0")); // [g1,g2,g3]
-      await connection.send("AlarmModeList", list);
+      const list = amEls.map(el => parseInt(el.value || "0"));
+      await connection.send("Config", { t: "alarms", list });
     }
-
     connection.on('AlarmModeList', list => {
       if (!Array.isArray(list)) return;
-      list.slice(0,3).forEach((v,i) => {
-        if (typeof v !== 'undefined' && amEls[i]) amEls[i].value = String(v);
-      });
+      list.slice(0,3).forEach((v,i) => { if (typeof v !== 'undefined' && amEls[i]) amEls[i].value = String(v); });
     });
-
-    // Live alarm state { any: bool, groups: [g1,g2,g3] }
     connection.on('AlarmState', obj => {
       if (!obj) return;
       setDot('alarm-any', !!obj.any);
@@ -222,7 +215,7 @@
       relaysContainer.appendChild(div);
     }
 
-    // ===== Build Buttons UI (sends/receives via LedConfigList) =====
+    // ===== Build Buttons UI (uses unified channel) =====
     const buttonsContainer = document.getElementById('buttons-config');
     const BUTTON_ACTIONS = [
       {value:0,label:'None'},
@@ -288,7 +281,7 @@
       ledsContainer.appendChild(div);
     }
 
-    // ===== Receive: Inputs =====
+    // ===== RECEIVE: Inputs =====
     connection.on('inputs', list => {
       list.forEach((v, i) => {
         const dot = document.getElementById(`state-in${i+1}`);
@@ -305,7 +298,7 @@
       const el = document.getElementById(`group-in${i+1}`); if (el) el.value = String(v || 0);
     }));
 
-    // ===== Receive: Relays =====
+    // ===== RECEIVE: Relays =====
     connection.on('relayStateList', list => list.forEach((v,i) => {
       const el = document.getElementById(`state-relay${i+1}`); if (el) el.checked = !!v;
     }));
@@ -319,7 +312,7 @@
       const el = document.getElementById(`group-relay${i+1}`); if (el) el.value = String(v || 0);
     }));
 
-    // ===== Receive: Buttons =====
+    // ===== RECEIVE: Buttons =====
     connection.on('ButtonStateList', list => list.forEach((v,i) => {
       const dot = document.getElementById(`state-button${i+1}`);
       if (dot) dot.style.background = v ? '#4caf50' : '#ccc';
@@ -329,7 +322,7 @@
       if (el) el.value = String(v || 0);
     }));
 
-    // ===== Receive: LEDs =====
+    // ===== RECEIVE: LEDs =====
     connection.on('LedConfigList', list => list.forEach((obj,i) => {
       const modeEl = document.getElementById(`mode-led${i+1}`);
       const srcEl  = document.getElementById(`source-led${i+1}`);
@@ -341,67 +334,67 @@
       if (dot) dot.style.background = v ? '#ffb300' : '#ccc';
     }));
 
-    // ===== Change events -> send arrays =====
+    // ===== CHANGE HANDLERS -> unified sends =====
+    // Inputs: send separately by kind (via 'Config')
     for (let i = 1; i <= 17; i++) {
-      document.getElementById(`enable-in${i}`).addEventListener('change', sendInputConfig);
-      document.getElementById(`invert-in${i}`).addEventListener('change', sendInputConfig);
-      document.getElementById(`group-in${i}`).addEventListener('change', sendInputConfig);
+      document.getElementById(`enable-in${i}`).addEventListener('change', sendInputEnable);
+      document.getElementById(`invert-in${i}`).addEventListener('change', sendInputInvert);
+      document.getElementById(`group-in${i}`).addEventListener('change',  sendInputGroup);
     }
+    // Relays (unified)
     for (let i = 1; i <= 3; i++) {
       document.getElementById(`enable-relay${i}`).addEventListener('change', sendRelayConfig);
       document.getElementById(`invert-relay${i}`).addEventListener('change', sendRelayConfig);
-      document.getElementById(`group-relay${i}`).addEventListener('change', sendRelayConfig);
+      document.getElementById(`group-relay${i}`).addEventListener('change',  sendRelayConfig);
     }
-    // Buttons + LEDs
+    // Buttons + LEDs (unified)
     for (let i = 1; i <= 4; i++) {
       document.getElementById(`action-button${i}`).addEventListener('change', sendButtonConfig);
-      document.getElementById(`mode-led${i}`).addEventListener('change', sendLedConfig);
-      document.getElementById(`source-led${i}`).addEventListener('change', sendLedConfig);
+      document.getElementById(`mode-led${i}`).addEventListener('change',    sendLedConfig);
+      document.getElementById(`source-led${i}`).addEventListener('change',  sendLedConfig);
     }
 
-    async function sendInputConfig() {
-      const enable = [], invert = [], group = [];
-      for (let i = 1; i <= 17; i++) {
-        enable.push(document.getElementById(`enable-in${i}`).checked);
-        invert.push(document.getElementById(`invert-in${i}`).checked);
-        group.push(parseInt(document.getElementById(`group-in${i}`).value || "0"));
-      }
-      await connection.send("inputEnableList", enable);
-      await connection.send("inputInvertList", invert);
-      await connection.send("inputGroupList", group);
+    // ===== Unified senders =====
+    async function sendInputEnable() {
+      const list = [];
+      for (let i = 1; i <= 17; i++) list.push(!!document.getElementById(`enable-in${i}`).checked);
+      await connection.send("Config", { t: "inputEnable", list });
     }
-
+    async function sendInputInvert() {
+      const list = [];
+      for (let i = 1; i <= 17; i++) list.push(!!document.getElementById(`invert-in${i}`).checked);
+      await connection.send("Config", { t: "inputInvert", list });
+    }
+    async function sendInputGroup() {
+      const list = [];
+      for (let i = 1; i <= 17; i++) list.push(parseInt(document.getElementById(`group-in${i}`).value || "0"));
+      await connection.send("Config", { t: "inputGroup", list });
+    }
     async function sendRelayConfig() {
-      const relayConfigs = [];
+      const list = [];
       for (let i = 1; i <= 3; i++) {
-        relayConfigs.push({
-          enabled: document.getElementById(`enable-relay${i}`).checked,
+        list.push({
+          enabled:  document.getElementById(`enable-relay${i}`).checked,
           inverted: document.getElementById(`invert-relay${i}`).checked,
-          group: parseInt(document.getElementById(`group-relay${i}`).value || "0")
+          group:    parseInt(document.getElementById(`group-relay${i}`).value || "0")
         });
       }
-      await connection.send("relayConfigList", relayConfigs);
+      await connection.send("Config", { t: "relays", list });
     }
-
-    // Send LED config over the unified channel
+    async function sendButtonConfig() {
+      const list = [];
+      for (let i = 1; i <= 4; i++) list.push({ action: parseInt(document.getElementById(`action-button${i}`).value || "0") });
+      await connection.send("Config", { t: "buttons", list });
+    }
     async function sendLedConfig() {
-      const ledConfigs = [];
+      const list = [];
       for (let i = 1; i <= 4; i++) {
-        ledConfigs.push({
-          mode: parseInt(document.getElementById(`mode-led${i}`).value || "0"),
+        list.push({
+          mode:   parseInt(document.getElementById(`mode-led${i}`).value || "0"),
           source: parseInt(document.getElementById(`source-led${i}`).value || "0")
         });
       }
-      await connection.send("LedConfigList", ledConfigs);
-    }
-
-    // Send Button config over the same unified channel
-    async function sendButtonConfig() {
-      const buttonConfigs = [];
-      for (let i = 1; i <= 4; i++) {
-        buttonConfigs.push({ action: parseInt(document.getElementById(`action-button${i}`).value || "0") });
-      }
-      await connection.send("LedConfigList", buttonConfigs);
+      await connection.send("Config", { t: "leds", list });
     }
   </script>
 </section>
