@@ -175,12 +175,13 @@ For each group **g ∈ {1,2,3}**:
 - Configuration changes apply immediately and persist shortly after changes
 
 ---
+## 🔌 Modbus RTU Map – Connecting to MiniPLC/MicroPLC with ESPHome & Home Assistant
 
-## 🔌 Modbus RTU – Default Firmware Map (for Integrators)
-
-> These addresses are provided by the **default firmware** for PLC/HMI integration.  
-> **States** = **Discrete Inputs** (FC=02).  
-> **Commands** = **Coils** (FC=05/15), treated as **pulses**: write `1`, device acts, coil auto-clears to `0`.
+> The table below describes the **Modbus addresses** provided by the **default firmware** for use with a **HomeMaster MiniPLC** or **MicroPLC**.  
+> These PLCs can then be integrated with **ESPHome** and **Home Assistant** to monitor inputs, alarms, LEDs, and control relays.  
+> 
+> **States** are exposed as **Discrete Inputs** (FC=02).  
+> **Commands** are **Coils** (FC=05/15) and are treated as **pulses**: write `1`, device acts, coil auto-clears to `0`.
 
 ### Discrete Inputs — States (FC = 02)
 
