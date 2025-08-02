@@ -6,29 +6,29 @@ The **ALM-173-R1** is a high-performance alarm expansion module designed for mod
 
 ## ⚙️ Features
 
-- 17 opto-isolated digital inputs for dry-contact sensors (motion, door/window, tamper, panic).
-- 3 relay outputs (NO/NC) for sirens, lights, electric locks, or other external devices.
-- Isolated 12V and 5V power outputs for powering connected sensors directly.
-- Status LEDs for all inputs and outputs, with surge and ESD protection.
-- USB Type-C interface for firmware configuration and diagnostics.
-- Ships with pre-installed MicroPython/Arduino-compatible firmware and predefined Modbus registers.
-- Built on the RP2350A microcontroller; programmable via MicroPython or Arduino IDE.
-- Fully integrable with **Home Assistant** via MiniPLC or MicroPLC for automation logic.
+- 17 opto-isolated digital inputs for dry-contact sensors (motion, door/window, tamper, panic)  
+- 3 relay outputs (NO/NC) for sirens, lights, electric locks, or other external devices  
+- Isolated 12 V and 5 V auxiliary power outputs for powering sensors directly  
+- Status LEDs for all inputs and outputs, with surge and ESD protection  
+- USB Type-C interface for firmware configuration and diagnostics  
+- Ships with **pre-installed Arduino-compatible firmware** and predefined Modbus registers  
+- Built on the RP2350A microcontroller; programmable via **MicroPython**, **Arduino IDE**, or **C++**  
+- Seamless integration with **Home Assistant** via HomeMaster MiniPLC/MicroPLC  
 
 ---
 
 ## 🧰 Technical Specifications
 
-| Specification              | Value                                |
-|---------------------------|--------------------------------------|
-| Digital Inputs            | 17 opto-isolated (5V logic level)    |
-| Relay Outputs             | 3 (NO/NC, industrial-grade, isolated)|
-| Auxiliary Power Outputs   | 12V and 5V (isolated)                |
-| Microcontroller           | RP2350A                              |
-| Communication             | RS-485 (Modbus RTU slave)            |
-| Programming Interface     | USB Type-C                           |
-| Mounting                  | DIN rail or surface mount            |
-| Power Supply              | 24V DC                               |
+| Specification            | Value                                 |
+|--------------------------|---------------------------------------|
+| Digital Inputs           | 17 opto-isolated (5 V logic level)    |
+| Relay Outputs            | 3 (NO/NC, industrial-grade, isolated) |
+| Aux Power Outputs        | 12 V and 5 V (isolated)               |
+| Microcontroller          | RP2350A                               |
+| Communication            | RS-485 (Modbus RTU slave)             |
+| Programming Interface    | USB Type-C                            |
+| Mounting                 | DIN rail or surface mount             |
+| Power Supply             | 24 V DC                                |
 
 ---
 
@@ -42,104 +42,149 @@ The **ALM-173-R1** is a high-performance alarm expansion module designed for mod
 
 ---
 
-## 🔌 Modbus RTU Overview
+## 📦 Default Firmware – User Manual
 
-- **Interface:** RS-485 (Modbus RTU slave) on UART (8N1).
-- **Default slave address:** `3` (configurable in firmware).
-- **Default baud rate:** `19200` (configurable in firmware).
-- **Function codes used:**
-  - **FC=02** – Read **Discrete Inputs** (read-only **states**)
-  - **FC=05/15** – Write **Coils** (write-only **commands**, **pulse 0→1→0** handled/auto-cleared by firmware)
+The ALM-173-R1 ships with **ready-to-use firmware**. You can configure the module over **USB** using the **Web Config Tool** (runs in Chrome/Edge) and use it immediately with a HomeMaster PLC. This section explains the module’s internal logic and how to configure it.
 
-> **Design rule:**  
-> **States** (inputs, relays, LEDs, enabled flags, alarms) live in **Discrete Inputs**.  
-> **Commands** (relay on/off, input enable/disable, acknowledges) are **Coils** with **separate addresses** per action and are consumed as **pulses**.
+### 🔔 Alarm Groups & Modes
+
+- Each input may be assigned to **Group 1**, **Group 2**, **Group 3**, or **None**.  
+- Each group has a **Mode**:
+  - **None** – The group is ignored.  
+  - **Non-latched** – Group is **active only while** any assigned input is active.  
+  - **Latched** – Group becomes active when any assigned input triggers and **stays active** until **acknowledged**.
+
+**Any Alarm** is on when any group (G1/G2/G3) is active.
+
+**Acknowledgement paths** (only relevant for *Latched* groups):
+- Press an assigned **button** (Ack All / Ack G1 / G2 / G3)
+- Use a **PLC command** (via Modbus, see table below)
+- Use the **Web Config Tool** (change mode or force an ack action depending on your UI setup)
+
+### ↕️ Input Processing
+
+Per input you can set:
+- **Enabled** – Exclude/include input from processing (and from alarm computation)
+- **Inverted** – Reverse active logic (useful for normally-closed contacts)
+- **Group** – Select None/1/2/3
+
+The **processed input state** = (raw input) XOR (inverted flag), considered only if **Enabled**.
+
+### ⚡ Relays
+
+Per relay you can set:
+- **Enabled** – Output is allowed to turn on  
+- **Inverted** – Reverse hardware polarity (logical ON drives the opposite level)  
+- **Group** – Relay **follows the chosen group’s active state** unless you manually override it (e.g., via button or PLC)
+
+**Relay behavior:**
+- If **Enabled** and its **Group** is active, the relay turns **ON** (respecting Inverted).
+- Manual/PLC override can force ON/OFF regardless of group logic.
+
+### 🖲️ Buttons
+
+Each of the 4 push buttons can perform one action:
+- **None**  
+- **All alarm acknowledge**  
+- **Alarm group 1/2/3 acknowledge**  
+- **Relay 1/2/3 override (manual)** – toggles a manual override flag
+
+When a button is pressed (active-low), the action triggers on the **rising edge** (press event).
+
+### 💡 User LEDs
+
+Each of the 4 user LEDs has:
+- **Mode** – **Steady** or **Blink** when active  
+- **Source** – Trigger from:
+  - **Any alarm**, **Group 1**, **Group 2**, **Group 3**
+  - **Relay 1/2/3 overridden** (manual override indicator)
+  - **None**
+
+Blink timing is handled by the firmware (default ~400 ms period).
+
+### 🔧 Web Config Tool (over USB)
+
+- **Live Modbus status** (address/baud) is displayed.
+- Configure:
+  - **Alarm modes** (G1–G3)
+  - **Inputs** (Enable, Invert, Group for IN1–IN17)
+  - **Relays** (Enable, Invert, Group for R1–R3)
+  - **Buttons** (action)
+  - **User LEDs** (mode + source)
+- Settings are applied instantly; most are persisted in flash (depending on firmware build).
+- A **Reset Device** command is available (reboots the module safely).
+
+> The module continuously evaluates inputs, updates alarm states, latches alarms where configured, drives relays/LEDs, and exposes states/commands to the PLC via Modbus.
 
 ---
 
-## 📟 Modbus Register Map
+## 🔌 Modbus RTU – Default Firmware Map
 
-### Discrete Inputs — **States** (FC=02)
+> These addresses are provided by the **default firmware** for PLC integration.  
+> **States** are exposed as **Discrete Inputs** (FC=02).  
+> **Commands** are **Coils** (FC=05/15) and are treated as **pulses**: write `1`, firmware acts, coil auto-clears to `0`.
 
-| Addr | Name          | Description                                               |
-|-----:|---------------|-----------------------------------------------------------|
-| 0    | DI1           | Digital Input 1 (processed state, after per-input invert)|
-| 1    | DI2           | Digital Input 2                                           |
-| …    | …             | …                                                         |
-| 16   | DI17          | Digital Input 17                                          |
-| 32   | LED1          | User LED1 logical state (true = ON)                       |
-| 33   | LED2          | User LED2 logical state                                   |
-| 34   | LED3          | User LED3 logical state                                   |
-| 35   | LED4          | User LED4 logical state                                   |
-| 40   | RELAY1        | Relay 1 logical state (true = ON)                         |
-| 41   | RELAY2        | Relay 2 logical state                                     |
-| 42   | RELAY3        | Relay 3 logical state                                     |
-| 48   | ALARM_G1      | Alarm Group 1 active                                      |
-| 49   | ALARM_G2      | Alarm Group 2 active                                      |
-| 50   | ALARM_G3      | Alarm Group 3 active                                      |
-| 51   | ALARM_ANY     | Any alarm active (G1 ∪ G2 ∪ G3)                           |
-| 60   | IN_EN1        | Input 1 enabled flag (true = enabled)                     |
-| 61   | IN_EN2        | Input 2 enabled flag                                      |
-| …    | …             | …                                                         |
-| 76   | IN_EN17       | Input 17 enabled flag                                     |
+### Discrete Inputs — States (FC=02)
 
-> The **enabled flags** mirror the current enable/disable configuration as **read-only state** for SCADA/PLC diagnostics.
+| Addr | Name       | Description                                        |
+|-----:|------------|----------------------------------------------------|
+| 0–16 | DI1–DI17   | Processed input states (after per-input invert)    |
+| 32–35| LED1–LED4  | User LED logical states                            |
+| 40–42| RELAY1–3   | Relay logical states                               |
+| 48–50| ALARM_Gx   | Alarm group active flags                           |
+| 51   | ALARM_ANY  | Any alarm active (G1 ∪ G2 ∪ G3)                    |
+| 60–76| IN_ENx     | Digital input Enabled flags (read-only mirror)     |
 
----
+### Coils — Commands (FC=05/15, pulse 1 → auto-clear)
 
-### Coils — **Commands** (FC=05/15, **pulse 1 then auto-clear**)
+**Relays (separate ON/OFF addresses)**
 
-**Relays – separate addresses for ON/OFF**
+| Addr | Command     | Effect           |
+|-----:|-------------|------------------|
+| 400  | CMD_R1_ON   | Turn Relay 1 ON  |
+| 401  | CMD_R2_ON   | Turn Relay 2 ON  |
+| 402  | CMD_R3_ON   | Turn Relay 3 ON  |
+| 420  | CMD_R1_OFF  | Turn Relay 1 OFF |
+| 421  | CMD_R2_OFF  | Turn Relay 2 OFF |
+| 422  | CMD_R3_OFF  | Turn Relay 3 OFF |
+
+**Digital Inputs (separate Enable/Disable addresses)**
 
 | Addr | Command       | Effect            |
 |-----:|---------------|-------------------|
-| 400  | CMD_R1_ON     | Turn Relay 1 ON   |
-| 401  | CMD_R2_ON     | Turn Relay 2 ON   |
-| 402  | CMD_R3_ON     | Turn Relay 3 ON   |
-| 420  | CMD_R1_OFF    | Turn Relay 1 OFF  |
-| 421  | CMD_R2_OFF    | Turn Relay 2 OFF  |
-| 422  | CMD_R3_OFF    | Turn Relay 3 OFF  |
+| 200–216 | CMD_EN_INx | Enable input x     |
+| 300–316 | CMD_DIS_INx| Disable input x    |
 
-**Digital Inputs – separate addresses for Enable/Disable (affects state processing and `IN_ENx`)**
+**Alarms – Acknowledge**
 
-| Addr  | Command        | Effect              |
-|------:|----------------|---------------------|
-| 200   | CMD_EN_IN1     | Enable Input 1      |
-| 201   | CMD_EN_IN2     | Enable Input 2      |
-| …     | …              | …                   |
-| 216   | CMD_EN_IN17    | Enable Input 17     |
-| 300   | CMD_DIS_IN1    | Disable Input 1     |
-| 301   | CMD_DIS_IN2    | Disable Input 2     |
-| …     | …              | …                   |
-| 316   | CMD_DIS_IN17   | Disable Input 17    |
+| Addr | Command      | Effect                          |
+|-----:|--------------|---------------------------------|
+| 500  | CMD_ACK_ALL  | Acknowledge **all** groups      |
+| 501  | CMD_ACK_G1   | Acknowledge Group 1             |
+| 502  | CMD_ACK_G2   | Acknowledge Group 2             |
+| 503  | CMD_ACK_G3   | Acknowledge Group 3             |
 
-**Alarms – acknowledge (for latched modes)**
-
-| Addr | Command      | Effect                       |
-|-----:|--------------|------------------------------|
-| 500  | CMD_ACK_ALL  | Acknowledge **all** groups   |
-| 501  | CMD_ACK_G1   | Acknowledge Group 1          |
-| 502  | CMD_ACK_G2   | Acknowledge Group 2          |
-| 503  | CMD_ACK_G3   | Acknowledge Group 3          |
-
-> **Pulse semantics:** write `1` to the command coil; the module performs the action once and automatically clears the coil back to `0`. You do **not** need to write `0`.
+**Defaults**  
+- UART: 8N1  
+- Address: `3`  
+- Baud: `19200`
 
 ---
 
-## 🔓 Open Source & Programming
+## 🔓 Open Source & Re-Programming
 
-The ALM-173-R1 is fully open source. It is shipped with MicroPython/Arduino-compatible firmware and the Modbus address table above, making it plug-and-play with HomeMaster PLCs. Developers can customize behavior using:
-
-- MicroPython  
-- C/C++
-- Arduino IDE  
+The module ships with the **default firmware** described above and works out-of-the-box.  
+If you prefer, you can **replace the firmware** with your own using:
+- **MicroPython**
+- **Arduino IDE**
+- **C++** (Pico SDK / Arduino Core)
 
 ---
 
 ## 📄 License
 
-All hardware design files and documentation are licensed under **CERN-OHL-W 2.0**.  
-Firmware and code samples are released under the **GNU General Public License v3 (GPLv3)** unless otherwise noted.
+- Hardware design files and documentation: **CERN-OHL-W 2.0**  
+- Firmware and code samples: **GPLv3** unless otherwise noted
 
 ---
 
