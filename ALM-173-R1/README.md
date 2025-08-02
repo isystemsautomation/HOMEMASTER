@@ -1,154 +1,188 @@
 # ALM-173-R1 – Alarm Input & Relay Output Module
 
-The **ALM-173-R1** is a high-performance alarm expansion module designed for modular integration with **HomeMaster MicroPLC** and **MiniPLC** systems via RS-485 Modbus RTU. It enables seamless connection of alarm sensors and output devices to PLC systems for automation, security, and smart building control.
+The **ALM-173-R1** is a high-performance alarm expansion module designed for modular integration with **HomeMaster MicroPLC** and **MiniPLC** systems via RS-485 Modbus RTU. It enables seamless connection of alarm sensors and output devices for automation, security, and smart-building control.
 
 ---
 
 ## ⚙️ Features
 
 - 17 opto-isolated digital inputs for dry-contact sensors (motion, door/window, tamper, panic)  
-- 3 relay outputs (NO/NC) for sirens, lights, electric locks, or other external devices  
-- Isolated 12 V and 5 V auxiliary power outputs for powering sensors directly  
-- Status LEDs for all inputs and outputs, with surge and ESD protection  
-- USB Type-C interface for firmware configuration and diagnostics  
-- Ships with **pre-installed Arduino-compatible firmware** and predefined Modbus registers  
-- Built on the RP2350A microcontroller; programmable via **MicroPython**, **Arduino IDE**, or **C++**  
-- Seamless integration with **Home Assistant** via HomeMaster MiniPLC/MicroPLC  
+- 3 relay outputs (NO/NC) for sirens, lights, locks, beacons, etc.  
+- Isolated 12 V & 5 V auxiliary power rails for sensors  
+- Status LEDs for all I/O, surge & ESD protection  
+- USB Type-C for configuration and diagnostics (Web Serial)  
+- Ships with **pre-installed Arduino-compatible firmware** (Modbus RTU slave)  
+- RP2350A microcontroller; programmable with **MicroPython**, **Arduino IDE**, or **C++**  
+- Works out-of-the-box with HomeMaster MiniPLC/MicroPLC and **Home Assistant** integrations
 
 ---
 
 ## 🧰 Technical Specifications
 
-| Specification            | Value                                 |
-|--------------------------|---------------------------------------|
-| Digital Inputs           | 17 opto-isolated (5 V logic level)    |
-| Relay Outputs            | 3 (NO/NC, industrial-grade, isolated) |
-| Aux Power Outputs        | 12 V and 5 V (isolated)               |
-| Microcontroller          | RP2350A                               |
-| Communication            | RS-485 (Modbus RTU slave)             |
-| Programming Interface    | USB Type-C                            |
-| Mounting                 | DIN rail or surface mount             |
-| Power Supply             | 24 V DC                               |
-
----
-
-## 🧠 Use Cases
-
-- Security system integration (motion sensors, door/window contacts)  
-- Smart siren or light control based on sensor triggers  
-- Panic or emergency button handling  
-- Sensor power distribution in automation enclosures  
-- Seamless integration with Home Assistant via HomeMaster PLCs  
+| Specification            | Value                                  |
+|--------------------------|----------------------------------------|
+| Digital Inputs           | 17 opto-isolated (5 V logic)           |
+| Relay Outputs            | 3 × SPDT (NO/NC), isolated             |
+| Aux Power Outputs        | 12 V and 5 V (isolated)                |
+| Microcontroller          | RP2350A                                 |
+| Communication            | RS-485 (Modbus RTU slave)              |
+| Programming Interface    | USB Type-C                              |
+| Mounting                 | DIN rail / surface                      |
+| Power Supply             | 24 V DC                                 |
 
 ---
 
 ## 🌐 Web Config Tool
 
-Configure the ALM-173-R1 directly from your browser—no software install required.
+Configure the ALM-173-R1 directly from your browser—no software install.
 
-**➡ https://www.home-master.eu/configtool-alm-173-r1**
+- **Online tool:** https://www.home-master.eu/configtool-alm-173-r1  
+- **Supported browsers:** **Chrome**, **Edge**, **Opera**, **Firefox** (recent versions)
 
-- Works with **Google Chrome**, **Microsoft Edge**, **Opera**, and **Firefox** (recent versions).  
-- Connect the module via **USB Type-C**, click **Connect**, choose the serial port, and configure.
+> The tool uses Web Serial to communicate with the module over USB-C and provides live status with instant updates.
 
-> The tool uses Web Serial to communicate with the device firmware and provides live status with instant configuration updates.
+**Source code of the tool (HTML/JS):**  
+- Config Tool page (HTML with embedded JS):  
+  https://github.com/isystemsautomation/HOMEMASTER/blob/main/ALM-173-R1/Firmware/ConfigToolPage.html
 
 ---
 
-## 📘 User Manual – Default Firmware (Web Config Tool)
+## 📦 Firmware Downloads & Source
 
-This section explains how to use the Web Config Tool and how the **default firmware** behaves. No Modbus knowledge is required.
+- **Default Firmware (Arduino sketch):**  
+  https://github.com/isystemsautomation/HOMEMASTER/blob/main/ALM-173-R1/Firmware/default_alm_173_r1/default_alm_173_r1.ino
 
-### 1) Connect & Live Status
-1. Open the **Web Config Tool** link above in a supported browser.  
-2. Plug the ALM-173-R1 via **USB Type-C**.  
+- **Pre-compiled binaries (RP2350 / rp2040 core):**  
+  https://github.com/isystemsautomation/HOMEMASTER/tree/main/ALM-173-R1/Firmware/default_alm_173_r1/build/rp2040.rp2040.generic_rp2350
+
+> Flash the UF2 or BIN from the build folder if you prefer not to compile in the Arduino IDE.
+
+---
+
+## 📘 User Manual – Default Firmware & Web Config Tool
+
+This section describes the **out-of-the-box firmware** and how to use the Web Config Tool. You can later replace the firmware with your own (MicroPython / Arduino / C++), but most users won’t need to.
+
+### 1) Connect & Identify
+
+1. Open the **Web Config Tool** in a supported browser.  
+2. Connect the module via **USB-C**.  
 3. Click **Connect** and select the device port.  
-4. The **Active Modbus Configuration** panel shows live **Address** and **Baud Rate** (used for RS-485 integration).
+4. The **Active Modbus Configuration** panel shows **Address** and **Baud** (used for RS-485).
 
-> **Reset Device** reboots the module safely. The serial connection will briefly disconnect and can then be re-opened.
+> **Reset Device** safely reboots the module; reconnect after a few seconds. Settings persist in flash (per firmware build).
 
-### 2) Modbus Settings
-- Set **Address** (1–255) and **Baud** (9600–115200).  
-- Changes apply immediately and are **saved to flash**.  
-- The device reconfigures the serial port after a baud change.
+### 2) Configure
 
-### 3) Digital Inputs (IN1–IN17)
-For each input:
-- **Enabled** — include/exclude from processing and alarm computation.  
-- **Inverted** — flips the logic (useful for normally-closed contacts).  
-- **Alarm Group** — assign to **Group 1**, **Group 2**, **Group 3**, or **None**.  
-- The round **state dot** shows the **processed** state (after Invert and Enable).
+**Digital Inputs (IN1–IN17)**  
+- **Enabled** — include/exclude the input from processing and alarms  
+- **Inverted** — flips logic (e.g., for normally-closed loops)  
+- **Group** — assign to **Group 1**, **Group 2**, **Group 3**, or **None**  
+- The colored dot shows the **processed** state (after Enable/Invert)
 
-**Processed state** = (raw input) XOR (Inverted), considered only if **Enabled**.
+**Alarm Groups (G1–G3) – Modes**  
+- **None** — group never raises an alarm  
+- **Non-latched** — group is **active only while** any assigned input is active  
+- **Latched** — once any assigned input becomes active, the group **stays active** until it’s **acknowledged**  
+- **Any Alarm** indicator turns on when any group is active
 
-### 4) Alarm Groups & Modes
-Each group (G1–G3) has a **Mode**:
-- **None** — group never alarms.  
-- **Non-latched** — group is **active only while** any assigned input is active.  
-- **Latched** — once triggered, the group **stays active** until it is **acknowledged**.
+**Relays (R1–R3)**  
+- **Enabled** — allows the output to be driven  
+- **Inverted** — reverses the electrical level for logical ON  
+- **Group** — relay **follows the selected group’s active state**, unless manually overridden
 
-**Any Alarm** lights when any group is active (latched or non-latched).
+**Buttons (4)**  
+- One action per button:  
+  - **None**  
+  - **Acknowledge All**  
+  - **Acknowledge Group 1 / 2 / 3**  
+  - **Relay 1 / 2 / 3 override (manual toggle)**  
+- Actions trigger on **rising edge** of button press (active-low input, debounced by edge detection)
 
-**Acknowledgement (for Latched mode):**
-- Press a configured **Button** (Ack All / Ack G1 / G2 / G3).  
-- Or acknowledge from a PLC/HMI (see Modbus section below).
+**User LEDs (4)**  
+- **Mode** — **Steady** or **Blink** when active  
+- **Source** — **Any Alarm**, **Group 1/2/3**, or **Relay 1/2/3 Overridden**, or **None**  
+- Blink timing is handled by firmware (~400 ms period)
 
-### 5) Relays (R1–R3)
-For each relay:
-- **Enabled** — allows the output to turn ON.  
-- **Inverted** — reverses the drive polarity (logical ON drives opposite level).  
-- **Group** — the relay **follows the selected group’s active state**, unless manually overridden.
+**Save / Load / Factory / Reset**  
+- **Save** — persist current settings to flash  
+- **Load** — restore last saved settings  
+- **Factory** — restore defaults and save them  
+- **Reset Device** — reboot the module safely  
+- Auto-save occurs after a short quiet period following changes
 
-**Behavior:**  
-If **Enabled** and its **Group** is active, the relay turns **ON** (respecting Inverted).  
-Manual override (via Buttons or PLC) can impose ON/OFF regardless of the group.
+---
 
-> Hardware is **active-low** internally; the UI shows **logical** ON/OFF.
+## 🧩 Alarm System – Internal Working Logic
 
-### 6) Buttons (4)
-Assign one **Action** per button:
-- **None**  
-- **All alarm acknowledge**  
-- **Alarm group 1/2/3 acknowledge**  
-- **Relay 1/2/3 override (manual toggle)**
+The firmware continuously cycles through a deterministic evaluation loop. The order and rules below describe how alarms, LEDs, and relays behave.
 
-Buttons are **active-low** and trigger on the **press edge** (rising edge internally).  
-Relay override toggles an internal **override flag** used by LEDs and control logic.
+### A) Input Processing
+1. Read raw digital inputs from the PCF8574 expanders.  
+2. For each input *i*:  
+   - If **Enabled[i]** is `false` → its processed state is **false** (ignored).  
+   - Else **Processed[i] = Raw[i] XOR Inverted[i]**.  
+3. Each input contributes to the **group condition** of its assigned **Group[i]** (1..3).
 
-### 7) User LEDs (4)
-Per LED choose:
-- **Mode** — **Steady** or **Blink** when active.  
-- **Source** — **Any alarm**, **Group 1/2/3**, **Relay 1/2/3 overridden**, or **None**.
+> No additional dwell/debounce is applied in firmware; apply sensor-side or PLC-side filtering if required.
 
-Blink period is handled by firmware (~400 ms by default).  
-Hardware is **active-low**; the UI shows **logical** ON/OFF.
+### B) Group Conditions → Group Active
+For each group **g ∈ {1,2,3}**:
+- **Cond[g]** = OR of **Processed[i]** for all inputs assigned to **g**.  
+- **Mode = None** → **Active[g] = false**, **Latched[g] = false**.  
+- **Mode = Non-latched** → **Active[g] = Cond[g]**, **Latched[g] = false**.  
+- **Mode = Latched**:  
+  - On **Cond[g]** transition **false → true**, set **Latched[g] = true**.  
+  - **Active[g] = Cond[g] OR Latched[g]**.  
+  - An **acknowledge** clears **Latched[g]** (see D).
 
-### 8) Save / Load / Factory / Reset
-- **Save** — persist current configuration to flash.  
-- **Load** — reload last saved configuration.  
-- **Factory** — restore defaults and save them.  
-- **Reset Device** — reboot the module safely.
+**AnyAlarm** = **Active[1] OR Active[2] OR Active[3]**.
 
-> The firmware also **auto-saves** shortly after changes (inactivity timeout).
+### C) Outputs – LEDs & Relays
 
-### 9) Persistence & Boot
-- Configuration is stored in internal flash and restored at boot.  
-- If no valid configuration exists, factory defaults are applied and saved.
+**User LEDs (per LED k)**  
+- **ActiveLED[k]** depends on **Source**:  
+  - **None** → `false`  
+  - **Any Alarm** → `AnyAlarm`  
+  - **Group 1/2/3** → `Active[1/2/3]`  
+  - **Relay 1/2/3 Overridden** → `Override[1/2/3]`  
+- **ShownLED[k]** =  
+  - **Steady** → `ActiveLED[k]`  
+  - **Blink** → `ActiveLED[k] AND BlinkPhase` (BlinkPhase toggles ~400 ms)  
+- Hardware is **active-low**; pins are driven accordingly to match the logical LED state.
 
-### 10) Troubleshooting
-- **Connect button does nothing** → Replug USB; ensure no other app uses the port; try another supported browser.  
-- **After reset** → Wait a few seconds, click **Connect** again.  
-- **Windows** → Confirm the COM port appears in Device Manager.
+**Relays (per relay r)**  
+- A relay can be driven by **group logic** or **manual override**.  
+- **Override[r]** toggles via a configured Button action (or PLC).  
+- If **Override[r]** is **not** active:  
+  - If **Enabled[r]** and **GroupSel[r]** is **Active**, the relay is **ON**; else **OFF**.  
+- If **Override[r]** is active:  
+  - The relay state is forced by the override (ON/OFF) regardless of group status.  
+- **Inverted[r]** flips the electrical level to achieve logical ON/OFF at the terminals.
+
+### D) Acknowledgement
+- **Ack All** clears **Latched[1]**, **Latched[2]**, **Latched[3]**.  
+- **Ack G1/G2/G3** clears only the selected **Latched[g]**.  
+- Acknowledgement sources:  
+  - **Buttons** (configured actions)  
+  - **PLC/HMI** via Modbus in the default firmware
+
+> In **Non-latched** mode, acknowledgements have no effect.
+
+### E) Timing & Responsiveness
+- LED blink period: ~**400 ms**  
+- The main loop continuously services I/O and Modbus  
+- Configuration changes apply immediately and persist shortly after changes
 
 ---
 
 ## 🔌 Modbus RTU – Default Firmware Map (for Integrators)
 
 > These addresses are provided by the **default firmware** for PLC/HMI integration.  
-> **States** are exposed as **Discrete Inputs** (FC = 02).  
-> **Commands** are **Coils** (FC = 05/15) and are treated as **pulses**: write `1`, device acts, coil auto-clears to `0`.
+> **States** = **Discrete Inputs** (FC=02).  
+> **Commands** = **Coils** (FC=05/15), treated as **pulses**: write `1`, device acts, coil auto-clears to `0`.
 
-### Discrete Inputs — States (FC=02)
+### Discrete Inputs — States (FC = 02)
 
 | Addr | Name       | Description                                        |
 |-----:|------------|----------------------------------------------------|
@@ -159,7 +193,7 @@ Hardware is **active-low**; the UI shows **logical** ON/OFF.
 | 51   | ALARM_ANY  | Any alarm active (G1 ∪ G2 ∪ G3)                    |
 | 60–76| IN_ENx     | Digital input **Enabled** flags (read-only mirror) |
 
-### Coils — Commands (FC=05/15, pulse 1 → auto-clear)
+### Coils — Commands (FC = 05/15, pulse 1 → auto-clear)
 
 **Relays (separate ON/OFF addresses)**
 
@@ -195,10 +229,20 @@ Hardware is **active-low**; the UI shows **logical** ON/OFF.
 
 ---
 
+## 🧩 Hardware Schematics
+
+- **ALM-173-R1 Field Board schematic (PDF):**  
+  https://github.com/isystemsautomation/HOMEMASTER/blob/main/ALM-173-R1/Schematics/ALM-173-R1-FieldBoard.pdf
+
+- **ALM-173-R1 MCU Board schematic (PDF):**  
+  https://github.com/isystemsautomation/HOMEMASTER/blob/main/ALM-173-R1/Schematics/ALM-173-R1-MCUBoard.pdf
+
+---
+
 ## 🔓 Open Source & Re-Programming
 
-The module ships with the **default firmware** described above and works out-of-the-box.  
-If you prefer, you can **replace the firmware** with your own using:
+The module ships with the **default firmware** above and works out-of-the-box.  
+If desired, you can **replace the firmware** with your own using:
 - **MicroPython**
 - **Arduino IDE**
 - **C++** (Pico SDK / Arduino Core)
