@@ -31,18 +31,9 @@ PCF8574 pcf23(0x23, &Wire1); // IN17 + Relays (active-low)
 PCF8574 pcf27(0x27, &Wire1); // Buttons P0..P3 (active-low) + User LEDs (active-low)
 
 // ================== Config structures ==================
-struct ThreeCfg {
-  bool     enabled;
-  bool     inverted;
-  uint8_t  group;      // 0..3 (0=None)
-};
-struct LedCfg {
-  uint8_t  mode;       // 0=steady, 1=blink
-  uint8_t  source;     // 0=None,1=Any,2=G1,3=G2,4=G3,5=R1 Overr.,6=R2 Overr.,7=R3 Overr.
-};
-struct ButtonCfg {
-  uint8_t  action;     // 0=None,1=AckAll,2..4=Ack G1..G3,5..7=Relay1..3 override toggle
-};
+struct ThreeCfg { bool enabled; bool inverted; uint8_t group; };
+struct LedCfg   { uint8_t mode; uint8_t source; };
+struct ButtonCfg{ uint8_t action; };
 
 // ================== Runtime state ==================
 ThreeCfg  digitalInputs[17];
@@ -196,6 +187,17 @@ inline auto setSlaveIdIfAvailable(M& m, uint8_t id)
 }
 inline void setSlaveIdIfAvailable(...) {}
 
+// ================== Fixed Modbus **state** map (discrete inputs) ==================
+enum : uint16_t {
+  ISTS_DI_BASE   = 1,   // 1..17  : IN1..IN17 state (after enable+invert)
+  ISTS_AL_ANY    = 50,  // 50     : any alarm
+  ISTS_AL_G1     = 51,  // 51     : group 1
+  ISTS_AL_G2     = 52,  // 52     : group 2
+  ISTS_AL_G3     = 53,  // 53     : group 3
+  ISTS_RLY_BASE  = 60,  // 60..62 : Relay1..3 state (1=ON)
+  ISTS_LED_BASE  = 90   // 90..93 : LED1..4 state (1=ON)
+};
+
 // ================== Forward decls ==================
 void applyModbusSettings(uint8_t addr, uint32_t baud);
 void handleValues(JSONVar values);
@@ -247,10 +249,17 @@ void setup() {
   setSlaveIdIfAvailable(mb, g_mb_address);
   mb.setAdditionalServerData("ALM173");
 
-  // Coils (still provided even if lamps not used)
+  // Legacy demo coils (keep existing)
   mb.addCoil(Lamp1Coil); mb.addCoil(Lamp2Coil); mb.addCoil(Lamp3Coil); mb.addCoil(Lamp4Coil);
   mb.addCoil(Relay1Coil); mb.addCoil(Relay2Coil); mb.addCoil(Relay3Coil);
   mb.addCoil(SwitchIsts);
+
+  // ==== Modbus states BEGIN: register discrete-input addresses ====
+  for (uint16_t i=0;i<17;i++) mb.addIsts(ISTS_DI_BASE + i);   // inputs 1..17
+  mb.addIsts(ISTS_AL_ANY);  mb.addIsts(ISTS_AL_G1); mb.addIsts(ISTS_AL_G2); mb.addIsts(ISTS_AL_G3);
+  for (uint16_t i=0;i<3;i++)  mb.addIsts(ISTS_RLY_BASE + i);  // relays 1..3
+  for (uint16_t i=0;i<4;i++)  mb.addIsts(ISTS_LED_BASE + i);  // leds 1..4
+  // ==== Modbus states END ====
 
   // Status defaults for UI
   modbusStatus["address"] = g_mb_address;
@@ -278,19 +287,15 @@ void handleCommand(JSONVar obj) {
     WebSerial.send("message", "Rebooting now… Communication will briefly disconnect.");
     delay(120);
     performReset(); // does not return
-
   } else if (act == "save") {
     if (saveConfigFS()) WebSerial.send("message", "Configuration saved");
     else WebSerial.send("message", "ERROR: Save failed");
-
   } else if (act == "load") {
     if (loadConfigFS()) {
       WebSerial.send("message", "Configuration loaded");
       sendAllEchoesOnce();
-      // also re-apply Modbus settings after load
       applyModbusSettings(g_mb_address, g_mb_baud);
     } else WebSerial.send("message", "ERROR: Load failed/invalid");
-
   } else if (act == "factory") {
     setDefaults();
     if (saveConfigFS()) {
@@ -298,7 +303,6 @@ void handleCommand(JSONVar obj) {
       sendAllEchoesOnce();
       applyModbusSettings(g_mb_address, g_mb_baud);
     } else WebSerial.send("message", "ERROR: Save after factory reset failed");
-
   } else {
     WebSerial.send("message", String("Unknown command: ") + actC);
   }
@@ -435,153 +439,171 @@ void loop() {
     cfgDirty = false;
   }
 
-  if (now - lastSend >= sendInterval) {
-    lastSend = now;
+  // Modbus poller
+  mb.task();
 
-    // Modbus task
-    mb.task();
+  // -------- Buttons: read (ACTIVE-LOW on pcf27 P0..P3), rising edge ----------
+  for (int i = 0; i < 4; i++) {
+    bool pressed = !pcf27.read(i); // ACTIVE-LOW
+    buttonPrev[i] = buttonState[i];
+    buttonState[i] = pressed;
 
-    // Example: mirror an input to a coil for demo (use your real mapping as needed)
-    mb.setCoil(SwitchIsts, pcf20.read(1));
-
-    // -------- Buttons: read (ACTIVE-LOW on pcf27 P0..P3), rising edge ----------
-    for (int i = 0; i < 4; i++) {
-      bool pressed = !pcf27.read(i); // ACTIVE-LOW
-      buttonPrev[i] = buttonState[i];
-      buttonState[i] = pressed;
-
-      if (!buttonPrev[i] && buttonState[i]) {
-        uint8_t act = buttonCfg[i].action;
-        if (act == 1) {               // Ack All
-          ackAll();
-        } else if (act >= 2 && act <= 4) { // Ack Group 1..3
-          ackGroup(act - 1);
-        } else if (act >= 5 && act <= 7) { // Toggle relay override flags
-          int r = act - 5; // 0..2
-          if (r >= 0 && r < 3) relayOverride[r] = !relayOverride[r];
-        }
+    if (!buttonPrev[i] && buttonState[i]) {
+      uint8_t act = buttonCfg[i].action;
+      if (act == 1) {               // Ack All
+        ackAll();
+      } else if (act >= 2 && act <= 4) { // Ack Group 1..3
+        ackGroup(act - 1);
+      } else if (act >= 5 && act <= 7) { // Toggle relay override flags
+        int r = act - 5; // 0..2
+        if (r >= 0 && r < 3) relayOverride[r] = !relayOverride[r];
       }
     }
+  }
 
-    // -------- Relays from Modbus coils (ACTIVE-LOW on pcf23) ----------
-    JSONVar relayStateList;
-    for (int i = 0; i < 3; i++) {
-      bool coilState = mb.Coil(Relay1Coil + i);   // logical desired state
-      relayStateList[i] = coilState;
+  // -------- Relays from Modbus coils (ACTIVE-LOW on pcf23) ----------
+  JSONVar relayStateList;
+  for (int i = 0; i < 3; i++) {
+    bool coilState = mb.Coil(Relay1Coil + i);   // logical desired state
+    relayStateList[i] = coilState;
 
-      // Apply UI config
-      bool outVal = coilState;
-      if (!relayConfigs[i].enabled) outVal = false;
-      if (relayConfigs[i].inverted) outVal = !outVal;
+    // Apply UI config
+    bool outVal = coilState;
+    if (!relayConfigs[i].enabled) outVal = false;
+    if (relayConfigs[i].inverted) outVal = !outVal;
 
-      // Hardware is ACTIVE-LOW: LOW=ON, HIGH=OFF
-      pcf23.write(RELAY_PINS[i], outVal ? LOW : HIGH);
-    }
+    // Hardware is ACTIVE-LOW: LOW=ON, HIGH=OFF
+    pcf23.write(RELAY_PINS[i], outVal ? LOW : HIGH);
+  }
 
-    // -------- Inputs (17) + Alarm evaluation ----------
-    bool grpCondition[4] = {false,false,false,false}; // per-group condition (1..3)
-    JSONVar inputs;
+  // -------- Inputs (17) + Alarm evaluation ----------
+  bool grpCondition[4] = {false,false,false,false}; // per-group condition (1..3)
+  JSONVar inputs;
 
-    for (int i = 0; i < 17; i++) {
-      bool val = false;
-      if (digitalInputs[i].enabled) {
-        if (i < 8) {
-          val = pcf20.read(PCF20_INPUT_PINS[i]);
-        } else if (i < 16) {
-          val = pcf21.read(PCF21_INPUT_PINS[i - 8]);
-        } else {
-          val = pcf23.read(PCF23_IN17_PIN);
-        }
-        if (digitalInputs[i].inverted) val = !val;
+  for (int i = 0; i < 17; i++) {
+    bool val = false;
+    if (digitalInputs[i].enabled) {
+      if (i < 8) {
+        val = pcf20.read(PCF20_INPUT_PINS[i]);
+      } else if (i < 16) {
+        val = pcf21.read(PCF21_INPUT_PINS[i - 8]);
+      } else {
+        val = pcf23.read(PCF23_IN17_PIN);
       }
-      inputs[i] = val;
-
-      uint8_t g = digitalInputs[i].group; // 0..3
-      if (val && g >= 1 && g <= 3) grpCondition[g] = true;
+      if (digitalInputs[i].inverted) val = !val;
     }
+    inputs[i] = val;
 
-    // Compute alarm active per group based on mode + latches
-    bool grpAlarmActive[4] = {false,false,false,false};
-    for (int g = 1; g <= 3; g++) {
-      switch (alarmModeList[g-1]) {
-        case 0: grpAlarmActive[g] = false;           latchedGroup[g] = false; break;
-        case 1: grpAlarmActive[g] = grpCondition[g]; latchedGroup[g] = false; break;
-        case 2:
-          if (grpCondition[g]) latchedGroup[g] = true;
-          grpAlarmActive[g] = grpCondition[g] || latchedGroup[g];
-          break;
-      }
+    uint8_t g = digitalInputs[i].group; // 0..3
+    if (val && g >= 1 && g <= 3) grpCondition[g] = true;
+  }
+
+  // Compute alarm active per group based on mode + latches
+  bool grpAlarmActive[4] = {false,false,false,false};
+  for (int g = 1; g <= 3; g++) {
+    switch (alarmModeList[g-1]) {
+      case 0: grpAlarmActive[g] = false;           latchedGroup[g] = false; break;
+      case 1: grpAlarmActive[g] = grpCondition[g]; latchedGroup[g] = false; break;
+      case 2:
+        if (grpCondition[g]) latchedGroup[g] = true;
+        grpAlarmActive[g] = grpCondition[g] || latchedGroup[g];
+        break;
     }
-    bool anyAlarmActive = grpAlarmActive[1] || grpAlarmActive[2] || grpAlarmActive[3];
+  }
+  bool anyAlarmActive = grpAlarmActive[1] || grpAlarmActive[2] || grpAlarmActive[3];
 
-    // -------- User LEDs on pcf27 (ACTIVE-LOW) ----------
-    JSONVar LedStateList;
-    for (int i = 0; i < 4; i++) {
-      bool active = evalLedSource(ledCfg[i].source, anyAlarmActive, grpAlarmActive);
-      bool phys = (ledCfg[i].mode == 0) ? active : (active && blinkPhase); // desired logical ON
-      LedStateList[i] = phys;
-      // Hardware ACTIVE-LOW: LOW=ON, HIGH=OFF
-      pcf27.write(LED_PINS[i], phys ? LOW : HIGH);
-    }
+  // -------- User LEDs on pcf27 (ACTIVE-LOW) ----------
+  JSONVar LedStateList;
+  for (int i = 0; i < 4; i++) {
+    bool active = evalLedSource(ledCfg[i].source, anyAlarmActive, grpAlarmActive);
+    bool phys = (ledCfg[i].mode == 0) ? active : (active && blinkPhase); // desired logical ON
+    LedStateList[i] = phys;
+    // Hardware ACTIVE-LOW: LOW=ON, HIGH=OFF
+    pcf27.write(LED_PINS[i], phys ? LOW : HIGH);
+  }
 
-    // -------- Echo config arrays for UI sync ----------
-    JSONVar invertList, groupList, enableList;
-    for (int i = 0; i < 17; i++) {
-      invertList[i] = digitalInputs[i].inverted;
-      groupList[i]  = digitalInputs[i].group;
-      enableList[i] = digitalInputs[i].enabled;
-    }
+  // ==== Modbus states BEGIN: publish all states to discrete inputs ====
+  // Digital inputs 1..17 (after enable+invert)
+  for (int i = 0; i < 17; i++) {
+    bool di = (bool)inputs[i];
+    mb.setIsts(ISTS_DI_BASE + i, di);
+  }
+  // Alarms
+  mb.setIsts(ISTS_AL_ANY, anyAlarmActive);
+  mb.setIsts(ISTS_AL_G1 , grpAlarmActive[1]);
+  mb.setIsts(ISTS_AL_G2 , grpAlarmActive[2]);
+  mb.setIsts(ISTS_AL_G3 , grpAlarmActive[3]);
+  // Relays (as actually driven)
+  for (int r=0; r<3; r++) {
+    bool coilState = (bool)relayStateList[r];
+    // reflect the *effective* output after enable/invert
+    bool outVal = coilState;
+    if (!relayConfigs[r].enabled) outVal = false;
+    if (relayConfigs[r].inverted) outVal = !outVal;
+    mb.setIsts(ISTS_RLY_BASE + r, outVal);
+  }
+  // LEDs (physical)
+  for (int l=0; l<4; l++) {
+    bool ledOn = (bool)LedStateList[l];
+    mb.setIsts(ISTS_LED_BASE + l, ledOn);
+  }
+  // ==== Modbus states END ====
 
-    JSONVar relayEnableList, relayInvertList, relayGroupList;
-    for (int i = 0; i < 3; i++) {
-      relayEnableList[i] = relayConfigs[i].enabled;
-      relayInvertList[i] = relayConfigs[i].inverted;
-      relayGroupList[i]  = relayConfigs[i].group;
-    }
+  // -------- Echo config arrays for UI sync ----------
+  JSONVar invertList, groupList, enableList;
+  for (int i = 0; i < 17; i++) {
+    invertList[i] = digitalInputs[i].inverted;
+    groupList[i]  = digitalInputs[i].group;
+    enableList[i] = digitalInputs[i].enabled;
+  }
 
-    JSONVar ButtonStateList, ButtonGroupList;
-    for (int i = 0; i < 4; i++) {
-      ButtonStateList[i] = buttonState[i];
-      ButtonGroupList[i] = buttonCfg[i].action;
-    }
+  JSONVar relayEnableList, relayInvertList, relayGroupList;
+  for (int i = 0; i < 3; i++) {
+    relayEnableList[i] = relayConfigs[i].enabled;
+    relayInvertList[i] = relayConfigs[i].inverted;
+    relayGroupList[i]  = relayConfigs[i].group;
+  }
 
-    JSONVar LedConfigList = LedConfigListFromCfg();
+  JSONVar ButtonStateList, ButtonGroupList;
+  for (int i = 0; i < 4; i++) {
+    ButtonStateList[i] = buttonState[i];
+    ButtonGroupList[i] = buttonCfg[i].action;
+  }
 
-    // Alarm Mode echo
-    JSONVar AlarmModeList;
-    for (int g = 0; g < 3; g++) AlarmModeList[g] = alarmModeList[g];
+  JSONVar LedConfigList = LedConfigListFromCfg();
 
-    // Alarm State { any, groups:[g1,g2,g3] }
-    JSONVar AlarmState;
-    AlarmState["any"] = anyAlarmActive;
-    {
-      JSONVar groups;
-      for (int g = 1; g <= 3; g++) groups[g-1] = grpAlarmActive[g];
-      AlarmState["groups"] = groups;
-    }
+  // Alarm Mode echo
+  JSONVar AlarmModeList;
+  for (int g = 0; g < 3; g++) AlarmModeList[g] = alarmModeList[g];
 
-    // -------- Send to Web --------
+  // Alarm State { any, groups:[g1,g2,g3] }
+  JSONVar AlarmState;
+  AlarmState["any"] = anyAlarmActive;
+  {
+    JSONVar groups;
+    for (int g = 1; g <= 3; g++) groups[g-1] = grpAlarmActive[g];
+    AlarmState["groups"] = groups;
+  }
+
+  // -------- Send to Web -------- (unchanged)
+  if (millis() - lastSend >= sendInterval) {
+    lastSend = millis();
     WebSerial.check();
     WebSerial.send("status", modbusStatus);
-
     WebSerial.send("inputs", inputs);
     WebSerial.send("invertList", invertList);
     WebSerial.send("groupList", groupList);
     WebSerial.send("enableList", enableList);
-
     WebSerial.send("relayStateList", relayStateList);
     WebSerial.send("relayEnableList", relayEnableList);
     WebSerial.send("relayInvertList", relayInvertList);
     WebSerial.send("relayGroupList", relayGroupList);
-
     WebSerial.send("ButtonStateList", ButtonStateList);
     WebSerial.send("ButtonGroupList", ButtonGroupList);
-
     WebSerial.send("LedConfigList", LedConfigList);
     WebSerial.send("LedStateList", LedStateList);
-
-    WebSerial.send("AlarmModeList", AlarmModeList); // echo
-    WebSerial.send("AlarmState",   AlarmState);     // live state
+    WebSerial.send("AlarmModeList", AlarmModeList);
+    WebSerial.send("AlarmState",   AlarmState);
   }
 }
 
