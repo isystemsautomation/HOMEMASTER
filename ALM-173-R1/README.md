@@ -28,7 +28,7 @@ The **ALM-173-R1** is a high-performance alarm expansion module designed for mod
 | Communication            | RS-485 (Modbus RTU slave)             |
 | Programming Interface    | USB Type-C                            |
 | Mounting                 | DIN rail or surface mount             |
-| Power Supply             | 24 V DC                                |
+| Power Supply             | 24 V DC                               |
 
 ---
 
@@ -42,87 +42,111 @@ The **ALM-173-R1** is a high-performance alarm expansion module designed for mod
 
 ---
 
-## 📦 Default Firmware – User Manual
+## 🌐 Web Config Tool
 
-The ALM-173-R1 ships with **ready-to-use firmware**. You can configure the module over **USB** using the **Web Config Tool** (runs in Chrome/Edge) and use it immediately with a HomeMaster PLC. This section explains the module’s internal logic and how to configure it.
+Configure the ALM-173-R1 directly from your browser—no software install required.
 
-### 🔔 Alarm Groups & Modes
+**➡ https://www.home-master.eu/configtool-alm-173-r1**
 
-- Each input may be assigned to **Group 1**, **Group 2**, **Group 3**, or **None**.  
-- Each group has a **Mode**:
-  - **None** – The group is ignored.  
-  - **Non-latched** – Group is **active only while** any assigned input is active.  
-  - **Latched** – Group becomes active when any assigned input triggers and **stays active** until **acknowledged**.
+- Works with **Google Chrome**, **Microsoft Edge**, **Opera**, and **Firefox** (recent versions).  
+- Connect the module via **USB Type-C**, click **Connect**, choose the serial port, and configure.
 
-**Any Alarm** is on when any group (G1/G2/G3) is active.
-
-**Acknowledgement paths** (only relevant for *Latched* groups):
-- Press an assigned **button** (Ack All / Ack G1 / G2 / G3)
-- Use a **PLC command** (via Modbus, see table below)
-- Use the **Web Config Tool** (change mode or force an ack action depending on your UI setup)
-
-### ↕️ Input Processing
-
-Per input you can set:
-- **Enabled** – Exclude/include input from processing (and from alarm computation)
-- **Inverted** – Reverse active logic (useful for normally-closed contacts)
-- **Group** – Select None/1/2/3
-
-The **processed input state** = (raw input) XOR (inverted flag), considered only if **Enabled**.
-
-### ⚡ Relays
-
-Per relay you can set:
-- **Enabled** – Output is allowed to turn on  
-- **Inverted** – Reverse hardware polarity (logical ON drives the opposite level)  
-- **Group** – Relay **follows the chosen group’s active state** unless you manually override it (e.g., via button or PLC)
-
-**Relay behavior:**
-- If **Enabled** and its **Group** is active, the relay turns **ON** (respecting Inverted).
-- Manual/PLC override can force ON/OFF regardless of group logic.
-
-### 🖲️ Buttons
-
-Each of the 4 push buttons can perform one action:
-- **None**  
-- **All alarm acknowledge**  
-- **Alarm group 1/2/3 acknowledge**  
-- **Relay 1/2/3 override (manual)** – toggles a manual override flag
-
-When a button is pressed (active-low), the action triggers on the **rising edge** (press event).
-
-### 💡 User LEDs
-
-Each of the 4 user LEDs has:
-- **Mode** – **Steady** or **Blink** when active  
-- **Source** – Trigger from:
-  - **Any alarm**, **Group 1**, **Group 2**, **Group 3**
-  - **Relay 1/2/3 overridden** (manual override indicator)
-  - **None**
-
-Blink timing is handled by the firmware (default ~400 ms period).
-
-### 🔧 Web Config Tool (over USB)
-
-- **Live Modbus status** (address/baud) is displayed.
-- Configure:
-  - **Alarm modes** (G1–G3)
-  - **Inputs** (Enable, Invert, Group for IN1–IN17)
-  - **Relays** (Enable, Invert, Group for R1–R3)
-  - **Buttons** (action)
-  - **User LEDs** (mode + source)
-- Settings are applied instantly; most are persisted in flash (depending on firmware build).
-- A **Reset Device** command is available (reboots the module safely).
-
-> The module continuously evaluates inputs, updates alarm states, latches alarms where configured, drives relays/LEDs, and exposes states/commands to the PLC via Modbus.
+> The tool uses Web Serial to communicate with the device firmware and provides live status with instant configuration updates.
 
 ---
 
-## 🔌 Modbus RTU – Default Firmware Map
+## 📘 User Manual – Default Firmware (Web Config Tool)
 
-> These addresses are provided by the **default firmware** for PLC integration.  
-> **States** are exposed as **Discrete Inputs** (FC=02).  
-> **Commands** are **Coils** (FC=05/15) and are treated as **pulses**: write `1`, firmware acts, coil auto-clears to `0`.
+This section explains how to use the Web Config Tool and how the **default firmware** behaves. No Modbus knowledge is required.
+
+### 1) Connect & Live Status
+1. Open the **Web Config Tool** link above in a supported browser.  
+2. Plug the ALM-173-R1 via **USB Type-C**.  
+3. Click **Connect** and select the device port.  
+4. The **Active Modbus Configuration** panel shows live **Address** and **Baud Rate** (used for RS-485 integration).
+
+> **Reset Device** reboots the module safely. The serial connection will briefly disconnect and can then be re-opened.
+
+### 2) Modbus Settings
+- Set **Address** (1–255) and **Baud** (9600–115200).  
+- Changes apply immediately and are **saved to flash**.  
+- The device reconfigures the serial port after a baud change.
+
+### 3) Digital Inputs (IN1–IN17)
+For each input:
+- **Enabled** — include/exclude from processing and alarm computation.  
+- **Inverted** — flips the logic (useful for normally-closed contacts).  
+- **Alarm Group** — assign to **Group 1**, **Group 2**, **Group 3**, or **None**.  
+- The round **state dot** shows the **processed** state (after Invert and Enable).
+
+**Processed state** = (raw input) XOR (Inverted), considered only if **Enabled**.
+
+### 4) Alarm Groups & Modes
+Each group (G1–G3) has a **Mode**:
+- **None** — group never alarms.  
+- **Non-latched** — group is **active only while** any assigned input is active.  
+- **Latched** — once triggered, the group **stays active** until it is **acknowledged**.
+
+**Any Alarm** lights when any group is active (latched or non-latched).
+
+**Acknowledgement (for Latched mode):**
+- Press a configured **Button** (Ack All / Ack G1 / G2 / G3).  
+- Or acknowledge from a PLC/HMI (see Modbus section below).
+
+### 5) Relays (R1–R3)
+For each relay:
+- **Enabled** — allows the output to turn ON.  
+- **Inverted** — reverses the drive polarity (logical ON drives opposite level).  
+- **Group** — the relay **follows the selected group’s active state**, unless manually overridden.
+
+**Behavior:**  
+If **Enabled** and its **Group** is active, the relay turns **ON** (respecting Inverted).  
+Manual override (via Buttons or PLC) can impose ON/OFF regardless of the group.
+
+> Hardware is **active-low** internally; the UI shows **logical** ON/OFF.
+
+### 6) Buttons (4)
+Assign one **Action** per button:
+- **None**  
+- **All alarm acknowledge**  
+- **Alarm group 1/2/3 acknowledge**  
+- **Relay 1/2/3 override (manual toggle)**
+
+Buttons are **active-low** and trigger on the **press edge** (rising edge internally).  
+Relay override toggles an internal **override flag** used by LEDs and control logic.
+
+### 7) User LEDs (4)
+Per LED choose:
+- **Mode** — **Steady** or **Blink** when active.  
+- **Source** — **Any alarm**, **Group 1/2/3**, **Relay 1/2/3 overridden**, or **None**.
+
+Blink period is handled by firmware (~400 ms by default).  
+Hardware is **active-low**; the UI shows **logical** ON/OFF.
+
+### 8) Save / Load / Factory / Reset
+- **Save** — persist current configuration to flash.  
+- **Load** — reload last saved configuration.  
+- **Factory** — restore defaults and save them.  
+- **Reset Device** — reboot the module safely.
+
+> The firmware also **auto-saves** shortly after changes (inactivity timeout).
+
+### 9) Persistence & Boot
+- Configuration is stored in internal flash and restored at boot.  
+- If no valid configuration exists, factory defaults are applied and saved.
+
+### 10) Troubleshooting
+- **Connect button does nothing** → Replug USB; ensure no other app uses the port; try another supported browser.  
+- **After reset** → Wait a few seconds, click **Connect** again.  
+- **Windows** → Confirm the COM port appears in Device Manager.
+
+---
+
+## 🔌 Modbus RTU – Default Firmware Map (for Integrators)
+
+> These addresses are provided by the **default firmware** for PLC/HMI integration.  
+> **States** are exposed as **Discrete Inputs** (FC = 02).  
+> **Commands** are **Coils** (FC = 05/15) and are treated as **pulses**: write `1`, device acts, coil auto-clears to `0`.
 
 ### Discrete Inputs — States (FC=02)
 
@@ -133,7 +157,7 @@ Blink timing is handled by the firmware (default ~400 ms period).
 | 40–42| RELAY1–3   | Relay logical states                               |
 | 48–50| ALARM_Gx   | Alarm group active flags                           |
 | 51   | ALARM_ANY  | Any alarm active (G1 ∪ G2 ∪ G3)                    |
-| 60–76| IN_ENx     | Digital input Enabled flags (read-only mirror)     |
+| 60–76| IN_ENx     | Digital input **Enabled** flags (read-only mirror) |
 
 ### Coils — Commands (FC=05/15, pulse 1 → auto-clear)
 
@@ -148,26 +172,26 @@ Blink timing is handled by the firmware (default ~400 ms period).
 | 421  | CMD_R2_OFF  | Turn Relay 2 OFF |
 | 422  | CMD_R3_OFF  | Turn Relay 3 OFF |
 
-**Digital Inputs (separate Enable/Disable addresses)**
+**Digital Inputs (Enable/Disable; separate addresses)**
 
-| Addr | Command       | Effect            |
-|-----:|---------------|-------------------|
-| 200–216 | CMD_EN_INx | Enable input x     |
-| 300–316 | CMD_DIS_INx| Disable input x    |
+| Addr   | Command        | Effect           |
+|------: |----------------|------------------|
+| 200–216| CMD_EN_INx     | Enable input x   |
+| 300–316| CMD_DIS_INx    | Disable input x  |
 
 **Alarms – Acknowledge**
 
-| Addr | Command      | Effect                          |
-|-----:|--------------|---------------------------------|
-| 500  | CMD_ACK_ALL  | Acknowledge **all** groups      |
-| 501  | CMD_ACK_G1   | Acknowledge Group 1             |
-| 502  | CMD_ACK_G2   | Acknowledge Group 2             |
-| 503  | CMD_ACK_G3   | Acknowledge Group 3             |
+| Addr | Command      | Effect                      |
+|-----:|--------------|-----------------------------|
+| 500  | CMD_ACK_ALL  | Acknowledge **all** groups  |
+| 501  | CMD_ACK_G1   | Acknowledge Group 1         |
+| 502  | CMD_ACK_G2   | Acknowledge Group 2         |
+| 503  | CMD_ACK_G3   | Acknowledge Group 3         |
 
 **Defaults**  
-- UART: 8N1  
-- Address: `3`  
-- Baud: `19200`
+- UART framing: **8N1**  
+- Slave address: **3**  
+- Baud rate: **19200**
 
 ---
 
