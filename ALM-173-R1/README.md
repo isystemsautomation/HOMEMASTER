@@ -223,10 +223,16 @@ For each group **g ∈ {1,2,3}**:
 | 502  | CMD_ACK_G2   | Acknowledge Group 2         |
 | 503  | CMD_ACK_G3   | Acknowledge Group 3         |
 
-**Defaults**  
-- UART framing: **8N1**  
-- Slave address: **3**  
-- Baud rate: **19200**
+### Defaults
+
+- **UART framing:** 8N1  
+- **Slave address:** `3`  
+- **Baud rate:** `19200`  
+
+> You can change the Modbus **baud rate** and **slave address** at any time using the **Web Config Tool**:  
+> https://www.home-master.eu/configtool-alm-173-r1  
+> *(Works in Chrome, Edge, Opera, and Firefox.)*
+
 
 ---
 
