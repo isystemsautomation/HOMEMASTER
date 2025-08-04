@@ -1,7 +1,7 @@
 # DIM-430-R1 – 3-Relay, 4-Digital Input, Configurable I/O Module
 
-The **DIM-430-R1** is a smart RS-485 Modbus RTU I/O module with **3 relays**, **4 opto-isolated digital inputs**, **3 user buttons**, and **3 user LEDs**.  
-It features a built-in **Web Config Tool** for setting Modbus parameters, I/O behavior, and LED logic without extra programming.  
+The **DIM-430-R1** is a smart RS-485 Modbus RTU I/O module with **3 relays**, **4 isolated digital inputs**, **3 user buttons**, and **3 user LEDs**.  
+It features a **Web Config Tool** for setting Modbus parameters, I/O behavior, LED and logic without extra programming.  
 Fully compatible with **HomeMaster MicroPLC** and **MiniPLC** controllers, as well as **Home Assistant** via ESPHome.
 
 ---
@@ -9,7 +9,7 @@ Fully compatible with **HomeMaster MicroPLC** and **MiniPLC** controllers, as we
 ## ⚙️ Key Features
 
 - **3 × SPDT Relays (NO/NC)** – up to 16 A load, manual or remote control, pulse/toggle operation
-- **4 × Opto-Isolated Digital Inputs** – 24 VDC, configurable action & target (None, All, Relay 1–3)
+- **4 × Isolated Digital Inputs** – 24 VDC, configurable action & target (None, All, Relay 1–3)
 - **3 × User Buttons** – assignable to relay overrides
 - **3 × User LEDs** – configurable mode (steady/blink) and activation source (None / Overridden Relay 1–3)
 - **RS-485 Modbus RTU** – address 1–255, baud rate 9600–115200
@@ -21,7 +21,7 @@ Fully compatible with **HomeMaster MicroPLC** and **MiniPLC** controllers, as we
 
 ## 🌐 Web Config Tool
 
-The **Web Config Tool** allows you to configure the DIM-430-R1 directly from your browser (Chrome/Edge) using the **Web Serial API**.  
+The **Web Config Tool** allows you to configure the DIM-430-R1 directly from your browser using the **Web Serial API**.  
 No drivers or special software required.
 
 **Features in Web Config Tool:**
@@ -38,12 +38,11 @@ No drivers or special software required.
 - User LEDs:
   - Mode: Steady/Blink
   - Activation Source: None / Overridden Relay 1–3
-- Save, Load, Factory Reset
 - Live status updates
 - Serial log viewer
 
-📎 **[Open Web Config Tool](./tools/web-config-DIM-430-R1.html)**
-
+📎 **[Open Web Config Tool](https://www.home-master.eu/configtool-dio-430-r1)**
+📎
 ---
 
 ## 💾 Firmware Downloads & Source
@@ -52,19 +51,19 @@ No drivers or special software required.
 |------|-------------|
 | [`DIM-430-R1_Default_Firmware.uf2`](./firmware/DIM-430-R1_Default_Firmware.uf2) | Default preloaded firmware with Web Config Tool support |
 | [`DIM-430-R1_Arduino_Source.zip`](./firmware/DIM-430-R1_Arduino_Source.zip) | Arduino IDE source code |
-| [`web-config-DIM-430-R1.html`](./tools/web-config-DIM-430-R1.html) | Standalone Web Config Tool HTML/JS |
+| [`web-config-DIM-430-R1.html`](./tools/web-config-DIM-430-R1.html) | Code of Web Config Tool HTML/JS |
 
 ---
 
 ## 📖 User Manual – Default Firmware & Web Config Tool
 
 ### Digital Inputs (DI1–DI4)
-- Opto-isolated, 24 VDC
+- Isolated, 24 VDC
 - Configurable **Enable**, **Invert**, **Action**, **Target**
 - Actions:
   - **None** – ignore changes
-  - **Toggle** – toggle target relay(s)
-  - **Pulse** – turn target relay(s) on for configured pulse time
+  - **Toggle** – On/off target relay(s)
+  - **Pulse** – turn target relay(s) on/off for pulse time
 - Targets:
   - **None** – no relay control
   - **All** – all relays
@@ -94,10 +93,9 @@ No drivers or special software required.
 
 1. **Inputs** read and processed according to enable/invert/action/target settings.
 2. **Button events** toggle relays if assigned.
-3. **Desired relay state** updated from inputs, buttons, or Modbus commands.
-4. **Relays** driven considering enable/invert settings.
-5. **LEDs** update based on their mode and activation source.
-6. **Configuration changes** saved to flash with CRC verification.
+3. **Relays** updated from inputs, buttons, or Modbus commands.
+4. **LEDs** update based on their mode and activation source.
+
 
 ---
 
@@ -118,10 +116,38 @@ No drivers or special software required.
 | 300–303 | Enable DI1–DI4 |
 | 320–323 | Disable DI1–DI4 |
 
-**Integration Example with ESPHome:**
-```yaml
-modbus_controller:
-  - id: dim430
-    address: 3
-    modbus_id: modbus1
-    update_interval: 500ms
+## 📐 Hardware Schematics
+
+- 📎 **[View Hardware Schematic (PDF)](./hardware/DIM-430-R1_Schematic.pdf)**
+- 📎 **[PCB Layout (Gerber/PCB Source)](./hardware/)**
+
+---
+
+## 🛠 Open Source & Re-Programming
+
+The **DIM-430-R1** firmware and hardware design are fully open source.  
+You can reprogram the **RP2350** MCU using:
+
+- **Arduino IDE (C/C++)**
+- **PlatformIO**
+- **MicroPython**
+
+Useful links:
+
+- 📎 **[Arduino Firmware Source](./firmware/DIM-430-R1_Arduino_Source.zip)**
+- 📎 **[Default Firmware (.uf2)](./firmware/DIM-430-R1_Default_Firmware.uf2)**
+- 📎 **[Web Config Tool (HTML)](./tools/web-config-DIM-430-R1.html)**
+
+> Tip: For Arduino/PlatformIO, select the appropriate RP2350/RP2040-compatible board profile.  
+> Flash via USB-C (UF2 drag-and-drop) or serial bootloader.
+
+---
+
+## 📄 License
+
+- **Hardware:** [CERN-OHL-W 2.0](https://ohwr.org/cern_ohl_w_v2.txt)
+- **Firmware:** [GNU GPLv3](https://www.gnu.org/licenses/gpl-3.0.en.html)
+
+---
+
+> 🔧 **HOMEMASTER – Modular control. Custom logic.**
