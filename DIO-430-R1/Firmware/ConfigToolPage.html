@@ -1,7 +1,7 @@
 <section style="font-family:'Segoe UI',sans-serif;padding:2rem;max-width:960px;margin:auto;">
   <div style="text-align:center;margin-bottom:2rem;">
-    <img src="https://www.home-master.eu/web/image/product.product/719/image_1024/ALM-173-R1%20Module%20for%20Alarm%20Systems?unique=f079b61" alt="ALM-173-R1" style="max-width:300px;border-radius:8px;" loading="lazy">
-    <h2>ALM-173-R1 Module Configuration</h2>
+    <img src="https://www.home-master.eu/web/image/product.image/14/image_1024/Untitled-2.webp?unique=1d6564f" alt="ALM-173-R1" style="max-width:300px;border-radius:8px;" loading="lazy">
+    <h2>DIO-430-R1 Module Configuration</h2>
     <p>Configure Modbus address, baud rate, <strong>digital inputs (4)</strong>, <strong>relays (3)</strong>, <strong>buttons (3)</strong>, and <strong>user LEDs (3)</strong> via Web Serial.</p>
   </div>
 
@@ -24,7 +24,7 @@
     </div>
     <div style="grid-column:span 2;text-align:right;">
       <button id="connect-button" type="button" style="padding:10px 20px;background:#007bff;color:#fff;border:none;border-radius:4px;">Connect</button>
-      <button id="reset-button" type="button" style="padding:10px 20px;background:#dc3545;color:#fff;border:none;border-radius:4px;margin-left:0.75rem;" disabled>Reset Device</button>
+      <button id="reset-button" type="button" style="padding:10px 20px;background:#dc3545;color:#fff;border:none;border-radius:4px;margin-left:0.75rem;" disabled="">Reset Device</button>
     </div>
   </form>
 
@@ -46,25 +46,25 @@
 
   <section>
     <h2 style="font-size:1.2rem;">Digital Inputs (4)</h2>
-    <div id="inputs-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
+    <div id="inputs-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;"></div>
   </section>
 
   <section>
     <h2 style="font-size:1.2rem;">Relays (3)</h2>
-    <div id="relays-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
+    <div id="relays-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;"></div>
   </section>
 
   <section>
     <h2 style="font-size:1.2rem;">Buttons (3)</h2>
-    <div id="buttons-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
+    <div id="buttons-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;"></div>
   </section>
 
   <section>
     <h2 style="font-size:1.2rem;">User LEDs (3)</h2>
-    <div id="leds-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
+    <div id="leds-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;"></div>
   </section>
 
-  <script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
+  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
   <script>
     (function () {
       // ---------- Helpers ----------
@@ -112,7 +112,7 @@
       });
       connection.on('open',  updateResetEnabled);
       connection.on('close', updateResetEnabled);
-      connection.on('message', (msg) => appendLog("ALM-173-R1", msg));
+      connection.on('message', (msg) => appendLog("DIO-430-R1", msg));
 
       // ---------- Modbus value changes ----------
       $('modbus-address').addEventListener('input', updateModbus);
@@ -144,7 +144,7 @@
 
       dlg && dlg.addEventListener('click', (ev) => {
         const r = dlg.getBoundingClientRect();
-        const inside = ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom;
+        const inside = ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY <= r.bottom && ev.clientY >= r.top;
         if (!inside && dlg.open) dlg.close('backdrop');
       });
 
@@ -154,10 +154,24 @@
       }
 
       // ---------- Build dynamic UI (Inputs / Relays / Buttons / LEDs) ----------
-      // Inputs (4)
+      // Inputs (4) with Action (None/Toggle/Pulse) and Control Target (None/All/R1/R2/R3)
       (function buildInputs() {
         const container = $('inputs-config'); if (!container) return;
+        const ACTIONS = [
+          { value: 0, label: 'None'   },
+          { value: 1, label: 'Toggle' },
+          { value: 2, label: 'Pulse'  },
+        ];
+        const TARGETS = [
+          { value: 4, label: 'None' },                 // No relay controlled
+          { value: 0, label: 'Control all' },
+          { value: 1, label: 'Control relay 1' },
+          { value: 2, label: 'Control relay 2' },
+          { value: 3, label: 'Control relay 3' },
+        ];
         for (let i = 1; i <= NUM_DI; i++) {
+          const actionOptions = ACTIONS.map(a => `<option value="${a.value}">${a.label}</option>`).join('');
+          const targetOptions = TARGETS.map(t => `<option value="${t.value}">${t.label}</option>`).join('');
           const card = document.createElement('div');
           card.innerHTML = `
             <div style="border:1px solid #ccc;border-radius:6px;background:#e6f7e8;padding:1rem;">
@@ -166,7 +180,17 @@
                 <span id="state-in${i}" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;"></span>
               </div>
               <label><input type="checkbox" id="enable-in${i}"> Enabled</label><br>
-              <label><input type="checkbox" id="invert-in${i}"> Inverted</label>
+              <label><input type="checkbox" id="invert-in${i}"> Inverted</label><br>
+              <label>Action:
+                <select id="action-in${i}" style="width:100%;padding:6px;border-radius:4px;">
+                  ${actionOptions}
+                </select>
+              </label><br>
+              <label>Control target:
+                <select id="target-in${i}" style="width:100%;padding:6px;border-radius:4px;">
+                  ${targetOptions}
+                </select>
+              </label>
             </div>`;
           container.appendChild(card);
         }
@@ -220,7 +244,7 @@
         }
       })();
 
-      // LEDs (3) — Mode only (Steady/Blink). They follow corresponding relay inside firmware.
+      // LEDs (3) — Mode only
       (function buildLEDs() {
         const container = $('leds-config'); if (!container) return;
         const LED_MODE = [
@@ -258,6 +282,13 @@
       connection.on('invertList', (list) => (list || []).forEach((v, i) => {
         const el = $('invert-in' + (i + 1)); if (el) el.checked = !!v;
       }));
+      connection.on('inputActionList', (list) => (list || []).forEach((v, i) => {
+        const el = $('action-in' + (i + 1)); if (el) el.value = String(v || 0);
+      }));
+      // Receive digital input control target list (4=None,0=All,1=R1,2=R2,3=R3)
+      connection.on('inputTargetList', (list) => (list || []).forEach((v, i) => {
+        const el = $('target-in' + (i + 1)); if (el) el.value = String(typeof v === 'number' ? v : 0);
+      }));
 
       // Relays
       connection.on('relayStateList', (list) => (list || []).forEach((v, i) => {
@@ -294,6 +325,8 @@
       for (let i = 1; i <= NUM_DI; i++) {
         $('enable-in' + i).addEventListener('change', sendInputEnable);
         $('invert-in' + i).addEventListener('change', sendInputInvert);
+        $('action-in' + i).addEventListener('change',  sendInputAction);
+        $('target-in' + i).addEventListener('change',  sendInputTarget);
       }
       async function sendInputEnable() {
         const list = []; for (let i = 1; i <= NUM_DI; i++) list.push(!!$('enable-in' + i).checked);
@@ -302,6 +335,15 @@
       async function sendInputInvert() {
         const list = []; for (let i = 1; i <= NUM_DI; i++) list.push(!!$('invert-in' + i).checked);
         await connection.send("Config", { t: "inputInvert", list });
+      }
+      async function sendInputAction() {
+        const list = []; for (let i = 1; i <= NUM_DI; i++) list.push(parseInt($('action-in' + i).value || "0", 10));
+        await connection.send("Config", { t: "inputAction", list });
+      }
+      // Send digital input control targets
+      async function sendInputTarget() {
+        const list = []; for (let i = 1; i <= NUM_DI; i++) list.push(parseInt($('target-in' + i).value || "0", 10));
+        await connection.send("Config", { t: "inputTarget", list });
       }
 
       // Relays
@@ -312,10 +354,7 @@
       async function sendRelayConfig() {
         const list = [];
         for (let i = 1; i <= NUM_RLY; i++) {
-          list.push({
-            enabled:  $('enable-relay' + i).checked,
-            inverted: $('invert-relay' + i).checked
-          });
+          list.push({ enabled: $('enable-relay' + i).checked, inverted: $('invert-relay' + i).checked });
         }
         await connection.send("Config", { t: "relays", list });
       }
@@ -336,9 +375,7 @@
       }
       async function sendLedConfig() {
         const list = [];
-        for (let i = 1; i <= NUM_LED; i++) {
-          list.push({ mode: parseInt($('mode-led' + i).value || "0", 10) });
-        }
+        for (let i = 1; i <= NUM_LED; i++) list.push({ mode: parseInt($('mode-led' + i).value || "0", 10) });
         await connection.send("Config", { t: "leds", list });
       }
     })();
