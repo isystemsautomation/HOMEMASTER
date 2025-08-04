@@ -50,8 +50,8 @@ No drivers or special software required.
 | File | Description |
 |------|-------------|
 | [`DIM-430-R1_Default_Firmware.uf2`](./firmware/DIM-430-R1_Default_Firmware.uf2) | Default preloaded firmware with Web Config Tool support |
-| [`DIM-430-R1_Arduino_Source.zip`](./firmware/DIM-430-R1_Arduino_Source.zip) | Arduino IDE source code |
-| [`web-config-DIM-430-R1.html`](./tools/web-config-DIM-430-R1.html) | Code of Web Config Tool HTML/JS |
+| [`default_DIO_430_R1.ino`](https://github.com/isystemsautomation/HOMEMASTER/blob/main/DIO-430-R1/Firmware/sketch_DIO-430_R1/default_DIO_430_R1/default_DIO_430_R1.ino)) | Arduino IDE source code |
+| [`web-config-DIM-430-R1.html`](DIO-430-R1/Firmware/ConfigToolPage.html) | Code of Web Config Tool HTML/JS |
 
 ---
 
