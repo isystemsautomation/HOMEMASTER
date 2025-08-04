@@ -1,238 +1,127 @@
-# DIO-430-R1
+# DIM-430-R1 – 3-Relay, 4-Digital Input, Configurable I/O Module
 
-**4× Digital Inputs · 3× Relays · 3× Buttons · 3× User LEDs**  
-**RS-485 / Modbus-RTU · Web Serial Page Config Tool · LittleFS persistence**
-
----
-
-This repository contains the firmware and a browser-based Page Config Tool for the **DIO-430-R1** module.  
-You can configure Modbus parameters, digital input behavior, relay options, button overrides, and user LED behavior directly from your browser using **Web Serial**—no extra apps required.
-
-> If you’re familiar with our **ALM-173-R1** project page, this README follows the same structure and “click-to-configure” approach.
+The **DIM-430-R1** is a smart RS-485 Modbus RTU I/O module with **3 relays**, **4 opto-isolated digital inputs**, **3 user buttons**, and **3 user LEDs**.  
+It features a built-in **Web Config Tool** for setting Modbus parameters, I/O behavior, and LED logic without extra programming.  
+Fully compatible with **HomeMaster MicroPLC** and **MiniPLC** controllers, as well as **Home Assistant** via ESPHome.
 
 ---
 
-## Table of contents
+## ⚙️ Key Features
 
-- [What’s in the box](#whats-in-the-box)
-- [Hardware at a glance](#hardware-at-a-glance)
-- [Page Config Tool (Web Serial)](#page-config-tool-web-serial)
-- [Features](#features)
-- [Digital Inputs: Actions & Targets](#digital-inputs-actions--targets)
-- [Buttons: Relay override](#buttons-relay-override)
-- [User LEDs: Mode & Source](#user-leds-mode--source)
-- [Modbus map](#modbus-map)
-- [Build & flash](#build--flash)
-- [Persistent configuration](#persistent-configuration)
-- [Troubleshooting](#troubleshooting)
-- [License](#license)
+- **3 × SPDT Relays (NO/NC)** – up to 16 A load, manual or remote control, pulse/toggle operation
+- **4 × Opto-Isolated Digital Inputs** – 24 VDC, configurable action & target (None, All, Relay 1–3)
+- **3 × User Buttons** – assignable to relay overrides
+- **3 × User LEDs** – configurable mode (steady/blink) and activation source (None / Overridden Relay 1–3)
+- **RS-485 Modbus RTU** – address 1–255, baud rate 9600–115200
+- **USB-C Port** – firmware updates & Web Serial configuration
+- **Persistent Storage** – saves settings to internal flash
+- **Open Firmware** – Arduino & MicroPython compatible
 
 ---
 
-## What’s in the box
+## 🌐 Web Config Tool
 
-- `firmware/` – Arduino sketch for DIO-430-R1 (Modbus + Web Serial + LittleFS)
-- `tools/page-config/` – a single-file **Page Config Tool** (HTML+JS) you can open locally or host with GitHub Pages
-- `docs/` – wiring, register map, and quick guides (optional)
+The **Web Config Tool** allows you to configure the DIM-430-R1 directly from your browser (Chrome/Edge) using the **Web Serial API**.  
+No drivers or special software required.
 
----
+**Features in Web Config Tool:**
+- Modbus address & baud rate settings
+- Digital Inputs:
+  - Enable/disable, invert logic
+  - Action: None, Toggle, Pulse
+  - Control target: None, All, Relay 1–3
+- Relays:
+  - Enable/disable
+  - Invert logic
+- Buttons:
+  - Action: None, Relay 1 Override, Relay 2 Override, Relay 3 Override
+- User LEDs:
+  - Mode: Steady/Blink
+  - Activation Source: None / Overridden Relay 1–3
+- Save, Load, Factory Reset
+- Live status updates
+- Serial log viewer
 
-## Hardware at a glance
-
-- **Digital Inputs (4)** — GPIO mapped: `7, 12, 11, 6`
-- **Relays (3)** — active-HIGH outputs: `10, 9, 8`
-- **Buttons (3)** — active-LOW with pull-ups: `1, 2, 3`  
-- **User LEDs (3)** — active-HIGH outputs: `13, 14, 15`
-- **RS-485 / Modbus-RTU** on UART2 (TX2=4, RX2=5), optional TXEN
-- **MCU**: RP2040-class / Arduino core (as used in examples)
-
-> Pin numbers match the default sketch; adjust for your hardware if needed.
-
----
-
-## Page Config Tool (Web Serial)
-
-The Page Config Tool lets you **configure the module from Chrome/Edge** over Web Serial.
-
-**Capabilities**
-
-- Set **Modbus address** (1–255) and **baud rate** (9600–115200)
-- Configure **Digital Inputs**:
-  - Enabled / Inverted
-  - **Action**: `None · Toggle · Pulse`
-  - **Control Target**: `None · Control all · Control relay 1/2/3`
-- Configure **Relays**: enable & invert
-- Configure **Buttons**: relay override (`None`, `Relay1/2/3 toggle`)
-- Configure **User LEDs**:
-  - **Mode**: `Steady · Blink`
-  - **Source**: `None · Overridden relay 1/2/3`
-- View live states (inputs, relays, buttons, LEDs) in real-time
-- Save / Load / Factory reset
-
-**How to use**
-
-1. Open the HTML tool in a compatible browser (Chrome/Edge on desktop).
-2. Click **Connect**, select the USB/serial device.
-3. Adjust settings; changes are sent live to the device.
-4. Use **Save** (or the firmware’s auto-save) to persist to flash.
-
-> You can host the tool via GitHub Pages or open it directly as a local file.
+📎 **[Open Web Config Tool](./tools/web-config-DIM-430-R1.html)**
 
 ---
 
-## Features
+## 💾 Firmware Downloads & Source
 
-- **Modbus-RTU slave** (address & baud configurable from the page)
-- **Web Serial** JSON protocol for simple, human-readable control & telemetry
-- **LittleFS** persistence with CRC-protected binary config blob
-- **DI actions**: Toggle or timed Pulse applied to selected targets
-- **Buttons** for **manual relay override** (on press: toggles selected relay)
-- **LEDs** can reflect the logical state of an overridden relay, with steady/blink modes
-- **Modbus coils** for one-shot “command pulses” (relay ON/OFF, DI enable/disable)
+| File | Description |
+|------|-------------|
+| [`DIM-430-R1_Default_Firmware.uf2`](./firmware/DIM-430-R1_Default_Firmware.uf2) | Default preloaded firmware with Web Config Tool support |
+| [`DIM-430-R1_Arduino_Source.zip`](./firmware/DIM-430-R1_Arduino_Source.zip) | Arduino IDE source code |
+| [`web-config-DIM-430-R1.html`](./tools/web-config-DIM-430-R1.html) | Standalone Web Config Tool HTML/JS |
 
 ---
 
-## Digital Inputs: Actions & Targets
+## 📖 User Manual – Default Firmware & Web Config Tool
 
-Each DI has:
+### Digital Inputs (DI1–DI4)
+- Opto-isolated, 24 VDC
+- Configurable **Enable**, **Invert**, **Action**, **Target**
+- Actions:
+  - **None** – ignore changes
+  - **Toggle** – toggle target relay(s)
+  - **Pulse** – turn target relay(s) on for configured pulse time
+- Targets:
+  - **None** – no relay control
+  - **All** – all relays
+  - **Relay 1–3** – single relay
 
-- **Enabled / Inverted**
-- **Action** (`action`):
-  - `0 = None`
-  - `1 = Toggle` – toggles target relay(s) on **rising edge**
-  - `2 = Pulse` – sets target relay(s) **ON for PULSE_MS (default 500 ms)**, then back **OFF**
-- **Control Target** (`target`):
-  - `4 = None` (no output is controlled)
-  - `0 = Control all` (apply action to all relays)
-  - `1..3 = Control relay 1..3`
+### Relays (R1–R3)
+- SPDT, 16 A
+- Enable/disable control
+- Invert output
 
-Actions apply on the **debounced rising edge** after enable/invert logic.
+### Buttons (B1–B3)
+- Assignable to:
+  - None
+  - Relay override toggle (R1, R2, or R3)
 
----
-
-## Buttons: Relay override
-
-Each button can be configured with:
-
-- `0 = None`
-- `5 = Relay 1 override (toggle)`
-- `6 = Relay 2 override (toggle)`
-- `7 = Relay 3 override (toggle)`
-
-On a **button press** (rising edge), the mapped relay **toggles** its desired state.
-
----
-
-## User LEDs: Mode & Source
-
-Each LED has:
-
-- **Mode** (`mode`): `0 = Steady`, `1 = Blink`
-- **Source** (`source`):  
-  `0 = None`, `5 = Overridden relay 1`, `6 = Overridden relay 2`, `7 = Overridden relay 3`
-
-When **Source ≠ None**, the LED follows the **logical relay state** (after enable/invert).  
-In **Blink** mode, the LED blinks when the source relay is active.
+### User LEDs (LED1–LED3)
+- **Mode:**
+  - Steady – on while activation source is active
+  - Blink – blink while activation source is active
+- **Activation Source:**
+  - None
+  - Overridden Relay 1–3
 
 ---
 
-## Modbus map
+## 🔄 Internal Working Logic
 
-**Discrete Inputs (FC=02):**
-
-| Address range | Meaning                         |
-|---------------|---------------------------------|
-| 1..4          | IN1..IN4 logical state (after enable+invert) |
-| 60..62        | RELAY1..RELAY3 logical state              |
-| 90..92        | LED1..LED3 logical state                  |
-
-**Coils (FC=05/15) – command pulses:**
-
-| Address range | Command (write `1` to pulse; device resets it to `0`) |
-|---------------|--------------------------------------------------------|
-| 200..202      | Relay 1..3 ON (set desired state = ON)                |
-| 210..212      | Relay 1..3 OFF (set desired state = OFF)              |
-| 300..303      | Enable DI 1..4                                        |
-| 320..323      | Disable DI 1..4                                       |
-
-> Coils are **momentary**: the firmware consumes and clears them.
+1. **Inputs** read and processed according to enable/invert/action/target settings.
+2. **Button events** toggle relays if assigned.
+3. **Desired relay state** updated from inputs, buttons, or Modbus commands.
+4. **Relays** driven considering enable/invert settings.
+5. **LEDs** update based on their mode and activation source.
+6. **Configuration changes** saved to flash with CRC verification.
 
 ---
 
-## Web Serial JSON topics
+## 📡 Modbus RTU Map – Connecting to MiniPLC/MicroPLC with ESPHome & Home Assistant
 
-The page and firmware exchange small JSON messages:
+**Discrete Inputs (FC=02)**  
+| Address | Description |
+|---------|-------------|
+| 1–4     | Digital Inputs DI1–DI4 (processed) |
+| 60–62   | Relay 1–3 state |
+| 90–92   | LED 1–3 state |
 
-**From device → page** (periodic):
-- `"status"` → `{ address, baud }`
-- `"inputs"` → `[bool × 4]`
-- `"enableList"` → `[bool × 4]`
-- `"invertList"` → `[bool × 4]`
-- `"inputActionList"` → `[0/1/2 × 4]`
-- `"inputTargetList"` → `[4/0/1/2/3 × 4]`
-- `"relayStateList"` → `[bool × 3]`
-- `"relayEnableList"` → `[bool × 3]`
-- `"relayInvertList"` → `[bool × 3]`
-- `"ButtonStateList"` → `[bool × 3]`
-- `"ButtonGroupList"` → `[0/5/6/7 × 3]`
-- `"LedConfigList"` → `[{ mode, source } × 3]`
-- `"LedStateList"` → `[bool × 3]`
-- `"message"` → string diagnostics
+**Coils (FC=05/15)**  
+| Address | Description |
+|---------|-------------|
+| 200–202 | Pulse Relay ON (R1–R3) |
+| 210–212 | Pulse Relay OFF (R1–R3) |
+| 300–303 | Enable DI1–DI4 |
+| 320–323 | Disable DI1–DI4 |
 
-**From page → device** (on change):
-- `"values"` → `{ mb_address, mb_baud }`
-- `"Config"` with `t` and `list`, where `t` ∈  
-  `inputEnable | inputInvert | inputAction | inputTarget | relays | buttons | leds`
-- `"command"` → `{ action: "save" | "load" | "factory" | "reset" }`
-
----
-
-## Build & flash
-
-1. **Arduino IDE / CLI**
-   - Install board support (RP2040 or your MCU target).
-   - Install libs:  
-     `ModbusSerial`, `SimpleWebSerial`, `Arduino_JSON`, `LittleFS` (for your core).
-2. **Open** the firmware sketch from `firmware/`.
-3. **Adjust pins/defines** as needed (TX/RX, pins, TXEN if used).
-4. **Build & Upload**.
-5. (Optional) **Format LittleFS** on first use; the firmware will auto-format if mount fails.
-
----
-
-## Persistent configuration
-
-- Settings are stored in **LittleFS** as a binary structure with **CRC-32**.
-- Auto-save triggers **~1.5 s** after the last change.
-- You can also trigger:
-  - `"command": { "action": "save" }`
-  - `"command": { "action": "load" }`
-  - `"command": { "action": "factory" }` (reset to defaults + save)
-  - `"command": { "action": "reset" }` (reboot)
-
-> The config blob includes DI/Relay/Button/LED settings and last desired relay states, plus Modbus address/baud.
-
----
-
-## Troubleshooting
-
-- **Can’t connect from the browser?**  
-  Use Chrome/Edge (desktop), enable the **Web Serial API**, and make sure no other app is holding the COM port.
-- **No Modbus responses?**  
-  Verify **address** and **baud** from the Page Config Tool; ensure wiring and biasing/termination on RS-485.
-- **Settings not sticking?**  
-  Check the console messages; the device **auto-saves** after a short delay or on explicit **Save**.
-
----
-
-## License
-
-Unless otherwise noted, source code in this repository is released under the **MIT License**.  
-See `LICENSE` for details.
-
----
-
-## Credits
-
-- Built on top of Arduino, ModbusSerial, SimpleWebSerial, Arduino_JSON, and LittleFS.
-- © iSystems Automation – **DIO-430-R1**
+**Integration Example with ESPHome:**
+```yaml
+modbus_controller:
+  - id: dim430
+    address: 3
+    modbus_id: modbus1
+    update_interval: 500ms
