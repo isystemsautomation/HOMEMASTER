@@ -1,7 +1,7 @@
 Homemaster-MiniPLC
 ---
 
-![alt text](./MiniPLC2.png "HOMAMASTER MiniPLC")
+![alt text](./Images/MicroPLC.png "HOMAMASTER MicroPLC")
 
 ## Product description
 
@@ -36,7 +36,7 @@ Wi-Fi Connectivity – Integrated Wi-Fi for wireless access and Home Assistant i
 
 ## MiniPLC Functional Block Diagram
 
-![alt text](./Images/diagram.pngdiagram.png "System Block Diagram")
+![alt text](./Images/diagram.png "System Block Diagram")
 
 ## Programming
 
