@@ -1,4 +1,4 @@
-Homemaster-MiniPLC
+Homemaster-MicroPLC
 ---
 
 ![alt text](./Images/MicroPLC.png "HOMAMASTER MicroPLC")
@@ -9,7 +9,7 @@ The **HOMAMASTER MicroPLC** is a compact and powerful open-source automation con
 
 Maker: https://www.home-master.eu/
 
-Product page: https://www.home-master.eu/shop/esp32-miniplc-55
+Product page: https://www.home-master.eu/shop/esp32-microplc-56
 
 ## 🔧 Features
 
@@ -34,13 +34,13 @@ Wi-Fi Connectivity – Integrated Wi-Fi for wireless access and Home Assistant i
 
 ![alt text](./Images/pinout.png "pinout")
 
-## MiniPLC Functional Block Diagram
+## MicroPLC Functional Block Diagram
 
 ![alt text](./Images/diagram.png "System Block Diagram")
 
 ## Programming
 
-The MiniPLC comes with ESPHome pre-installed and can be confgured via:
+The MicroPLC comes with ESPHome pre-installed and can be confgured via:
 
 Improve: 
 
