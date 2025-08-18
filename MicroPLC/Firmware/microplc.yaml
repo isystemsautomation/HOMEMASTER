@@ -49,19 +49,20 @@ web_server:
 api:                                    # Enable ESPHome API for Home Assistant integration
 
 ota:
-  - platform: esphome                   # Enable OTA updates (via ESPHome)
+  - platform: esphome                   
 
 network:
-  enable_ipv6: ${ipv6_enable}           # Enable/disable IPv6
+  enable_ipv6: ${ipv6_enable}           
 
 wifi:
-  ap: {}                                # Fallback Access Point if Wi-Fi fails
-  fast_connect: "${wifi_fast_connect}"  # Use fast reconnect if enabled
-  domain: "${dns_domain}"               # DNS domain suffix
+  ap: {}                                
+  fast_connect: "${wifi_fast_connect}"  
+  domain: "${dns_domain}"               
 
 captive_portal:                         # Captive portal for fallback hotspot
 
 improv_serial:                          # Allows setup via Improv over Serial
+
 
 esp32_improv:
   authorizer: none                      # No additional authorization required for Improv
@@ -80,7 +81,60 @@ time:
   - platform: pcf8563                   # Real-time clock (RTC) module via I2C
     id: pcf8563_time
     address: 0x51                       # I2C address of PCF8563
+  - platform: homeassistant
+    # instead try to synchronize via network repeatedly ...
+    on_time_sync:
+      then:
+              # ... and update the RTC when the synchronization was successful
+        - pcf8563.write_time
+        # Update last restart time, but only once.
+        - if:
+            condition:
+              lambda: 'return id(device_last_restart).state == "";'
+            then:
+              - text_sensor.template.publish:
+                  id: device_last_restart
+                  state: !lambda 'return id(pcf8563_time).now().strftime("%a %d %b %Y - %I:%M:%S %p");'
 
+sensor:
+  - platform: uptime
+    name: "Uptime Sensor"
+    id: uptime_sensor
+    type:
+      timestamp
+    entity_category: "diagnostic"
+
+  - platform: wifi_signal # Reports the WiFi signal strength/RSSI in dB
+    name: "WiFi Signal dB"
+    id: wifi_signal_db
+    update_interval: "${update_interval}"
+    entity_category: "diagnostic"
+
+  - platform: copy # Reports the WiFi signal strength in %
+    source_id: wifi_signal_db
+    name: "WiFi Signal Percent"
+    filters:
+      - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);
+    unit_of_measurement: "Signal %"
+    entity_category: "diagnostic"
+    device_class: ""
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "IP Address"
+      entity_category: "diagnostic"
+    ssid:
+      name: "Connected SSID"
+      entity_category: "diagnostic"
+    mac_address:
+      name: "Mac Address"
+      entity_category: "diagnostic"
+  - platform: template
+    name: 'Last Restart'
+    id: device_last_restart
+    icon: mdi:clock
+    entity_category: "diagnostic"
+#    device_class: timestamp
 i2c:
   - id: bus_a
     sda: 32                             # I2C SDA pin
