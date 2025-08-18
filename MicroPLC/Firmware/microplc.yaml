@@ -1,40 +1,89 @@
+substitutions:
+  name: "homemaster-microplc"
+  friendly_name: "Homemaster MicroPLC"
+  room: ""
+  device_description: "Homemaster MicroPLC"
+  project_name: "Homemaster MicroPLC"
+  project_version: "v1.0.0"
+  update_interval: 60s
+  # Define a domain for this device to use. i.e. iot.home.lan (so device will appear as athom-smart-plug-v2.iot.home.lan in DNS/DHCP logs)
+  dns_domain: ".local"
+  # Set timezone of the smart plug. Useful if the plug is in a location different to the HA server. Can be entered in unix Country/Area format (i.e. "Australia/Sydney")
+  timezone: ""
+  # Set the duration between the sntp service polling ntp.org servers for an update
+  sntp_update_interval: 6h
+  # Network time servers for your region, enter from lowest to highest priority. To use local servers update as per zones or countries at: https://www.ntppool.org/zone/@
+  sntp_server_1: "0.pool.ntp.org"
+  sntp_server_2: "1.pool.ntp.org"
+  sntp_server_3: "2.pool.ntp.org"  
+  # Enables faster network connections, with last connected SSID being connected to and no full scan for SSID being undertaken
+  wifi_fast_connect: "false"
+  # Define logging level: NONE, ERROR, WARN, INFO, DEBUG (Default), VERBOSE, VERY_VERBOSE
+  log_level: "DEBUG"
+  # Enable or disable the use of IPv6 networking on the device
+  ipv6_enable: "false"
 # Define the name and friendly name for this ESPHome node
 esphome:
-  name: microplc
-  friendly_name: MicroPLC
+  name: "${name}"
+  friendly_name: "${friendly_name}"
+  comment: "${device_description}"
+  area: "${room}"
+  name_add_mac_suffix: true
+  min_version: 2025.7.0
+  project:
+    name: "${project_name}"
+    version: "${project_version}"
 
 # Specify the target board and framework
 esp32:
   board: esp32dev
   framework:
     type: esp-idf
-    version: latest  # Use the latest ESP-IDF framework version
+    version: recommended  # Use the latest ESP-IDF framework version
 
 # Enable logging over serial
+preferences:
+  flash_write_interval: 5min
+
+# Enable logging
 logger:
-
+  baud_rate: 115200
+  level: ${log_level}
 # Enable communication with Home Assistant using ESPHome API
-api:
-  encryption:
-    key: "Bh8a0zCOE6V/z27+omhUZ/+AbqP2Q8HLbTwfQn4MsW8="  # Optional encryption key for secure API
 
-# Enable OTA updates
+mdns:
+  disabled: false
+
+web_server:
+  port: 80
+
+# Enable Home Assistant API
+api:
+
 ota:
   - platform: esphome
-    password: "5a449032ac09fbbdd112904529b114bc"  # Password required for over-the-air firmware updates
 
-# WiFi configuration
+network:
+  enable_ipv6: ${ipv6_enable}
+
 wifi:
-  ssid: !secret wifi_ssid  # WiFi SSID stored in secrets.yaml
-  password: !secret wifi_password  # WiFi password stored in secrets.yaml
-
-  # Fallback hotspot configuration if main WiFi fails
-  ap:
-    ssid: "Microplc Fallback Hotspot"
-    password: "lzDlyYzeJGZU"
+  # This spawns an AP with the device name and mac address with no password.
+  ap: {}
+  # Allow rapid re-connection to previously connect WiFi SSID, skipping scan of all SSID
+  fast_connect: "${wifi_fast_connect}"
+  # Define dns domain / suffix to add to hostname
+  domain: "${dns_domain}"
 
 # Captive portal for fallback hotspot
 captive_portal:
+
+improv_serial:
+
+esp32_improv:
+  authorizer: none
+
+dashboard_import:
+  package_import_url: github://isystemsautomation/HOMEMASTER/MicroPLC/Firmware/microplc.yaml
 
 # UART interface configuration (typically used for RS485/Modbus communication)
 uart:
