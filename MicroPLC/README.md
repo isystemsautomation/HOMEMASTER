@@ -10,6 +10,7 @@ The **HOMAMASTER MicroPLC** is a compact and powerful open-source automation con
 Maker: https://www.home-master.eu/
 
 Product page: https://www.home-master.eu/shop/esp32-microplc-56
+Schematics: https://github.com/isystemsautomation/HOMEMASTER/tree/main/MicroPLC/Schematic
 
 ## 🔧 Features
 
