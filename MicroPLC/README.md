@@ -2,7 +2,7 @@
 ---
 Homemaster-MicroPLC
 ---
-![alt text](./MicroPLC.png "HOMAMASTER MicroPLC")
+![alt text](./Images/MicroPLC.png "HOMAMASTER MicroPLC")
 
 ## Product description
 
@@ -32,11 +32,11 @@ Wi-Fi Connectivity – Integrated Wi-Fi for wireless access and Home Assistant i
 
 ## Pinout
 
-![alt text](./pinout.png "pinout")
+![alt text](./Images/pinout.png "pinout")
 
 ## MicroPLC Functional Block Diagram
 
-![alt text](./diagram.png "System Block Diagram")
+![alt text](./Images/diagram.png "System Block Diagram")
 
 ## Programming
 
