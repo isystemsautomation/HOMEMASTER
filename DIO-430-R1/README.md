@@ -49,9 +49,9 @@ No drivers or special software required.
 
 | File | Description |
 |------|-------------|
-| [`DIM-430-R1_Default_Firmware.uf2`](./firmware/DIM-430-R1_Default_Firmware.uf2) | Default preloaded firmware with Web Config Tool support |
-| [`default_DIO_430_R1.ino`](https://github.com/isystemsautomation/HOMEMASTER/blob/main/DIO-430-R1/Firmware/sketch_DIO-430_R1/default_DIO_430_R1/default_DIO_430_R1.ino)) | Arduino IDE source code |
-| [`web-config-DIM-430-R1.html`](DIO-430-R1/Firmware/ConfigToolPage.html) | Code of Web Config Tool HTML/JS |
+| [`DIM-430-R1_Default_Firmware.uf2`](https://github.com/isystemsautomation/HOMEMASTER/tree/main/DIO-430-R1/Firmware/default_DIO_430_R1/build/rp2040.rp2040.generic_rp2350) | Default preloaded firmware with Web Config Tool support |
+| [`default_DIO_430_R1.ino`](https://github.com/isystemsautomation/HOMEMASTER/blob/main/DIO-430-R1/Firmware/default_DIO_430_R1/default_DIO_430_R1.ino) | Arduino IDE source code |
+| [`ConfigToolPage.html`](https://github.com/isystemsautomation/HOMEMASTER/blob/main/DIO-430-R1/Firmware/ConfigToolPage.html)) | Code of Web Config Tool HTML/JS |
 
 ---
 
@@ -118,8 +118,8 @@ No drivers or special software required.
 
 ## 📐 Hardware Schematics
 
-- 📎 **[View Hardware Schematic (PDF)](./hardware/DIM-430-R1_Schematic.pdf)**
-- 📎 **[PCB Layout (Gerber/PCB Source)](./hardware/)**
+- 📎 **[DIO-430-R1-FieldBoard.pdf)](https://github.com/isystemsautomation/HOMEMASTER/blob/main/DIO-430-R1/Schematics/DIO-430-R1-FieldBoard.pdf)**
+- 📎 **[DIO-430-R1-MCUBoard.pdf](https://github.com/isystemsautomation/HOMEMASTER/blob/main/DIO-430-R1/Schematics/DIO-430-R1-MCUBoard.pdf)**
 
 ---
 
@@ -132,11 +132,6 @@ You can reprogram the **RP2350** MCU using:
 - **PlatformIO**
 - **MicroPython**
 
-Useful links:
-
-- 📎 **[Arduino Firmware Source](./firmware/DIM-430-R1_Arduino_Source.zip)**
-- 📎 **[Default Firmware (.uf2)](./firmware/DIM-430-R1_Default_Firmware.uf2)**
-- 📎 **[Web Config Tool (HTML)](./tools/web-config-DIM-430-R1.html)**
 
 > Tip: For Arduino/PlatformIO, select the appropriate RP2350/RP2040-compatible board profile.  
 > Flash via USB-C (UF2 drag-and-drop) or serial bootloader.
