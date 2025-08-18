@@ -13,8 +13,9 @@ A built-in high-voltage relay allows local control of zone valves or backup heat
 
 Maker: https://www.home-master.eu/
 
-Product page: https://www.home-master.eu/shop/esp32-microplc-56
-Schematics: https://github.com/isystemsautomation/HOMEMASTER/tree/main/MicroPLC/Schematic
+Product page: https://www.home-master.eu/shop/esp32-opentherm-gateway-59
+
+Schematics: https://github.com/isystemsautomation/HOMEMASTER/tree/main/OpenthermGateway/Schematic
 
 ## Features
 
