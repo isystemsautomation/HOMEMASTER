@@ -67,7 +67,7 @@ esp32_improv:
   authorizer: none                      # No additional authorization required for Improv
 
 dashboard_import:
-  package_import_url: github://isystemsautomation/HOMEMASTER/OpenthermGateway/Firmware/opentherm.yamll@main
+  package_import_url: github://isystemsautomation/HOMEMASTER/OpenthermGateway/Firmware/opentherm.yaml@main
   import_full_config: true
   # Allows importing this YAML from GitHub into ESPHome Dashboard
 
@@ -86,28 +86,6 @@ time:
                   id: device_last_restart
                   state: !lambda 'return id(pcf8563_time).now().strftime("%a %d %b %Y - %I:%M:%S %p");'
 
-sensor:
-  - platform: uptime
-    name: "Uptime Sensor"
-    id: uptime_sensor
-    type:
-      timestamp
-    entity_category: "diagnostic"
-
-  - platform: wifi_signal # Reports the WiFi signal strength/RSSI in dB
-    name: "WiFi Signal dB"
-    id: wifi_signal_db
-    update_interval: "${update_interval}"
-    entity_category: "diagnostic"
-
-  - platform: copy # Reports the WiFi signal strength in %
-    source_id: wifi_signal_db
-    name: "WiFi Signal Percent"
-    filters:
-      - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);
-    unit_of_measurement: "Signal %"
-    entity_category: "diagnostic"
-    device_class: ""
 text_sensor:
   - platform: wifi_info
     ip_address:
@@ -146,7 +124,27 @@ sensor:
     max_t_set_lb: { name: "Lower bound for max CH setpoint (°C)" }
     t_dhw_set: { name: "DHW temperature setpoint (°C)" }
     max_t_set: { name: "Max CH water setpoint (°C)" }
+  - platform: uptime
+    name: "Uptime Sensor"
+    id: uptime_sensor
+    type:
+      timestamp
+    entity_category: "diagnostic"
 
+  - platform: wifi_signal # Reports the WiFi signal strength/RSSI in dB
+    name: "WiFi Signal dB"
+    id: wifi_signal_db
+    update_interval: "${update_interval}"
+    entity_category: "diagnostic"
+
+  - platform: copy # Reports the WiFi signal strength in %
+    source_id: wifi_signal_db
+    name: "WiFi Signal Percent"
+    filters:
+      - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);
+    unit_of_measurement: "Signal %"
+    entity_category: "diagnostic"
+    device_class: ""
 # Binary sensors from OpenTherm protocol
 binary_sensor:
   - platform: opentherm
@@ -199,12 +197,12 @@ switch:
 # sensor:
 #   - platform: dallas_temp
 #     one_wire_id: hub_1
-#     address: 0x6f7c86e908646128
+#     address: 0x0000000000000000
 #     name: "1-WIRE Dallas temperature BUS1"
 #     update_interval: 60s
 #   - platform: dallas_temp
 #     one_wire_id: hub_2
-#     address: 0xbc3c01d075cb5128
+#     address: 0x0000000000000000
 #     name: "1-WIRE Dallas temperature BUS2"
 #     update_interval: 60s
 
