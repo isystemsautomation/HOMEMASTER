@@ -85,7 +85,6 @@ time:
               - text_sensor.template.publish:
                   id: device_last_restart
                   state: !lambda 'return id(pcf8563_time).now().strftime("%a %d %b %Y - %I:%M:%S %p");'
-
 text_sensor:
   - platform: wifi_info
     ip_address:
