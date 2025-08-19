@@ -66,14 +66,15 @@ improv_serial:                          # Allows setup via Improv over Serial
 esp32_improv:
   authorizer: none                      # No additional authorization required for Improv
 
-dashboard_import:
-  package_import_url: github://isystemsautomation/HOMEMASTER/OpenthermGateway/Firmware/opentherm.yaml@main
-  import_full_config: true
-  # Allows importing this YAML from GitHub into ESPHome Dashboard
+#dashboard_import:
+#  package_import_url: github://isystemsautomation/HOMEMASTER/OpenthermGateway/Firmware/opentherm.yaml@main
+#  import_full_config: true
+#  # Allows importing this YAML from GitHub into ESPHome Dashboard
 
 
 time:
   - platform: homeassistant
+    id: homeassistant_time
     # instead try to synchronize via network repeatedly ...
     on_time_sync:
       then:
@@ -84,7 +85,8 @@ time:
             then:
               - text_sensor.template.publish:
                   id: device_last_restart
-                  state: !lambda 'return id(pcf8563_time).now().strftime("%a %d %b %Y - %I:%M:%S %p");'
+                  state: !lambda 'return id(homeassistant_time).now().strftime("%a %d %b %Y - %I:%M:%S %p");'
+
 text_sensor:
   - platform: wifi_info
     ip_address:
