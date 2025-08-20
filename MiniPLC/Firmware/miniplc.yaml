@@ -8,10 +8,6 @@ substitutions:
   update_interval: 60s                  # Default sensor update interval
   dns_domain: ".local"                  # mDNS domain suffix for network discovery
   timezone: ""                          # Timezone (can be set if device runs in different region)
-  sntp_update_interval: 6h              # Sync interval for time updates from NTP servers
-  sntp_server_1: "0.pool.ntp.org"       # Primary NTP server
-  sntp_server_2: "1.pool.ntp.org"       # Secondary NTP server
-  sntp_server_3: "2.pool.ntp.org"       # Tertiary NTP server
   wifi_fast_connect: "false"            # If true, reconnects faster (skips Wi-Fi scans)
   log_level: "DEBUG"                    # Logging level (NONE, ERROR, WARN, INFO, DEBUG, VERBOSE)
   ipv6_enable: "false"                  # Enable IPv6 if supported
@@ -21,20 +17,17 @@ esphome:
   friendly_name: "${friendly_name}"     # Uses substitution for friendly name
   comment: "${device_description}"      # Metadata comment
   area: "${room}"                       # Assign device to a room
-  name_add_mac_suffix: true             # Appends MAC suffix to avoid duplicate hostnames
   min_version: 2025.7.0                 # Minimum ESPHome version required
+  name_add_mac_suffix: true             # Append MAC to hostname to avoid duplicates
   project:
     name: "${project_name}"             # Project name
     version: "${project_version}"       # Project version
 
 esp32:
-  board: esp32dev                       # Target board type (generic ESP32 DevKit)
+  board: esp32dev              # Target board type (generic ESP32 DevKit)
   framework:
     type: esp-idf                       # Use ESP-IDF (official Espressif framework)
     version: recommended                # Recommended stable version
-
-preferences:
-  flash_write_interval: 5min            # How often preferences are written to flash
 
 logger:
   baud_rate: 115200                     # Serial logging baud rate
@@ -42,10 +35,6 @@ logger:
 
 mdns:
   disabled: false                       # Enable mDNS for auto-discovery on the network
-
-web_server:
-  port: 80   
-  version: 3                           # Enables local web server on port 80
 
 api:                                    # Enable ESPHome API for Home Assistant integration
 
@@ -64,14 +53,13 @@ captive_portal:                         # Captive portal for fallback hotspot
 
 improv_serial:                          # Allows setup via Improv over Serial
 
-
 esp32_improv:
   authorizer: none                      # No additional authorization required for Improv
 
 dashboard_import:
   package_import_url: github://isystemsautomation/HOMEMASTER/MiniPLC/Firmware/miniplc.yaml@main
-  import_full_config: true
-  # Allows importing this YAML from GitHub into ESPHome Dashboard
+  import_full_config: true   # Allows importing this YAML from GitHub into ESPHome Dashboard
+
 #ethernet:
 #  type: LAN8720
 #  mdc_pin: GPIO23
@@ -84,18 +72,6 @@ uart:
   rx_pin: 16
   baud_rate: 19200
   id: mod_uart
-
-modbus:
-  send_wait_time: 200ms
-  uart_id: mod_uart
-  id: mod_bus
-
-modbus_controller:
-- id: modbus_device
-  address: 0x1   ## address of the Modbus slave device on the bus
-  update_interval: 60s
-  modbus_id: mod_bus
-  setup_priority: -10
 
 one_wire:
   - platform: gpio
@@ -135,10 +111,10 @@ pcf8574:
 ads1115:
   - address: 0x48
 
-spi:
-  miso_pin: GPIO12
-  mosi_pin: GPIO13
-  clk_pin: GPIO14
+# spi:
+#  miso_pin: GPIO12
+#  mosi_pin: GPIO13
+#  clk_pin: GPIO14
 
 text_sensor:
   - platform: template
@@ -307,16 +283,16 @@ fan:
     name: "DAC 0-10V"
 
 sensor:
-  - platform: dallas_temp
-    one_wire_id: hub_1
-    address: 0x6f7c86e908646128
-    name: "1-WIRE Dallas temperature BUS1"
-    update_interval: 60s
-  - platform: dallas_temp
-    one_wire_id: hub_2
-    address: 0xbc3c01d075cb5128
-    name: "1-WIRE Dallas temperature BUS2"
-    update_interval: 60s
+#  - platform: dallas_temp
+#    one_wire_id: hub_1
+#    address: 0x0000000000000000
+#    name: "1-WIRE Dallas temperature BUS1"
+#    update_interval: 60s
+#  - platform: dallas_temp
+#    one_wire_id: hub_2
+#    address: 0x0000000000000000
+#    name: "1-WIRE Dallas temperature BUS2"
+#    update_interval: 60s
 #MAX 31865 RTD 
 #  - platform: max31865
 #    name: "MAX 31856 Temperature 1"
@@ -358,13 +334,6 @@ sensor:
     update_interval: 60s
     filters:
       - multiply: 3
-  - platform: modbus_controller
-    modbus_controller_id: modbus_device
-    name: "Modbus Sensor"
-    register_type: holding
-    address: 0x0001    ## address of the register inside the Modbus slave device
-    unit_of_measurement: "C"
-    value_type: U_WORD
 
 output:
  - platform: ledc
