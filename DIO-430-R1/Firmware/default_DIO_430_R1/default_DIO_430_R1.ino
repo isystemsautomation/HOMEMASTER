@@ -17,7 +17,7 @@ ModbusSerial mb(Serial2, SlaveId, TxenPin);
 static const uint8_t DI_PINS[4]    = {7, 12, 11, 6};   // DI1..DI4
 static const uint8_t RELAY_PINS[3] = {10, 9, 8};       // R1..R3 (active-HIGH)
 static const uint8_t LED_PINS[3]   = {13, 14, 15};     // LED1..LED3 (active-HIGH)
-static const uint8_t BTN_PINS[3]   = {1, 2, 3};        // Button1..3 (active-LOW, pullups)
+static const uint8_t BTN_PINS[3]   = {2, 3, 1};        // Button1..3 (active-LOW, pullups)
 
 // ================== Sizes ==================
 static const uint8_t NUM_DI  = 4;
