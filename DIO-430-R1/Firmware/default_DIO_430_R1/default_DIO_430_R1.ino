@@ -452,33 +452,39 @@ void loop() {
     }
   }
 
-  // -------- Inputs (4) with Actions & Targets ----------
-  JSONVar inputs;
-  for (int i = 0; i < NUM_DI; i++) {
-    bool val = false;
-    if (diCfg[i].enabled) {
-      val = (digitalRead(DI_PINS[i]) == HIGH);
-      if (diCfg[i].inverted) val = !val;
-    }
-    diPrev[i] = diState[i];
-    diState[i] = val;
-    inputs[i] = val;
-    mb.setIsts(ISTS_DI_BASE + i, val);
-
-    // Rising edge -> perform action to selected target
-    if (!diPrev[i] && diState[i]) {
-      applyActionToTarget(diCfg[i].target, diCfg[i].action, now);
-    }
+// -------- Inputs (4) with Actions & Targets ----------
+JSONVar inputs;
+for (int i = 0; i < NUM_DI; i++) {
+  bool val = false;
+  if (diCfg[i].enabled) {
+    val = (digitalRead(DI_PINS[i]) == HIGH);
+    if (diCfg[i].inverted) val = !val;
   }
 
-  // End pulse windows
-  for (int r=0; r<NUM_RLY; r++) {
-    if (rlyPulseUntil[r] && timeAfter32(now, rlyPulseUntil[r])) {
-      desiredRelay[r] = false;
-      rlyPulseUntil[r] = 0;
-      cfgDirty = true; lastCfgTouchMs = millis();
+  bool prev = diState[i];
+  diPrev[i]  = prev;
+  diState[i] = val;
+  inputs[i]  = val;
+  mb.setIsts(ISTS_DI_BASE + i, val);
+
+  // Edge detection
+  bool rising  = (!prev && val);
+  bool falling = (prev && !val);
+
+  // Actions:
+  // 1 = Toggle -> toggle on ANY edge (rising or falling)
+  // 2 = Pulse  -> toggle on RISING edge only
+  uint8_t act = diCfg[i].action;
+  if (act == 1) {
+    if (rising || falling) {
+      applyActionToTarget(diCfg[i].target, 1 /*toggle*/, now);
+    }
+  } else if (act == 2) {
+    if (rising) {
+      applyActionToTarget(diCfg[i].target, 1 /*toggle*/, now);
     }
   }
+}
 
   // -------- Relays: drive outputs from desiredRelay + relay config ----------
   JSONVar relayStateList;
