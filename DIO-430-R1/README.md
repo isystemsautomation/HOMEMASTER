@@ -333,6 +333,7 @@ typedef struct __attribute__((packed)) {
   uint32_t crc32;       // CRC32 of the whole struct with this field set to 0
 } PersistConfig;
 
+```
 
 ## 📐 Hardware Schematics
 
