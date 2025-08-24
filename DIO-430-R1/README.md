@@ -57,7 +57,7 @@ No drivers or special software required.
 
 # DIO-430-R1 — Firmware & Module Guide
 
-**MCU:** RP2040 | **I/O:** 4× DI, 3× Relays, 3× Buttons, 3× LEDs  
+**MCU:** RP2350A | **I/O:** 4× DI, 3× Relays, 3× Buttons, 3× LEDs  
 **Interfaces:** RS-485/Modbus RTU (UART2), USB Web Serial  
 **Persistence:** LittleFS (`/cfg.bin`) with guarded format + CRC
 
@@ -297,7 +297,7 @@ On boot the firmware:
 ---
 
 ## Build & Flash Notes
-- **Board core:** RP2040 (e.g., Earle Philhower or vendor core)  
+- **Board core:** RP22350A (e.g., Earle Philhower or vendor core)  
 - **Arduino IDE → Tools → Flash Size / Filesystem:** choose a layout **with LittleFS** (e.g., “Sketch 1 MB / LittleFS 1 MB”)  
 - **Required Libraries:**
   - `ModbusSerial`
