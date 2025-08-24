@@ -14,7 +14,7 @@ int SlaveId = 1;
 ModbusSerial mb(Serial2, SlaveId, TxenPin);
 
 // ================== GPIO MAP (direct) ==================
-static const uint8_t DI_PINS[4]    = {7, 12, 11, 6};   // DI1..DI4
+static const uint8_t DI_PINS[4]    = {6, 11, 12, 7};   // DI1..DI4
 static const uint8_t RELAY_PINS[3] = {10, 9, 8};       // R1..R3 (active-HIGH)
 static const uint8_t LED_PINS[3]   = {13, 14, 15};     // LED1..LED3 (active-HIGH)
 static const uint8_t BTN_PINS[3]   = {2, 3, 1};        // Button1..3 (active-LOW, pullups)
@@ -135,15 +135,67 @@ bool applyFromPersist(const PersistConfig &pc) {
 
 bool saveConfigFS() {
   PersistConfig pc{}; captureToPersist(pc);
-  File f = LittleFS.open(CFG_PATH, "w"); if (!f) return false;
-  size_t n = f.write((const uint8_t*)&pc, sizeof(pc)); f.close();
-  return n == sizeof(pc);
+  File f = LittleFS.open(CFG_PATH, "w"); 
+  if (!f) { WebSerial.send("message", "save: open failed"); return false; }
+  size_t n = f.write((const uint8_t*)&pc, sizeof(pc));
+  f.flush(); 
+  f.close();
+  if (n != sizeof(pc)) { WebSerial.send("message", String("save: short write ")+n); return false; }
+  // quick read-back verify
+  File r = LittleFS.open(CFG_PATH, "r");
+  if (!r) { WebSerial.send("message", "save: reopen failed"); return false; }
+  if ((size_t)r.size() != sizeof(PersistConfig)) { WebSerial.send("message", "save: size mismatch after write"); r.close(); return false; }
+  PersistConfig back{}; size_t nr = r.read((uint8_t*)&back, sizeof(back)); r.close();
+  if (nr != sizeof(back)) { WebSerial.send("message", "save: short readback"); return false; }
+  PersistConfig tmp = back; uint32_t crc = tmp.crc32; tmp.crc32 = 0;
+  if (crc32_update(0, (const uint8_t*)&tmp, sizeof(tmp)) != crc) { WebSerial.send("message", "save: CRC verify failed"); return false; }
+  return true;
 }
 bool loadConfigFS() {
-  File f = LittleFS.open(CFG_PATH, "r"); if (!f) return false;
-  if (f.size() != sizeof(PersistConfig)) { f.close(); return false; }
+  File f = LittleFS.open(CFG_PATH, "r"); if (!f) { WebSerial.send("message", "load: open failed"); return false; }
+  if (f.size() != sizeof(PersistConfig)) { WebSerial.send("message", String("load: size ")+f.size()+" != "+sizeof(PersistConfig)); f.close(); return false; }
   PersistConfig pc{}; size_t n = f.read((uint8_t*)&pc, sizeof(pc)); f.close();
-  if (n != sizeof(pc)) return false; return applyFromPersist(pc);
+  if (n != sizeof(pc)) { WebSerial.send("message", "load: short read"); return false; }
+  if (!applyFromPersist(pc)) { WebSerial.send("message", "load: magic/version/crc mismatch"); return false; }
+  return true;
+}
+
+// ================== Guarded FS init ==================
+bool initFilesystemAndConfig() {
+  if (!LittleFS.begin()) {
+    WebSerial.send("message", "LittleFS mount failed. Formatting…");
+    if (!LittleFS.format() || !LittleFS.begin()) {
+      WebSerial.send("message", "FATAL: FS mount/format failed");
+      return false;
+    }
+  }
+
+  if (loadConfigFS()) {
+    WebSerial.send("message", "Config loaded from flash");
+    return true;
+  }
+
+  WebSerial.send("message", "No valid config. Using defaults.");
+  setDefaults();
+  if (saveConfigFS()) {
+    WebSerial.send("message", "Defaults saved");
+    return true;
+  }
+
+  WebSerial.send("message", "First save failed. Formatting FS…");
+  if (!LittleFS.format() || !LittleFS.begin()) {
+    WebSerial.send("message", "FATAL: FS format failed");
+    return false;
+  }
+
+  setDefaults();
+  if (saveConfigFS()) {
+    WebSerial.send("message", "FS formatted and config saved");
+    return true;
+  }
+
+  WebSerial.send("message", "FATAL: save still failing after format");
+  return false;
 }
 
 // ================== SFINAE helper ==================
@@ -190,10 +242,10 @@ void setup() {
 
   setDefaults();
 
-  // LittleFS
-  if (!LittleFS.begin()) { WebSerial.send("message", "LittleFS mount failed. Formatting…"); LittleFS.format(); LittleFS.begin(); }
-  if (loadConfigFS()) WebSerial.send("message", "Config loaded from flash");
-  else { WebSerial.send("message", "No valid config. Using defaults."); saveConfigFS(); }
+  // Guarded FS init
+  if (!initFilesystemAndConfig()) {
+    WebSerial.send("message", "FATAL: Filesystem/config init failed");
+  }
 
   // Serial2 / Modbus
   Serial2.setTX(TX2); Serial2.setRX(RX2);
@@ -231,9 +283,9 @@ void handleCommand(JSONVar obj) {
   String act = String(actC); act.toLowerCase();
 
   if (act == "reset" || act == "reboot") {
-    saveConfigFS();
-    WebSerial.send("message", "Rebooting now…");
-    delay(120); performReset();
+    bool ok = saveConfigFS();
+    WebSerial.send("message", ok ? "Saved. Rebooting…" : "WARNING: Save verify FAILED. Rebooting anyway…");
+    delay(400); performReset();
   } else if (act == "save") {
     if (saveConfigFS()) WebSerial.send("message", "Configuration saved"); else WebSerial.send("message", "ERROR: Save failed");
   } else if (act == "load") {
