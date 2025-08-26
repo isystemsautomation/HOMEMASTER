@@ -1,4 +1,4 @@
-# DIOo-430-R1 – 3-Relay, 4-Digital Input, Configurable I/O Module
+# DIO-430-R1 – 3-Relay, 4-Digital Input, Configurable I/O Module
 
 The **DIO-430-R1** is a smart RS-485 Modbus RTU I/O module with **3 relays**, **4 isolated digital inputs**, **3 user buttons**, and **3 user LEDs**.  
 It features a **Web Config Tool** for setting Modbus parameters, I/O behavior, LED and logic without extra programming.  
