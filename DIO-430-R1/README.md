@@ -58,7 +58,7 @@ Fully compatible with **HomeMaster MicroPLC** and **MiniPLC** controllers, as we
 - **RS-485 Modbus RTU** – configurable address (1–255), baud rate (9600–115200)  
 - **USB-C Port** – firmware updates & Web Serial configuration  
 - **Persistent Storage** – saves settings to internal flash (LittleFS)  
-- **Open Firmware** – Arduino IDE, PlatformIO, and MicroPython compatible  
+- **Open Firmware** – Arduino IDE compatible  
 
 ---
 
@@ -66,12 +66,12 @@ Fully compatible with **HomeMaster MicroPLC** and **MiniPLC** controllers, as we
 
 ### 1. Powering the Module
 - Input: **24 VDC**, fused.  
-- Status LEDs blink briefly on startup.  
+- Power status LEDs are on..  
 
 ### 2. First Connection
 - Connect via **USB-C** to your PC.  
-- Open [Web Config Tool](https://www.home-master.eu/configtool-dio-430-r1) in Chrome/Edge.  
-- Click **Connect** → select the DIO-430-R1.  
+- Open [Web Config Tool](https://www.home-master.eu/configtool-dio-430-r1) in Chrome/Edge/Opera.  
+- Click **Connect** → select the Com port with RP2350.  
 
 ### 3. Configure  
 - Adjust Modbus address/baud, relay modes, DI actions, LED logic.  
@@ -79,8 +79,8 @@ Fully compatible with **HomeMaster MicroPLC** and **MiniPLC** controllers, as we
 
 ### 4. Wiring Notes
 - **Relays:** SPDT, 16 A max. Supports AC/DC loads.  
-- **Digital Inputs:** 24 VDC, opto-isolated.  
-- **RS-485:** A/B lines → Modbus bus; ensure common GND.  
+- **Digital Inputs:** 24 VDC, sourcing inputs, isolated.  
+- **RS-485:** A/B lines → Modbus bus; ensure common GND-"COM" terminal.  
 
 ---
 
@@ -261,7 +261,7 @@ On boot:
 
 ## Troubleshooting  
 - **Save failed:** check LittleFS partition in Arduino IDE  
-- **Not detected:** Chrome/Edge only, reconnect  
+- **Not detected:** Chrome/Edge/Opera, reconnect  
 - **No Modbus:** check address/baud, A/B wiring  
 - **Relays not switching:** ensure enabled, check inversion  
 - **DI/Buttons not reacting:** confirm enabled + edge logic  
