@@ -1,3 +1,10 @@
+modbus_controller:
+  - id: alm
+    address: 3              # default g_mb_address from your firmware
+    modbus_id: modbus_bus
+    command_throttle: 0ms
+    update_interval: 1s
+
 binary_sensor:
   # IN1..IN8
   - platform: modbus_controller
