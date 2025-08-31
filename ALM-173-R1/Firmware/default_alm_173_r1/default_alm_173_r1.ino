@@ -1,7 +1,13 @@
-// ==== ALM173-R1 with command pulse coils ===================================
-// Adds write-only Modbus coils for "auto-pulse" commands.
-// Coils auto-clear after the action is executed.
-// ===========================================================================
+// ==== ALM173-R1 with command pulse coils + Button override ====================
+// - Buttons 5/6/7: long hold (3s) enters Button-controlled override for R1/R2/R3.
+//   While in override, short press toggles the relay.
+//   Another long hold exits override and returns control to alarm group,
+//   and clears any Modbus manual override for that relay.
+// - Buttons are inverted (pressed = HIGH) per schematic.
+// - LED sources:
+//     0=None, 1=Any alarm, 2=G1, 3=G2, 4=G3, 5=OverrideR1, 6=OverrideR2, 7=OverrideR3
+// - Modbus ON/OFF coils 400..402 / 420..422 still work when override is OFF.
+// ============================================================================
 
 #include <Arduino.h>
 #include <Wire.h>
@@ -37,28 +43,42 @@ struct ButtonCfg{ uint8_t action; };
 
 // ================== Runtime state ==================
 ThreeCfg  digitalInputs[17];
-ThreeCfg  relayConfigs[3];
+ThreeCfg  relayConfigs[3];   // group: 0=None, 1..3 = Alarm Group
 LedCfg    ledCfg[4];
 ButtonCfg buttonCfg[4];
 
-bool buttonState[4]   = {false,false,false,false};
-bool buttonPrev[4]    = {false,false,false,false};
-bool relayOverride[3] = {false,false,false};  // used by LED sources 5..7
+// --- Button logic (inverted schematic: pressed = HIGH) ---
+constexpr bool BUTTON_PRESSED_LOW = false;   // false => pressed reads HIGH
+constexpr unsigned long BTN_LONG_MS = 3000;
+constexpr unsigned long BTN_DEBOUNCE_MS = 30;
 
-// Manual relay override (from Modbus command coils)
+bool buttonState[4]      = {false,false,false,false};
+bool buttonPrev[4]       = {false,false,false,false};
+unsigned long btnChangeAt[4] = {0,0,0,0};
+unsigned long btnPressAt[4]  = {0,0,0,0};
+bool btnLongDone[4]      = {false,false,false,false};
+
+// --- Button override (per-relay) ---
+bool buttonOverrideMode[3]  = {false,false,false}; // true => relay is under button control
+bool buttonOverrideState[3] = {false,false,false}; // the ON/OFF state while in override
+
+// --- Modbus "manual override" pulses (coils) memory ---
 bool relayManualActive[3] = {false,false,false};
 bool relayManualValue[3]  = {false,false,false};
 
-// Alarm modes: 0=None, 1=non-latched, 2=latched
+// --- For LED sources 5..7 and smooth handover on entering override ---
+bool lastRelayOut[3] = {false,false,false};
+
+// --- Alarm modes: 0=None, 1=non-latched, 2=latched ---
 uint8_t alarmModeList[3] = {0,0,0};
-bool    latchedGroup[4]  = {false,false,false,false}; // 1..3 used
+bool    latchedGroup[4]  = {false,false,false,false}; // [1..3] used
 
 // ================== Pin maps ==================
 const uint8_t PCF20_INPUT_PINS[8] = {0,1,2,3,7,6,5,4};
 const uint8_t PCF21_INPUT_PINS[8] = {0,1,2,3,7,6,5,4};
 const uint8_t PCF23_IN17_PIN = 0;
-const uint8_t RELAY_PINS[3] = {3, 7, 6};    // ACTIVE-LOW
-const uint8_t LED_PINS[4]   = {7, 6, 5, 4}; // ACTIVE-LOW
+const uint8_t RELAY_PINS[3] = {3, 7, 6};    // ACTIVE-LOW (PCF8574 on 0x23)
+const uint8_t LED_PINS[4]   = {7, 6, 5, 3}; // ACTIVE-LOW (PCF8574 on 0x27)
 
 // ================== Web Serial ==================
 SimpleWebSerial WebSerial;
@@ -116,6 +136,14 @@ void setDefaults() {
   for (int i = 0; i < 3;  i++) alarmModeList[i]  = 0;
   g_mb_address = 3;
   g_mb_baud    = 19200;
+
+  // Clear overrides
+  for (int r=0;r<3;r++){
+    buttonOverrideMode[r]  = false;
+    buttonOverrideState[r] = false;
+    relayManualActive[r]   = false;
+    relayManualValue[r]    = false;
+  }
 }
 
 void captureToPersist(PersistConfig &pc) {
@@ -149,6 +177,14 @@ bool applyFromPersist(const PersistConfig &pc) {
   memcpy(alarmModeList, pc.alarmModeList, sizeof(alarmModeList));
   g_mb_address = pc.mb_address;
   g_mb_baud    = pc.mb_baud;
+
+  // Exiting persisted state always resets runtime overrides
+  for (int r=0;r<3;r++){
+    buttonOverrideMode[r]  = false;
+    buttonOverrideState[r] = false;
+    relayManualActive[r]   = false;
+    relayManualValue[r]    = false;
+  }
   return true;
 }
 
@@ -217,7 +253,7 @@ void sendAllEchoesOnce();
 void ackAll();
 void ackGroup(uint8_t g);
 
-// ================== Handlers (IMPLEMENTATIONS) ==================
+// ================== Handlers ==================
 // values: { "mb_address": <1..255>, "mb_baud": <9600..115200> }
 void handleValues(JSONVar values) {
   int addr = (int)values["mb_address"];
@@ -228,7 +264,6 @@ void handleValues(JSONVar values) {
   applyModbusSettings((uint8_t)addr, (uint32_t)baud);
   WebSerial.send("message", "Modbus configuration updated");
 
-  // mark dirty so autosave persists new address/baud
   cfgDirty = true;
   lastCfgTouchMs = millis();
 }
@@ -262,6 +297,7 @@ void handleUnifiedConfig(JSONVar obj) {
       relayConfigs[i].enabled  = (bool)list[i]["enabled"];
       relayConfigs[i].inverted = (bool)list[i]["inverted"];
       relayConfigs[i].group    = (uint8_t)(int)list[i]["group"];
+      // Leaving this to runtime: button/modbus overrides are runtime-only
     }
     WebSerial.send("message", "Relay Configuration updated");
     changed = true;
@@ -330,7 +366,7 @@ void setup() {
   Serial2.begin(g_mb_baud);
   mb.config(g_mb_baud);
   setSlaveIdIfAvailable(mb, g_mb_address);
-  mb.setAdditionalServerData("ALM173");  // comment out if your Modbus lib lacks this
+  // mb.setAdditionalServerData("ALM173");  // uncomment if supported
 
   // ---- Register telemetry (discrete inputs) ----
   for (uint16_t i=0;i<17;i++) mb.addIsts(ISTS_DI_BASE + i);
@@ -438,20 +474,64 @@ void loop() {
   // Handle incoming command pulses
   processCommandPulses();
 
-  // -------- Buttons: read (ACTIVE-LOW), rising edge ----------
+  // -------- Buttons (inverted schematic) + long/short handling ----------
   for (int i = 0; i < 4; i++) {
-    bool pressed = !pcf27.read(i); // ACTIVE-LOW
-    buttonPrev[i] = buttonState[i];
-    buttonState[i] = pressed;
+    bool raw = pcf27.read(i);
+    bool pressed = BUTTON_PRESSED_LOW ? !raw : raw;
 
-    if (!buttonPrev[i] && buttonState[i]) {
+    if (pressed != buttonState[i] && (millis() - btnChangeAt[i] >= BTN_DEBOUNCE_MS)) {
+      btnChangeAt[i] = millis();
+      buttonPrev[i]  = buttonState[i];
+      buttonState[i] = pressed;
+
       uint8_t act = buttonCfg[i].action;
-      if (act == 1)       ackAll();
-      else if (act >= 2 && act <= 4) ackGroup(act - 1);
-      else if (act >= 5 && act <= 7) {
-        int r = act - 5;
-        if (r >= 0 && r < 3) relayOverride[r] = !relayOverride[r];
+
+      // Edge: press
+      if (!buttonPrev[i] && buttonState[i]) {
+        btnPressAt[i] = millis();
+        btnLongDone[i] = false;
       }
+
+      // Edge: release
+      if (buttonPrev[i] && !buttonState[i]) {
+        // Short press if long not already handled
+        if (!btnLongDone[i]) {
+          if (act >= 5 && act <= 7) {
+            int r = act - 5; // 0..2
+            if (r >= 0 && r < 3 && buttonOverrideMode[r]) {
+              // Toggle relay while in override
+              buttonOverrideState[r] = !buttonOverrideState[r];
+            }
+          } else if (act == 1) {
+            ackAll();
+          } else if (act >= 2 && act <= 4) {
+            ackGroup(act - 1);
+          }
+        }
+      }
+    }
+
+    // Long hold detection (level)
+    if (buttonState[i] && !btnLongDone[i] && (millis() - btnPressAt[i] >= BTN_LONG_MS)) {
+      uint8_t act = buttonCfg[i].action;
+      if (act >= 5 && act <= 7) {
+        int r = act - 5; // relay index
+        if (r >= 0 && r < 3) {
+          if (!buttonOverrideMode[r]) {
+            // ENTER override: take current output as starting state
+            buttonOverrideMode[r]  = true;
+            buttonOverrideState[r] = lastRelayOut[r];
+          } else {
+            // EXIT override: return to alarm group control and clear Modbus manual for this relay
+            buttonOverrideMode[r]  = false;
+            relayManualActive[r]   = false;
+            relayManualValue[r]    = false;
+          }
+        }
+      } else if (act == 1) {
+        // Optional: long hold could also ack all; keep as short-press behavior only
+      }
+      btnLongDone[i] = true; // latch to avoid repeat until release
     }
   }
 
@@ -486,22 +566,29 @@ void loop() {
   }
   bool anyAlarmActive = grpAlarmActive[1] || grpAlarmActive[2] || grpAlarmActive[3];
 
-  // -------- Relays: manual override OR follow group ----------
+  // -------- Relays: priority = ButtonOverride > ModbusManual > Group ----------
   JSONVar relayStateList;
   for (int r = 0; r < 3; r++) {
     bool desired = false;
-    if (relayManualActive[r]) {
+
+    if (buttonOverrideMode[r]) {
+      desired = buttonOverrideState[r];
+    } else if (relayManualActive[r]) {
       desired = relayManualValue[r];
     } else {
       uint8_t g = relayConfigs[r].group; // 0..3
       if (g >= 1 && g <= 3) desired = grpAlarmActive[g];
+      else desired = false; // group 0
     }
+
     // Apply enable + inversion
     bool outVal = desired;
     if (!relayConfigs[r].enabled) outVal = false;
     if (relayConfigs[r].inverted) outVal = !outVal;
+
     relayStateList[r] = outVal;
     pcf23.write(RELAY_PINS[r], outVal ? LOW : HIGH); // ACTIVE-LOW
+    lastRelayOut[r] = outVal;
   }
 
   // -------- User LEDs (ACTIVE-LOW) ----------
@@ -583,9 +670,9 @@ bool evalLedSource(uint8_t source, bool anyAlarm, const bool grpActive[4]) {
     case 2: return grpActive[1];
     case 3: return grpActive[2];
     case 4: return grpActive[3];
-    case 5: return relayOverride[0];
-    case 6: return relayOverride[1];
-    case 7: return relayOverride[2];
+    case 5: return buttonOverrideMode[0]; // show override mode ON for R1
+    case 6: return buttonOverrideMode[1]; // R2
+    case 7: return buttonOverrideMode[2]; // R3
     default: return false;
   }
 }
@@ -643,18 +730,22 @@ void processCommandPulses() {
     }
   }
 
-  // Relay overrides
+  // Relay manual overrides from Modbus (ignored while Button override is ON)
   for (int r = 0; r < 3; r++) {
     uint16_t onAddr  = CMD_RLY_ON_BASE  + r;
     uint16_t offAddr = CMD_RLY_OFF_BASE + r;
     if (mb.Coil(onAddr)) {
-      relayManualActive[r] = true;
-      relayManualValue[r]  = true;
+      if (!buttonOverrideMode[r]) { // don't disturb button override
+        relayManualActive[r] = true;
+        relayManualValue[r]  = true;
+      }
       mb.Coil(onAddr, false);
     }
     if (mb.Coil(offAddr)) {
-      relayManualActive[r] = true;
-      relayManualValue[r]  = false;
+      if (!buttonOverrideMode[r]) {
+        relayManualActive[r] = true;
+        relayManualValue[r]  = false;
+      }
       mb.Coil(offAddr, false);
     }
   }
