@@ -1,10 +1,26 @@
-modbus_controller:
-  - id: alm
-    address: 3              # default g_mb_address from your firmware
-    modbus_id: modbus_bus
-    command_throttle: 0ms
-    update_interval: 1s
+# ─────────────────────────────────────────────────────────────────────────────
+# ALM173 — Modbus mapping for MiniPLC / MicroPLC (ESPHome)
+# Paste this after you already defined:
+#   uart:            (pins   tx_pin: 17 rx_pin: 16  UART TX/RX pin + baud that match your MicroPLC/MiniPLC)
+#   modbus:          (links to that uart via modbus_id)
+# Make sure the modbus_id below matches your 'modbus:' block (e.g. modbus_bus).
+# ─────────────────────────────────────────────────────────────────────────────
 
+modbus_controller:
+  - id: alm                      # Handle used below by all ALM entities
+    address: 3                   # ALM Modbus slave ID (g_mb_address from firmware setted with ALM-173-R1 module WebConfig)
+    modbus_id: modbus_bus        # Must match your 'modbus:' -> id
+    command_throttle: 0ms        # Allow fast, back-to-back coil pulses (no added delay)
+    update_interval: 1s          # How often to poll inputs/telemetry from ALM
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TELEMETRY (READ-ONLY) — Discrete Inputs / Status bits exposed as binary_sensors
+# - IN1..IN17 = physical inputs after enable/invert logic in ALM firmware (1..17)
+# - 50..53    = alarm summary/group states
+# - 60..62    = effective relay outputs (after enable/invert/override resolution)
+# - 90..93    = physical user LED lines on the ALM
+# These are read as Modbus "discrete_input" registers.
+# ─────────────────────────────────────────────────────────────────────────────
 binary_sensor:
   # IN1..IN8
   - platform: modbus_controller
@@ -33,45 +49,50 @@ binary_sensor:
   # IN17
   - { platform: modbus_controller, modbus_controller_id: alm, name: "ALM IN17", register_type: discrete_input, address: 17 }
 
-  # Alarms 50..53
+  # Alarms 50..53 — problem device_class makes HA show a warning badge when ON
   - { platform: modbus_controller, modbus_controller_id: alm, name: "ALM Any Alarm",     register_type: discrete_input, address: 50, device_class: problem }
   - { platform: modbus_controller, modbus_controller_id: alm, name: "ALM Alarm Group 1", register_type: discrete_input, address: 51, device_class: problem }
   - { platform: modbus_controller, modbus_controller_id: alm, name: "ALM Alarm Group 2", register_type: discrete_input, address: 52, device_class: problem }
   - { platform: modbus_controller, modbus_controller_id: alm, name: "ALM Alarm Group 3", register_type: discrete_input, address: 53, device_class: problem }
 
-  # Effective relay states 60..62
+  # Effective relay states 60..62 — the real outputs after all logic
   - { platform: modbus_controller, modbus_controller_id: alm, name: "ALM Relay 1 State", register_type: discrete_input, address: 60 }
   - { platform: modbus_controller, modbus_controller_id: alm, name: "ALM Relay 2 State", register_type: discrete_input, address: 61 }
   - { platform: modbus_controller, modbus_controller_id: alm, name: "ALM Relay 3 State", register_type: discrete_input, address: 62 }
 
-  # LED states 90..93
+  # LED states 90..93 — physical LED lines (reflect alarm/override per ALM LED source config)
   - { platform: modbus_controller, modbus_controller_id: alm, name: "ALM LED 1", register_type: discrete_input, address: 90 }
   - { platform: modbus_controller, modbus_controller_id: alm, name: "ALM LED 2", register_type: discrete_input, address: 91 }
   - { platform: modbus_controller, modbus_controller_id: alm, name: "ALM LED 3", register_type: discrete_input, address: 92 }
   - { platform: modbus_controller, modbus_controller_id: alm, name: "ALM LED 4", register_type: discrete_input, address: 93 }
 
+# ─────────────────────────────────────────────────────────────────────────────
+# COMMANDS (WRITE-ONLY) — Coils exposed as 'output:' so you can "press" them
+# Important: the ALM firmware auto-clears these coils (they behave like pulses).
+# Calling 'output.turn_on:' in ESPHome writes a '1'; ALM performs the action and
+# immediately resets the coil back to '0' on its own.
+# ─────────────────────────────────────────────────────────────────────────────
 output: &alm_coil_base
-  # Acks 500..503
+  # Acknowledge Alarms (500..503)
   - platform: modbus_controller
     modbus_controller_id: alm
     register_type: coil
-    id: alm_ack_all
+    id: alm_ack_all              # Ack all latched groups
     address: 500
-  - { platform: modbus_controller, modbus_controller_id: alm, register_type: coil, id: alm_ack_g1,  address: 501 }
-  - { platform: modbus_controller, modbus_controller_id: alm, register_type: coil, id: alm_ack_g2,  address: 502 }
-  - { platform: modbus_controller, modbus_controller_id: alm, register_type: coil, id: alm_ack_g3,  address: 503 }
+  - { platform: modbus_controller, modbus_controller_id: alm, register_type: coil, id: alm_ack_g1,  address: 501 }  # Ack Group 1
+  - { platform: modbus_controller, modbus_controller_id: alm, register_type: coil, id: alm_ack_g2,  address: 502 }  # Ack Group 2
+  - { platform: modbus_controller, modbus_controller_id: alm, register_type: coil, id: alm_ack_g3,  address: 503 }  # Ack Group 3
 
-  # Relays ON 400..402
-  - { platform: modbus_controller, modbus_controller_id: alm, register_type: coil, id: alm_rly1_on, address: 400 }
-  - { platform: modbus_controller, modbus_controller_id: alm, register_type: coil, id: alm_rly2_on, address: 401 }
-  - { platform: modbus_controller, modbus_controller_id: alm, register_type: coil, id: alm_rly3_on, address: 402 }
-
-  # Relays OFF 420..422
+  # Relay manual override pulses (ON 400..402 / OFF 420..422)
+  # These request a manual state, unless a Button-override is currently active on ALM.
+  - { platform: modbus_controller, modbus_controller_id: alm, register_type: coil, id: alm_rly1_on,  address: 400 }
+  - { platform: modbus_controller, modbus_controller_id: alm, register_type: coil, id: alm_rly2_on,  address: 401 }
+  - { platform: modbus_controller, modbus_controller_id: alm, register_type: coil, id: alm_rly3_on,  address: 402 }
   - { platform: modbus_controller, modbus_controller_id: alm, register_type: coil, id: alm_rly1_off, address: 420 }
   - { platform: modbus_controller, modbus_controller_id: alm, register_type: coil, id: alm_rly2_off, address: 421 }
   - { platform: modbus_controller, modbus_controller_id: alm, register_type: coil, id: alm_rly3_off, address: 422 }
 
-  # Enable IN1..IN17 = 200..216
+  # Enable/Disable Inputs (auto-pulse) — IN1..IN17 (200..216 / 300..316)
   - { platform: modbus_controller, modbus_controller_id: alm, register_type: coil, id: alm_en_in1,  address: 200 }
   - { platform: modbus_controller, modbus_controller_id: alm, register_type: coil, id: alm_en_in2,  address: 201 }
   - { platform: modbus_controller, modbus_controller_id: alm, register_type: coil, id: alm_en_in3,  address: 202 }
@@ -90,7 +111,6 @@ output: &alm_coil_base
   - { platform: modbus_controller, modbus_controller_id: alm, register_type: coil, id: alm_en_in16, address: 215 }
   - { platform: modbus_controller, modbus_controller_id: alm, register_type: coil, id: alm_en_in17, address: 216 }
 
-  # Disable IN1..IN17 = 300..316
   - { platform: modbus_controller, modbus_controller_id: alm, register_type: coil, id: alm_dis_in1,  address: 300 }
   - { platform: modbus_controller, modbus_controller_id: alm, register_type: coil, id: alm_dis_in2,  address: 301 }
   - { platform: modbus_controller, modbus_controller_id: alm, register_type: coil, id: alm_dis_in3,  address: 302 }
@@ -109,23 +129,27 @@ output: &alm_coil_base
   - { platform: modbus_controller, modbus_controller_id: alm, register_type: coil, id: alm_dis_in16, address: 315 }
   - { platform: modbus_controller, modbus_controller_id: alm, register_type: coil, id: alm_dis_in17, address: 316 }
 
-  # Alarm Group Pulses 510..512
+  # Alarm Group Pulses 510..512 — trigger Group 1..3 alarm condition via PLC
+  # (Your ALM firmware handles how these pulses affect latched/non-latched modes.)
   - { platform: modbus_controller, modbus_controller_id: alm, register_type: coil, id: alm_pulse_g1, address: 510 }
   - { platform: modbus_controller, modbus_controller_id: alm, register_type: coil, id: alm_pulse_g2, address: 511 }
   - { platform: modbus_controller, modbus_controller_id: alm, register_type: coil, id: alm_pulse_g3, address: 512 }
 
-
+# ─────────────────────────────────────────────────────────────────────────────
+# UI BUTTONS — Home Assistant buttons that "press" the coils above.
+# These call output.turn_on: <coil_id>, which sends a 1; ALM auto-clears it.
+# ─────────────────────────────────────────────────────────────────────────────
 button:
   # Alarm Acks
   - platform: template
     name: "ALM Ack All"
-    on_press: 
+    on_press:
       - output.turn_on: alm_ack_all
-  - { platform: template, name: "ALM Ack Group 1",  on_press: [ { output.turn_on: alm_ack_g1  } ] }
-  - { platform: template, name: "ALM Ack Group 2",  on_press: [ { output.turn_on: alm_ack_g2  } ] }
-  - { platform: template, name: "ALM Ack Group 3",  on_press: [ { output.turn_on: alm_ack_g3  } ] }
+  - { platform: template, name: "ALM Ack Group 1", on_press: [ { output.turn_on: alm_ack_g1 } ] }
+  - { platform: template, name: "ALM Ack Group 2", on_press: [ { output.turn_on: alm_ack_g2 } ] }
+  - { platform: template, name: "ALM Ack Group 3", on_press: [ { output.turn_on: alm_ack_g3 } ] }
 
-  # Relays: manual override
+  # Relays: manual override (ignored while Button-override is active on ALM)
   - { platform: template, name: "ALM Relay 1 ON",  on_press: [ { output.turn_on: alm_rly1_on  } ] }
   - { platform: template, name: "ALM Relay 2 ON",  on_press: [ { output.turn_on: alm_rly2_on  } ] }
   - { platform: template, name: "ALM Relay 3 ON",  on_press: [ { output.turn_on: alm_rly3_on  } ] }
@@ -133,7 +157,7 @@ button:
   - { platform: template, name: "ALM Relay 2 OFF", on_press: [ { output.turn_on: alm_rly2_off } ] }
   - { platform: template, name: "ALM Relay 3 OFF", on_press: [ { output.turn_on: alm_rly3_off } ] }
 
-  # Enable IN1..IN17
+  # Enable / Disable Inputs
   - { platform: template, name: "ALM Enable IN1",  on_press: [ { output.turn_on: alm_en_in1  } ] }
   - { platform: template, name: "ALM Enable IN2",  on_press: [ { output.turn_on: alm_en_in2  } ] }
   - { platform: template, name: "ALM Enable IN3",  on_press: [ { output.turn_on: alm_en_in3  } ] }
@@ -152,7 +176,6 @@ button:
   - { platform: template, name: "ALM Enable IN16", on_press: [ { output.turn_on: alm_en_in16 } ] }
   - { platform: template, name: "ALM Enable IN17", on_press: [ { output.turn_on: alm_en_in17 } ] }
 
-  # Disable IN1..IN17
   - { platform: template, name: "ALM Disable IN1",  on_press: [ { output.turn_on: alm_dis_in1  } ] }
   - { platform: template, name: "ALM Disable IN2",  on_press: [ { output.turn_on: alm_dis_in2  } ] }
   - { platform: template, name: "ALM Disable IN3",  on_press: [ { output.turn_on: alm_dis_in3  } ] }
@@ -171,7 +194,7 @@ button:
   - { platform: template, name: "ALM Disable IN16", on_press: [ { output.turn_on: alm_dis_in16 } ] }
   - { platform: template, name: "ALM Disable IN17", on_press: [ { output.turn_on: alm_dis_in17 } ] }
 
-  # Alarm Group Pulses
+  # Alarm Group Pulses — trigger an alarm on Group 1..3 from PLC/HA
   - { platform: template, name: "ALM Pulse Alarm Group 1", on_press: [ { output.turn_on: alm_pulse_g1 } ] }
   - { platform: template, name: "ALM Pulse Alarm Group 2", on_press: [ { output.turn_on: alm_pulse_g2 } ] }
   - { platform: template, name: "ALM Pulse Alarm Group 3", on_press: [ { output.turn_on: alm_pulse_g3 } ] }
