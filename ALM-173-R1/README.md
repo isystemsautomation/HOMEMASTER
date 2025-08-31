@@ -234,30 +234,126 @@ The ALM-173-R1 continuously evaluates inputs, groups, relays, LEDs, and button a
 
 ---
 
-## 🔌 Modbus RTU Mapping  
+## 🔌 Modbus RTU Mapping
 
-### Discrete Inputs (FC=02)  
-| Addr | Function | Description |
-|-----:|----------|-------------|
-| 0–16 | IN1–IN17 | Input states (processed) |
-| 32–35| LED1–LED4 | User LED logical states |
-| 40–42| RELAY1–3 | Relay states |
-| 48–50| ALARM_G1–G3 | Group active flags |
-| 51   | ALARM_ANY | Any alarm active |
-| 60–76| IN_ENx    | Input enabled flags |
+**Bus defaults**  
+- **Slave ID (address):** `3`  
+- **Baud / framing:** `19200, 8N1`  
+- **Stack:** Modbus RTU over RS-485 (slave)  
 
-### Coils (FC=05/15, auto-clear pulse)  
-- **Inputs:**  
-  - 200–216 → Enable IN1–IN17  
-  - 300–316 → Disable IN1–IN17  
-- **Relays:**  
-  - 400–402 → Relay1–3 ON  
-  - 420–422 → Relay1–3 OFF  
-- **Alarms (Acknowledge):**  
-  - 500 → Ack All  
-  - 501–503 → Ack Group 1–3  
+> These defaults match the example PLC config (ESPHome) you’ll find in this repo. :contentReference[oaicite:0]{index=0}
 
-**Defaults:** Address=3, Baud=19200, 8N1  
+---
+
+### Function Codes Used
+- **FC=02 – Discrete Inputs** (read-only bits; telemetry/state)
+- **FC=05 / FC=15 – Coils** (write-only *pulse* commands; auto-clear)
+
+> Coils behave like **momentary buttons**: write `1`, the module performs the action, and the coil **self-resets** to `0`. :contentReference[oaicite:1]{index=1}
+
+---
+
+### Discrete Inputs (FC=02)
+
+Read these to get live state from the ALM module. All addresses are **1-based** as shown.
+
+| Addr | Name                | Description                                                                 |
+|----:|---------------------|-----------------------------------------------------------------------------|
+| 1   | IN1                 | Input 1 (after **Enable** + **Invert** processing)                          |
+| 2   | IN2                 | Input 2 (processed)                                                          |
+| 3   | IN3                 | Input 3 (processed)                                                          |
+| 4   | IN4                 | Input 4 (processed)                                                          |
+| 5   | IN5                 | Input 5 (processed)                                                          |
+| 6   | IN6                 | Input 6 (processed)                                                          |
+| 7   | IN7                 | Input 7 (processed)                                                          |
+| 8   | IN8                 | Input 8 (processed)                                                          |
+| 9   | IN9                 | Input 9 (processed)                                                          |
+| 10  | IN10                | Input 10 (processed)                                                         |
+| 11  | IN11                | Input 11 (processed)                                                         |
+| 12  | IN12                | Input 12 (processed)                                                         |
+| 13  | IN13                | Input 13 (processed)                                                         |
+| 14  | IN14                | Input 14 (processed)                                                         |
+| 15  | IN15                | Input 15 (processed)                                                         |
+| 16  | IN16                | Input 16 (processed)                                                         |
+| 17  | IN17                | Input 17 (processed)                                                         |
+| 50  | ANY_ALARM           | True if Group 1 **or** 2 **or** 3 is active                                  |
+| 51  | ALARM_G1            | Alarm **Group 1** active (non-latched or latched, per config)               |
+| 52  | ALARM_G2            | Alarm **Group 2** active                                                     |
+| 53  | ALARM_G3            | Alarm **Group 3** active                                                     |
+| 60  | RELAY1_STATE        | **Effective** output of Relay 1 (after enable/invert/override resolution)   |
+| 61  | RELAY2_STATE        | Effective output of Relay 2                                                  |
+| 62  | RELAY3_STATE        | Effective output of Relay 3                                                  |
+| 90  | LED1_STATE          | Physical LED1 line (reflects configured LED source/mode)                    |
+| 91  | LED2_STATE          | Physical LED2 line                                                           |
+| 92  | LED3_STATE          | Physical LED3 line                                                           |
+| 93  | LED4_STATE          | Physical LED4 line                                                           |
+
+> The PLC example exposes **1–17**, **50–53**, **60–62**, and **90–93** as binary_sensors. :contentReference[oaicite:2]{index=2}
+
+---
+
+### Coils (FC=05/15) — **Auto-Pulse Commands**
+
+Write `1` to trigger the action; the device executes it and clears the coil.  
+Use these from PLC / ESPHome **output.turn_on** actions.
+
+#### Acknowledge Alarms
+| Addr | Action        | Notes                                  |
+|----:|----------------|----------------------------------------|
+| 500 | ACK_ALL        | Clears all **latched** groups          |
+| 501 | ACK_G1         | Clear Group 1 latch                    |
+| 502 | ACK_G2         | Clear Group 2 latch                    |
+| 503 | ACK_G3         | Clear Group 3 latch                    |
+
+> Exposed in the PLC YAML as `alm_ack_*` and used by “Ack …” buttons. :contentReference[oaicite:3]{index=3}
+
+#### Manual Relay Override (request ON/OFF)
+| Addr | Action          | Target |
+|----:|------------------|--------|
+| 400 | RELAY1_ON        | R1     |
+| 401 | RELAY2_ON        | R2     |
+| 402 | RELAY3_ON        | R3     |
+| 420 | RELAY1_OFF       | R1     |
+| 421 | RELAY2_OFF       | R2     |
+| 422 | RELAY3_OFF       | R3     |
+
+- These requests set a **manual Modbus override** in firmware.  
+- If a **Button-override** is currently active on that relay, the request is **ignored** until the button-override exits. :contentReference[oaicite:4]{index=4}
+
+#### Enable / Disable Inputs (IN1…IN17)
+| Range     | Action      |
+|----------:|-------------|
+| 200–216   | ENABLE_INx  |
+| 300–316   | DISABLE_INx |
+
+> Each coil is a pulse that flips the stored enable flag for the corresponding input. Exposed as `alm_en_in*` and `alm_dis_in*` in the PLC YAML. :contentReference[oaicite:5]{index=5}
+
+#### (Optional) Alarm Group **Pulse** Inject
+| Addr | Action         | Purpose                                                     |
+|----:|-----------------|-------------------------------------------------------------|
+| 510 | PULSE_G1        | Inject a Group-1 alarm pulse from PLC                      |
+| 511 | PULSE_G2        | Inject a Group-2 alarm pulse                                |
+| 512 | PULSE_G3        | Inject a Group-3 alarm pulse                                |
+
+> These coils appear in the provided PLC config. Use them **only if your firmware build enables alarm-pulse support**; they allow the PLC to stimulate group activity (module will still apply latched/non-latched logic). :contentReference[oaicite:6]{index=6}
+
+---
+
+### Priority & Behavior Notes
+
+- **Relay drive priority:**  
+  `Button-override` ➜ `Modbus manual override` ➜ `Assigned Alarm Group` (then **Enable/Invert**).  
+  Effective relay state is reported at discrete inputs **60–62**.
+- **Pulse semantics:** All coils listed above **auto-clear** after the module consumes the command.  
+- **LED reporting:** **90–93** are the **physical** LED lines (already reflect LED source & blinking chosen in the module config).
+
+---
+
+### Example (ESPHome / PLC)
+
+- Read telemetry: map **discrete_input** addresses shown above to `binary_sensor:`.  
+- Fire a command: call `output.turn_on: alm_rly1_on` (writes coil **400 = 1**) and the module clears it automatically.  
+  See the full example PLC config file in the repo for a ready-to-use mapping. :contentReference[oaicite:7]{index=7} 
 
 ---
 
