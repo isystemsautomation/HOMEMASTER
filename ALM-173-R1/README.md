@@ -241,7 +241,7 @@ The ALM-173-R1 continuously evaluates inputs, groups, relays, LEDs, and button a
 - **Baud / framing:** `19200, 8N1`  
 - **Stack:** Modbus RTU over RS-485 (slave)  
 
-> These defaults match the example PLC config (ESPHome) you’ll find in this repo. :contentReference[oaicite:0]{index=0}
+> These defaults match the example PLC config (ESPHome) you’ll find in this repo.
 
 ---
 
@@ -249,7 +249,7 @@ The ALM-173-R1 continuously evaluates inputs, groups, relays, LEDs, and button a
 - **FC=02 – Discrete Inputs** (read-only bits; telemetry/state)
 - **FC=05 / FC=15 – Coils** (write-only *pulse* commands; auto-clear)
 
-> Coils behave like **momentary buttons**: write `1`, the module performs the action, and the coil **self-resets** to `0`. :contentReference[oaicite:1]{index=1}
+> Coils behave like **momentary buttons**: write `1`, the module performs the action, and the coil **self-resets** to `0`.{index=1}
 
 ---
 
@@ -288,7 +288,7 @@ Read these to get live state from the ALM module. All addresses are **1-based** 
 | 92  | LED3_STATE          | Physical LED3 line                                                           |
 | 93  | LED4_STATE          | Physical LED4 line                                                           |
 
-> The PLC example exposes **1–17**, **50–53**, **60–62**, and **90–93** as binary_sensors. :contentReference[oaicite:2]{index=2}
+> The PLC example exposes **1–17**, **50–53**, **60–62**, and **90–93** as binary_sensors.
 
 ---
 
@@ -305,7 +305,7 @@ Use these from PLC / ESPHome **output.turn_on** actions.
 | 502 | ACK_G2         | Clear Group 2 latch                    |
 | 503 | ACK_G3         | Clear Group 3 latch                    |
 
-> Exposed in the PLC YAML as `alm_ack_*` and used by “Ack …” buttons. :contentReference[oaicite:3]{index=3}
+> Exposed in the PLC YAML as `alm_ack_*` and used by “Ack …” buttons.
 
 #### Manual Relay Override (request ON/OFF)
 | Addr | Action          | Target |
@@ -318,7 +318,7 @@ Use these from PLC / ESPHome **output.turn_on** actions.
 | 422 | RELAY3_OFF       | R3     |
 
 - These requests set a **manual Modbus override** in firmware.  
-- If a **Button-override** is currently active on that relay, the request is **ignored** until the button-override exits. :contentReference[oaicite:4]{index=4}
+- If a **Button-override** is currently active on that relay, the request is **ignored** until the button-override exits.
 
 #### Enable / Disable Inputs (IN1…IN17)
 | Range     | Action      |
@@ -326,7 +326,7 @@ Use these from PLC / ESPHome **output.turn_on** actions.
 | 200–216   | ENABLE_INx  |
 | 300–316   | DISABLE_INx |
 
-> Each coil is a pulse that flips the stored enable flag for the corresponding input. Exposed as `alm_en_in*` and `alm_dis_in*` in the PLC YAML. :contentReference[oaicite:5]{index=5}
+> Each coil is a pulse that flips the stored enable flag for the corresponding input. Exposed as `alm_en_in*` and `alm_dis_in*` in the PLC YAML. 
 
 #### (Optional) Alarm Group **Pulse** Inject
 | Addr | Action         | Purpose                                                     |
@@ -335,7 +335,7 @@ Use these from PLC / ESPHome **output.turn_on** actions.
 | 511 | PULSE_G2        | Inject a Group-2 alarm pulse                                |
 | 512 | PULSE_G3        | Inject a Group-3 alarm pulse                                |
 
-> These coils appear in the provided PLC config. Use them **only if your firmware build enables alarm-pulse support**; they allow the PLC to stimulate group activity (module will still apply latched/non-latched logic). :contentReference[oaicite:6]{index=6}
+> These coils appear in the provided PLC config. Use them  they allow the PLC to stimulate group activity (module will still apply latched/non-latched logic).
 
 ---
 
@@ -353,7 +353,7 @@ Use these from PLC / ESPHome **output.turn_on** actions.
 
 - Read telemetry: map **discrete_input** addresses shown above to `binary_sensor:`.  
 - Fire a command: call `output.turn_on: alm_rly1_on` (writes coil **400 = 1**) and the module clears it automatically.  
-  See the full example PLC config file in the repo for a ready-to-use mapping. :contentReference[oaicite:7]{index=7} 
+  See the full example PLC config file in the repo for a ready-to-use mapping.
 
 ---
 
