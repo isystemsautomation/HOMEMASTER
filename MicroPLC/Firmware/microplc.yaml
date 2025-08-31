@@ -9,9 +9,6 @@ substitutions:
   dns_domain: ".local"                  # mDNS domain suffix for network discovery
   timezone: ""                          # Timezone (can be set if device runs in different region)
   sntp_update_interval: 6h              # Sync interval for time updates from NTP servers
-  sntp_server_1: "0.pool.ntp.org"       # Primary NTP server
-  sntp_server_2: "1.pool.ntp.org"       # Secondary NTP server
-  sntp_server_3: "2.pool.ntp.org"       # Tertiary NTP server
   wifi_fast_connect: "false"            # If true, reconnects faster (skips Wi-Fi scans)
   log_level: "DEBUG"                    # Logging level (NONE, ERROR, WARN, INFO, DEBUG, VERBOSE)
   ipv6_enable: "false"                  # Enable IPv6 if supported
@@ -42,9 +39,6 @@ logger:
 
 mdns:
   disabled: false                       # Enable mDNS for auto-discovery on the network
-
-web_server:
-  port: 80                              # Enables local web server on port 80
 
 api:                                    # Enable ESPHome API for Home Assistant integration
 
