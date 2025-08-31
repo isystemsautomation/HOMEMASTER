@@ -1,4 +1,4 @@
-// ==== ALM173-R1 with command pulse coils + Button override ====================
+// ==== ALM173-R1 with command pulse coils + Button override + PLC Group Pulses ==
 // - Buttons 5/6/7: long hold (3s) enters Button-controlled override for R1/R2/R3.
 //   While in override, short press toggles the relay.
 //   Another long hold exits override and returns control to alarm group,
@@ -7,6 +7,7 @@
 // - LED sources:
 //     0=None, 1=Any alarm, 2=G1, 3=G2, 4=G3, 5=OverrideR1, 6=OverrideR2, 7=OverrideR3
 // - Modbus ON/OFF coils 400..402 / 420..422 still work when override is OFF.
+// - NEW: PLC pulses to activate Alarm Groups via coils 510..512 (auto-clear).
 // ============================================================================
 
 #include <Arduino.h>
@@ -72,6 +73,9 @@ bool lastRelayOut[3] = {false,false,false};
 // --- Alarm modes: 0=None, 1=non-latched, 2=latched ---
 uint8_t alarmModeList[3] = {0,0,0};
 bool    latchedGroup[4]  = {false,false,false,false}; // [1..3] used
+
+// --- NEW: PLC pulse flags for groups (set for one scan on coil write) ---
+volatile bool plcAlarmPulse[4] = {false,false,false,false}; // index 1..3 used
 
 // ================== Pin maps ==================
 const uint8_t PCF20_INPUT_PINS[8] = {0,1,2,3,7,6,5,4};
@@ -178,7 +182,7 @@ bool applyFromPersist(const PersistConfig &pc) {
   g_mb_address = pc.mb_address;
   g_mb_baud    = pc.mb_baud;
 
-  // Exiting persisted state always resets runtime overrides
+  // Reset runtime overrides after loading
   for (int r=0;r<3;r++){
     buttonOverrideMode[r]  = false;
     buttonOverrideState[r] = false;
@@ -236,7 +240,12 @@ enum : uint16_t {
   CMD_ACK_ALL     = 500, // 500 acknowledge ALL
   CMD_ACK_G1      = 501, // 501..503 acknowledge G1..G3
   CMD_ACK_G2      = 502,
-  CMD_ACK_G3      = 503
+  CMD_ACK_G3      = 503,
+
+  // NEW: PLC pulse coils to activate alarm groups (auto-clear)
+  CMD_AL_G1_PULSE = 510,
+  CMD_AL_G2_PULSE = 511,
+  CMD_AL_G3_PULSE = 512
 };
 
 // ================== Forward decls ==================
@@ -297,7 +306,6 @@ void handleUnifiedConfig(JSONVar obj) {
       relayConfigs[i].enabled  = (bool)list[i]["enabled"];
       relayConfigs[i].inverted = (bool)list[i]["inverted"];
       relayConfigs[i].group    = (uint8_t)(int)list[i]["group"];
-      // Leaving this to runtime: button/modbus overrides are runtime-only
     }
     WebSerial.send("message", "Relay Configuration updated");
     changed = true;
@@ -378,6 +386,11 @@ void setup() {
   for (uint16_t i=0;i<17;i++) { mb.addCoil(CMD_EN_IN_BASE  + i); mb.addCoil(CMD_DIS_IN_BASE + i); }
   for (uint16_t r=0;r<3;r++)  { mb.addCoil(CMD_RLY_ON_BASE + r); mb.addCoil(CMD_RLY_OFF_BASE+ r); }
   mb.addCoil(CMD_ACK_ALL); mb.addCoil(CMD_ACK_G1); mb.addCoil(CMD_ACK_G2); mb.addCoil(CMD_ACK_G3);
+
+  // NEW: PLC group pulse coils
+  mb.addCoil(CMD_AL_G1_PULSE);
+  mb.addCoil(CMD_AL_G2_PULSE);
+  mb.addCoil(CMD_AL_G3_PULSE);
 
   // Status defaults for UI
   modbusStatus["address"] = g_mb_address;
@@ -471,7 +484,7 @@ void loop() {
   // Modbus stack
   mb.task();
 
-  // Handle incoming command pulses
+  // Handle incoming command pulses (including PLC group pulses)
   processCommandPulses();
 
   // -------- Buttons (inverted schematic) + long/short handling ----------
@@ -528,8 +541,6 @@ void loop() {
             relayManualValue[r]    = false;
           }
         }
-      } else if (act == 1) {
-        // Optional: long hold could also ack all; keep as short-press behavior only
       }
       btnLongDone[i] = true; // latch to avoid repeat until release
     }
@@ -551,6 +562,11 @@ void loop() {
     uint8_t g = digitalInputs[i].group;
     if (val && g >= 1 && g <= 3) grpCondition[g] = true;
   }
+
+  // OR in the PLC pulse requests for this scan
+  if (plcAlarmPulse[1]) grpCondition[1] = true;
+  if (plcAlarmPulse[2]) grpCondition[2] = true;
+  if (plcAlarmPulse[3]) grpCondition[3] = true;
 
   // Alarm groups (0=None, 1=non-latched, 2=latched)
   bool grpAlarmActive[4] = {false,false,false,false};
@@ -651,6 +667,9 @@ void loop() {
     { JSONVar groups; for (int g=1; g<=3; g++) groups[g-1] = grpAlarmActive[g]; AlarmState["groups"] = groups; }
     WebSerial.send("AlarmState", AlarmState);
   }
+
+  // Clear PLC pulse flags at end of scan
+  plcAlarmPulse[1] = plcAlarmPulse[2] = plcAlarmPulse[3] = false;
 }
 
 // ================== helpers ==================
@@ -749,6 +768,11 @@ void processCommandPulses() {
       mb.Coil(offAddr, false);
     }
   }
+
+  // NEW: PLC alarm group pulses (auto-clear; affect this scan)
+  if (mb.Coil(CMD_AL_G1_PULSE)) { plcAlarmPulse[1] = true; mb.Coil(CMD_AL_G1_PULSE, false); }
+  if (mb.Coil(CMD_AL_G2_PULSE)) { plcAlarmPulse[2] = true; mb.Coil(CMD_AL_G2_PULSE, false); }
+  if (mb.Coil(CMD_AL_G3_PULSE)) { plcAlarmPulse[3] = true; mb.Coil(CMD_AL_G3_PULSE, false); }
 
   // Acknowledge alarms
   if (mb.Coil(CMD_ACK_ALL)) { ackAll(); mb.Coil(CMD_ACK_ALL, false); }
