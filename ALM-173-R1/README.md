@@ -390,66 +390,68 @@ The ALM-173-R1 also supports **hardware button combos** for maintenance:
 
 ## ⚠️ Safety Instructions
 
-Please read and follow all safety instructions **before installing or operating** the DIM-420-R1 module. Failure to comply with safety guidelines may result in **electric shock**, **fire hazard**, **property damage**, or **personal injury**.
+Please read and follow all safety instructions **before installing or operating** the ALM-173-R1 module.  
+Failure to follow these guidelines may result in **electric shock**, **fire**, **system malfunction**, or **personal injury**.
 
 ---
 
 ### 🔌 General Electrical Safety
 
-- Installation must be carried out **by qualified personnel** in accordance with **local electrical codes and standards**.
-- Always **disconnect the power supply** before connecting or disconnecting wiring to the device.
-- Ensure all electrical connections are **properly insulated and secured**.
-- Do **not connect non-dimmable loads** to dimming outputs. This may cause malfunction or damage.
+- Installation must be carried out **by qualified personnel** in accordance with **local electrical standards**.
+- Always **disconnect the power supply (24 V DC)** before wiring or servicing the device.
+- Ensure all **RS-485**, **relay**, and **input connections** are secure and properly insulated.
+- Do **not exceed the rated voltage/current limits** for any connection or terminal.
 
 ---
 
 ### ⚠️ Device Handling
 
-- Do not operate the device outside of its **rated voltage or load limits**.
-- Do not expose the module to **moisture**, **condensation**, or **corrosive environments**.
-- Install the module **in a closed electrical cabinet or DIN enclosure** with adequate **ventilation**.
-- Avoid installing near sources of **electromagnetic interference (EMI)**.
+- Do **not expose** the device to moisture, humidity, chemicals, or corrosive environments.
+- Install only in **dry, indoor environments** within a protective enclosure (e.g., DIN cabinet).
+- Avoid mounting near strong electromagnetic sources that may interfere with RS-485 communication.
 
 ---
 
 ### 🌡️ Thermal Safety
 
-- The module is equipped with **thermal protection** and will shut down if temperatures exceed the safe operating range.
-- Allow at least **10 mm of clearance** on all sides for passive heat dissipation.
-- Do not obstruct airflow or install near heat-generating equipment without cooling.
+- The device generates minimal heat, but allow for **adequate airflow** around it.
+- Do not cover ventilation slots or block airflow within enclosures.
+- Avoid prolonged exposure to ambient temperatures outside the recommended range.
 
 ---
 
-### ⚡ Load Safety
+### ⚡ Relay Output Safety
 
-- Always check **load compatibility** (LED, halogen, transformer type, etc.) before connecting.
-- Observe **minimum and maximum load limits** for each dimming channel (see Technical Specifications).
-- For inductive loads (e.g., magnetic transformers), ensure a **minimum load of 50 W** is connected to avoid instability.
-- Do not mix load types (e.g., LED + halogen) on the same channel.
+- The ALM-173-R1 features **SPDT mechanical relays** rated for moderate power switching.
+- Never exceed the **rated current and voltage** of the relay contacts (see Technical Specs).
+- For inductive loads (locks, sirens, motors), use **external flyback diodes** or snubbers to suppress voltage spikes.
 
 ---
 
-### 🔥 Fire & Fuse Protection
+### 🔥 Power Protection
 
-- The DIM-420-R1 includes an **internal fire-safety fuse**. If the fuse trips, do not attempt to bypass it—**replace the device**.
-- Ensure your upstream power source includes appropriate **circuit breakers or fuses**.
+- The device must be powered via a **regulated 24 V DC supply** with proper overcurrent protection.
+- Fuse or breaker protection is **recommended on the supply line** to guard against short circuits or overloading.
+- Never connect AC mains voltage directly to the module.
 
 ---
 
 ### 👷‍♂️ Maintenance & Service
 
-- The module contains **no user-serviceable parts**. Opening the enclosure will void warranty.
-- If malfunction is suspected, **disconnect immediately** and contact technical support.
-- Only use **certified and compatible accessories and replacement parts**.
+- The ALM-173-R1 contains **no user-serviceable parts**.
+- Do not open the device housing unless specifically instructed for firmware flashing.
+- Firmware updates are performed **via USB-C** and Web Serial, with physical access.
+- In case of suspected fault, **disconnect immediately** and contact support.
 
 ---
 
 ### 📎 Regulatory & Compliance
 
-- This product complies with relevant **CE**, **RoHS**, and **low-voltage directives**.
+- This product is designed to meet **low-voltage and EMC safety directives**.
+- Complies with **RoHS** and **CE** design standards.
 - Designed for **indoor use only**.
 
-> 🛑 **WARNING**: Improper installation or use may result in electric shock, equipment damage, or fire. Always follow professional installation practices.
+> 🛑 **WARNING**: Misuse or improper installation of this device may result in equipment failure, damage to connected systems, or personal harm.
 
 
 ## 🔓 Open Source & Re-Programming
