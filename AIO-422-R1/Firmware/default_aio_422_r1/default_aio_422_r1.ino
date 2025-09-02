@@ -3,6 +3,7 @@ struct PersistConfig;
 
 // ==== AIO-422-R1 (RP2350 ONLY) ====
 // ADS1115 via ADS1X15.h on Wire1 (SDA=6, SCL=7), 4ch analog
+// + TWO MAX31865 RTD channels over SOFTWARE SPI (CS/DI/DO/CLK)
 // WebSerial UI, Modbus RTU, LittleFS persistence
 // Buttons: GPIO22..25, LEDs: GPIO18..21
 // ============================================================================
@@ -10,12 +11,14 @@ struct PersistConfig;
 #include <Arduino.h>
 #include <Wire.h>
 #include <ADS1X15.h>
+#include <Adafruit_MAX31865.h>
 #include <ModbusSerial.h>
 #include <SimpleWebSerial.h>
 #include <Arduino_JSON.h>
 #include <LittleFS.h>
 #include <utility>
 #include "hardware/watchdog.h"
+#include <math.h>
 
 // ================== Hardware pins ==================
 #define LED_ACTIVE_LOW     0         // 1 if LEDs are active-LOW
@@ -27,6 +30,18 @@ const uint8_t BUTTON_PINS[4] = {22,23,24,25};
 // I2C pins for ADS1115 on Wire1
 #define SDA1 6
 #define SCL1 7
+
+// SOFTWARE SPI pins for MAX31865 (DI=MOSI, DO=MISO, CLK=SCK)
+#define RTD1_CS   13
+#define RTD2_CS   14
+#define RTD_DI    11
+#define RTD_DO    12
+#define RTD_CLK   10
+
+// RTD parameters (common setup)
+static const float RTD_NOMINAL_OHMS = 100.0f;   // PT100 nominal
+static const float RTD_REF_OHMS     = 430.0f;   // reference resistor on breakout
+static const max31865_numwires_t RTD_WIRES = MAX31865_3WIRE;  // change to _2WIRE/_4WIRE if needed
 
 // ================== Modbus / RS-485 ==================
 #define TX2 4
@@ -40,6 +55,10 @@ ADS1115 ads(0x48, &Wire1);  // bind to Wire1 explicitly
 uint8_t  ads_gain = 0;      // 0..5 -> {2/3,1,2,4,8,16}×
 uint8_t  ads_data_rate = 4; // 0..7 -> {8,16,32,64,128,250,475,860} SPS
 uint16_t sample_ms = 50;    // polling interval
+
+// ================== MAX31865 (2x RTD, SOFTWARE SPI) ==================
+Adafruit_MAX31865 rtd1(RTD1_CS, RTD_DI, RTD_DO, RTD_CLK);
+Adafruit_MAX31865 rtd2(RTD2_CS, RTD_DI, RTD_DO, RTD_CLK);
 
 // ================== Buttons & LEDs config ==================
 struct LedCfg   { uint8_t mode;   uint8_t source; };
@@ -90,7 +109,7 @@ struct PersistConfig {
 } __attribute__((packed));
 
 static const uint32_t CFG_MAGIC   = 0x32323441UL; // 'A422'
-static const uint16_t CFG_VERSION = 0x0006;
+static const uint16_t CFG_VERSION = 0x0007;       // bump for RTD addition
 static const char*    CFG_PATH    = "/aio422.bin";
 
 volatile bool   cfgDirty        = false;
@@ -183,16 +202,26 @@ bool loadConfigFS() {
 
 // ================== Modbus maps ==================
 enum : uint16_t {
-  IREG_RAW_BASE = 100,   // 100..103 : raw counts (int16) ch0..ch3
-  IREG_MV_BASE  = 120,   // 120..123 : millivolts (uint16) ch0..ch3
+  // ADS1115
+  IREG_RAW_BASE     = 100,   // 100..103 : raw counts (int16) ch0..ch3
+  IREG_MV_BASE      = 120,   // 120..123 : millivolts (uint16) ch0..ch3
 
+  // MAX31865 RTD (new)
+  IREG_RTD_C_BASE     = 140,   // 140..141 : temperature °C x100 (int16)
+  IREG_RTD_OHM_BASE   = 150,   // 150..151 : resistance ohms x100 (uint16)
+  IREG_RTD_FAULT_BASE = 160,   // 160..161 : fault bitmask (uint16)
+
+  // Config (holding)
   HREG_GAIN     = 200,   // gainIndex 0..5 (RW)
   HREG_DRATE    = 201,   // dataRateIndex 0..7 (RW)
   HREG_SMPLL_MS = 202,   // sample_ms 10..5000 (RW)
 
+  // Discrete
   ISTS_LED_BASE = 300,   // 300..303 : LED states
   ISTS_BTN_BASE = 320,   // 320..323 : button states
+  ISTS_RTD_BASE = 360,   // 360..361 : RTD fault flag (1 = fault present)
 
+  // Coils
   COIL_LEDTEST  = 400,   // pulse: LED test
   COIL_SAVE_CFG = 401,   // pulse: save cfg
   COIL_REBOOT   = 402    // pulse: reboot
@@ -266,6 +295,16 @@ void sendAllEchoesOnce() {
 void sendSamplesEcho(const int16_t raw[4], const uint16_t mv[4]) {
   JSONVar smp; for (int i=0;i<4;i++){ smp["raw"][i] = raw[i]; smp["mv"][i] = mv[i]; }
   WebSerial.send("AIO_Samples", smp);
+}
+
+void sendRTDEcho(const int16_t c_x100[2], const uint16_t ohm_x100[2], const uint16_t fault[2]) {
+  JSONVar obj;
+  for (int i=0;i<2;i++) {
+    obj["c"][i]    = c_x100[i];
+    obj["ohm"][i]  = ohm_x100[i];
+    obj["fault"][i]= fault[i];
+  }
+  WebSerial.send("AIO_RTD", obj);
 }
 
 // ---- WebSerial handlers ----
@@ -418,6 +457,10 @@ void setup() {
   ads.setDataRate(ads_data_rate);   // 0..7 -> 8..860 SPS
   ads.setMode(1);                   // 1 = single-shot
 
+  // -------- MAX31865 SOFTWARE SPI init --------
+  if (!rtd1.begin(RTD_WIRES)) WebSerial.send("message", "ERROR: RTD1 init failed");
+  if (!rtd2.begin(RTD_WIRES)) WebSerial.send("message", "ERROR: RTD2 init failed");
+
   // Serial2 / Modbus RTU
   Serial2.setTX(TX2); Serial2.setRX(RX2);
   Serial2.begin(g_mb_baud);
@@ -428,6 +471,11 @@ void setup() {
   for (uint16_t i=0;i<4;i++) mb.addIreg(IREG_RAW_BASE + i);
   for (uint16_t i=0;i<4;i++) mb.addIreg(IREG_MV_BASE  + i);
 
+  // RTD telemetry
+  for (uint16_t i=0;i<2;i++) mb.addIreg(IREG_RTD_C_BASE     + i);
+  for (uint16_t i=0;i<2;i++) mb.addIreg(IREG_RTD_OHM_BASE   + i);
+  for (uint16_t i=0;i<2;i++) mb.addIreg(IREG_RTD_FAULT_BASE + i);
+
   // ---- Register config (holding) ----
   mb.addHreg(HREG_GAIN);     mb.Hreg(HREG_GAIN, ads_gain);
   mb.addHreg(HREG_DRATE);    mb.Hreg(HREG_DRATE, ads_data_rate);
@@ -436,6 +484,7 @@ void setup() {
   // ---- Discrete stats ----
   for (uint16_t i=0;i<4;i++) mb.addIsts(ISTS_LED_BASE + i);
   for (uint16_t i=0;i<4;i++) mb.addIsts(ISTS_BTN_BASE + i);
+  for (uint16_t i=0;i<2;i++) mb.addIsts(ISTS_RTD_BASE + i);
 
   // ---- Coils ----
   mb.addCoil(COIL_LEDTEST);
@@ -449,7 +498,7 @@ void setup() {
 
   // Initial echoes
   sendAllEchoesOnce();
-  WebSerial.send("message", "Boot OK (AIO-422-R1, RP2350, ADS1X15, Wire1)");
+  WebSerial.send("message", "Boot OK (AIO-422-R1, RP2350, ADS1X15 + 2x MAX31865 via SoftSPI)");
 }
 
 // ================== HREG write watcher (optional Modbus control) ==================
@@ -586,12 +635,19 @@ void loop() {
   // Sampling
   static int16_t  rawArr[4] = {0,0,0,0};
   static uint16_t mvArr[4]  = {0,0,0,0};
+
+  // RTD buffers
+  static int16_t  rtdC_x100[2]   = {0,0};
+  static uint16_t rtdOhm_x100[2] = {0,0};
+  static uint16_t rtdFault[2]    = {0,0};
+
   samplingTick = false;
 
   if (now - lastSample >= sample_ms) {
     lastSample = now;
     samplingTick = true;
 
+    // ---- ADS1115 4 channels ----
     for (int ch=0; ch<4; ch++) {
       int16_t raw = ads.readADC(ch);       // single-shot conversion
       float   v   = ads.toVoltage(raw);
@@ -604,8 +660,57 @@ void loop() {
       mb.Ireg(IREG_RAW_BASE + ch, (int16_t)rawArr[ch]);
       mb.Ireg(IREG_MV_BASE  + ch, (uint16_t)mvArr[ch]);
     }
-    // WebSerial live samples for the WebConfig UI
+
+    // ---- MAX31865: two RTDs (software SPI) ----
+    // RTD1
+    {
+      uint16_t rtd = rtd1.readRTD();
+      float ohms = (float)rtd * RTD_REF_OHMS / 32768.0f;
+      float tC   = rtd1.temperature(RTD_NOMINAL_OHMS, RTD_REF_OHMS);
+      uint8_t f  = rtd1.readFault();
+      if (f) rtd1.clearFault();
+
+      int32_t cx100 = lroundf(tC * 100.0f);
+      if (cx100 < -32768) cx100 = -32768; if (cx100 > 32767) cx100 = 32767;
+      int32_t ox100 = lroundf(ohms * 100.0f);
+      if (ox100 < 0) ox100 = 0; if (ox100 > 65535) ox100 = 65535;
+
+      rtdC_x100[0]   = (int16_t)cx100;
+      rtdOhm_x100[0] = (uint16_t)ox100;
+      rtdFault[0]    = (uint16_t)f;
+
+      mb.Ireg(IREG_RTD_C_BASE + 0, (int16_t)rtdC_x100[0]);
+      mb.Ireg(IREG_RTD_OHM_BASE + 0, (uint16_t)rtdOhm_x100[0]);
+      mb.Ireg(IREG_RTD_FAULT_BASE + 0, (uint16_t)rtdFault[0]);
+      mb.setIsts(ISTS_RTD_BASE + 0, (f != 0));
+    }
+
+    // RTD2
+    {
+      uint16_t rtd = rtd2.readRTD();
+      float ohms = (float)rtd * RTD_REF_OHMS / 32768.0f;
+      float tC   = rtd2.temperature(RTD_NOMINAL_OHMS, RTD_REF_OHMS);
+      uint8_t f  = rtd2.readFault();
+      if (f) rtd2.clearFault();
+
+      int32_t cx100 = lroundf(tC * 100.0f);
+      if (cx100 < -32768) cx100 = -32768; if (cx100 > 32767) cx100 = 32767;
+      int32_t ox100 = lroundf(ohms * 100.0f);
+      if (ox100 < 0) ox100 = 0; if (ox100 > 65535) ox100 = 65535;
+
+      rtdC_x100[1]   = (int16_t)cx100;
+      rtdOhm_x100[1] = (uint16_t)ox100;
+      rtdFault[1]    = (uint16_t)f;
+
+      mb.Ireg(IREG_RTD_C_BASE + 1, (int16_t)rtdC_x100[1]);
+      mb.Ireg(IREG_RTD_OHM_BASE + 1, (uint16_t)rtdOhm_x100[1]);
+      mb.Ireg(IREG_RTD_FAULT_BASE + 1, (uint16_t)rtdFault[1]);
+      mb.setIsts(ISTS_RTD_BASE + 1, (f != 0));
+    }
+
+    // WebSerial live echoes for the WebConfig UI
     sendSamplesEcho(rawArr, mvArr);
+    sendRTDEcho(rtdC_x100, rtdOhm_x100, rtdFault);
   }
 
   // Drive LEDs from (source OR manual) with optional blink
