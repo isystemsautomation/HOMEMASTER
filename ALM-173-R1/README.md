@@ -388,7 +388,69 @@ The ALM-173-R1 also supports **hardware button combos** for maintenance:
 - Flash via USB-C (UF2 drag & drop)  
 - Required libraries: `ModbusSerial`, `SimpleWebSerial`, `Arduino_JSON`, `LittleFS`  
 
+## ⚠️ Safety Instructions
+
+Please read and follow all safety instructions **before installing or operating** the DIM-420-R1 module. Failure to comply with safety guidelines may result in **electric shock**, **fire hazard**, **property damage**, or **personal injury**.
+
 ---
+
+### 🔌 General Electrical Safety
+
+- Installation must be carried out **by qualified personnel** in accordance with **local electrical codes and standards**.
+- Always **disconnect the power supply** before connecting or disconnecting wiring to the device.
+- Ensure all electrical connections are **properly insulated and secured**.
+- Do **not connect non-dimmable loads** to dimming outputs. This may cause malfunction or damage.
+
+---
+
+### ⚠️ Device Handling
+
+- Do not operate the device outside of its **rated voltage or load limits**.
+- Do not expose the module to **moisture**, **condensation**, or **corrosive environments**.
+- Install the module **in a closed electrical cabinet or DIN enclosure** with adequate **ventilation**.
+- Avoid installing near sources of **electromagnetic interference (EMI)**.
+
+---
+
+### 🌡️ Thermal Safety
+
+- The module is equipped with **thermal protection** and will shut down if temperatures exceed the safe operating range.
+- Allow at least **10 mm of clearance** on all sides for passive heat dissipation.
+- Do not obstruct airflow or install near heat-generating equipment without cooling.
+
+---
+
+### ⚡ Load Safety
+
+- Always check **load compatibility** (LED, halogen, transformer type, etc.) before connecting.
+- Observe **minimum and maximum load limits** for each dimming channel (see Technical Specifications).
+- For inductive loads (e.g., magnetic transformers), ensure a **minimum load of 50 W** is connected to avoid instability.
+- Do not mix load types (e.g., LED + halogen) on the same channel.
+
+---
+
+### 🔥 Fire & Fuse Protection
+
+- The DIM-420-R1 includes an **internal fire-safety fuse**. If the fuse trips, do not attempt to bypass it—**replace the device**.
+- Ensure your upstream power source includes appropriate **circuit breakers or fuses**.
+
+---
+
+### 👷‍♂️ Maintenance & Service
+
+- The module contains **no user-serviceable parts**. Opening the enclosure will void warranty.
+- If malfunction is suspected, **disconnect immediately** and contact technical support.
+- Only use **certified and compatible accessories and replacement parts**.
+
+---
+
+### 📎 Regulatory & Compliance
+
+- This product complies with relevant **CE**, **RoHS**, and **low-voltage directives**.
+- Designed for **indoor use only**.
+
+> 🛑 **WARNING**: Improper installation or use may result in electric shock, equipment damage, or fire. Always follow professional installation practices.
+
 
 ## 🔓 Open Source & Re-Programming
 - Ships with default firmware (ready to use)  
