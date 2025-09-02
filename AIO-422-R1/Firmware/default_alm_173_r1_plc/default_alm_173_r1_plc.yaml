@@ -1,0 +1,248 @@
+modbus_controller:
+  - id: aio422
+    address: 3
+    modbus_id: modbus_bus
+    update_interval: 1s
+    command_throttle: 0ms
+
+# ------------- Discrete Inputs (LEDs & Buttons) -------------
+binary_sensor:
+  # LED states 300..303
+  - platform: modbus_controller
+    modbus_controller_id: aio422
+    name: "AIO LED1"
+    address: 300
+    register_type: discrete_input
+  - platform: modbus_controller
+    modbus_controller_id: aio422
+    name: "AIO LED2"
+    address: 301
+    register_type: discrete_input
+  - platform: modbus_controller
+    modbus_controller_id: aio422
+    name: "AIO LED3"
+    address: 302
+    register_type: discrete_input
+  - platform: modbus_controller
+    modbus_controller_id: aio422
+    name: "AIO LED4"
+    address: 303
+    register_type: discrete_input
+
+  # Button states 320..323
+  - platform: modbus_controller
+    modbus_controller_id: aio422
+    name: "AIO Button1"
+    address: 320
+    register_type: discrete_input
+  - platform: modbus_controller
+    modbus_controller_id: aio422
+    name: "AIO Button2"
+    address: 321
+    register_type: discrete_input
+  - platform: modbus_controller
+    modbus_controller_id: aio422
+    name: "AIO Button3"
+    address: 322
+    register_type: discrete_input
+  - platform: modbus_controller
+    modbus_controller_id: aio422
+    name: "AIO Button4"
+    address: 323
+    register_type: discrete_input
+
+# ---------------- Coils (momentary) ----------------
+switch:
+  - platform: modbus_controller
+    id: sw_ledtest
+    modbus_controller_id: aio422
+    name: "AIO LED Test"
+    address: 400
+    register_type: coil
+    on_turn_on:
+      - delay: "200ms"
+      - switch.turn_off: sw_ledtest
+
+  - platform: modbus_controller
+    id: sw_savecfg
+    modbus_controller_id: aio422
+    name: "AIO Save Config"
+    address: 401
+    register_type: coil
+    on_turn_on:
+      - delay: "200ms"
+      - switch.turn_off: sw_savecfg
+
+  - platform: modbus_controller
+    id: sw_reboot
+    modbus_controller_id: aio422
+    name: "AIO Reboot"
+    address: 402
+    register_type: coil
+    on_turn_on:
+      - delay: "200ms"
+      - switch.turn_off: sw_reboot
+
+# ------------- Numbers (Holding Registers) -------------
+number:
+  - platform: modbus_controller
+    modbus_controller_id: aio422
+    name: "ADS Gain (0..5)"
+    address: 200
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 5
+    step: 1
+    mode: box
+    unit_of_measurement: "index"
+
+  - platform: modbus_controller
+    modbus_controller_id: aio422
+    name: "ADS DataRate (0..7)"
+    address: 201
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 7
+    step: 1
+    mode: box
+    unit_of_measurement: "index"
+
+  - platform: modbus_controller
+    modbus_controller_id: aio422
+    name: "ADS Sample ms"
+    address: 202
+    register_type: holding
+    value_type: U_WORD
+    min_value: 10
+    max_value: 5000
+    step: 10
+    mode: box
+    unit_of_measurement: "ms"
+
+# ---------------- Sensors (Input Registers) ----------------
+sensor:
+  # ADS1115 — mV (U_WORD) @ 120..123
+  - platform: modbus_controller
+    modbus_controller_id: aio422
+    id: ch0_mv
+    name: "CH0 mV"
+    address: 120
+    register_type: read
+    value_type: U_WORD
+    unit_of_measurement: "mV"
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: aio422
+    id: ch1_mv
+    name: "CH1 mV"
+    address: 121
+    register_type: read
+    value_type: U_WORD
+    unit_of_measurement: "mV"
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: aio422
+    id: ch2_mv
+    name: "CH2 mV"
+    address: 122
+    register_type: read
+    value_type: U_WORD
+    unit_of_measurement: "mV"
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: aio422
+    id: ch3_mv
+    name: "CH3 mV"
+    address: 123
+    register_type: read
+    value_type: U_WORD
+    unit_of_measurement: "mV"
+    accuracy_decimals: 0
+
+  # ADS1115 — raw counts (S_WORD) @ 100..103
+  - platform: modbus_controller
+    modbus_controller_id: aio422
+    id: ch0_raw
+    name: "CH0 raw"
+    address: 100
+    register_type: read
+    value_type: S_WORD
+    unit_of_measurement: "cnt"
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: aio422
+    id: ch1_raw
+    name: "CH1 raw"
+    address: 101
+    register_type: read
+    value_type: S_WORD
+    unit_of_measurement: "cnt"
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: aio422
+    id: ch2_raw
+    name: "CH2 raw"
+    address: 102
+    register_type: read
+    value_type: S_WORD
+    unit_of_measurement: "cnt"
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: aio422
+    id: ch3_raw
+    name: "CH3 raw"
+    address: 103
+    register_type: read
+    value_type: S_WORD
+    unit_of_measurement: "cnt"
+    accuracy_decimals: 0
+
+  # MAX31865 — °C x100 (S_WORD) @ 140..141
+  - platform: modbus_controller
+    modbus_controller_id: aio422
+    id: rtd1_cx100
+    name: "RTD1 Temperature"
+    address: 140
+    register_type: read
+    value_type: S_WORD
+    unit_of_measurement: "°C"
+    accuracy_decimals: 2
+    filters:
+      - multiply: 0.01
+  - platform: modbus_controller
+    modbus_controller_id: aio422
+    id: rtd2_cx100
+    name: "RTD2 Temperature"
+    address: 141
+    register_type: read
+    value_type: S_WORD
+    unit_of_measurement: "°C"
+    accuracy_decimals: 2
+    filters:
+      - multiply: 0.01
+
+  # MAX31865 — Ohm x100 (U_WORD) @ 150..151
+  - platform: modbus_controller
+    modbus_controller_id: aio422
+    id: rtd1_ohmx100
+    name: "RTD1 Resistance"
+    address: 150
+    register_type: read
+    value_type: U_WORD
+    unit_of_measurement: "Ω"
+    accuracy_decimals: 2
+    filters:
+      - multiply: 0.01
+  - platform: modbus_controller
+    modbus_controller_id: aio422
+    id: rtd2_ohmx100
+    name: "RTD2 Resistance"
+    address: 151
+    register_type: read
+    value_type: U_WORD
+    unit_of_measurement: "Ω"
+    accuracy_decimals: 2
+    filters:
+      - multiply: 0.01
