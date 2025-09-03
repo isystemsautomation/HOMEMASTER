@@ -1,0 +1,355 @@
+<section style="font-family:'Segoe UI',sans-serif;padding:2rem;max-width:960px;margin:auto;">
+  <div style="text-align:center;margin-bottom:2rem;">
+    <img src="https://www.home-master.eu/web/image/product.image/14/image_1024/Untitled-2.webp?unique=1d6564f" alt="DIM-420-R1" style="max-width:300px;border-radius:8px;" loading="lazy">
+    <h2>DIM-420-R1 Module Configuration</h2>
+    <p>Configure Modbus, <strong>digital inputs (4)</strong>, <strong>dimming channels (2)</strong>, <strong>buttons (4)</strong>, and <strong>user LEDs (4)</strong> via Web Serial.</p>
+  </div>
+
+  <div style="background:#f1f1f1;padding:1rem 1.5rem;margin-bottom:2rem;border-radius:6px;border-left:4px solid #007bff;">
+    <strong>Active Modbus Configuration</strong><br>
+    Address: <span id="live-address" style="font-weight:600;">--</span> |
+    Baud Rate: <span id="live-baud" style="font-weight:600;">--</span>
+  </div>
+
+  <form id="modbus-config" style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:2rem;">
+    <div>
+      <label for="modbus-address"><strong>Modbus Address</strong></label>
+      <select id="modbus-address" style="width:100%;padding:10px;border-radius:4px;"></select>
+    </div>
+    <div>
+      <label for="modbus-baud"><strong>Baud Rate</strong></label>
+      <select id="modbus-baud" style="width:100%;padding:10px;border-radius:4px;">
+        <option>9600</option><option selected>19200</option><option>38400</option><option>57600</option><option>115200</option>
+      </select>
+    </div>
+    <div style="grid-column:span 2;text-align:right;">
+      <button id="connect-button" type="button" style="padding:10px 20px;background:#007bff;color:#fff;border:none;border-radius:4px;">Connect</button>
+      <button id="reset-button" type="button" style="padding:10px 20px;background:#dc3545;color:#fff;border:none;border-radius:4px;margin-left:0.75rem;" disabled>Reset Device</button>
+    </div>
+  </form>
+
+  <dialog id="reset-dialog" style="border:none;border-radius:10px;padding:0;max-width:420px;width:90%;box-shadow:0 10px 30px rgba(0,0,0,.2);">
+    <form id="reset-form" method="dialog" style="padding:1rem 1.25rem;">
+      <h3 style="margin:.25rem 0 .5rem;">Confirm reset</h3>
+      <p style="margin:.25rem 0 1rem;color:#444;">Are you sure you want to reset the module? The serial connection will be temporarily interrupted.</p>
+      <div style="display:flex;justify-content:flex-end;gap:.5rem;">
+        <button id="dlg-cancel" value="cancel" style="padding:.5rem .9rem;border-radius:6px;border:1px solid #ccc;background:#fff;">Cancel</button>
+        <button id="dlg-confirm" value="confirm" style="padding:.5rem .9rem;border:none;border-radius:6px;background:#dc3545;color:#fff;">Reset</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="log-line" style="margin-bottom:1.5rem;padding:1rem;background:#f9f9f9;border:1px solid #ccc;border-radius:6px;font-size:0.9rem;color:#333;font-family:monospace;">
+    <strong>Serial Log:</strong>
+    <div id="log-content" style="white-space:pre-wrap;"></div>
+  </div>
+
+  <!-- Inputs -->
+  <section>
+    <h2 style="font-size:1.2rem;">Digital Inputs (4)</h2>
+    <div id="inputs-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;"></div>
+  </section>
+
+  <!-- Channels -->
+  <section>
+    <h2 style="font-size:1.2rem;">Dimming Channels (2)</h2>
+    <div id="channels-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;"></div>
+  </section>
+
+  <!-- Buttons -->
+  <section>
+    <h2 style="font-size:1.2rem;">Buttons (4)</h2>
+    <div id="buttons-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;"></div>
+  </section>
+
+  <!-- LEDs -->
+  <section>
+    <h2 style="font-size:1.2rem;">User LEDs (4)</h2>
+    <div id="leds-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;"></div>
+  </section>
+
+  <script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
+  <script>
+    (function () {
+      // ---------- Constants ----------
+      const LOG_MAX = 4;
+      const NUM_DI = 4, NUM_CH = 2, NUM_BTN = 4, NUM_LED = 4;
+
+      // ---------- Helpers ----------
+      const $ = (id) => document.getElementById(id);
+      const logBuffer = [];
+      function appendLog(label, data) {
+        const logEl = $("log-content"); if (!logEl) return;
+        const time = new Date().toLocaleTimeString();
+        const line = `[${time}] ${label}: ${typeof data === 'string' ? data : JSON.stringify(data)}`;
+        logBuffer.unshift(line); if (logBuffer.length > LOG_MAX) logBuffer.pop();
+        logEl.innerText = logBuffer.join('\n');
+      }
+
+      // Populate Modbus addresses
+      (function populateAddresses() {
+        const sel = $('modbus-address'); if (!sel) return;
+        for (let i = 1; i <= 255; i++) {
+          const opt = document.createElement('option');
+          opt.value = i; opt.textContent = i;
+          if (i === 3) opt.selected = true;
+          sel.appendChild(opt);
+        }
+      })();
+
+      // ---------- Web Serial ----------
+      const connection = SimpleWebSerial.setupSerialConnection({
+        requestAccessOnPageLoad: false,
+        requestElement: 'connect-button'
+      });
+
+      function isPortOpen() {
+        try { return typeof connection.isOpen === 'function' ? connection.isOpen() : !!connection.port; }
+        catch { return false; }
+      }
+      function updateResetEnabled() { const b = $('reset-button'); if (b) b.disabled = !isPortOpen(); }
+
+      connection.on('status', (modbus) => {
+        $('live-address').textContent = (modbus && 'address' in modbus) ? modbus.address : '--';
+        $('live-baud').textContent    = (modbus && 'baud' in modbus)    ? modbus.baud    : '--';
+        if (modbus && modbus.address) $('modbus-address').value = modbus.address;
+        if (modbus && modbus.baud)    $('modbus-baud').value    = String(modbus.baud);
+        updateResetEnabled();
+      });
+      connection.on('open',  updateResetEnabled);
+      connection.on('close', updateResetEnabled);
+      connection.on('message', (msg) => appendLog("DIM-420-R1", msg));
+
+      // ---------- Modbus config push ----------
+      $('modbus-address').addEventListener('input', pushModbus);
+      $('modbus-baud').addEventListener('input', pushModbus);
+      async function pushModbus() {
+        const mb_address = parseInt($('modbus-address').value || "3", 10);
+        const mb_baud = parseInt($('modbus-baud').value || "19200", 10);
+        await connection.send("values", { mb_address, mb_baud });
+      }
+
+      // ---------- Reset flow ----------
+      const resetBtn   = $('reset-button');
+      const dlg        = $('reset-dialog');
+      const dlgCancel  = $('dlg-cancel');
+      const dlgConfirm = $('dlg-confirm');
+
+      resetBtn.addEventListener('click', () => {
+        updateResetEnabled();
+        if (resetBtn.disabled) return appendLog("System", "Connect to the device before resetting.");
+        if (dlg && typeof dlg.showModal === 'function') { if (!dlg.open) dlg.showModal(); }
+        else doReset();
+      });
+      dlgCancel && dlgCancel.addEventListener('click', (e)=>{ e.preventDefault(); dlg.close('cancel'); });
+      dlgConfirm && dlgConfirm.addEventListener('click', async (e)=>{ e.preventDefault(); dlg.close('confirm'); await doReset(); });
+      dlg && dlg.addEventListener('click', (ev) => {
+        const r = dlg.getBoundingClientRect();
+        const inside = ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom;
+        if (!inside && dlg.open) dlg.close('backdrop');
+      });
+      async function doReset() {
+        try { await connection.send("command", { action: "reset" }); appendLog("System", "Reset command sent"); resetBtn.disabled = true; setTimeout(updateResetEnabled, 3000); }
+        catch (err) { appendLog("Error", `Failed to send reset: ${err && err.message ? err.message : err}`); }
+      }
+
+      // ---------- Build UI ----------
+      // Inputs
+      (function buildInputs() {
+        const container = $('inputs-config'); if (!container) return;
+        const ACTIONS = [{v:0,t:'None'},{v:1,t:'Toggle'},{v:2,t:'Pulse'}];
+        const TARGETS = [{v:4,t:'None'},{v:0,t:'All channels'},{v:1,t:'Channel 1'},{v:2,t:'Channel 2'}];
+        for (let i=1;i<=NUM_DI;i++){
+          const card = document.createElement('div');
+          card.innerHTML = `
+          <div style="border:1px solid #ccc;border-radius:6px;background:#e6f7e8;padding:1rem;">
+            <div style="display:flex;justify-content:space-between;font-weight:600;">
+              IN${i}
+              <span id="state-in${i}" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;"></span>
+            </div>
+            <label><input type="checkbox" id="enable-in${i}"> Enabled</label><br>
+            <label><input type="checkbox" id="invert-in${i}"> Inverted</label><br>
+            <label>Action:
+              <select id="action-in${i}" style="width:100%;padding:6px;border-radius:4px;">
+                ${ACTIONS.map(a=>`<option value="${a.v}">${a.t}</option>`).join('')}
+              </select>
+            </label><br>
+            <label>Control target:
+              <select id="target-in${i}" style="width:100%;padding:6px;border-radius:4px;">
+                ${TARGETS.map(t=>`<option value="${t.v}">${t.t}</option>`).join('')}
+              </select>
+            </label>
+          </div>`;
+          container.appendChild(card);
+        }
+      })();
+
+      // Channels
+      (function buildChannels(){
+        const container = $('channels-config'); if (!container) return;
+        for (let i=1;i<=NUM_CH;i++){
+          const card = document.createElement('div');
+          card.innerHTML = `
+          <div style="border:1px solid #ccc;border-radius:6px;background:#f1f1f1;padding:1rem;">
+            <div style="display:flex;justify-content:space-between;align-items:center;font-weight:600;">
+              Channel ${i}
+              <span id="on-ch${i}" title="On state" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;"></span>
+            </div>
+            <label style="display:block;margin:.25rem 0;"><input type="checkbox" id="enable-ch${i}"> Enabled</label>
+            <label style="display:block;margin-top:.5rem;">Level:
+              <input type="range" id="level-ch${i}" min="0" max="255" step="1" value="0" style="width:100%;">
+              <div style="display:flex;justify-content:space-between;font-size:.85rem;color:#555;">
+                <span>0</span><span id="level-val-ch${i}">0</span><span>255</span>
+              </div>
+            </label>
+          </div>`;
+          container.appendChild(card);
+        }
+      })();
+
+      // Buttons
+      (function buildButtons(){
+        const container = $('buttons-config'); if (!container) return;
+        const ACTIONS = [
+          {v:0,t:'None'},
+          {v:1,t:'Toggle CH1'}, {v:2,t:'Toggle CH2'},
+          {v:3,t:'Step Up CH1'}, {v:4,t:'Step Down CH1'},
+          {v:5,t:'Step Up CH2'}, {v:6,t:'Step Down CH2'}
+        ];
+        for (let i=1;i<=NUM_BTN;i++){
+          const card = document.createElement('div');
+          card.innerHTML = `
+          <div style="border:1px solid #ccc;border-radius:6px;background:#cbdcf7;padding:1rem;">
+            <div style="font-weight:600;">
+              Button ${i}
+              <span id="state-button${i}" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;float:right;"></span>
+            </div>
+            <label>Action:
+              <select id="action-button${i}" style="width:100%;padding:6px;border-radius:4px;">
+                ${ACTIONS.map(a=>`<option value="${a.v}">${a.t}</option>`).join('')}
+              </select>
+            </label>
+          </div>`;
+          container.appendChild(card);
+        }
+      })();
+
+      // LEDs
+      (function buildLEDs(){
+        const container = $('leds-config'); if (!container) return;
+        const LED_MODE   = [{v:0,t:'Steady (when source active)'},{v:1,t:'Blink (when source active)'}];
+        const LED_SOURCE = [{v:0,t:'None'},{v:1,t:'Channel 1'},{v:2,t:'Channel 2'}];
+        for (let i=1;i<=NUM_LED;i++){
+          const card = document.createElement('div');
+          card.innerHTML = `
+          <div style="border:1px solid #ccc;border-radius:6px;background:#f3f5d0;padding:1rem;">
+            <div style="font-weight:600;">
+              User LED ${i}
+              <span id="state-led${i}" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;float:right;"></span>
+            </div>
+            <label>Mode:
+              <select id="mode-led${i}" style="width:100%;padding:6px;border-radius:4px;">
+                ${LED_MODE.map(m=>`<option value="${m.v}">${m.t}</option>`).join('')}
+              </select>
+            </label><br>
+            <label>Source:
+              <select id="source-led${i}" style="width:100%;padding:6px;border-radius:4px;">
+                ${LED_SOURCE.map(s=>`<option value="${s.v}">${s.t}</option>`).join('')}
+              </select>
+            </label>
+          </div>`;
+          container.appendChild(card);
+        }
+      })();
+
+      // ---------- RECEIVE: update UI ----------
+      // Inputs
+      connection.on('inputs', (list=[]) => {
+        list.forEach((v,i)=>{ const dot=$('state-in'+(i+1)); if(dot) dot.style.background = v ? '#4caf50' : '#ccc'; });
+      });
+      connection.on('enableList', (list=[]) => list.forEach((v,i)=>{ const el=$('enable-in'+(i+1)); if(el) el.checked=!!v; }));
+      connection.on('invertList', (list=[]) => list.forEach((v,i)=>{ const el=$('invert-in'+(i+1)); if(el) el.checked=!!v; }));
+      connection.on('inputActionList', (list=[]) => list.forEach((v,i)=>{ const el=$('action-in'+(i+1)); if(el) el.value=String(v||0); }));
+      connection.on('inputTargetList', (list=[]) => list.forEach((v,i)=>{ const el=$('target-in'+(i+1)); if(el) el.value=String(typeof v==='number'?v:0); }));
+
+      // Channels
+      connection.on('channelEnabled', (list=[]) => list.forEach((v,i)=>{ const el=$('enable-ch'+(i+1)); if(el) el.checked=!!v; updateChOnDot(i+1); }));
+      connection.on('channelLevels',  (list=[]) => list.forEach((v,i)=>{
+        const el=$('level-ch'+(i+1)); const val=$('level-val-ch'+(i+1));
+        if(el) el.value = String(v||0); if(val) val.textContent = String(v||0); updateChOnDot(i+1);
+      }));
+
+      // Buttons
+      connection.on('ButtonStateList', (list=[]) => list.forEach((v,i)=>{ const dot=$('state-button'+(i+1)); if(dot) dot.style.background = v ? '#4caf50' : '#ccc'; }));
+      connection.on('ButtonGroupList', (list=[]) => list.forEach((v,i)=>{ const el=$('action-button'+(i+1)); if(el) el.value=String(v||0); }));
+
+      // LEDs
+      connection.on('LedConfigList', (list=[]) => list.forEach((o,i)=>{
+        const m=$('mode-led'+(i+1)), s=$('source-led'+(i+1));
+        if(m && o && typeof o.mode!=='undefined')   m.value = String(o.mode);
+        if(s && o && typeof o.source!=='undefined') s.value = String(o.source);
+      }));
+      connection.on('LedStateList', (list=[]) => list.forEach((v,i)=>{ const dot=$('state-led'+(i+1)); if(dot) dot.style.background = v ? '#ffb300' : '#ccc'; }));
+
+      function updateChOnDot(idx){
+        const enEl = $('enable-ch'+idx);
+        const lvlEl = $('level-ch'+idx);
+        const dot = $('on-ch'+idx);
+        if (dot && enEl && lvlEl) {
+          const on = enEl.checked && Number(lvlEl.value||0) > 0;
+          dot.style.background = on ? '#4caf50' : '#ccc';
+        }
+      }
+
+      // ---------- SEND: change handlers ----------
+      // Inputs
+      for (let i=1;i<=NUM_DI;i++){
+        $('enable-in'+i).addEventListener('change', sendInputEnable);
+        $('invert-in'+i).addEventListener('change', sendInputInvert);
+        $('action-in'+i).addEventListener('change', sendInputAction);
+        $('target-in'+i).addEventListener('change', sendInputTarget);
+      }
+      async function sendInputEnable(){ const list=[]; for(let i=1;i<=NUM_DI;i++) list.push(!!$('enable-in'+i).checked); await connection.send("Config",{t:"inputEnable",list}); }
+      async function sendInputInvert(){ const list=[]; for(let i=1;i<=NUM_DI;i++) list.push(!!$('invert-in'+i).checked); await connection.send("Config",{t:"inputInvert",list}); }
+      async function sendInputAction(){ const list=[]; for(let i=1;i<=NUM_DI;i++) list.push(parseInt($('action-in'+i).value||"0",10)); await connection.send("Config",{t:"inputAction",list}); }
+      async function sendInputTarget(){ const list=[]; for(let i=1;i<=NUM_DI;i++) list.push(parseInt($('target-in'+i).value||"0",10)); await connection.send("Config",{t:"inputTarget",list}); }
+
+      // Channels
+      for (let i=1;i<=NUM_CH;i++){
+        $('enable-ch'+i).addEventListener('change', sendChannelsConfig);
+        $('level-ch'+i).addEventListener('input', (e)=>{ $('level-val-ch'+i).textContent = e.target.value; updateChOnDot(i); });
+        $('level-ch'+i).addEventListener('change', sendChannelsConfig);
+      }
+      async function sendChannelsConfig(){
+        const list=[];
+        for(let i=1;i<=NUM_CH;i++){
+          list.push({enabled:$('enable-ch'+i).checked, level:parseInt($('level-ch'+i).value||"0",10)});
+        }
+        await connection.send("Config",{t:"channels",list});
+      }
+
+      // Buttons
+      for (let i=1;i<=NUM_BTN;i++){ $('action-button'+i).addEventListener('change', sendButtons); }
+      async function sendButtons(){
+        const list=[]; for(let i=1;i<=NUM_BTN;i++) list.push({action:parseInt($('action-button'+i).value||"0",10)});
+        await connection.send("Config",{t:"buttons",list});
+      }
+
+      // LEDs
+      for (let i=1;i<=NUM_LED;i++){
+        $('mode-led'+i).addEventListener('change', sendLEDs);
+        $('source-led'+i).addEventListener('change', sendLEDs);
+      }
+      async function sendLEDs(){
+        const list=[];
+        for(let i=1;i<=NUM_LED;i++){
+          list.push({
+            mode:   parseInt($('mode-led'+i).value||"0",10),  // 0 steady, 1 blink
+            source: parseInt($('source-led'+i).value||"0",10) // 0=None, 1..2=CH1..CH2
+          });
+        }
+        await connection.send("Config",{t:"leds",list});
+      }
+    })();
+  </script>
+</section>
