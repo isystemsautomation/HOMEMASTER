@@ -1,4 +1,15 @@
 <section style="font-family:'Segoe UI',sans-serif;padding:2rem;max-width:960px;margin:auto;">
+  <style>
+    .layout-2col{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;}
+    .span-2{grid-column:1 / -1;}
+    .cards-2col{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+    @media (max-width:720px){
+      .layout-2col{grid-template-columns:1fr;}
+      .cards-2col{grid-template-columns:1fr;}
+    }
+    .pill{font-size:.85rem;padding:.15rem .5rem;border-radius:999px;border:1px solid #ddd;background:#eef;color:#223;}
+  </style>
+
   <div style="text-align:center;margin-bottom:2rem;">
     <img src="https://www.home-master.eu/web/image/product.image/14/image_1024/Untitled-2.webp?unique=1d6564f" alt="DIM-420-R1" style="max-width:300px;border-radius:8px;" loading="lazy">
     <h2>DIM-420-R1 Module Configuration</h2>
@@ -19,12 +30,12 @@
     <div>
       <label for="modbus-baud"><strong>Baud Rate</strong></label>
       <select id="modbus-baud" style="width:100%;padding:10px;border-radius:4px;">
-        <option>9600</option><option selected>19200</option><option>38400</option><option>57600</option><option>115200</option>
+        <option>9600</option><option selected="">19200</option><option>38400</option><option>57600</option><option>115200</option>
       </select>
     </div>
     <div style="grid-column:span 2;text-align:right;">
       <button id="connect-button" type="button" style="padding:10px 20px;background:#007bff;color:#fff;border:none;border-radius:4px;">Connect</button>
-      <button id="reset-button" type="button" style="padding:10px 20px;background:#dc3545;color:#fff;border:none;border-radius:4px;margin-left:0.75rem;" disabled>Reset Device</button>
+      <button id="reset-button" type="button" style="padding:10px 20px;background:#dc3545;color:#fff;border:none;border-radius:4px;margin-left:0.75rem;" disabled="">Reset Device</button>
     </div>
   </form>
 
@@ -44,312 +55,471 @@
     <div id="log-content" style="white-space:pre-wrap;"></div>
   </div>
 
-  <!-- Inputs -->
-  <section>
-    <h2 style="font-size:1.2rem;">Digital Inputs (4)</h2>
-    <div id="inputs-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;"></div>
-  </section>
+  
+  <div class="layout-2col">
+    
+    <section class="span-2">
+      <h2 style="font-size:1.2rem;">Dimming Channels (2)</h2>
+      <div id="channels-config" class="cards-2col"></div>
+    </section>
 
-  <!-- Channels -->
-  <section>
-    <h2 style="font-size:1.2rem;">Dimming Channels (2)</h2>
-    <div id="channels-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;"></div>
-  </section>
+    
+    <section class="span-2">
+      <h2 style="font-size:1.2rem;">Digital Inputs (4)</h2>
+      <div id="inputs-config" class="cards-2col"></div>
+    </section>
 
-  <!-- Buttons -->
-  <section>
-    <h2 style="font-size:1.2rem;">Buttons (4)</h2>
-    <div id="buttons-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;"></div>
-  </section>
+    
+    <section class="span-2">
+      <h2 style="font-size:1.2rem;">Buttons (4)</h2>
+      <div id="buttons-config" class="cards-2col"></div>
+    </section>
 
-  <!-- LEDs -->
-  <section>
-    <h2 style="font-size:1.2rem;">User LEDs (4)</h2>
-    <div id="leds-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;"></div>
-  </section>
+    
+    <section class="span-2">
+      <h2 style="font-size:1.2rem;">User LEDs (4)</h2>
+      <div id="leds-config" class="cards-2col"></div>
+    </section>
+  </div>
 
-  <script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
+  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
   <script>
-    (function () {
-      // ---------- Constants ----------
-      const LOG_MAX = 4;
-      const NUM_DI = 4, NUM_CH = 2, NUM_BTN = 4, NUM_LED = 4;
+  (function () {
+    // ---------- Constants ----------
+    const LOG_MAX = 4;
+    const NUM_DI = 4, NUM_CH = 2, NUM_BTN = 4, NUM_LED = 4;
 
-      // ---------- Helpers ----------
-      const $ = (id) => document.getElementById(id);
-      const logBuffer = [];
-      function appendLog(label, data) {
-        const logEl = $("log-content"); if (!logEl) return;
-        const time = new Date().toLocaleTimeString();
-        const line = `[${time}] ${label}: ${typeof data === 'string' ? data : JSON.stringify(data)}`;
-        logBuffer.unshift(line); if (logBuffer.length > LOG_MAX) logBuffer.pop();
-        logEl.innerText = logBuffer.join('\n');
+    // UI echo-suppression
+    const LOCAL_HOLD_MS = 2200;
+    const DEBOUNCE_MS   = 250;
+    const RELEASE_MS    = 600;
+
+    // ---------- Helpers ----------
+    const $ = (id) => document.getElementById(id);
+    const logBuffer = [];
+    const clamp255 = (n) => Math.min(255, Math.max(0, Number(n) || 0));
+
+    // Per-channel local state
+    const holdUntil = Array(NUM_CH + 1).fill(0);          // 1-based index
+    const editTimers = Array(NUM_CH + 1).fill(0);
+    const editing = { lvl: new Set(), lo: new Set(), hi: new Set() };
+    let sendTimer = null;
+    let lastSentStr = "";
+
+    function nowMs(){ return Date.now(); }
+    function markHold(idx){ holdUntil[idx] = nowMs() + LOCAL_HOLD_MS; }
+    function isHeld(idx){ return nowMs() < holdUntil[idx]; }
+
+    function setEditing(kind, idx, on){
+      const S = (kind==='level') ? editing.lvl : (kind==='lower' ? editing.lo : editing.hi);
+      if (on) { S.add(idx); markHold(idx); }
+      else { S.delete(idx); }
+      clearTimeout(editTimers[idx]);
+      if (on) editTimers[idx] = setTimeout(()=>{ S.delete(idx); }, RELEASE_MS);
+    }
+
+    function appendLog(label, data) {
+      const logEl = $("log-content"); if (!logEl) return;
+      const time = new Date().toLocaleTimeString();
+      const line = `[${time}] ${label}: ${typeof data === 'string' ? data : JSON.stringify(data)}`;
+      logBuffer.unshift(line); if (logBuffer.length > LOG_MAX) logBuffer.pop();
+      logEl.innerText = logBuffer.join('\n');
+    }
+
+    function fixThresholdPair(idx) {
+      const loEl = $('lower-ch'+idx), hiEl = $('upper-ch'+idx);
+      if (!loEl || !hiEl) return;
+      let lo = clamp255(loEl.value), hi = clamp255(hiEl.value);
+      if (hi < lo) hi = lo;
+      loEl.value = String(lo);
+      hiEl.value = String(hi);
+      const badge = $('range-ch'+idx);
+      if (badge) badge.textContent = `[${lo}..${hi}]`;
+    }
+
+    function updateChOnDot(idx){
+      const enEl = $('enable-ch'+idx);
+      const lvlEl = $('level-ch'+idx);
+      const dot = $('on-ch'+idx);
+      if (dot && enEl && lvlEl) {
+        const on = enEl.checked && Number(lvlEl.value||0) > 0;
+        dot.style.background = on ? '#4caf50' : '#ccc';
       }
+    }
 
-      // Populate Modbus addresses
-      (function populateAddresses() {
-        const sel = $('modbus-address'); if (!sel) return;
-        for (let i = 1; i <= 255; i++) {
-          const opt = document.createElement('option');
-          opt.value = i; opt.textContent = i;
-          if (i === 3) opt.selected = true;
-          sel.appendChild(opt);
-        }
-      })();
-
-      // ---------- Web Serial ----------
-      const connection = SimpleWebSerial.setupSerialConnection({
-        requestAccessOnPageLoad: false,
-        requestElement: 'connect-button'
-      });
-
-      function isPortOpen() {
-        try { return typeof connection.isOpen === 'function' ? connection.isOpen() : !!connection.port; }
-        catch { return false; }
+    function updateAcBadge(idx, on) {
+      const badge = $('ac-badge-ch' + idx);
+      if (!badge) return;
+      if (on) {
+        badge.textContent = 'ON';
+        badge.style.background = '#d4edda';
+        badge.style.color = '#155724';
+        badge.style.borderColor = '#c3e6cb';
+      } else {
+        badge.textContent = 'OFF';
+        badge.style.background = '#fdecea';
+        badge.style.color = '#b71c1c';
+        badge.style.borderColor = '#f5c6cb';
       }
-      function updateResetEnabled() { const b = $('reset-button'); if (b) b.disabled = !isPortOpen(); }
+    }
 
-      connection.on('status', (modbus) => {
-        $('live-address').textContent = (modbus && 'address' in modbus) ? modbus.address : '--';
-        $('live-baud').textContent    = (modbus && 'baud' in modbus)    ? modbus.baud    : '--';
-        if (modbus && modbus.address) $('modbus-address').value = modbus.address;
-        if (modbus && modbus.baud)    $('modbus-baud').value    = String(modbus.baud);
-        updateResetEnabled();
-      });
-      connection.on('open',  updateResetEnabled);
-      connection.on('close', updateResetEnabled);
-      connection.on('message', (msg) => appendLog("DIM-420-R1", msg));
-
-      // ---------- Modbus config push ----------
-      $('modbus-address').addEventListener('input', pushModbus);
-      $('modbus-baud').addEventListener('input', pushModbus);
-      async function pushModbus() {
-        const mb_address = parseInt($('modbus-address').value || "3", 10);
-        const mb_baud = parseInt($('modbus-baud').value || "19200", 10);
-        await connection.send("values", { mb_address, mb_baud });
-      }
-
-      // ---------- Reset flow ----------
-      const resetBtn   = $('reset-button');
-      const dlg        = $('reset-dialog');
-      const dlgCancel  = $('dlg-cancel');
-      const dlgConfirm = $('dlg-confirm');
-
-      resetBtn.addEventListener('click', () => {
-        updateResetEnabled();
-        if (resetBtn.disabled) return appendLog("System", "Connect to the device before resetting.");
-        if (dlg && typeof dlg.showModal === 'function') { if (!dlg.open) dlg.showModal(); }
-        else doReset();
-      });
-      dlgCancel && dlgCancel.addEventListener('click', (e)=>{ e.preventDefault(); dlg.close('cancel'); });
-      dlgConfirm && dlgConfirm.addEventListener('click', async (e)=>{ e.preventDefault(); dlg.close('confirm'); await doReset(); });
-      dlg && dlg.addEventListener('click', (ev) => {
-        const r = dlg.getBoundingClientRect();
-        const inside = ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom;
-        if (!inside && dlg.open) dlg.close('backdrop');
-      });
-      async function doReset() {
-        try { await connection.send("command", { action: "reset" }); appendLog("System", "Reset command sent"); resetBtn.disabled = true; setTimeout(updateResetEnabled, 3000); }
-        catch (err) { appendLog("Error", `Failed to send reset: ${err && err.message ? err.message : err}`); }
-      }
-
-      // ---------- Build UI ----------
-      // Inputs
-      (function buildInputs() {
-        const container = $('inputs-config'); if (!container) return;
-        const ACTIONS = [{v:0,t:'None'},{v:1,t:'Toggle'},{v:2,t:'Pulse'}];
-        const TARGETS = [{v:4,t:'None'},{v:0,t:'All channels'},{v:1,t:'Channel 1'},{v:2,t:'Channel 2'}];
-        for (let i=1;i<=NUM_DI;i++){
-          const card = document.createElement('div');
-          card.innerHTML = `
-          <div style="border:1px solid #ccc;border-radius:6px;background:#e6f7e8;padding:1rem;">
-            <div style="display:flex;justify-content:space-between;font-weight:600;">
-              IN${i}
-              <span id="state-in${i}" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;"></span>
-            </div>
-            <label><input type="checkbox" id="enable-in${i}"> Enabled</label><br>
-            <label><input type="checkbox" id="invert-in${i}"> Inverted</label><br>
-            <label>Action:
-              <select id="action-in${i}" style="width:100%;padding:6px;border-radius:4px;">
-                ${ACTIONS.map(a=>`<option value="${a.v}">${a.t}</option>`).join('')}
-              </select>
-            </label><br>
-            <label>Control target:
-              <select id="target-in${i}" style="width:100%;padding:6px;border-radius:4px;">
-                ${TARGETS.map(t=>`<option value="${t.v}">${t.t}</option>`).join('')}
-              </select>
-            </label>
-          </div>`;
-          container.appendChild(card);
-        }
-      })();
-
-      // Channels
-      (function buildChannels(){
-        const container = $('channels-config'); if (!container) return;
-        for (let i=1;i<=NUM_CH;i++){
-          const card = document.createElement('div');
-          card.innerHTML = `
-          <div style="border:1px solid #ccc;border-radius:6px;background:#f1f1f1;padding:1rem;">
-            <div style="display:flex;justify-content:space-between;align-items:center;font-weight:600;">
-              Channel ${i}
-              <span id="on-ch${i}" title="On state" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;"></span>
-            </div>
-            <label style="display:block;margin:.25rem 0;"><input type="checkbox" id="enable-ch${i}"> Enabled</label>
-            <label style="display:block;margin-top:.5rem;">Level:
-              <input type="range" id="level-ch${i}" min="0" max="255" step="1" value="0" style="width:100%;">
-              <div style="display:flex;justify-content:space-between;font-size:.85rem;color:#555;">
-                <span>0</span><span id="level-val-ch${i}">0</span><span>255</span>
-              </div>
-            </label>
-          </div>`;
-          container.appendChild(card);
-        }
-      })();
-
-      // Buttons
-      (function buildButtons(){
-        const container = $('buttons-config'); if (!container) return;
-        const ACTIONS = [
-          {v:0,t:'None'},
-          {v:1,t:'Toggle CH1'}, {v:2,t:'Toggle CH2'},
-          {v:3,t:'Step Up CH1'}, {v:4,t:'Step Down CH1'},
-          {v:5,t:'Step Up CH2'}, {v:6,t:'Step Down CH2'}
-        ];
-        for (let i=1;i<=NUM_BTN;i++){
-          const card = document.createElement('div');
-          card.innerHTML = `
-          <div style="border:1px solid #ccc;border-radius:6px;background:#cbdcf7;padding:1rem;">
-            <div style="font-weight:600;">
-              Button ${i}
-              <span id="state-button${i}" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;float:right;"></span>
-            </div>
-            <label>Action:
-              <select id="action-button${i}" style="width:100%;padding:6px;border-radius:4px;">
-                ${ACTIONS.map(a=>`<option value="${a.v}">${a.t}</option>`).join('')}
-              </select>
-            </label>
-          </div>`;
-          container.appendChild(card);
-        }
-      })();
-
-      // LEDs
-      (function buildLEDs(){
-        const container = $('leds-config'); if (!container) return;
-        const LED_MODE   = [{v:0,t:'Steady (when source active)'},{v:1,t:'Blink (when source active)'}];
-        const LED_SOURCE = [{v:0,t:'None'},{v:1,t:'Channel 1'},{v:2,t:'Channel 2'}];
-        for (let i=1;i<=NUM_LED;i++){
-          const card = document.createElement('div');
-          card.innerHTML = `
-          <div style="border:1px solid #ccc;border-radius:6px;background:#f3f5d0;padding:1rem;">
-            <div style="font-weight:600;">
-              User LED ${i}
-              <span id="state-led${i}" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;float:right;"></span>
-            </div>
-            <label>Mode:
-              <select id="mode-led${i}" style="width:100%;padding:6px;border-radius:4px;">
-                ${LED_MODE.map(m=>`<option value="${m.v}">${m.t}</option>`).join('')}
-              </select>
-            </label><br>
-            <label>Source:
-              <select id="source-led${i}" style="width:100%;padding:6px;border-radius:4px;">
-                ${LED_SOURCE.map(s=>`<option value="${s.v}">${s.t}</option>`).join('')}
-              </select>
-            </label>
-          </div>`;
-          container.appendChild(card);
-        }
-      })();
-
-      // ---------- RECEIVE: update UI ----------
-      // Inputs
-      connection.on('inputs', (list=[]) => {
-        list.forEach((v,i)=>{ const dot=$('state-in'+(i+1)); if(dot) dot.style.background = v ? '#4caf50' : '#ccc'; });
-      });
-      connection.on('enableList', (list=[]) => list.forEach((v,i)=>{ const el=$('enable-in'+(i+1)); if(el) el.checked=!!v; }));
-      connection.on('invertList', (list=[]) => list.forEach((v,i)=>{ const el=$('invert-in'+(i+1)); if(el) el.checked=!!v; }));
-      connection.on('inputActionList', (list=[]) => list.forEach((v,i)=>{ const el=$('action-in'+(i+1)); if(el) el.value=String(v||0); }));
-      connection.on('inputTargetList', (list=[]) => list.forEach((v,i)=>{ const el=$('target-in'+(i+1)); if(el) el.value=String(typeof v==='number'?v:0); }));
-
-      // Channels
-      connection.on('channelEnabled', (list=[]) => list.forEach((v,i)=>{ const el=$('enable-ch'+(i+1)); if(el) el.checked=!!v; updateChOnDot(i+1); }));
-      connection.on('channelLevels',  (list=[]) => list.forEach((v,i)=>{
-        const el=$('level-ch'+(i+1)); const val=$('level-val-ch'+(i+1));
-        if(el) el.value = String(v||0); if(val) val.textContent = String(v||0); updateChOnDot(i+1);
-      }));
-
-      // Buttons
-      connection.on('ButtonStateList', (list=[]) => list.forEach((v,i)=>{ const dot=$('state-button'+(i+1)); if(dot) dot.style.background = v ? '#4caf50' : '#ccc'; }));
-      connection.on('ButtonGroupList', (list=[]) => list.forEach((v,i)=>{ const el=$('action-button'+(i+1)); if(el) el.value=String(v||0); }));
-
-      // LEDs
-      connection.on('LedConfigList', (list=[]) => list.forEach((o,i)=>{
-        const m=$('mode-led'+(i+1)), s=$('source-led'+(i+1));
-        if(m && o && typeof o.mode!=='undefined')   m.value = String(o.mode);
-        if(s && o && typeof o.source!=='undefined') s.value = String(o.source);
-      }));
-      connection.on('LedStateList', (list=[]) => list.forEach((v,i)=>{ const dot=$('state-led'+(i+1)); if(dot) dot.style.background = v ? '#ffb300' : '#ccc'; }));
-
-      function updateChOnDot(idx){
-        const enEl = $('enable-ch'+idx);
-        const lvlEl = $('level-ch'+idx);
-        const dot = $('on-ch'+idx);
-        if (dot && enEl && lvlEl) {
-          const on = enEl.checked && Number(lvlEl.value||0) > 0;
-          dot.style.background = on ? '#4caf50' : '#ccc';
-        }
-      }
-
-      // ---------- SEND: change handlers ----------
-      // Inputs
-      for (let i=1;i<=NUM_DI;i++){
-        $('enable-in'+i).addEventListener('change', sendInputEnable);
-        $('invert-in'+i).addEventListener('change', sendInputInvert);
-        $('action-in'+i).addEventListener('change', sendInputAction);
-        $('target-in'+i).addEventListener('change', sendInputTarget);
-      }
-      async function sendInputEnable(){ const list=[]; for(let i=1;i<=NUM_DI;i++) list.push(!!$('enable-in'+i).checked); await connection.send("Config",{t:"inputEnable",list}); }
-      async function sendInputInvert(){ const list=[]; for(let i=1;i<=NUM_DI;i++) list.push(!!$('invert-in'+i).checked); await connection.send("Config",{t:"inputInvert",list}); }
-      async function sendInputAction(){ const list=[]; for(let i=1;i<=NUM_DI;i++) list.push(parseInt($('action-in'+i).value||"0",10)); await connection.send("Config",{t:"inputAction",list}); }
-      async function sendInputTarget(){ const list=[]; for(let i=1;i<=NUM_DI;i++) list.push(parseInt($('target-in'+i).value||"0",10)); await connection.send("Config",{t:"inputTarget",list}); }
-
-      // Channels
-      for (let i=1;i<=NUM_CH;i++){
-        $('enable-ch'+i).addEventListener('change', sendChannelsConfig);
-        $('level-ch'+i).addEventListener('input', (e)=>{ $('level-val-ch'+i).textContent = e.target.value; updateChOnDot(i); });
-        $('level-ch'+i).addEventListener('change', sendChannelsConfig);
-      }
-      async function sendChannelsConfig(){
-        const list=[];
-        for(let i=1;i<=NUM_CH;i++){
-          list.push({enabled:$('enable-ch'+i).checked, level:parseInt($('level-ch'+i).value||"0",10)});
-        }
-        await connection.send("Config",{t:"channels",list});
-      }
-
-      // Buttons
-      for (let i=1;i<=NUM_BTN;i++){ $('action-button'+i).addEventListener('change', sendButtons); }
-      async function sendButtons(){
-        const list=[]; for(let i=1;i<=NUM_BTN;i++) list.push({action:parseInt($('action-button'+i).value||"0",10)});
-        await connection.send("Config",{t:"buttons",list});
-      }
-
-      // LEDs
-      for (let i=1;i<=NUM_LED;i++){
-        $('mode-led'+i).addEventListener('change', sendLEDs);
-        $('source-led'+i).addEventListener('change', sendLEDs);
-      }
-      async function sendLEDs(){
-        const list=[];
-        for(let i=1;i<=NUM_LED;i++){
-          list.push({
-            mode:   parseInt($('mode-led'+i).value||"0",10),  // 0 steady, 1 blink
-            source: parseInt($('source-led'+i).value||"0",10) // 0=None, 1..2=CH1..CH2
-          });
-        }
-        await connection.send("Config",{t:"leds",list});
+    // Populate Modbus addresses
+    (function populateAddresses() {
+      const sel = $('modbus-address'); if (!sel) return;
+      for (let i = 1; i <= 255; i++) {
+        const opt = document.createElement('option');
+        opt.value = i; opt.textContent = i;
+        if (i === 3) opt.selected = true;
+        sel.appendChild(opt);
       }
     })();
+
+    // ---------- Web Serial ----------
+    const connection = SimpleWebSerial.setupSerialConnection({
+      requestAccessOnPageLoad: false,
+      requestElement: 'connect-button'
+    });
+
+    function isPortOpen() {
+      try { return typeof connection.isOpen === 'function' ? connection.isOpen() : !!connection.port; }
+      catch { return false; }
+    }
+    function updateResetEnabled() { const b = $('reset-button'); if (b) b.disabled = !isPortOpen(); }
+
+    // Live status (also consumes freq if provided there)
+    connection.on('status', (modbus) => {
+      $('live-address').textContent = (modbus && 'address' in modbus) ? modbus.address : '--';
+      $('live-baud').textContent    = (modbus && 'baud' in modbus)    ? modbus.baud    : '--';
+      if (modbus && modbus.address) $('modbus-address').value = modbus.address;
+      if (modbus && modbus.baud)    $('modbus-baud').value    = String(modbus.baud);
+
+      const arr = (modbus && modbus.ac_present) ? modbus.ac_present
+                : (modbus && modbus.zc_ok)      ? modbus.zc_ok
+                : null;
+      if (Array.isArray(arr)) arr.forEach((v,i)=> updateAcBadge(i+1, !!v));
+
+      // Optional: freq via status.freq_x100
+      if (modbus && modbus.freq_x100 && Array.isArray(modbus.freq_x100)) {
+        modbus.freq_x100.forEach((v,i)=>{
+          const el = $('freq-badge-ch'+(i+1));
+          if (el) { el.textContent = (Number(v||0)/100).toFixed(2) + ' Hz'; }
+        });
+      }
+
+      updateResetEnabled();
+    });
+    connection.on('open',  updateResetEnabled);
+    connection.on('close', updateResetEnabled);
+    connection.on('message', (msg) => appendLog("DIM-420-R1", msg));
+
+    // ---------- Modbus config push ----------
+    $('modbus-address').addEventListener('input', pushModbus);
+    $('modbus-baud').addEventListener('input', pushModbus);
+    async function pushModbus() {
+      const mb_address = parseInt($('modbus-address').value || "3", 10);
+      const mb_baud = parseInt($('modbus-baud').value || "19200", 10);
+      await connection.send("values", { mb_address, mb_baud });
+    }
+
+    // ---------- Reset flow ----------
+    const resetBtn   = $('reset-button');
+    const dlg        = $('reset-dialog');
+    const dlgCancel  = $('dlg-cancel');
+    const dlgConfirm = $('dlg-confirm');
+
+    resetBtn.addEventListener('click', () => {
+      updateResetEnabled();
+      if (resetBtn.disabled) return appendLog("System", "Connect to the device before resetting.");
+      if (dlg && typeof dlg.showModal === 'function') { if (!dlg.open) dlg.showModal(); }
+      else doReset();
+    });
+    dlgCancel && dlgCancel.addEventListener('click', (e)=>{ e.preventDefault(); dlg.close('cancel'); });
+    dlgConfirm && dlgConfirm.addEventListener('click', async (e)=>{ e.preventDefault(); dlg.close('confirm'); await doReset(); });
+    dlg && dlg.addEventListener('click', (ev) => {
+      const r = dlg.getBoundingClientRect();
+      const inside = ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom;
+      if (!inside && dlg.open) dlg.close('backdrop');
+    });
+    async function doReset() {
+      try { await connection.send("command", { action: "reset" }); appendLog("System", "Reset command sent"); resetBtn.disabled = true; setTimeout(updateResetEnabled, 3000); }
+      catch (err) { appendLog("Error", `Failed to send reset: ${err && err.message ? err.message : err}`); }
+    }
+
+    // ---------- Build UI ----------
+    // Inputs
+    (function buildInputs() {
+      const container = $('inputs-config'); if (!container) return;
+      const ACTIONS = [{v:0,t:'None'},{v:1,t:'Toggle'},{v:2,t:'Pulse'}];
+      const TARGETS = [{v:4,t:'None'},{v:0,t:'All channels'},{v:1,t:'Channel 1'},{v:2,t:'Channel 2'}];
+      for (let i=1;i<=NUM_DI;i++){
+        const card = document.createElement('div');
+        card.innerHTML = `
+        <div style="border:1px solid #ccc;border-radius:6px;background:#e6f7e8;padding:1rem;">
+          <div style="display:flex;justify-content:space-between;font-weight:600;">
+            IN${i}
+            <span id="state-in${i}" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;"></span>
+          </div>
+          <label><input type="checkbox" id="enable-in${i}"> Enabled</label><br>
+          <label><input type="checkbox" id="invert-in${i}"> Inverted</label><br>
+          <label>Action:
+            <select id="action-in${i}" style="width:100%;padding:6px;border-radius:4px;">
+              ${ACTIONS.map(a=>`<option value="${a.v}">${a.t}</option>`).join('')}
+            </select>
+          </label><br>
+          <label>Control target:
+            <select id="target-in${i}" style="width:100%;padding:6px;border-radius:4px;">
+              ${TARGETS.map(t=>`<option value="${t.v}">${t.t}</option>`).join('')}
+            </select>
+          </label>
+        </div>`;
+        container.appendChild(card);
+      }
+    })();
+
+    // Channels (AC presence + thresholds + frequency badge)
+    (function buildChannels(){
+      const container = $('channels-config'); if (!container) return;
+      for (let i=1;i<=NUM_CH;i++){
+        const card = document.createElement('div');
+        card.innerHTML = `
+        <div style="border:1px solid #ccc;border-radius:6px;background:#f1f1f1;padding:1rem;">
+          <div style="display:flex;justify-content:space-between;align-items:center;font-weight:600;">
+            <span>Channel ${i}</span>
+            <span id="on-ch${i}" title="On state" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;"></span>
+          </div>
+
+          <div style="display:flex;gap:.5rem;align-items:center;margin:.35rem 0 .6rem;flex-wrap:wrap;">
+            <span style="font-size:.9rem;color:#555;">AC on L–N:</span>
+            <span id="ac-badge-ch${i}" class="pill" title="AC presence on L–N">--</span>
+            <span style="margin-left:.5rem;font-size:.9rem;color:#555;">Frequency:</span>
+            <span id="freq-badge-ch${i}" class="pill" title="Measured mains frequency">--.-- Hz</span>
+          </div>
+
+          <label style="display:block;margin:.25rem 0;"><input type="checkbox" id="enable-ch${i}"> Enabled</label>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:.4rem;">
+            <label style="flex:1;">Level:
+              <input type="range" id="level-ch${i}" min="0" max="255" step="1" value="0" style="width:100%;">
+            </label>
+            <div style="width:120px;margin-left:.6rem;font-size:.85rem;color:#555;display:flex;flex-direction:column;align-items:flex-end;">
+              <span><strong id="level-val-ch${i}">0</strong></span>
+              <span title="Effective dimming window" style="font-family:monospace;">range <span id="range-ch${i}">[20..255]</span></span>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-top:.5rem;">
+            <label>Lower threshold
+              <input type="number" id="lower-ch${i}" min="0" max="255" step="1" value="20" style="width:100%;padding:.4rem;border-radius:6px;border:1px solid #ccc;">
+            </label>
+            <label>Upper threshold
+              <input type="number" id="upper-ch${i}" min="0" max="255" step="1" value="255" style="width:100%;padding:.4rem;border-radius:6px;border:1px solid #ccc;">
+            </label>
+          </div>
+        </div>`;
+        container.appendChild(card);
+      }
+    })();
+
+    // Buttons
+    (function buildButtons(){
+      const container = $('buttons-config'); if (!container) return;
+      const ACTIONS = [
+        {v:0,t:'None'},
+        {v:1,t:'Toggle CH1'}, {v:2,t:'Toggle CH2'},
+        {v:3,t:'Step Up CH1'}, {v:4,t:'Step Down CH1'},
+        {v:5,t:'Step Up CH2'}, {v:6,t:'Step Down CH2'}
+      ];
+      for (let i=1;i<=NUM_BTN;i++){
+        const card = document.createElement('div');
+        card.innerHTML = `
+        <div style="border:1px solid #ccc;border-radius:6px;background:#cbdcf7;padding:1rem;">
+          <div style="font-weight:600;">
+            Button ${i}
+            <span id="state-button${i}" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;float:right;"></span>
+          </div>
+          <label>Action:
+            <select id="action-button${i}" style="width:100%;padding:6px;border-radius:4px;">
+              ${ACTIONS.map(a=>`<option value="${a.v}">${a.t}</option>`).join('')}
+            </select>
+          </label>
+        </div>`;
+        container.appendChild(card);
+      }
+    })();
+
+    // LEDs
+    (function buildLEDs(){
+      const container = $('leds-config'); if (!container) return;
+      const LED_MODE   = [{v:0,t:'Steady (when source active)'},{v:1,t:'Blink (when source active)'}];
+      const LED_SOURCE = [{v:0,t:'None'},{v:1,t:'Channel 1'},{v:2,t:'Channel 2'}];
+      for (let i=1;i<=NUM_LED;i++){
+        const card = document.createElement('div');
+        card.innerHTML = `
+        <div style="border:1px solid #ccc;border-radius:6px;background:#f3f5d0;padding:1rem;">
+          <div style="font-weight:600;">
+            User LED ${i}
+            <span id="state-led${i}" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;float:right;"></span>
+          </div>
+          <label>Mode:
+            <select id="mode-led${i}" style="width:100%;padding:6px;border-radius:4px;">
+              ${LED_MODE.map(m=>`<option value="${m.v}">${m.t}</option>`).join('')}
+            </select>
+          </label><br>
+          <label>Source:
+            <select id="source-led${i}" style="width:100%;padding:6px;border-radius:4px;">
+              ${LED_SOURCE.map(s=>`<option value="${s.v}">${s.t}</option>`).join('')}
+            </select>
+          </label>
+        </div>`;
+        container.appendChild(card);
+      }
+    })();
+
+    // ---------- RECEIVE: update UI ----------
+    // Inputs
+    connection.on('inputs', (list=[]) => list.forEach((v,i)=>{ const dot=$('state-in'+(i+1)); if(dot) dot.style.background = v ? '#4caf50' : '#ccc'; }));
+    connection.on('enableList', (list=[]) => list.forEach((v,i)=>{ const el=$('enable-in'+(i+1)); if(el) el.checked=!!v; }));
+    connection.on('invertList', (list=[]) => list.forEach((v,i)=>{ const el=$('invert-in'+(i+1)); if(el) el.checked=!!v; }));
+    connection.on('inputActionList', (list=[]) => list.forEach((v,i)=>{ const el=$('action-in'+(i+1)); if(el) el.value=String(v||0); }));
+    connection.on('inputTargetList', (list=[]) => list.forEach((v,i)=>{ const el=$('target-in'+(i+1)); if(el) el.value=String(typeof v==='number'?v:0); }));
+
+    // Channels (skip updates while locally editing/held)
+    connection.on('channelEnabled', (list=[]) => list.forEach((v,i)=>{ const idx=i+1; const el=$('enable-ch'+idx); if(el){ el.checked=!!v; updateChOnDot(idx); } }));
+    connection.on('channelLevels',  (list=[]) => list.forEach((v,i)=>{
+      const idx=i+1; if (isHeld(idx) || editing.lvl.has(idx)) return;
+      const el=$('level-ch'+idx), val=$('level-val-ch'+idx);
+      if(el) el.value = String(v||0);
+      if(val) val.textContent = String(v||0);
+      updateChOnDot(idx);
+    }));
+    connection.on('channelLower', (list=[]) => list.forEach((v,i)=>{
+      const idx=i+1; if (isHeld(idx) || editing.lo.has(idx)) return;
+      const el=$('lower-ch'+idx); if(el){ el.value=String(clamp255(v)); fixThresholdPair(idx); }
+    }));
+    connection.on('channelUpper', (list=[]) => list.forEach((v,i)=>{
+      const idx=i+1; if (isHeld(idx) || editing.hi.has(idx)) return;
+      const el=$('upper-ch'+idx); if(el){ el.value=String(clamp255(v)); fixThresholdPair(idx); }
+    }));
+
+    // AC presence (new + legacy)
+    connection.on('AcPresentList', (list=[]) => list.forEach((v,i)=> updateAcBadge(i+1, !!v)));
+    connection.on('ZcOkList',      (list=[]) => list.forEach((v,i)=> updateAcBadge(i+1, !!v)));
+
+    // >>> NEW: Frequency list (Hz*100) -> badge
+    connection.on('FreqX100List', (list=[]) => list.forEach((v,i)=>{
+      const el = $('freq-badge-ch'+(i+1));
+      if (el){
+        const hz = (Number(v||0) / 100).toFixed(2);
+        el.textContent = hz + ' Hz';
+      }
+    }));
+
+    // Buttons
+    connection.on('ButtonStateList', (list=[]) => list.forEach((v,i)=>{ const dot=$('state-button'+(i+1)); if(dot) dot.style.background = v ? '#4caf50' : '#ccc'; }));
+    connection.on('ButtonGroupList', (list=[]) => list.forEach((v,i)=>{ const el=$('action-button'+(i+1)); if(el) el.value=String(v||0); }));
+
+    // LEDs
+    connection.on('LedConfigList', (list=[]) => list.forEach((o,i)=>{
+      const m=$('mode-led'+(i+1)), s=$('source-led'+(i+1));
+      if(m && o && typeof o.mode!=='undefined')   m.value = String(o.mode);
+      if(s && o && typeof o.source!=='undefined') s.value = String(o.source);
+    }));
+    connection.on('LedStateList', (list=[]) => list.forEach((v,i)=>{ const dot=$('state-led'+(i+1)); if(dot) dot.style.background = v ? '#ffb300' : '#ccc'; }));
+
+    // ---------- SEND: change handlers ----------
+    // Inputs
+    for (let i=1;i<=NUM_DI;i++){
+      $('enable-in'+i).addEventListener('change', sendInputEnable);
+      $('invert-in'+i).addEventListener('change', sendInputInvert);
+      $('action-in'+i).addEventListener('change', sendInputAction);
+      $('target-in'+i).addEventListener('change', sendInputTarget);
+    }
+    async function sendInputEnable(){ const list=[]; for(let i=1;i<=NUM_DI;i++) list.push(!!$('enable-in'+i).checked); await connection.send("Config",{t:"inputEnable",list}); }
+    async function sendInputInvert(){ const list=[]; for(let i=1;i<=NUM_DI;i++) list.push(!!$('invert-in'+i).checked); await connection.send("Config",{t:"inputInvert",list}); }
+    async function sendInputAction(){ const list=[]; for(let i=1;i<=NUM_DI;i++) list.push(parseInt($('action-in'+i).value||"0",10)); await connection.send("Config",{t:"inputAction",list}); }
+    async function sendInputTarget(){ const list=[]; for(let i=1;i<=NUM_DI;i++) list.push(parseInt($('target-in'+i).value||"0",10)); await connection.send("Config",{t:"inputTarget",list}); }
+
+    // Channels (enabled + level + lower + upper) with debounce + local hold
+    for (let i=1;i<=NUM_CH;i++){
+      const lvlEl = $('level-ch'+i);
+      if (lvlEl){
+        lvlEl.addEventListener('pointerdown', ()=> setEditing('level', i, true));
+        lvlEl.addEventListener('input', (e)=>{
+          $('level-val-ch'+i).textContent = e.target.value;
+          setEditing('level', i, true);
+          debounceSend();
+        });
+        lvlEl.addEventListener('change', ()=>{ setEditing('level', i, false); markHold(i); sendChannelsConfig(); });
+        lvlEl.addEventListener('pointerup', ()=>{ setEditing('level', i, false); markHold(i); sendChannelsConfig(); });
+        lvlEl.addEventListener('pointercancel', ()=> setEditing('level', i, false));
+      }
+
+      const enEl = $('enable-ch'+i);
+      if (enEl){
+        enEl.addEventListener('change', ()=>{ markHold(i); sendChannelsConfig(); });
+      }
+
+      const loEl = $('lower-ch'+i), hiEl = $('upper-ch'+i);
+      if (loEl && hiEl){
+        const onLoInput = ()=>{ setEditing('lower', i, true);  fixThresholdPair(i); debounceSend(); };
+        const onHiInput = ()=>{ setEditing('upper', i, true);  fixThresholdPair(i); debounceSend(); };
+        loEl.addEventListener('input', onLoInput);
+        hiEl.addEventListener('input', onHiInput);
+
+        const commitLo = ()=>{ setEditing('lower', i, false); fixThresholdPair(i); markHold(i); sendChannelsConfig(); };
+        const commitHi = ()=>{ setEditing('upper', i, false); fixThresholdPair(i); markHold(i); sendChannelsConfig(); };
+        loEl.addEventListener('change', commitLo);
+        hiEl.addEventListener('change', commitHi);
+        loEl.addEventListener('blur', commitLo);
+        hiEl.addEventListener('blur', commitHi);
+      }
+    }
+
+    function debounceSend(){ clearTimeout(sendTimer); sendTimer = setTimeout(sendChannelsConfig, DEBOUNCE_MS); }
+
+    async function sendChannelsConfig(){
+      const list=[];
+      for(let i=1;i<=NUM_CH;i++){
+        fixThresholdPair(i);
+        const payload = {
+          enabled: $('enable-ch'+i).checked,
+          level:   parseInt($('level-ch'+i).value||"0",10),
+          lower:   clamp255($('lower-ch'+i).value),
+          upper:   clamp255($('upper-ch'+i).value)
+        };
+        list.push(payload);
+        markHold(i);
+      }
+      const body = { t:"channels", list };
+      const s = JSON.stringify(body);
+      if (s === lastSentStr) return;
+      lastSentStr = s;
+      await connection.send("Config", body);
+    }
+
+    // Buttons
+    for (let i=1;i<=NUM_BTN;i++){ const el=$('action-button'+i); if (el) el.addEventListener('change', sendButtons); }
+    async function sendButtons(){
+      const list=[]; for(let i=1;i<=NUM_BTN;i++) list.push({action:parseInt(($('action-button'+i).value)||"0",10)});
+      await connection.send("Config",{t:"buttons",list});
+    }
+
+    // LEDs
+    for (let i=1;i<=NUM_LED;i++){
+      const m=$('mode-led'+i), s=$('source-led'+i);
+      if (m) m.addEventListener('change', sendLEDs);
+      if (s) s.addEventListener('change', sendLEDs);
+    }
+    async function sendLEDs(){
+      const list=[];
+      for(let i=1;i<=NUM_LED;i++){
+        list.push({
+          mode:   parseInt(($('mode-led'+i).value)||"0",10),
+          source: parseInt(($('source-led'+i).value)||"0",10)
+        });
+      }
+      await connection.send("Config",{t:"leds",list});
+    }
+  })();
   </script>
 </section>
