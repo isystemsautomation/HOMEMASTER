@@ -82,6 +82,14 @@ bool diPrev[NUM_DI]       = {false,false,false,false};
 uint32_t chPulseUntil[NUM_CH] = {0,0};
 const uint32_t PULSE_MS = 500;
 
+// ================== ZC monitor (per-channel) ==================
+// <<< ZC monitor
+volatile uint32_t zcLastEdgeMs[NUM_CH] = {0,0}; // last ISR edge time (ms)
+bool zcOk[NUM_CH]      = {false,false};         // computed in loop
+bool zcPrevOk[NUM_CH]  = {false,false};         // for edge messages
+const uint32_t ZC_FAULT_TIMEOUT_MS = 1000;      // no edges >= 1s => fault
+// >>> ZC monitor
+
 // ================== Web Serial & Modbus status ==================
 SimpleWebSerial WebSerial;
 JSONVar modbusStatus;
@@ -139,12 +147,18 @@ static int64_t gate_off_cb_ch1(alarm_id_t, void*) { digitalWrite(GATE_PINS[1], L
 
 // ---- Zero-cross ISRs ----
 void zc_isr_ch0() {
+  // <<< ZC monitor
+  zcLastEdgeMs[0] = millis();
+  // >>> ZC monitor
   delayMicroseconds(ZC_EDGE_DELAY_US);
   digitalWrite(GATE_PINS[0], HIGH);
   uint32_t delay_us = (uint32_t(chLevel[0]) * FREQ_US_50HZ_HALF) / 255u;
   add_alarm_in_us((int64_t)delay_us, gate_off_cb_ch0, nullptr, true);
 }
 void zc_isr_ch1() {
+  // <<< ZC monitor
+  zcLastEdgeMs[1] = millis();
+  // >>> ZC monitor
   delayMicroseconds(ZC_EDGE_DELAY_US);
   digitalWrite(GATE_PINS[1], HIGH);
   uint32_t delay_us = (uint32_t(chLevel[1]) * FREQ_US_50HZ_HALF) / 255u;
@@ -162,6 +176,10 @@ void setDefaults() {
     chLevel[i] = 0;
     chLastNonZero[i] = 200;
     chPulseUntil[i] = 0;
+    // <<< ZC monitor
+    zcLastEdgeMs[i] = 0;
+    zcOk[i] = zcPrevOk[i] = false;
+    // >>> ZC monitor
   }
 
   g_mb_address = 3;
@@ -275,9 +293,10 @@ inline void setSlaveIdIfAvailable(...) {}
 // ================== Modbus map ==================
 // Discrete inputs (FC=02)
 enum : uint16_t {
-  ISTS_DI_BASE   = 1,   // 1..4  : IN1..IN4 (after enable+invert)
-  ISTS_CH_BASE   = 50,  // 50..51: CH1..CH2 logical "on" (level>0 && enabled)
-  ISTS_LED_BASE  = 90   // 90..93: LED1..LED4 logical state
+  ISTS_DI_BASE     = 1,   // 1..4  : IN1..IN4 (after enable+invert)
+  ISTS_CH_BASE     = 50,  // 50..51: CH1..CH2 logical "on" (level>0 && enabled)
+  ISTS_LED_BASE    = 90,  // 90..93: LED1..LED4 logical state
+  ISTS_ZC_OK_BASE  = 120  // 120..121: CH1..CH2 zero-cross present (1=OK)
 };
 // Coils (FC=05/15)
 enum : uint16_t {
@@ -320,10 +339,11 @@ void setup() {
 
   setDefaults();
 
-  // Guarded FS init
-  if (!initFilesystemAndConfig()) {
-    WebSerial.send("message", "FATAL: Filesystem/config init failed");
-  }
+  // Initialize ZC timers so we don't spam on boot
+  // <<< ZC monitor
+  uint32_t now = millis();
+  for (int i=0;i<NUM_CH;i++) { zcLastEdgeMs[i] = now; zcOk[i] = zcPrevOk[i] = false; }
+  // >>> ZC monitor
 
   // Serial2 / Modbus
   Serial2.setTX(TX2);
@@ -337,6 +357,9 @@ void setup() {
   for (uint16_t i=0;i<NUM_DI;i++)  mb.addIsts(ISTS_DI_BASE + i);
   for (uint16_t i=0;i<NUM_CH;i++)  mb.addIsts(ISTS_CH_BASE + i);
   for (uint16_t i=0;i<NUM_LED;i++) mb.addIsts(ISTS_LED_BASE + i);
+  // <<< ZC monitor
+  for (uint16_t i=0;i<NUM_CH;i++)  mb.addIsts(ISTS_ZC_OK_BASE + i);
+  // >>> ZC monitor
 
   // ==== Coils ====
   for (uint16_t i=0;i<NUM_CH;i++){ mb.addCoil(CMD_CH_ON_BASE + i);  mb.setCoil(CMD_CH_ON_BASE + i,  false); }
@@ -549,6 +572,12 @@ void sendAllEchoesOnce() {
 
   WebSerial.send("LedConfigList", LedConfigListFromCfg());
 
+  // <<< ZC monitor
+  JSONVar zcList;
+  for (int i=0;i<NUM_CH;i++) zcList[i] = zcOk[i];
+  WebSerial.send("ZcOkList", zcList);
+  // >>> ZC monitor
+
   modbusStatus["address"] = g_mb_address;
   modbusStatus["baud"]    = g_mb_baud;
   WebSerial.send("status", modbusStatus);
@@ -563,6 +592,23 @@ void loop() {
 
   // Blink phase (for LED blink mode)
   if (now - lastBlinkToggle >= blinkPeriodMs) { lastBlinkToggle = now; blinkPhase = !blinkPhase; }
+
+  // <<< ZC monitor: compute OK/fault & publish
+  for (int c=0;c<NUM_CH;c++) {
+    bool ok = ((uint32_t)(now - zcLastEdgeMs[c]) <= ZC_FAULT_TIMEOUT_MS);
+    zcOk[c] = ok;
+    mb.setIsts(ISTS_ZC_OK_BASE + c, ok);
+
+    if (zcOk[c] != zcPrevOk[c]) {
+      zcPrevOk[c] = zcOk[c];
+      if (ok) {
+        WebSerial.send("message", String("CH") + (c+1) + ": Zero-cross OK");
+      } else {
+        WebSerial.send("message", String("CH") + (c+1) + ": No L-N zero-cross detected (check wiring)");
+      }
+    }
+  }
+  // >>> ZC monitor
 
   // Auto-save after quiet period
   if (cfgDirty && (now - lastCfgTouchMs >= CFG_AUTOSAVE_MS)) {
@@ -646,6 +692,13 @@ void loop() {
   if (millis() - lastSend >= sendInterval) {
     lastSend = millis();
     WebSerial.check();
+
+    // <<< ZC monitor: include zc_ok array in status & a dedicated list
+    JSONVar zcList;
+    for (int i=0;i<NUM_CH;i++) zcList[i] = zcOk[i];
+    modbusStatus["zc_ok"] = zcList;
+    WebSerial.send("ZcOkList", zcList);
+    // >>> ZC monitor
 
     WebSerial.send("status", modbusStatus);
 
