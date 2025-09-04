@@ -1,10 +1,15 @@
 /**************************************************************
- * DIM-420-R1 — RP2350A (Pico 2) firmware
+ * DIM-420-R1 — RP2350A (Pico 2) firmware (DROP-IN)
  * - 4× DI:     GPIO8, GPIO9, GPIO15, GPIO16
  * - 2× DIM:    CH1 ZC=GPIO0, Gate=GPIO1; CH2 ZC=GPIO2, Gate=GPIO3
  * - 4× BTN:    GPIO22..25 (active-LOW)
  * - 4× LEDs:   GPIO18..21 (active-HIGH)
  * - Modbus/RS485 on Serial2: TX=GPIO4, RX=GPIO5
+ *
+ * Additions:
+ * - Per-channel ZC frequency estimation (0.01 Hz precision)
+ *   * Modbus HREG 430..431 => Hz * 100
+ *   * WebSerial event "FreqX100List" (array of centi-Hz)
  **************************************************************/
 
 #include <Arduino.h>
@@ -89,6 +94,17 @@ bool zcOk[NUM_CH]      = {false,false};         // computed in loop
 bool zcPrevOk[NUM_CH]  = {false,false};         // for edge messages
 const uint32_t ZC_FAULT_TIMEOUT_MS = 1000;      // no edges >= 1s => fault
 
+// >>> NEW: Zero-cross timing for frequency
+volatile uint32_t zcPrevEdgeUs[NUM_CH] = {0,0};
+volatile uint32_t zcLastDeltaHalfUs[NUM_CH] = {0,0};
+volatile uint32_t zcDeltaSampleCount[NUM_CH] = {0,0};
+// Smoothing / output (loop context)
+double   halfUsFilt[NUM_CH] = {10000.0, 10000.0};  // start ~50Hz half
+uint32_t lastConsumedSample[NUM_CH] = {0,0};
+uint16_t freq_x100[NUM_CH] = {0,0};
+constexpr uint32_t HALF_MIN_US = 6000;   // ~83 Hz upper bound guard
+constexpr uint32_t HALF_MAX_US = 14000;  // ~35 Hz lower bound guard
+
 // ================== Dimming thresholds (per-channel) ==================
 uint8_t chLower[NUM_CH] = {20,20};   // Lower dimming threshold (min non-zero)
 uint8_t chUpper[NUM_CH] = {255,255}; // Upper dimming threshold (max)
@@ -149,23 +165,32 @@ inline bool timeAfter32(uint32_t a, uint32_t b) { return (int32_t)(a - b) >= 0; 
 static int64_t gate_off_cb_ch0(alarm_id_t, void*) { digitalWrite(GATE_PINS[0], LOW); return 0; }
 static int64_t gate_off_cb_ch1(alarm_id_t, void*) { digitalWrite(GATE_PINS[1], LOW); return 0; }
 
-// ---- Zero-cross ISRs ----
-void zc_isr_ch0() {
-  zcLastEdgeMs[0] = millis();
-  if (chLevel[0] == 0) return; // true OFF -> don't fire gate
+// ---- Zero-cross ISR (shared) ----
+// >>> UPDATED: route through common ISR to capture half-cycle for frequency
+void zc_isr_common(uint8_t ch) {
+  // Timestamp for frequency measurement (half-cycle)
+  uint32_t nowUs = micros();
+  uint32_t prevUs = zcPrevEdgeUs[ch];
+  zcPrevEdgeUs[ch] = nowUs;
+
+  if (prevUs != 0) {
+    uint32_t delta = nowUs - prevUs; // half-cycle in microseconds
+    if (delta >= HALF_MIN_US && delta <= HALF_MAX_US) {
+      zcLastDeltaHalfUs[ch] = delta;
+      zcDeltaSampleCount[ch]++; // signal new sample
+    }
+  }
+
+  // Existing behavior
+  zcLastEdgeMs[ch] = millis();
+  if (chLevel[ch] == 0) return; // true OFF -> don't fire gate
   delayMicroseconds(ZC_EDGE_DELAY_US);
-  digitalWrite(GATE_PINS[0], HIGH);
-  uint32_t delay_us = (uint32_t(chLevel[0]) * FREQ_US_50HZ_HALF) / 255u;
-  add_alarm_in_us((int64_t)delay_us, gate_off_cb_ch0, nullptr, true);
+  digitalWrite(GATE_PINS[ch], HIGH);
+  uint32_t delay_us = (uint32_t(chLevel[ch]) * FREQ_US_50HZ_HALF) / 255u;
+  add_alarm_in_us((int64_t)delay_us, ch==0 ? gate_off_cb_ch0 : gate_off_cb_ch1, nullptr, true);
 }
-void zc_isr_ch1() {
-  zcLastEdgeMs[1] = millis();
-  if (chLevel[1] == 0) return; // true OFF -> don't fire gate
-  delayMicroseconds(ZC_EDGE_DELAY_US);
-  digitalWrite(GATE_PINS[1], HIGH);
-  uint32_t delay_us = (uint32_t(chLevel[1]) * FREQ_US_50HZ_HALF) / 255u;
-  add_alarm_in_us((int64_t)delay_us, gate_off_cb_ch1, nullptr, true);
-}
+void zc_isr_ch0(){ zc_isr_common(0); }
+void zc_isr_ch1(){ zc_isr_common(1); }
 
 // ================== Defaults / persist ==================
 void setDefaults() {
@@ -179,9 +204,13 @@ void setDefaults() {
     chLastNonZero[i] = 200;
     chPulseUntil[i] = 0;
     zcLastEdgeMs[i] = 0;
+    zcPrevEdgeUs[i] = 0;                 // >>> NEW
     zcOk[i] = zcPrevOk[i] = false;
     chLower[i] = 20;
     chUpper[i] = 255;
+    halfUsFilt[i] = 10000.0;             // >>> NEW (~50 Hz)
+    lastConsumedSample[i] = 0;           // >>> NEW
+    freq_x100[i] = 0;                    // >>> NEW
   }
 
   g_mb_address = 3;
@@ -324,6 +353,10 @@ enum : uint16_t {
   HREG_DIM_LO_BASE    = 410,  /* 410..411: CH1..CH2 lower threshold 0..255 */
   HREG_DIM_HI_BASE    = 420   /* 420..421: CH1..CH2 upper threshold 0..255 */
 };
+// >>> NEW: frequency in centi-Hz (e.g., 5001 = 50.01 Hz)
+enum : uint16_t {
+  HREG_FREQ_X100_BASE = 430  /* 430..431: CH1..CH2 frequency * 100 */
+};
 
 // ================== Fw decls (helpers) ==================
 void applyModbusSettings(uint8_t addr, uint32_t baud);
@@ -380,6 +413,11 @@ void setup() {
     mb.addHreg(HREG_DIM_HI_BASE    + i, chUpper[i]);
   }
 
+  // >>> NEW: frequency x100 HREGs
+  for (uint16_t i=0;i<NUM_CH;i++){
+    mb.addHreg(HREG_FREQ_X100_BASE + i, 0); // loop will maintain
+  }
+
   // ==== Coils ====
   for (uint16_t i=0;i<NUM_CH;i++){ mb.addCoil(CMD_CH_ON_BASE + i);  mb.setCoil(CMD_CH_ON_BASE + i,  false); }
   for (uint16_t i=0;i<NUM_CH;i++){ mb.addCoil(CMD_CH_OFF_BASE + i); mb.setCoil(CMD_CH_OFF_BASE + i, false); }
@@ -394,7 +432,7 @@ void setup() {
   WebSerial.on("values",  handleValues);
   WebSerial.on("Config",  handleUnifiedConfig);
   WebSerial.on("command", handleCommand);
-  WebSerial.send("message", "Boot OK (DIM-420-R1 RP2350A, directional min-threshold)");
+  WebSerial.send("message", "Boot OK (DIM-420-R1 RP2350A, with frequency monitor)");
   sendAllEchoesOnce();
 }
 
@@ -652,10 +690,17 @@ void sendAllEchoesOnce() {
 
   WebSerial.send("LedConfigList", LedConfigListFromCfg());
 
-  // ZC monitor
+  // ZC monitor flags
   JSONVar zcList;
   for (int i=0;i<NUM_CH;i++) zcList[i] = zcOk[i];
   WebSerial.send("ZcOkList", zcList);
+
+  // >>> NEW: initial frequency list (Hz*100)
+  {
+    JSONVar freqList;
+    for (int i=0;i<NUM_CH;i++) freqList[i] = (int)freq_x100[i];
+    WebSerial.send("FreqX100List", freqList);
+  }
 
   modbusStatus["address"] = g_mb_address;
   modbusStatus["baud"]    = g_mb_baud;
@@ -684,6 +729,31 @@ void loop() {
         WebSerial.send("message", String("CH") + (c+1) + ": AC present (zero-cross OK)");
       } else {
         WebSerial.send("message", String("CH") + (c+1) + ": No AC on L-N detected — check wiring");
+      }
+    }
+  }
+
+  // >>> NEW: Frequency estimation (EMA smoothing) and publishing into HREGs
+  {
+    constexpr double ALPHA = 0.2; // 0..1 (higher = faster)
+    for (uint8_t ch=0; ch<NUM_CH; ++ch) {
+      uint32_t sc = zcDeltaSampleCount[ch];
+      if (sc != lastConsumedSample[ch]) {
+        // Pull latest half-cycle sample atomically
+        noInterrupts();
+        uint32_t halfUs = zcLastDeltaHalfUs[ch];
+        interrupts();
+
+        if (halfUs >= HALF_MIN_US && halfUs <= HALF_MAX_US) {
+          halfUsFilt[ch] = (ALPHA * (double)halfUs) + ((1.0 - ALPHA) * halfUsFilt[ch]);
+          // f_x100 = 50,000,000 / half_us
+          double fx100 = 50000000.0 / halfUsFilt[ch];
+          if (fx100 < 0.0) fx100 = 0.0;
+          if (fx100 > 65535.0) fx100 = 65535.0;
+          freq_x100[ch] = (uint16_t)lround(fx100);
+          mb.setHreg(HREG_FREQ_X100_BASE + ch, freq_x100[ch]);
+        }
+        lastConsumedSample[ch] = sc;
       }
     }
   }
@@ -776,6 +846,14 @@ void loop() {
     for (int i=0;i<NUM_CH;i++) zcList[i] = zcOk[i];
     modbusStatus["zc_ok"] = zcList;
     WebSerial.send("ZcOkList", zcList);
+
+    // >>> NEW: frequency list (Hz*100) + embed in status
+    {
+      JSONVar freqList;
+      for (int i=0;i<NUM_CH;i++) freqList[i] = (int)freq_x100[i];
+      WebSerial.send("FreqX100List", freqList);
+      modbusStatus["freq_x100"] = freqList;
+    }
 
     WebSerial.send("status", modbusStatus);
 
