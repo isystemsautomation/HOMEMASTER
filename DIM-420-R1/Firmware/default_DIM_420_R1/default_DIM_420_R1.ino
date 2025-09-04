@@ -13,6 +13,7 @@
 #include <Arduino_JSON.h>
 #include <LittleFS.h>
 #include <utility>
+#include <math.h>
 #include "hardware/watchdog.h"  // Pico SDK (RP2350)
 #include "pico/time.h"          // add_alarm_in_us(), alarm_id_t
 
@@ -46,7 +47,7 @@ constexpr uint32_t FREQ_US_50HZ_HALF = 10000u; // 50 Hz half-cycle (10,000 us)
 constexpr uint32_t ZC_EDGE_DELAY_US  = 100u;   // input blanking near ZC
 
 // ---- State (volatile: accessed in ISR) ----
-volatile uint8_t  chLevel[NUM_CH] = {0,0};           // 0..255 current target
+volatile uint8_t  chLevel[NUM_CH] = {0,0};           // 0..255 current (directional-threshold processed)
 volatile uint8_t  chLastNonZero[NUM_CH] = {200,200}; // remembered for toggles
 
 // ================== Config & runtime ==================
@@ -83,12 +84,14 @@ uint32_t chPulseUntil[NUM_CH] = {0,0};
 const uint32_t PULSE_MS = 500;
 
 // ================== ZC monitor (per-channel) ==================
-// <<< ZC monitor
 volatile uint32_t zcLastEdgeMs[NUM_CH] = {0,0}; // last ISR edge time (ms)
 bool zcOk[NUM_CH]      = {false,false};         // computed in loop
 bool zcPrevOk[NUM_CH]  = {false,false};         // for edge messages
 const uint32_t ZC_FAULT_TIMEOUT_MS = 1000;      // no edges >= 1s => fault
-// >>> ZC monitor
+
+// ================== Dimming thresholds (per-channel) ==================
+uint8_t chLower[NUM_CH] = {20,20};   // Lower dimming threshold (min non-zero)
+uint8_t chUpper[NUM_CH] = {255,255}; // Upper dimming threshold (max)
 
 // ================== Web Serial & Modbus status ==================
 SimpleWebSerial WebSerial;
@@ -106,7 +109,6 @@ uint8_t  g_mb_address = 3;
 uint32_t g_mb_baud    = 19200;
 
 // ================== Persistence (LittleFS) ==================
-// *** IMPORTANT: This struct MUST be above any function that references it ***
 struct PersistConfig {
   uint32_t magic;
   uint16_t version;
@@ -117,13 +119,15 @@ struct PersistConfig {
   BtnCfg btnCfg[NUM_BTN];
   uint8_t chLevel[NUM_CH];
   uint8_t chLastNonZero[NUM_CH];
+  uint8_t chLower[NUM_CH];
+  uint8_t chUpper[NUM_CH];
   uint8_t mb_address;
   uint32_t mb_baud;
   uint32_t crc32;
 } __attribute__((packed));
 
 static const uint32_t CFG_MAGIC   = 0x314D4449UL; // 'IDM1'
-static const uint16_t CFG_VERSION = 0x0001;
+static const uint16_t CFG_VERSION = 0x0002;       // thresholds added
 static const char*    CFG_PATH    = "/cfg.bin";
 
 volatile bool   cfgDirty       = false;
@@ -147,18 +151,16 @@ static int64_t gate_off_cb_ch1(alarm_id_t, void*) { digitalWrite(GATE_PINS[1], L
 
 // ---- Zero-cross ISRs ----
 void zc_isr_ch0() {
-  // <<< ZC monitor
   zcLastEdgeMs[0] = millis();
-  // >>> ZC monitor
+  if (chLevel[0] == 0) return; // true OFF -> don't fire gate
   delayMicroseconds(ZC_EDGE_DELAY_US);
   digitalWrite(GATE_PINS[0], HIGH);
   uint32_t delay_us = (uint32_t(chLevel[0]) * FREQ_US_50HZ_HALF) / 255u;
   add_alarm_in_us((int64_t)delay_us, gate_off_cb_ch0, nullptr, true);
 }
 void zc_isr_ch1() {
-  // <<< ZC monitor
   zcLastEdgeMs[1] = millis();
-  // >>> ZC monitor
+  if (chLevel[1] == 0) return; // true OFF -> don't fire gate
   delayMicroseconds(ZC_EDGE_DELAY_US);
   digitalWrite(GATE_PINS[1], HIGH);
   uint32_t delay_us = (uint32_t(chLevel[1]) * FREQ_US_50HZ_HALF) / 255u;
@@ -176,16 +178,19 @@ void setDefaults() {
     chLevel[i] = 0;
     chLastNonZero[i] = 200;
     chPulseUntil[i] = 0;
-    // <<< ZC monitor
     zcLastEdgeMs[i] = 0;
     zcOk[i] = zcPrevOk[i] = false;
-    // >>> ZC monitor
+    chLower[i] = 20;
+    chUpper[i] = 255;
   }
 
   g_mb_address = 3;
   g_mb_baud    = 19200;
 }
 
+static inline void setThresholds(uint8_t ch, int lower, int upper);
+
+// Capture/apply persist
 void captureToPersist(PersistConfig &pc) {
   pc.magic   = CFG_MAGIC;
   pc.version = CFG_VERSION;
@@ -196,10 +201,11 @@ void captureToPersist(PersistConfig &pc) {
   memcpy(pc.ledCfg, ledCfg, sizeof(ledCfg));
   memcpy(pc.btnCfg, btnCfg, sizeof(btnCfg));
 
-  // Copy from volatile via loop (avoid const-qualifier issues)
   for (int i = 0; i < NUM_CH; ++i) {
-    pc.chLevel[i] = chLevel[i];
+    pc.chLevel[i]       = chLevel[i];
     pc.chLastNonZero[i] = chLastNonZero[i];
+    pc.chLower[i]       = chLower[i];
+    pc.chUpper[i]       = chUpper[i];
   }
 
   pc.mb_address = g_mb_address;
@@ -222,10 +228,17 @@ bool applyFromPersist(const PersistConfig &pc) {
   memcpy(ledCfg, pc.ledCfg, sizeof(ledCfg));
   memcpy(btnCfg, pc.btnCfg, sizeof(btnCfg));
 
-  // Into volatile via loop
   for (int i = 0; i < NUM_CH; ++i) {
-    chLevel[i] = pc.chLevel[i];
-    chLastNonZero[i] = pc.chLastNonZero[i];
+    chLower[i]       = pc.chLower[i];
+    chUpper[i]       = pc.chUpper[i];
+    chLastNonZero[i] = constrain(pc.chLastNonZero[i], chLower[i], chUpper[i]);
+
+    uint8_t lvl = pc.chLevel[i];
+    // On boot: keep OFF if saved below lower, clamp above upper
+    if (lvl == 0) chLevel[i] = 0;
+    else if (lvl < chLower[i]) chLevel[i] = 0;
+    else if (lvl > chUpper[i]) chLevel[i] = chUpper[i];
+    else chLevel[i] = lvl;
   }
 
   g_mb_address = pc.mb_address;
@@ -306,7 +319,11 @@ enum : uint16_t {
   CMD_DI_DIS_BASE = 320  // 320..323 : pulse DISABLE IN1..IN4
 };
 // Holding registers (FC=03/16)
-enum : uint16_t { HREG_DIM_LEVEL_BASE = 400  /* 400..401: CH1..CH2 level 0..255 */ };
+enum : uint16_t {
+  HREG_DIM_LEVEL_BASE = 400,  /* 400..401: CH1..CH2 level 0..255 */
+  HREG_DIM_LO_BASE    = 410,  /* 410..411: CH1..CH2 lower threshold 0..255 */
+  HREG_DIM_HI_BASE    = 420   /* 420..421: CH1..CH2 upper threshold 0..255 */
+};
 
 // ================== Fw decls (helpers) ==================
 void applyModbusSettings(uint8_t addr, uint32_t baud);
@@ -331,8 +348,7 @@ void setup() {
 
   // Dimmer pins
   for (uint8_t i=0;i<NUM_CH;i++) { pinMode(GATE_PINS[i], OUTPUT); digitalWrite(GATE_PINS[i], LOW); }
-  // Choose pull that matches your ZC detector (open-collector => PULLUP)
-  pinMode(ZC_PINS[0], INPUT_PULLUP);
+  pinMode(ZC_PINS[0], INPUT_PULLUP); // open-collector typical
   pinMode(ZC_PINS[1], INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(ZC_PINS[0]), zc_isr_ch0, FALLING);
   attachInterrupt(digitalPinToInterrupt(ZC_PINS[1]), zc_isr_ch1, FALLING);
@@ -340,10 +356,8 @@ void setup() {
   setDefaults();
 
   // Initialize ZC timers so we don't spam on boot
-  // <<< ZC monitor
   uint32_t now = millis();
   for (int i=0;i<NUM_CH;i++) { zcLastEdgeMs[i] = now; zcOk[i] = zcPrevOk[i] = false; }
-  // >>> ZC monitor
 
   // Serial2 / Modbus
   Serial2.setTX(TX2);
@@ -357,18 +371,20 @@ void setup() {
   for (uint16_t i=0;i<NUM_DI;i++)  mb.addIsts(ISTS_DI_BASE + i);
   for (uint16_t i=0;i<NUM_CH;i++)  mb.addIsts(ISTS_CH_BASE + i);
   for (uint16_t i=0;i<NUM_LED;i++) mb.addIsts(ISTS_LED_BASE + i);
-  // <<< ZC monitor
   for (uint16_t i=0;i<NUM_CH;i++)  mb.addIsts(ISTS_ZC_OK_BASE + i);
-  // >>> ZC monitor
+
+  // ==== Holding registers (levels + thresholds) ====
+  for (uint16_t i=0;i<NUM_CH;i++){
+    mb.addHreg(HREG_DIM_LEVEL_BASE + i, chLevel[i]);
+    mb.addHreg(HREG_DIM_LO_BASE    + i, chLower[i]);
+    mb.addHreg(HREG_DIM_HI_BASE    + i, chUpper[i]);
+  }
 
   // ==== Coils ====
   for (uint16_t i=0;i<NUM_CH;i++){ mb.addCoil(CMD_CH_ON_BASE + i);  mb.setCoil(CMD_CH_ON_BASE + i,  false); }
   for (uint16_t i=0;i<NUM_CH;i++){ mb.addCoil(CMD_CH_OFF_BASE + i); mb.setCoil(CMD_CH_OFF_BASE + i, false); }
   for (uint16_t i=0;i<NUM_DI;i++){ mb.addCoil(CMD_DI_EN_BASE + i);  mb.setCoil(CMD_DI_EN_BASE + i,  false); }
   for (uint16_t i=0;i<NUM_DI;i++){ mb.addCoil(CMD_DI_DIS_BASE + i); mb.setCoil(CMD_DI_DIS_BASE + i, false); }
-
-  // ==== Holding registers (levels) ====
-  for (uint16_t i=0;i<NUM_CH;i++){ mb.addHreg(HREG_DIM_LEVEL_BASE + i, chLevel[i]); }
 
   // Status for UI
   modbusStatus["address"] = g_mb_address;
@@ -378,7 +394,7 @@ void setup() {
   WebSerial.on("values",  handleValues);
   WebSerial.on("Config",  handleUnifiedConfig);
   WebSerial.on("command", handleCommand);
-  WebSerial.send("message", "Boot OK (DIM-420-R1 RP2350A)");
+  WebSerial.send("message", "Boot OK (DIM-420-R1 RP2350A, directional min-threshold)");
   sendAllEchoesOnce();
 }
 
@@ -460,6 +476,13 @@ void handleUnifiedConfig(JSONVar obj) {
   } else if (type == "channels") {
     for (int i=0; i<NUM_CH && i<list.length(); i++) {
       chCfg[i].enabled = (bool)list[i]["enabled"];
+
+      // thresholds
+      int lo = (int)list[i]["lower"];
+      int hi = (int)list[i]["upper"];
+      setThresholds(i, lo, hi);
+
+      // level (direction-aware clamp)
       int lvl = (int)list[i]["level"];
       clampAndSetLevel(i, lvl);
     }
@@ -485,11 +508,57 @@ void handleUnifiedConfig(JSONVar obj) {
 }
 
 // ================== Helpers ==================
+// Thresholds change: keep lastNonZero within window.
+// If currently ON and below new lower -> clamp up to lower (threshold change is not a "decrease" gesture).
+// If currently ON and above new upper -> clamp down to upper.
+static inline void setThresholds(uint8_t ch, int lower, int upper) {
+  if (ch >= NUM_CH) return;
+  lower = constrain(lower, 0, 255);
+  upper = constrain(upper, 0, 255);
+  if (upper < lower) upper = lower;
+  chLower[ch] = (uint8_t)lower;
+  chUpper[ch] = (uint8_t)upper;
+
+  chLastNonZero[ch] = constrain(chLastNonZero[ch], chLower[ch], chUpper[ch]);
+
+  if (chLevel[ch] > 0) {
+    if (chLevel[ch] < chLower[ch]) chLevel[ch] = chLower[ch];
+    else if (chLevel[ch] > chUpper[ch]) chLevel[ch] = chUpper[ch];
+  }
+
+  // reflect to Modbus holding regs
+  mb.setHreg(HREG_DIM_LO_BASE + ch, chLower[ch]);
+  mb.setHreg(HREG_DIM_HI_BASE + ch, chUpper[ch]);
+  mb.setHreg(HREG_DIM_LEVEL_BASE + ch, chLevel[ch]);
+}
+
+// Direction-aware clamp:
+// - exact 0 -> 0
+// - >upper -> upper
+// - >=lower -> value
+// - 0<value<lower -> if currently OFF -> go to lower; if currently ON -> go to 0
 void clampAndSetLevel(uint8_t ch, int value) {
   if (ch >= NUM_CH) return;
   value = constrain(value, 0, 255);
-  chLevel[ch] = (uint8_t)value;
-  if (value > 0) chLastNonZero[ch] = (uint8_t)value;
+
+  uint8_t cur = chLevel[ch];
+  uint8_t out;
+
+  if (value == 0) {
+    out = 0;
+  } else if (value > chUpper[ch]) {
+    out = chUpper[ch];
+  } else if (value >= chLower[ch]) {
+    out = (uint8_t)value;
+  } else { // 0 < value < lower
+    if (cur == 0) out = chLower[ch];   // from OFF, small value means turn ON at minimum
+    else          out = 0;             // from ON, decrease below min means go OFF
+  }
+
+  chLevel[ch] = out;
+  if (out > 0) chLastNonZero[ch] = out;
+
+  // reflect to Modbus Hreg
   mb.setHreg(HREG_DIM_LEVEL_BASE + ch, chLevel[ch]);
 }
 
@@ -503,7 +572,7 @@ void applyActionToTarget(uint8_t target, uint8_t action, uint32_t now) {
       chPulseUntil[idx] = 0;
     } else if (action == 2) { // Pulse -> full then restore
       chPulseUntil[idx] = now + PULSE_MS;
-      clampAndSetLevel(idx, 255);
+      clampAndSetLevel(idx, 255); // will clamp to upper
     }
   };
   if (action == 0) return; // None
@@ -515,7 +584,7 @@ void applyActionToTarget(uint8_t target, uint8_t action, uint32_t now) {
   cfgDirty = true; lastCfgTouchMs = now;
 }
 
-// Consume Modbus coils + handle Hreg level writes
+// Consume Modbus coils + handle Hreg writes
 void processModbusCommandPulses() {
   // Channel ON/OFF
   for (int c=0;c<NUM_CH;c++) {
@@ -533,10 +602,14 @@ void processModbusCommandPulses() {
     if (mb.Coil(CMD_DI_EN_BASE + i))  { mb.setCoil(CMD_DI_EN_BASE + i,  false); if (!diCfg[i].enabled){ diCfg[i].enabled=true;  cfgDirty=true; lastCfgTouchMs=millis(); } }
     if (mb.Coil(CMD_DI_DIS_BASE + i)) { mb.setCoil(CMD_DI_DIS_BASE + i, false); if ( diCfg[i].enabled){ diCfg[i].enabled=false; cfgDirty=true; lastCfgTouchMs=millis(); } }
   }
-  // Levels via holding registers (external masters can write)
+  // Levels + thresholds via holding registers (external masters can write)
   for (int c=0;c<NUM_CH;c++) {
-    uint16_t val = mb.Hreg(HREG_DIM_LEVEL_BASE + c);
-    clampAndSetLevel(c, (int)val);
+    uint16_t lvl = mb.Hreg(HREG_DIM_LEVEL_BASE + c);
+    clampAndSetLevel(c, (int)lvl);
+
+    uint16_t lo = mb.Hreg(HREG_DIM_LO_BASE + c);
+    uint16_t hi = mb.Hreg(HREG_DIM_HI_BASE + c);
+    setThresholds(c, (int)lo, (int)hi);
   }
 }
 
@@ -560,11 +633,18 @@ void sendAllEchoesOnce() {
   WebSerial.send("inputActionList", actionList);
   WebSerial.send("inputTargetList", targetList);
 
-  // Channels summary
-  JSONVar chEnabled, chLevels;
-  for (int i=0;i<NUM_CH;i++){ chEnabled[i]=chCfg[i].enabled; chLevels[i]= (int)chLevel[i]; }
+  // Channels summary (enabled, level, thresholds)
+  JSONVar chEnabled, chLevels, chLowers, chUppers;
+  for (int i=0;i<NUM_CH;i++){
+    chEnabled[i]=chCfg[i].enabled;
+    chLevels[i]= (int)chLevel[i];
+    chLowers[i]= (int)chLower[i];
+    chUppers[i]= (int)chUpper[i];
+  }
   WebSerial.send("channelEnabled", chEnabled);
   WebSerial.send("channelLevels", chLevels);
+  WebSerial.send("channelLower", chLowers);
+  WebSerial.send("channelUpper", chUppers);
 
   // Buttons mapping
   JSONVar ButtonGroupList; for (int i=0;i<NUM_BTN;i++) ButtonGroupList[i]=btnCfg[i].action;
@@ -572,11 +652,10 @@ void sendAllEchoesOnce() {
 
   WebSerial.send("LedConfigList", LedConfigListFromCfg());
 
-  // <<< ZC monitor
+  // ZC monitor
   JSONVar zcList;
   for (int i=0;i<NUM_CH;i++) zcList[i] = zcOk[i];
   WebSerial.send("ZcOkList", zcList);
-  // >>> ZC monitor
 
   modbusStatus["address"] = g_mb_address;
   modbusStatus["baud"]    = g_mb_baud;
@@ -593,7 +672,7 @@ void loop() {
   // Blink phase (for LED blink mode)
   if (now - lastBlinkToggle >= blinkPeriodMs) { lastBlinkToggle = now; blinkPhase = !blinkPhase; }
 
-  // <<< ZC monitor: compute OK/fault & publish
+  // ZC monitor: compute OK/fault & publish
   for (int c=0;c<NUM_CH;c++) {
     bool ok = ((uint32_t)(now - zcLastEdgeMs[c]) <= ZC_FAULT_TIMEOUT_MS);
     zcOk[c] = ok;
@@ -602,13 +681,12 @@ void loop() {
     if (zcOk[c] != zcPrevOk[c]) {
       zcPrevOk[c] = zcOk[c];
       if (ok) {
-        WebSerial.send("message", String("CH") + (c+1) + ": Zero-cross OK");
+        WebSerial.send("message", String("CH") + (c+1) + ": AC present (zero-cross OK)");
       } else {
-        WebSerial.send("message", String("CH") + (c+1) + ": No L-N zero-cross detected (check wiring)");
+        WebSerial.send("message", String("CH") + (c+1) + ": No AC on L-N detected — check wiring");
       }
     }
   }
-  // >>> ZC monitor
 
   // Auto-save after quiet period
   if (cfgDirty && (now - lastCfgTouchMs >= CFG_AUTOSAVE_MS)) {
@@ -693,12 +771,11 @@ void loop() {
     lastSend = millis();
     WebSerial.check();
 
-    // <<< ZC monitor: include zc_ok array in status & a dedicated list
+    // ZC monitor arrays in status & dedicated list
     JSONVar zcList;
     for (int i=0;i<NUM_CH;i++) zcList[i] = zcOk[i];
     modbusStatus["zc_ok"] = zcList;
     WebSerial.send("ZcOkList", zcList);
-    // >>> ZC monitor
 
     WebSerial.send("status", modbusStatus);
 
@@ -710,10 +787,12 @@ void loop() {
       targetList[i] = diCfg[i].target; // 4=None,0=All,1..2
     }
 
-    JSONVar channelEnabled, channelLevels;
+    JSONVar channelEnabled, channelLevels, channelLower, channelUpper;
     for (int i=0;i<NUM_CH;i++) {
       channelEnabled[i] = chCfg[i].enabled;
       channelLevels[i]  = (int)chLevel[i];
+      channelLower[i]   = (int)chLower[i];
+      channelUpper[i]   = (int)chUpper[i];
     }
 
     JSONVar ButtonStateList, ButtonGroupList;
@@ -731,6 +810,8 @@ void loop() {
     WebSerial.send("inputTargetList", targetList);
     WebSerial.send("channelEnabled", channelEnabled);
     WebSerial.send("channelLevels", channelLevels);
+    WebSerial.send("channelLower", channelLower);
+    WebSerial.send("channelUpper", channelUpper);
     WebSerial.send("ButtonStateList", ButtonStateList);
     WebSerial.send("ButtonGroupList", ButtonGroupList);
     WebSerial.send("LedConfigList", LedConfigList);
