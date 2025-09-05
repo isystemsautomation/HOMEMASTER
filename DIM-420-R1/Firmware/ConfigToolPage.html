@@ -55,34 +55,30 @@
     <div id="log-content" style="white-space:pre-wrap;"></div>
   </div>
 
-  
   <div class="layout-2col">
-    
     <section class="span-2">
       <h2 style="font-size:1.2rem;">Dimming Channels (2)</h2>
       <div id="channels-config" class="cards-2col"></div>
     </section>
 
-    
     <section class="span-2">
       <h2 style="font-size:1.2rem;">Digital Inputs (4)</h2>
       <div id="inputs-config" class="cards-2col"></div>
     </section>
 
-    
     <section class="span-2">
       <h2 style="font-size:1.2rem;">Buttons (4)</h2>
       <div id="buttons-config" class="cards-2col"></div>
     </section>
 
-    
     <section class="span-2">
       <h2 style="font-size:1.2rem;">User LEDs (4)</h2>
       <div id="leds-config" class="cards-2col"></div>
     </section>
   </div>
 
-  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
+  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
+  <script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
   <script>
   (function () {
     // ---------- Constants ----------
@@ -98,11 +94,14 @@
     const $ = (id) => document.getElementById(id);
     const logBuffer = [];
     const clamp255 = (n) => Math.min(255, Math.max(0, Number(n) || 0));
+    const clamp100 = (n) => Math.min(100, Math.max(0, Number(n) || 0));
+    const clampLT  = (n) => Math.min(2, Math.max(0, Number(n) || 0)); // LoadType 0..2
+    const clamp01  = (n) => Math.min(1, Math.max(0, Number(n) || 0)); // CutMode  0..1
 
     // Per-channel local state
     const holdUntil = Array(NUM_CH + 1).fill(0);          // 1-based index
     const editTimers = Array(NUM_CH + 1).fill(0);
-    const editing = { lvl: new Set(), lo: new Set(), hi: new Set() };
+    const editing = { pct: new Set(), lo: new Set(), hi: new Set() };
     let sendTimer = null;
     let lastSentStr = "";
 
@@ -111,7 +110,7 @@
     function isHeld(idx){ return nowMs() < holdUntil[idx]; }
 
     function setEditing(kind, idx, on){
-      const S = (kind==='level') ? editing.lvl : (kind==='lower' ? editing.lo : editing.hi);
+      const S = (kind==='percent') ? editing.pct : (kind==='lower' ? editing.lo : editing.hi);
       if (on) { S.add(idx); markHold(idx); }
       else { S.delete(idx); }
       clearTimeout(editTimers[idx]);
@@ -134,15 +133,15 @@
       loEl.value = String(lo);
       hiEl.value = String(hi);
       const badge = $('range-ch'+idx);
-      if (badge) badge.textContent = `[${lo}..${hi}]`;
+      if (badge) badge.textContent = '['+lo+'..'+hi+']';
     }
 
     function updateChOnDot(idx){
       const enEl = $('enable-ch'+idx);
-      const lvlEl = $('level-ch'+idx);
+      const lvlValEl = $('level-val-ch'+idx);
       const dot = $('on-ch'+idx);
-      if (dot && enEl && lvlEl) {
-        const on = enEl.checked && Number(lvlEl.value||0) > 0;
+      if (dot && enEl && lvlValEl) {
+        const on = enEl.checked && Number(lvlValEl.textContent||0) > 0;
         dot.style.background = on ? '#4caf50' : '#ccc';
       }
     }
@@ -186,7 +185,7 @@
     }
     function updateResetEnabled() { const b = $('reset-button'); if (b) b.disabled = !isPortOpen(); }
 
-    // Live status (also consumes freq if provided there)
+    // Live status
     connection.on('status', (modbus) => {
       $('live-address').textContent = (modbus && 'address' in modbus) ? modbus.address : '--';
       $('live-baud').textContent    = (modbus && 'baud' in modbus)    ? modbus.baud    : '--';
@@ -198,7 +197,6 @@
                 : null;
       if (Array.isArray(arr)) arr.forEach((v,i)=> updateAcBadge(i+1, !!v));
 
-      // Optional: freq via status.freq_x100
       if (modbus && modbus.freq_x100 && Array.isArray(modbus.freq_x100)) {
         modbus.freq_x100.forEach((v,i)=>{
           const el = $('freq-badge-ch'+(i+1));
@@ -276,7 +274,7 @@
       }
     })();
 
-    // Channels (AC presence + thresholds + frequency badge)
+    // Channels (now includes Cutoff Mode)
     (function buildChannels(){
       const container = $('channels-config'); if (!container) return;
       for (let i=1;i<=NUM_CH;i++){
@@ -297,17 +295,34 @@
 
           <label style="display:block;margin:.25rem 0;"><input type="checkbox" id="enable-ch${i}"> Enabled</label>
 
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:.4rem;">
-            <label style="flex:1;">Level:
-              <input type="range" id="level-ch${i}" min="0" max="255" step="1" value="0" style="width:100%;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin:.5rem 0;">
+            <label>Load Type
+              <select id="lt-ch${i}" style="width:100%;padding:.4rem;border-radius:6px;border:1px solid #ccc;">
+                <option value="0">Lamp (log)</option>
+                <option value="1">Heater (linear)</option>
+                <option value="2">Key</option>
+              </select>
             </label>
-            <div style="width:120px;margin-left:.6rem;font-size:.85rem;color:#555;display:flex;flex-direction:column;align-items:flex-end;">
-              <span><strong id="level-val-ch${i}">0</strong></span>
+            <label>Cutoff Mode
+              <select id="cm-ch${i}" style="width:100%;padding:.4rem;border-radius:6px;border:1px solid #ccc;" title="Leading (RL) or Trailing (RC) MOSFET dimming">
+                <option value="0">Leading (RL)</option>
+                <option value="1">Trailing (RC)</option>
+              </select>
+            </label>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:.2rem;">
+            <label style="flex:1;">Setpoint (%)
+              <input type="range" id="percent-ch${i}" min="0" max="100" step="1" value="0" style="width:100%;">
+            </label>
+            <div style="width:140px;margin-left:.6rem;font-size:.95rem;color:#333;display:flex;flex-direction:column;align-items:flex-end;">
+              <span>Actual level: <strong id="level-val-ch${i}">0</strong></span>
               <span title="Effective dimming window" style="font-family:monospace;">range <span id="range-ch${i}">[20..255]</span></span>
+              <span><strong id="percent-val-ch${i}">0</strong>%</span>
             </div>
           </div>
 
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-top:.5rem;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-top:.6rem;">
             <label>Lower threshold
               <input type="number" id="lower-ch${i}" min="0" max="255" step="1" value="20" style="width:100%;padding:.4rem;border-radius:6px;border:1px solid #ccc;">
             </label>
@@ -386,10 +401,9 @@
     // Channels (skip updates while locally editing/held)
     connection.on('channelEnabled', (list=[]) => list.forEach((v,i)=>{ const idx=i+1; const el=$('enable-ch'+idx); if(el){ el.checked=!!v; updateChOnDot(idx); } }));
     connection.on('channelLevels',  (list=[]) => list.forEach((v,i)=>{
-      const idx=i+1; if (isHeld(idx) || editing.lvl.has(idx)) return;
-      const el=$('level-ch'+idx), val=$('level-val-ch'+idx);
-      if(el) el.value = String(v||0);
-      if(val) val.textContent = String(v||0);
+      const idx=i+1;
+      const valEl=$('level-val-ch'+idx);
+      if(valEl){ valEl.textContent = String(v||0); }
       updateChOnDot(idx);
     }));
     connection.on('channelLower', (list=[]) => list.forEach((v,i)=>{
@@ -400,12 +414,28 @@
       const idx=i+1; if (isHeld(idx) || editing.hi.has(idx)) return;
       const el=$('upper-ch'+idx); if(el){ el.value=String(clamp255(v)); fixThresholdPair(idx); }
     }));
+    connection.on('channelPercent', (list=[]) => list.forEach((v,i)=>{
+      const idx=i+1; if (isHeld(idx) || editing.pct.has(idx)) return;
+      const el=$('percent-ch'+idx), lab=$('percent-val-ch'+idx);
+      const p = clamp100(v);
+      if(el) el.value = String(p);
+      if(lab) lab.textContent = String(p);
+    }));
+    connection.on('LoadTypeList', (list=[]) => list.forEach((v,i)=>{
+      const idx=i+1;
+      const el=$('lt-ch'+idx);
+      if(el) el.value = String(clampLT(v));
+    }));
+    // NEW: Cutoff mode echo
+    connection.on('CutModeList', (list=[]) => list.forEach((v,i)=>{
+      const idx=i+1;
+      const el=$('cm-ch'+idx);
+      if(el) el.value = String(clamp01(v));
+    }));
 
-    // AC presence (new + legacy)
+    // AC presence + Frequency
     connection.on('AcPresentList', (list=[]) => list.forEach((v,i)=> updateAcBadge(i+1, !!v)));
     connection.on('ZcOkList',      (list=[]) => list.forEach((v,i)=> updateAcBadge(i+1, !!v)));
-
-    // >>> NEW: Frequency list (Hz*100) -> badge
     connection.on('FreqX100List', (list=[]) => list.forEach((v,i)=>{
       const el = $('freq-badge-ch'+(i+1));
       if (el){
@@ -439,25 +469,29 @@
     async function sendInputAction(){ const list=[]; for(let i=1;i<=NUM_DI;i++) list.push(parseInt($('action-in'+i).value||"0",10)); await connection.send("Config",{t:"inputAction",list}); }
     async function sendInputTarget(){ const list=[]; for(let i=1;i<=NUM_DI;i++) list.push(parseInt($('target-in'+i).value||"0",10)); await connection.send("Config",{t:"inputTarget",list}); }
 
-    // Channels (enabled + level + lower + upper) with debounce + local hold
+    // Channels (enabled + percent + thresholds + load type + NEW cutoff mode)
     for (let i=1;i<=NUM_CH;i++){
-      const lvlEl = $('level-ch'+i);
-      if (lvlEl){
-        lvlEl.addEventListener('pointerdown', ()=> setEditing('level', i, true));
-        lvlEl.addEventListener('input', (e)=>{
-          $('level-val-ch'+i).textContent = e.target.value;
-          setEditing('level', i, true);
+      const pctEl = $('percent-ch'+i);
+      if (pctEl){
+        pctEl.addEventListener('pointerdown', ()=> setEditing('percent', i, true));
+        pctEl.addEventListener('input', (e)=>{
+          $('percent-val-ch'+i).textContent = clamp100(e.target.value);
+          setEditing('percent', i, true);
           debounceSend();
         });
-        lvlEl.addEventListener('change', ()=>{ setEditing('level', i, false); markHold(i); sendChannelsConfig(); });
-        lvlEl.addEventListener('pointerup', ()=>{ setEditing('level', i, false); markHold(i); sendChannelsConfig(); });
-        lvlEl.addEventListener('pointercancel', ()=> setEditing('level', i, false));
+        pctEl.addEventListener('change', ()=>{ setEditing('percent', i, false); markHold(i); sendChannelsConfig(); });
+        pctEl.addEventListener('pointerup', ()=>{ setEditing('percent', i, false); markHold(i); sendChannelsConfig(); });
+        pctEl.addEventListener('pointercancel', ()=> setEditing('percent', i, false));
       }
 
       const enEl = $('enable-ch'+i);
-      if (enEl){
-        enEl.addEventListener('change', ()=>{ markHold(i); sendChannelsConfig(); });
-      }
+      if (enEl) enEl.addEventListener('change', ()=>{ markHold(i); sendChannelsConfig(); });
+
+      const ltEl = $('lt-ch'+i);
+      if (ltEl) ltEl.addEventListener('change', ()=>{ markHold(i); sendChannelsConfig(); });
+
+      const cmEl = $('cm-ch'+i); // NEW cutoff mode
+      if (cmEl) cmEl.addEventListener('change', ()=>{ markHold(i); sendChannelsConfig(); });
 
       const loEl = $('lower-ch'+i), hiEl = $('upper-ch'+i);
       if (loEl && hiEl){
@@ -483,9 +517,11 @@
         fixThresholdPair(i);
         const payload = {
           enabled: $('enable-ch'+i).checked,
-          level:   parseInt($('level-ch'+i).value||"0",10),
           lower:   clamp255($('lower-ch'+i).value),
-          upper:   clamp255($('upper-ch'+i).value)
+          upper:   clamp255($('upper-ch'+i).value),
+          loadType: clampLT($('lt-ch'+i).value),
+          cutMode:  clamp01($('cm-ch'+i).value),              // NEW
+          percent:  clamp100($('percent-ch'+i).value)
         };
         list.push(payload);
         markHold(i);

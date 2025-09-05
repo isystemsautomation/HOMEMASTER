@@ -1,3 +1,6 @@
+/********** Arduino preprocessor fix: forward declare before includes **********/
+struct PersistConfig;
+
 /**************************************************************
  * DIM-420-R1 — RP2350A (Pico 2) firmware (DROP-IN)
  * - 4× DI:     GPIO8, GPIO9, GPIO15, GPIO16
@@ -7,9 +10,15 @@
  * - Modbus/RS485 on Serial2: TX=GPIO4, RX=GPIO5
  *
  * Additions:
- * - Per-channel ZC frequency estimation (0.01 Hz precision)
- *   * Modbus HREG 430..431 => Hz * 100
- *   * WebSerial event "FreqX100List" (array of centi-Hz)
+ * - 50/60 Hz auto: robust per-channel mains frequency estimation (centi-Hz)
+ * - Per-channel Load Type: 0=Lamp (log map), 1=Heater (linear), 2=Key
+ * - NEW: Per-channel Cutoff Mode for MOSFET dimmer:
+ *        0 = Leading edge (RL type load), 1 = Trailing edge (RC type load)
+ * - Percent setpoint input (0–100%), mapped to level 0–255 with thresholds
+ * - Modbus HREG 440..441 => setpoint percent ×10 (0..1000)
+ * - Modbus HREG 460..461 => load type (0,1,2)
+ * - NEW: Modbus HREG 470..471 => cutoff mode (0=Leading, 1=Trailing)
+ * - UI still shows actual 0–255 & thresholds; UI sends percent (+ optional cutMode)
  **************************************************************/
 
 #include <Arduino.h>
@@ -20,7 +29,7 @@
 #include <utility>
 #include <math.h>
 #include "hardware/watchdog.h"  // Pico SDK (RP2350)
-#include "pico/time.h"          // add_alarm_in_us(), alarm_id_t
+#include "pico/time.h"          // time_us_64(), add_alarm_in_us(), alarm_id_t
 
 // ================== UART2 (RS-485 / Modbus) ==================
 #define TX2 4
@@ -34,7 +43,7 @@ ModbusSerial mb(Serial2, SlaveId, TxenPin);
 static const uint8_t DI_PINS[4] = {8, 9, 15, 16}; // IN1..IN4
 // Dimming channels
 static const uint8_t ZC_PINS[2]   = {0, 2};       // CH1/CH2 zero-cross
-static const uint8_t GATE_PINS[2] = {1, 3};       // CH1/CH2 gate
+static const uint8_t GATE_PINS[2] = {1, 3};       // CH1/CH2 gate (MOSFET driver)
 // User LEDs (active-HIGH)
 static const uint8_t LED_PINS[4]  = {18, 19, 20, 21};
 // Buttons (active-LOW, internal pullups)
@@ -46,33 +55,21 @@ static const uint8_t NUM_CH   = 2;  // dimmer channels
 static const uint8_t NUM_LED  = 4;
 static const uint8_t NUM_BTN  = 4;
 
-// ================== AC timing ==================
-constexpr uint32_t FREQ_US_50HZ_HALF = 10000u; // 50 Hz half-cycle (10,000 us)
-// constexpr uint32_t FREQ_US_60HZ_HALF = 8333u; // ~60 Hz half-cycle
-constexpr uint32_t ZC_EDGE_DELAY_US  = 100u;   // input blanking near ZC
+// ================== AC timing / MOSFET gating ==================
+constexpr uint32_t HALF_US_DEFAULT  = 10000u; // fallback (50 Hz)
+constexpr uint32_t ZC_BLANK_US      = 100u;   // guard after ZC before switching
+constexpr uint32_t MOS_OFF_GUARD_US = 150u;   // guard before next ZC to switch OFF
+constexpr uint32_t GATE_PULSE_US    = 120u;   // kept for compatibility (not used for MOSFET)
 
 // ---- State (volatile: accessed in ISR) ----
-volatile uint8_t  chLevel[NUM_CH] = {0,0};           // 0..255 current (directional-threshold processed)
+volatile uint8_t  chLevel[NUM_CH] = {0,0};           // 0..255 current
 volatile uint8_t  chLastNonZero[NUM_CH] = {200,200}; // remembered for toggles
 
 // ================== Config & runtime ==================
-struct InCfg {
-  bool    enabled;
-  bool    inverted;
-  uint8_t action; /*0=None,1=Toggle,2=Pulse*/
-  uint8_t target; /*4=None,0=All,1..2 = CH1..CH2*/
-};
-
+struct InCfg { bool enabled; bool inverted; uint8_t action; uint8_t target; };
 struct ChCfg { bool enabled; };
-
-struct LedCfg {
-  uint8_t mode;   /*0=steady,1=blink*/
-  uint8_t source; /*0=None, 1..2=CH1..CH2 "on" source*/
-};
-
-struct BtnCfg {
-  uint8_t action; /*0=None, 1=Toggle CH1, 2=Toggle CH2, 3=Up CH1, 4=Down CH1, 5=Up CH2, 6=Down CH2*/
-};
+struct LedCfg { uint8_t mode; uint8_t source; };
+struct BtnCfg { uint8_t action; };
 
 InCfg  diCfg[NUM_DI];
 ChCfg  chCfg[NUM_CH];
@@ -84,30 +81,51 @@ bool buttonPrev[NUM_BTN]  = {false,false,false,false};
 bool diState[NUM_DI]      = {false,false,false,false};
 bool diPrev[NUM_DI]       = {false,false,false,false};
 
-// Pulse handling for channels (DI action=Pulse => full for a short time)
+// Pulse handling (DI action=Pulse => full for a short time)
 uint32_t chPulseUntil[NUM_CH] = {0,0};
 const uint32_t PULSE_MS = 500;
 
 // ================== ZC monitor (per-channel) ==================
 volatile uint32_t zcLastEdgeMs[NUM_CH] = {0,0}; // last ISR edge time (ms)
-bool zcOk[NUM_CH]      = {false,false};         // computed in loop
-bool zcPrevOk[NUM_CH]  = {false,false};         // for edge messages
-const uint32_t ZC_FAULT_TIMEOUT_MS = 1000;      // no edges >= 1s => fault
+bool zcOk[NUM_CH]      = {false,false};
+bool zcPrevOk[NUM_CH]  = {false,false};
+const uint32_t ZC_FAULT_TIMEOUT_MS = 1000;
 
-// >>> NEW: Zero-cross timing for frequency
-volatile uint32_t zcPrevEdgeUs[NUM_CH] = {0,0};
-volatile uint32_t zcLastDeltaHalfUs[NUM_CH] = {0,0};
-volatile uint32_t zcDeltaSampleCount[NUM_CH] = {0,0};
-// Smoothing / output (loop context)
-double   halfUsFilt[NUM_CH] = {10000.0, 10000.0};  // start ~50Hz half
-uint32_t lastConsumedSample[NUM_CH] = {0,0};
-uint16_t freq_x100[NUM_CH] = {0,0};
-constexpr uint32_t HALF_MIN_US = 6000;   // ~83 Hz upper bound guard
-constexpr uint32_t HALF_MAX_US = 14000;  // ~35 Hz lower bound guard
+// ================== Frequency measurement (robust) ==================
+volatile uint64_t zcPrevEdgeUs64[NUM_CH] = {0,0};
+volatile uint32_t zcHalfUsLatest[NUM_CH] = {HALF_US_DEFAULT,HALF_US_DEFAULT};
+volatile uint32_t zcSampleSeq[NUM_CH]    = {0,0};
+
+// 50/60 Hz guard window
+constexpr uint32_t HALF_MIN_US = 7500;   // ~66.6 Hz upper bound
+constexpr uint32_t HALF_MAX_US = 12000;  // ~41.6 Hz lower bound
+
+constexpr int MED_W = 3;
+constexpr int AVG_N = 32;
+uint32_t med3[NUM_CH][MED_W] = {{HALF_US_DEFAULT,HALF_US_DEFAULT,HALF_US_DEFAULT},
+                                {HALF_US_DEFAULT,HALF_US_DEFAULT,HALF_US_DEFAULT}};
+uint8_t  medIdx[NUM_CH]      = {0,0};
+uint32_t avgBuf[NUM_CH][AVG_N] = {{HALF_US_DEFAULT}};
+uint8_t  avgIdx[NUM_CH]        = {0,0};
+uint64_t avgSum[NUM_CH]        = {(uint64_t)HALF_US_DEFAULT * AVG_N,(uint64_t)HALF_US_DEFAULT * AVG_N};
+uint32_t lastSeqConsumed[NUM_CH] = {0,0};
+constexpr int CLOCK_PPM_CORR = 0;
+inline double corr_half_us(double half_us){ return half_us * (1.0 + (CLOCK_PPM_CORR / 1e6)); }
+uint16_t freq_x100[NUM_CH] = {5000,5000}; // Hz × 100
+volatile uint32_t gateHalfUs[NUM_CH] = {HALF_US_DEFAULT,HALF_US_DEFAULT}; // used by ISR
 
 // ================== Dimming thresholds (per-channel) ==================
-uint8_t chLower[NUM_CH] = {20,20};   // Lower dimming threshold (min non-zero)
-uint8_t chUpper[NUM_CH] = {255,255}; // Upper dimming threshold (max)
+uint8_t chLower[NUM_CH] = {20,20};
+uint8_t chUpper[NUM_CH] = {255,255};
+
+// ================== Load type + percent setpoint ==================
+enum LoadType : uint8_t { LOAD_LAMP=0, LOAD_HEATER=1, LOAD_KEY=2 };
+uint8_t  chLoadType[NUM_CH] = {LOAD_LAMP, LOAD_LAMP};
+uint16_t chPctX10[NUM_CH]   = {0,0};   // percent ×10 (0..1000)
+
+// ================== NEW: MOSFET cutoff (waveform) mode ==================
+enum CutMode : uint8_t { CUT_LEADING=0, CUT_TRAILING=1 };
+uint8_t chCutMode[NUM_CH] = {CUT_LEADING, CUT_LEADING};
 
 // ================== Web Serial & Modbus status ==================
 SimpleWebSerial WebSerial;
@@ -137,13 +155,17 @@ struct PersistConfig {
   uint8_t chLastNonZero[NUM_CH];
   uint8_t chLower[NUM_CH];
   uint8_t chUpper[NUM_CH];
+  uint8_t chLoadType[NUM_CH];
+  uint16_t chPctX10[NUM_CH];
+  uint8_t chCutMode[NUM_CH];   // NEW
   uint8_t mb_address;
   uint32_t mb_baud;
   uint32_t crc32;
 } __attribute__((packed));
 
 static const uint32_t CFG_MAGIC   = 0x314D4449UL; // 'IDM1'
-static const uint16_t CFG_VERSION = 0x0002;       // thresholds added
+// VERSION BUMP for cutoff mode
+static const uint16_t CFG_VERSION = 0x0004;
 static const char*    CFG_PATH    = "/cfg.bin";
 
 volatile bool   cfgDirty       = false;
@@ -161,42 +183,142 @@ uint32_t crc32_update(uint32_t crc, const uint8_t* data, size_t len) {
 }
 inline bool timeAfter32(uint32_t a, uint32_t b) { return (int32_t)(a - b) >= 0; }
 
-// ---- Gate pulse end callbacks ----
-static int64_t gate_off_cb_ch0(alarm_id_t, void*) { digitalWrite(GATE_PINS[0], LOW); return 0; }
-static int64_t gate_off_cb_ch1(alarm_id_t, void*) { digitalWrite(GATE_PINS[1], LOW); return 0; }
+// ---- MOSFET gate set callbacks (continuous drive windows) ----
+static int64_t mos_on_cb_ch0 (alarm_id_t, void*) { digitalWrite(GATE_PINS[0], HIGH); return 0; }
+static int64_t mos_on_cb_ch1 (alarm_id_t, void*) { digitalWrite(GATE_PINS[1], HIGH); return 0; }
+static int64_t mos_off_cb_ch0(alarm_id_t, void*) { digitalWrite(GATE_PINS[0], LOW ); return 0; }
+static int64_t mos_off_cb_ch1(alarm_id_t, void*) { digitalWrite(GATE_PINS[1], LOW ); return 0; }
 
 // ---- Zero-cross ISR (shared) ----
-// >>> UPDATED: route through common ISR to capture half-cycle for frequency
 void zc_isr_common(uint8_t ch) {
-  // Timestamp for frequency measurement (half-cycle)
-  uint32_t nowUs = micros();
-  uint32_t prevUs = zcPrevEdgeUs[ch];
-  zcPrevEdgeUs[ch] = nowUs;
+  uint64_t now = time_us_64();
+  uint64_t prev = zcPrevEdgeUs64[ch];
+  zcPrevEdgeUs64[ch] = now;
 
-  if (prevUs != 0) {
-    uint32_t delta = nowUs - prevUs; // half-cycle in microseconds
+  if (prev) {
+    uint32_t delta = (uint32_t)(now - prev);
     if (delta >= HALF_MIN_US && delta <= HALF_MAX_US) {
-      zcLastDeltaHalfUs[ch] = delta;
-      zcDeltaSampleCount[ch]++; // signal new sample
+      zcHalfUsLatest[ch] = delta;
+      zcSampleSeq[ch]++;
     }
   }
 
-  // Existing behavior
   zcLastEdgeMs[ch] = millis();
-  if (chLevel[ch] == 0) return; // true OFF -> don't fire gate
-  delayMicroseconds(ZC_EDGE_DELAY_US);
-  digitalWrite(GATE_PINS[ch], HIGH);
-  uint32_t delay_us = (uint32_t(chLevel[ch]) * FREQ_US_50HZ_HALF) / 255u;
-  add_alarm_in_us((int64_t)delay_us, ch==0 ? gate_off_cb_ch0 : gate_off_cb_ch1, nullptr, true);
+
+  // Start each half-cycle safely: drive gate LOW near the ZC
+  digitalWrite(GATE_PINS[ch], LOW);
+
+  // MOSFET dimming window planning
+  const uint8_t lvl = chLevel[ch];
+  if (lvl == 0 || !chCfg[ch].enabled) return;
+
+  uint32_t half_us = gateHalfUs[ch];
+  if (half_us < HALF_MIN_US || half_us > HALF_MAX_US) half_us = HALF_US_DEFAULT;
+
+  // Time budget inside half-wave where we can conduct
+  const uint32_t usable = (half_us > (ZC_BLANK_US + MOS_OFF_GUARD_US + 20))
+                        ? (half_us - ZC_BLANK_US - MOS_OFF_GUARD_US)
+                        : (half_us/2);
+
+  auto on_cb  = (ch==0) ? mos_on_cb_ch0  : mos_on_cb_ch1;
+  auto off_cb = (ch==0) ? mos_off_cb_ch0 : mos_off_cb_ch1;
+
+  if (chCutMode[ch] == CUT_TRAILING) {
+    // Trailing-edge (RC): ON shortly after ZC, OFF earlier than next ZC
+    uint32_t on_time = (uint32_t)((uint64_t)lvl * usable / 255u);
+    if (on_time == 0) return; // no conduction
+    uint32_t t_on_from_zc  = ZC_BLANK_US;
+    uint32_t t_off_from_zc = ZC_BLANK_US + on_time;
+    uint32_t latest_off    = half_us - MOS_OFF_GUARD_US;
+    if (t_off_from_zc > latest_off) t_off_from_zc = latest_off;
+    if (t_on_from_zc >= t_off_from_zc) return;
+
+    add_alarm_in_us((int64_t)t_on_from_zc,  on_cb,  nullptr, true);
+    add_alarm_in_us((int64_t)t_off_from_zc, off_cb, nullptr, true);
+  } else {
+    // Leading-edge (RL): OFF after ZC, then ON until near next ZC
+    uint32_t delay_to_on   = ZC_BLANK_US + (uint32_t)((uint64_t)(255 - lvl) * usable / 255u);
+    uint32_t t_off_from_zc = half_us - MOS_OFF_GUARD_US;
+    if (delay_to_on >= t_off_from_zc) return; // nothing to conduct
+
+    add_alarm_in_us((int64_t)delay_to_on,   on_cb,  nullptr, true);
+    add_alarm_in_us((int64_t)t_off_from_zc, off_cb, nullptr, true);
+  }
 }
 void zc_isr_ch0(){ zc_isr_common(0); }
 void zc_isr_ch1(){ zc_isr_common(1); }
 
+// ================== Mapping helpers (percent -> level) ==================
+constexpr double LAMP_LOG_K = 9.0; // larger => more expansion at low end
+inline uint8_t clamp8(int v){ return (uint8_t)constrain(v, 0, 255); }
+
+uint8_t mapLampPercentToLevel(uint8_t ch, double pct) {
+  if (pct <= 0.0) return 0;
+  if (pct < 1.0)  return chLower[ch];
+  if (pct > 100.0) pct = 100.0;
+  double x = pct;
+  double y = (log(1.0 + LAMP_LOG_K * (x/100.0)) / log(1.0 + LAMP_LOG_K)) * 255.0;
+  int lvl = (int)lround(y);
+  if (lvl > 0 && lvl < chLower[ch]) lvl = chLower[ch];
+  if (lvl > chUpper[ch]) lvl = chUpper[ch];
+  return clamp8(lvl);
+}
+
+uint8_t mapHeaterPercentToLevel(uint8_t ch, double pct) {
+  if (pct <= 0.0) return 0;
+  if (pct < 1.0)  return chLower[ch];
+  if (pct > 100.0) pct = 100.0;
+  double span = (double)(chUpper[ch] - chLower[ch]);
+  int lvl = (int)lround(chLower[ch] + (span * (pct/100.0)));
+  if (lvl < chLower[ch]) lvl = chLower[ch];
+  if (lvl > chUpper[ch]) lvl = chUpper[ch];
+  return clamp8(lvl);
+}
+
+uint8_t mapKeyPercentToLevel(uint8_t ch, double pct) {
+  if (pct <= 0.0)   return 0;
+  if (pct >= 100.0) return chUpper[ch];
+  return chLower[ch];
+}
+
+uint8_t mapPercentToLevel(uint8_t ch, double pct) {
+  switch ((LoadType)chLoadType[ch]) {
+    case LOAD_LAMP:   return mapLampPercentToLevel(ch, pct);
+    case LOAD_HEATER: return mapHeaterPercentToLevel(ch, pct);
+    case LOAD_KEY:    return mapKeyPercentToLevel(ch, pct);
+    default:          return mapLampPercentToLevel(ch, pct);
+  }
+}
+
+void setLevelDirect(uint8_t ch, uint8_t lvl) {
+  chLevel[ch] = lvl;
+  if (lvl > 0) chLastNonZero[ch] = lvl;
+  mb.setHreg(400 + ch, chLevel[ch]); // reflect in HREG_DIM_LEVEL_BASE
+}
+
 // ================== Defaults / persist ==================
+static inline void setThresholds(uint8_t ch, int lower, int upper);
+
+void initFreqEstimator() {
+  for (int i=0;i<NUM_CH;i++) {
+    zcPrevEdgeUs64[i] = 0;
+    zcHalfUsLatest[i] = HALF_US_DEFAULT;
+    zcSampleSeq[i]    = 0;
+    med3[i][0] = med3[i][1] = med3[i][2] = HALF_US_DEFAULT;
+    medIdx[i] = 0;
+    for (int k=0;k<AVG_N;k++) avgBuf[i][k] = HALF_US_DEFAULT;
+    avgIdx[i] = 0;
+    avgSum[i] = (uint64_t)HALF_US_DEFAULT * AVG_N;
+    lastSeqConsumed[i] = 0;
+    freq_x100[i] = 5000; // ~50.00 Hz initial
+    gateHalfUs[i] = HALF_US_DEFAULT;
+  }
+}
+
 void setDefaults() {
-  for (int i = 0; i < NUM_DI; i++)  diCfg[i] = { true, false, 0 /*None*/, 0 /*All*/ };
+  for (int i = 0; i < NUM_DI; i++)  diCfg[i] = { true, false, 0, 0 };
   for (int i = 0; i < NUM_CH; i++)  chCfg[i] = { true };
-  for (int i = 0; i < NUM_LED; i++) ledCfg[i] = { 0 /*steady*/, 0 /*None*/ };
+  for (int i = 0; i < NUM_LED; i++) ledCfg[i] = { 0, 0 };
   for (int i = 0; i < NUM_BTN; i++) btnCfg[i] = { 0 };
 
   for (int i=0;i<NUM_CH;i++) {
@@ -204,22 +326,21 @@ void setDefaults() {
     chLastNonZero[i] = 200;
     chPulseUntil[i] = 0;
     zcLastEdgeMs[i] = 0;
-    zcPrevEdgeUs[i] = 0;                 // >>> NEW
     zcOk[i] = zcPrevOk[i] = false;
     chLower[i] = 20;
     chUpper[i] = 255;
-    halfUsFilt[i] = 10000.0;             // >>> NEW (~50 Hz)
-    lastConsumedSample[i] = 0;           // >>> NEW
-    freq_x100[i] = 0;                    // >>> NEW
+    chLoadType[i] = LOAD_LAMP;
+    chPctX10[i]   = 0;
+    chCutMode[i]  = CUT_LEADING; // default
   }
 
   g_mb_address = 3;
   g_mb_baud    = 19200;
+
+  initFreqEstimator();
 }
 
-static inline void setThresholds(uint8_t ch, int lower, int upper);
-
-// Capture/apply persist
+// ===== Persist helpers =====
 void captureToPersist(PersistConfig &pc) {
   pc.magic   = CFG_MAGIC;
   pc.version = CFG_VERSION;
@@ -235,6 +356,9 @@ void captureToPersist(PersistConfig &pc) {
     pc.chLastNonZero[i] = chLastNonZero[i];
     pc.chLower[i]       = chLower[i];
     pc.chUpper[i]       = chUpper[i];
+    pc.chLoadType[i]    = chLoadType[i];
+    pc.chPctX10[i]      = chPctX10[i];
+    pc.chCutMode[i]     = chCutMode[i]; // NEW
   }
 
   pc.mb_address = g_mb_address;
@@ -261,9 +385,11 @@ bool applyFromPersist(const PersistConfig &pc) {
     chLower[i]       = pc.chLower[i];
     chUpper[i]       = pc.chUpper[i];
     chLastNonZero[i] = constrain(pc.chLastNonZero[i], chLower[i], chUpper[i]);
+    chLoadType[i]    = (pc.chLoadType[i] <= LOAD_KEY) ? pc.chLoadType[i] : LOAD_LAMP;
+    chPctX10[i]      = (pc.chPctX10[i] > 1000) ? 1000 : pc.chPctX10[i];
+    chCutMode[i]     = (pc.chCutMode[i] <= CUT_TRAILING) ? pc.chCutMode[i] : CUT_LEADING;
 
     uint8_t lvl = pc.chLevel[i];
-    // On boot: keep OFF if saved below lower, clamp above upper
     if (lvl == 0) chLevel[i] = 0;
     else if (lvl < chLower[i]) chLevel[i] = 0;
     else if (lvl > chUpper[i]) chLevel[i] = chUpper[i];
@@ -276,8 +402,7 @@ bool applyFromPersist(const PersistConfig &pc) {
 }
 
 bool saveConfigFS() {
-  PersistConfig pc{};
-  captureToPersist(pc);
+  PersistConfig pc{}; captureToPersist(pc);
   File f = LittleFS.open(CFG_PATH, "w");
   if (!f) { WebSerial.send("message", "save: open failed"); return false; }
   size_t n = f.write((const uint8_t*)&pc, sizeof(pc));
@@ -287,8 +412,7 @@ bool saveConfigFS() {
   File r = LittleFS.open(CFG_PATH, "r");
   if (!r) { WebSerial.send("message", "save: reopen failed"); return false; }
   if ((size_t)r.size() != sizeof(PersistConfig)) { WebSerial.send("message", "save: size mismatch"); r.close(); return false; }
-  PersistConfig back{};
-  size_t nr = r.read((uint8_t*)&back, sizeof(back)); r.close();
+  PersistConfig back{}; size_t nr = r.read((uint8_t*)&back, sizeof(back)); r.close();
   if (nr != sizeof(back)) { WebSerial.send("message", "save: short readback"); return false; }
   PersistConfig tmp2 = back; uint32_t crc = tmp2.crc32; tmp2.crc32 = 0;
   if (crc32_update(0, (const uint8_t*)&tmp2, sizeof(tmp2)) != crc) { WebSerial.send("message", "save: CRC verify failed"); return false; }
@@ -335,27 +459,27 @@ inline void setSlaveIdIfAvailable(...) {}
 // ================== Modbus map ==================
 // Discrete inputs (FC=02)
 enum : uint16_t {
-  ISTS_DI_BASE     = 1,   // 1..4  : IN1..IN4 (after enable+invert)
-  ISTS_CH_BASE     = 50,  // 50..51: CH1..CH2 logical "on" (level>0 && enabled)
-  ISTS_LED_BASE    = 90,  // 90..93: LED1..LED4 logical state
-  ISTS_ZC_OK_BASE  = 120  // 120..121: CH1..CH2 zero-cross present (1=OK)
+  ISTS_DI_BASE     = 1,
+  ISTS_CH_BASE     = 50,
+  ISTS_LED_BASE    = 90,
+  ISTS_ZC_OK_BASE  = 120
 };
 // Coils (FC=05/15)
 enum : uint16_t {
-  CMD_CH_ON_BASE  = 200, // 200..201 : pulse turn CH1..2 ON (to lastNonZero)
-  CMD_CH_OFF_BASE = 210, // 210..211 : pulse turn CH1..2 OFF
-  CMD_DI_EN_BASE  = 300, // 300..303 : pulse ENABLE IN1..IN4
-  CMD_DI_DIS_BASE = 320  // 320..323 : pulse DISABLE IN1..IN4
+  CMD_CH_ON_BASE  = 200,
+  CMD_CH_OFF_BASE = 210,
+  CMD_DI_EN_BASE  = 300,
+  CMD_DI_DIS_BASE = 320
 };
 // Holding registers (FC=03/16)
 enum : uint16_t {
-  HREG_DIM_LEVEL_BASE = 400,  /* 400..401: CH1..CH2 level 0..255 */
-  HREG_DIM_LO_BASE    = 410,  /* 410..411: CH1..CH2 lower threshold 0..255 */
-  HREG_DIM_HI_BASE    = 420   /* 420..421: CH1..CH2 upper threshold 0..255 */
-};
-// >>> NEW: frequency in centi-Hz (e.g., 5001 = 50.01 Hz)
-enum : uint16_t {
-  HREG_FREQ_X100_BASE = 430  /* 430..431: CH1..CH2 frequency * 100 */
+  HREG_DIM_LEVEL_BASE   = 400,  // 400..401: 0..255 (actual)
+  HREG_DIM_LO_BASE      = 410,  // 410..411: 0..255
+  HREG_DIM_HI_BASE      = 420,  // 420..421: 0..255
+  HREG_FREQ_X100_BASE   = 430,  // 430..431: Hz ×100
+  HREG_PCT_X10_BASE     = 440,  // 440..441: setpoint percent ×10 (0..1000)
+  HREG_LOADTYPE_BASE    = 460,  // 460..461: 0=Lamp,1=Heater,2=Key
+  HREG_CUTMODE_BASE     = 470   // 470..471: 0=Leading,1=Trailing   (NEW)
 };
 
 // ================== Fw decls (helpers) ==================
@@ -375,20 +499,21 @@ void setup() {
   Serial.begin(57600);
 
   // GPIO directions
-  for (uint8_t i=0;i<NUM_DI;i++) pinMode(DI_PINS[i], INPUT); // change to INPUT_PULLUP if your DI hardware expects it
+  for (uint8_t i=0;i<NUM_DI;i++) pinMode(DI_PINS[i], INPUT);
   for (uint8_t i=0;i<NUM_LED;i++) { pinMode(LED_PINS[i], OUTPUT); digitalWrite(LED_PINS[i], LOW); }
-  for (uint8_t i=0;i<NUM_BTN;i++) pinMode(BTN_PINS[i], INPUT_PULLUP); // active-LOW
+  for (uint8_t i=0;i<NUM_BTN;i++) pinMode(BTN_PINS[i], INPUT_PULLUP);
 
   // Dimmer pins
   for (uint8_t i=0;i<NUM_CH;i++) { pinMode(GATE_PINS[i], OUTPUT); digitalWrite(GATE_PINS[i], LOW); }
-  pinMode(ZC_PINS[0], INPUT_PULLUP); // open-collector typical
+  pinMode(ZC_PINS[0], INPUT_PULLUP);
   pinMode(ZC_PINS[1], INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(ZC_PINS[0]), zc_isr_ch0, FALLING);
   attachInterrupt(digitalPinToInterrupt(ZC_PINS[1]), zc_isr_ch1, FALLING);
 
   setDefaults();
+  initFreqEstimator();
+  initFilesystemAndConfig();
 
-  // Initialize ZC timers so we don't spam on boot
   uint32_t now = millis();
   for (int i=0;i<NUM_CH;i++) { zcLastEdgeMs[i] = now; zcOk[i] = zcPrevOk[i] = false; }
 
@@ -400,31 +525,27 @@ void setup() {
   setSlaveIdIfAvailable(mb, g_mb_address);
   mb.setAdditionalServerData("DIM-420-R1 RP2350A");
 
-  // ==== Modbus states (discrete inputs) ====
+  // Modbus maps
   for (uint16_t i=0;i<NUM_DI;i++)  mb.addIsts(ISTS_DI_BASE + i);
   for (uint16_t i=0;i<NUM_CH;i++)  mb.addIsts(ISTS_CH_BASE + i);
   for (uint16_t i=0;i<NUM_LED;i++) mb.addIsts(ISTS_LED_BASE + i);
   for (uint16_t i=0;i<NUM_CH;i++)  mb.addIsts(ISTS_ZC_OK_BASE + i);
 
-  // ==== Holding registers (levels + thresholds) ====
   for (uint16_t i=0;i<NUM_CH;i++){
     mb.addHreg(HREG_DIM_LEVEL_BASE + i, chLevel[i]);
     mb.addHreg(HREG_DIM_LO_BASE    + i, chLower[i]);
     mb.addHreg(HREG_DIM_HI_BASE    + i, chUpper[i]);
+    mb.addHreg(HREG_FREQ_X100_BASE + i, freq_x100[i]);
+    mb.addHreg(HREG_PCT_X10_BASE   + i, chPctX10[i]);
+    mb.addHreg(HREG_LOADTYPE_BASE  + i, chLoadType[i]);
+    mb.addHreg(HREG_CUTMODE_BASE   + i, chCutMode[i]); // NEW
   }
 
-  // >>> NEW: frequency x100 HREGs
-  for (uint16_t i=0;i<NUM_CH;i++){
-    mb.addHreg(HREG_FREQ_X100_BASE + i, 0); // loop will maintain
-  }
-
-  // ==== Coils ====
   for (uint16_t i=0;i<NUM_CH;i++){ mb.addCoil(CMD_CH_ON_BASE + i);  mb.setCoil(CMD_CH_ON_BASE + i,  false); }
   for (uint16_t i=0;i<NUM_CH;i++){ mb.addCoil(CMD_CH_OFF_BASE + i); mb.setCoil(CMD_CH_OFF_BASE + i, false); }
   for (uint16_t i=0;i<NUM_DI;i++){ mb.addCoil(CMD_DI_EN_BASE + i);  mb.setCoil(CMD_DI_EN_BASE + i,  false); }
   for (uint16_t i=0;i<NUM_DI;i++){ mb.addCoil(CMD_DI_DIS_BASE + i); mb.setCoil(CMD_DI_DIS_BASE + i, false); }
 
-  // Status for UI
   modbusStatus["address"] = g_mb_address;
   modbusStatus["baud"]    = g_mb_baud;
   modbusStatus["state"]   = 0;
@@ -432,7 +553,7 @@ void setup() {
   WebSerial.on("values",  handleValues);
   WebSerial.on("Config",  handleUnifiedConfig);
   WebSerial.on("command", handleCommand);
-  WebSerial.send("message", "Boot OK (DIM-420-R1 RP2350A, with frequency monitor)");
+  WebSerial.send("message", "Boot OK (50/60 Hz auto, LoadType+Percent, MOSFET Leading/Trailing)");
   sendAllEchoesOnce();
 }
 
@@ -489,6 +610,13 @@ void handleValues(JSONVar values) {
 }
 
 // Supported types: inputEnable, inputInvert, inputAction, inputTarget, channels, buttons, leds
+// For "channels" entries, you may provide:
+//  - enabled (bool)
+//  - lower (0..255), upper (0..255)
+//  - percent (double 0..100)  <<< preferred
+//  - loadType (0,1,2)
+//  - cutMode (0=Leading,1=Trailing)  <<< NEW
+//  - level (0..255)           (legacy fallback)
 void handleUnifiedConfig(JSONVar obj) {
   const char* t = (const char*)obj["t"];
   JSONVar list = obj["list"];
@@ -507,7 +635,7 @@ void handleUnifiedConfig(JSONVar obj) {
     WebSerial.send("message", "Input Action list updated"); changed = true;
   } else if (type == "inputTarget") {
     for (int i=0;i<NUM_DI && i<list.length();i++) {
-      int tgt = (int)list[i]; // 4=None, 0=All, 1..2 = CH1..CH2
+      int tgt = (int)list[i];
       diCfg[i].target = (uint8_t)((tgt==4 || tgt==0 || (tgt>=1 && tgt<=2)) ? tgt : 0);
     }
     WebSerial.send("message", "Input Control Target list updated"); changed = true;
@@ -520,9 +648,35 @@ void handleUnifiedConfig(JSONVar obj) {
       int hi = (int)list[i]["upper"];
       setThresholds(i, lo, hi);
 
-      // level (direction-aware clamp)
-      int lvl = (int)list[i]["level"];
-      clampAndSetLevel(i, lvl);
+      // load type
+      if (list[i].hasOwnProperty("loadType")) {
+        int lt = (int)list[i]["loadType"];
+        chLoadType[i] = (uint8_t)constrain(lt, 0, 2);
+        mb.setHreg(HREG_LOADTYPE_BASE + i, chLoadType[i]);
+      }
+
+      // NEW: cutoff mode
+      if (list[i].hasOwnProperty("cutMode")) {
+        int cm = (int)list[i]["cutMode"];
+        chCutMode[i] = (uint8_t)constrain(cm, 0, 1);
+        mb.setHreg(HREG_CUTMODE_BASE + i, chCutMode[i]);
+      }
+
+      // preferred: percent setpoint
+      if (list[i].hasOwnProperty("percent")) {
+        double pct = (double)list[i]["percent"];
+        if ((LoadType)chLoadType[i] != LOAD_KEY) pct = constrain(pct, 0.0, 100.0); // key mode allows >100 as "max"
+        chPctX10[i] = (uint16_t)constrain((int)lround(pct*10.0), 0, 1000);
+        mb.setHreg(HREG_PCT_X10_BASE + i, chPctX10[i]);
+
+        uint8_t lvl = mapPercentToLevel(i, pct);
+        setLevelDirect(i, lvl);
+      }
+      // legacy fallback: direct level
+      else if (list[i].hasOwnProperty("level")) {
+        int lvl = (int)list[i]["level"];
+        clampAndSetLevel(i, lvl);
+      }
     }
     WebSerial.send("message", "Channels Configuration updated"); changed = true;
   } else if (type == "buttons") {
@@ -533,8 +687,8 @@ void handleUnifiedConfig(JSONVar obj) {
     WebSerial.send("message", "Buttons Configuration updated"); changed = true;
   } else if (type == "leds") {
     for (int i=0;i<NUM_LED && i<list.length();i++) {
-      ledCfg[i].mode = (uint8_t)constrain((int)list[i]["mode"], 0, 1); // 0 steady, 1 blink
-      int src = (int)list[i]["source"]; // 0=None, 1..2=CH1..CH2
+      ledCfg[i].mode = (uint8_t)constrain((int)list[i]["mode"], 0, 1);
+      int src = (int)list[i]["source"];
       ledCfg[i].source = (uint8_t)((src==0 || src==1 || src==2) ? src : 0);
     }
     WebSerial.send("message", "LEDs Configuration updated"); changed = true;
@@ -546,9 +700,6 @@ void handleUnifiedConfig(JSONVar obj) {
 }
 
 // ================== Helpers ==================
-// Thresholds change: keep lastNonZero within window.
-// If currently ON and below new lower -> clamp up to lower (threshold change is not a "decrease" gesture).
-// If currently ON and above new upper -> clamp down to upper.
 static inline void setThresholds(uint8_t ch, int lower, int upper) {
   if (ch >= NUM_CH) return;
   lower = constrain(lower, 0, 255);
@@ -564,17 +715,12 @@ static inline void setThresholds(uint8_t ch, int lower, int upper) {
     else if (chLevel[ch] > chUpper[ch]) chLevel[ch] = chUpper[ch];
   }
 
-  // reflect to Modbus holding regs
   mb.setHreg(HREG_DIM_LO_BASE + ch, chLower[ch]);
   mb.setHreg(HREG_DIM_HI_BASE + ch, chUpper[ch]);
   mb.setHreg(HREG_DIM_LEVEL_BASE + ch, chLevel[ch]);
 }
 
-// Direction-aware clamp:
-// - exact 0 -> 0
-// - >upper -> upper
-// - >=lower -> value
-// - 0<value<lower -> if currently OFF -> go to lower; if currently ON -> go to 0
+// Direction-aware clamp (legacy paths: buttons/DI/Modbus level writes)
 void clampAndSetLevel(uint8_t ch, int value) {
   if (ch >= NUM_CH) return;
   value = constrain(value, 0, 255);
@@ -582,39 +728,28 @@ void clampAndSetLevel(uint8_t ch, int value) {
   uint8_t cur = chLevel[ch];
   uint8_t out;
 
-  if (value == 0) {
-    out = 0;
-  } else if (value > chUpper[ch]) {
-    out = chUpper[ch];
-  } else if (value >= chLower[ch]) {
-    out = (uint8_t)value;
-  } else { // 0 < value < lower
-    if (cur == 0) out = chLower[ch];   // from OFF, small value means turn ON at minimum
-    else          out = 0;             // from ON, decrease below min means go OFF
-  }
+  if (value == 0) out = 0;
+  else if (value > chUpper[ch]) out = chUpper[ch];
+  else if (value >= chLower[ch]) out = (uint8_t)value;
+  else out = (cur == 0) ? chLower[ch] : 0;
 
-  chLevel[ch] = out;
-  if (out > 0) chLastNonZero[ch] = out;
-
-  // reflect to Modbus Hreg
-  mb.setHreg(HREG_DIM_LEVEL_BASE + ch, chLevel[ch]);
+  setLevelDirect(ch, out);
 }
 
-// Apply DI action to a dimmer target
 void applyActionToTarget(uint8_t target, uint8_t action, uint32_t now) {
   auto doCh = [&](int idx) {
     if (idx < 0 || idx >= NUM_CH) return;
-    if (action == 1) { // Toggle
+    if (action == 1) {
       if (chLevel[idx] == 0) clampAndSetLevel(idx, chLastNonZero[idx]);
       else clampAndSetLevel(idx, 0);
       chPulseUntil[idx] = 0;
-    } else if (action == 2) { // Pulse -> full then restore
+    } else if (action == 2) {
       chPulseUntil[idx] = now + PULSE_MS;
-      clampAndSetLevel(idx, 255); // will clamp to upper
+      clampAndSetLevel(idx, 255);
     }
   };
-  if (action == 0) return; // None
-  if (target == 4) return;  // None
+  if (action == 0) return;
+  if (target == 4) return;
 
   if (target == 0) { for (int i=0;i<NUM_CH;i++) doCh(i); }
   else if (target>=1 && target<=2) { doCh(target-1); }
@@ -622,9 +757,8 @@ void applyActionToTarget(uint8_t target, uint8_t action, uint32_t now) {
   cfgDirty = true; lastCfgTouchMs = now;
 }
 
-// Consume Modbus coils + handle Hreg writes
 void processModbusCommandPulses() {
-  // Channel ON/OFF
+  // Channel ON/OFF coils
   for (int c=0;c<NUM_CH;c++) {
     if (mb.Coil(CMD_CH_ON_BASE + c)) {
       mb.setCoil(CMD_CH_ON_BASE + c, false);
@@ -635,19 +769,43 @@ void processModbusCommandPulses() {
       clampAndSetLevel(c, 0); cfgDirty = true; lastCfgTouchMs = millis();
     }
   }
-  // DI enable/disable
+  // DI enable/disable coils
   for (int i=0;i<NUM_DI;i++) {
     if (mb.Coil(CMD_DI_EN_BASE + i))  { mb.setCoil(CMD_DI_EN_BASE + i,  false); if (!diCfg[i].enabled){ diCfg[i].enabled=true;  cfgDirty=true; lastCfgTouchMs=millis(); } }
     if (mb.Coil(CMD_DI_DIS_BASE + i)) { mb.setCoil(CMD_DI_DIS_BASE + i, false); if ( diCfg[i].enabled){ diCfg[i].enabled=false; cfgDirty=true; lastCfgTouchMs=millis(); } }
   }
-  // Levels + thresholds via holding registers (external masters can write)
-  for (int c=0;c<NUM_CH;c++) {
-    uint16_t lvl = mb.Hreg(HREG_DIM_LEVEL_BASE + c);
-    clampAndSetLevel(c, (int)lvl);
 
+  // HREG writes (levels + thresholds + percent/loadtype/cutmode)
+  for (int c=0;c<NUM_CH;c++) {
+    // Thresholds
     uint16_t lo = mb.Hreg(HREG_DIM_LO_BASE + c);
     uint16_t hi = mb.Hreg(HREG_DIM_HI_BASE + c);
     setThresholds(c, (int)lo, (int)hi);
+
+    // Load type
+    uint16_t lt = mb.Hreg(HREG_LOADTYPE_BASE + c);
+    lt = constrain((int)lt, 0, 2);
+    if (lt != chLoadType[c]) { chLoadType[c] = (uint8_t)lt; cfgDirty = true; lastCfgTouchMs = millis(); }
+
+    // Cutoff mode (NEW)
+    uint16_t cm = mb.Hreg(HREG_CUTMODE_BASE + c);
+    cm = constrain((int)cm, 0, 1);
+    if (cm != chCutMode[c]) { chCutMode[c] = (uint8_t)cm; cfgDirty = true; lastCfgTouchMs = millis(); }
+
+    // Percent setpoint (preferred)
+    uint16_t p10 = mb.Hreg(HREG_PCT_X10_BASE + c);
+    if (p10 > 1000 && chLoadType[c] != LOAD_KEY) p10 = 1000; // in KEY we allow >100% (treated as max)
+    if (p10 != chPctX10[c]) {
+      chPctX10[c] = p10;
+      double pct = chPctX10[c] / 10.0;
+      uint8_t lvl = mapPercentToLevel(c, pct);
+      setLevelDirect(c, lvl);
+      cfgDirty = true; lastCfgTouchMs = millis();
+    }
+
+    // Legacy direct level write still supported
+    uint16_t lvl = mb.Hreg(HREG_DIM_LEVEL_BASE + c);
+    clampAndSetLevel(c, (int)lvl);
   }
 }
 
@@ -655,15 +813,15 @@ JSONVar LedConfigListFromCfg() {
   JSONVar arr;
   for (int i = 0; i < NUM_LED; i++) {
     JSONVar o;
-    o["mode"]   = ledCfg[i].mode;   // 0 steady, 1 blink
-    o["source"] = ledCfg[i].source; // 0=None, 1..2=CH1..CH2
+    o["mode"]   = ledCfg[i].mode;
+    o["source"] = ledCfg[i].source;
     arr[i] = o;
   }
   return arr;
 }
 
 void sendAllEchoesOnce() {
-  // DI config
+  // DI config echoes
   JSONVar enableList, invertList, actionList, targetList;
   for (int i=0;i<NUM_DI;i++) { enableList[i]=diCfg[i].enabled; invertList[i]=diCfg[i].inverted; actionList[i]=diCfg[i].action; targetList[i]=diCfg[i].target; }
   WebSerial.send("enableList", enableList);
@@ -671,18 +829,24 @@ void sendAllEchoesOnce() {
   WebSerial.send("inputActionList", actionList);
   WebSerial.send("inputTargetList", targetList);
 
-  // Channels summary (enabled, level, thresholds)
-  JSONVar chEnabled, chLevels, chLowers, chUppers;
+  // Channels summary (enabled, level, thresholds, percent, loadType, cutMode)
+  JSONVar chEnabled, chLevels, chLowers, chUppers, chPercents, chTypes, cutModes;
   for (int i=0;i<NUM_CH;i++){
     chEnabled[i]=chCfg[i].enabled;
-    chLevels[i]= (int)chLevel[i];
+    chLevels[i]= (int)chLevel[i];        // 0..255 (actual for UI display)
     chLowers[i]= (int)chLower[i];
     chUppers[i]= (int)chUpper[i];
+    chPercents[i]= (int)min((int)(chPctX10[i]/10), 100); // echo 0..100
+    chTypes[i]= (int)chLoadType[i];
+    cutModes[i]= (int)chCutMode[i];
   }
   WebSerial.send("channelEnabled", chEnabled);
   WebSerial.send("channelLevels", chLevels);
   WebSerial.send("channelLower", chLowers);
   WebSerial.send("channelUpper", chUppers);
+  WebSerial.send("channelPercent", chPercents);
+  WebSerial.send("LoadTypeList", chTypes);
+  WebSerial.send("CutModeList", cutModes);   // NEW
 
   // Buttons mapping
   JSONVar ButtonGroupList; for (int i=0;i<NUM_BTN;i++) ButtonGroupList[i]=btnCfg[i].action;
@@ -690,17 +854,12 @@ void sendAllEchoesOnce() {
 
   WebSerial.send("LedConfigList", LedConfigListFromCfg());
 
-  // ZC monitor flags
-  JSONVar zcList;
-  for (int i=0;i<NUM_CH;i++) zcList[i] = zcOk[i];
+  // ZC flags + frequency
+  JSONVar zcList; for (int i=0;i<NUM_CH;i++) zcList[i] = zcOk[i];
   WebSerial.send("ZcOkList", zcList);
 
-  // >>> NEW: initial frequency list (Hz*100)
-  {
-    JSONVar freqList;
-    for (int i=0;i<NUM_CH;i++) freqList[i] = (int)freq_x100[i];
-    WebSerial.send("FreqX100List", freqList);
-  }
+  JSONVar freqList; for (int i=0;i<NUM_CH;i++) freqList[i] = (int)freq_x100[i];
+  WebSerial.send("FreqX100List", freqList);
 
   modbusStatus["address"] = g_mb_address;
   modbusStatus["baud"]    = g_mb_baud;
@@ -714,10 +873,9 @@ void loop() {
   mb.task();
   processModbusCommandPulses();
 
-  // Blink phase (for LED blink mode)
   if (now - lastBlinkToggle >= blinkPeriodMs) { lastBlinkToggle = now; blinkPhase = !blinkPhase; }
 
-  // ZC monitor: compute OK/fault & publish
+  // ZC presence/fault status
   for (int c=0;c<NUM_CH;c++) {
     bool ok = ((uint32_t)(now - zcLastEdgeMs[c]) <= ZC_FAULT_TIMEOUT_MS);
     zcOk[c] = ok;
@@ -725,36 +883,41 @@ void loop() {
 
     if (zcOk[c] != zcPrevOk[c]) {
       zcPrevOk[c] = zcOk[c];
-      if (ok) {
-        WebSerial.send("message", String("CH") + (c+1) + ": AC present (zero-cross OK)");
-      } else {
-        WebSerial.send("message", String("CH") + (c+1) + ": No AC on L-N detected — check wiring");
-      }
+      if (ok) WebSerial.send("message", String("CH") + (c+1) + ": AC present (zero-cross OK)");
+      else    WebSerial.send("message", String("CH") + (c+1) + ": No AC on L-N detected — check wiring");
     }
   }
 
-  // >>> NEW: Frequency estimation (EMA smoothing) and publishing into HREGs
-  {
-    constexpr double ALPHA = 0.2; // 0..1 (higher = faster)
-    for (uint8_t ch=0; ch<NUM_CH; ++ch) {
-      uint32_t sc = zcDeltaSampleCount[ch];
-      if (sc != lastConsumedSample[ch]) {
-        // Pull latest half-cycle sample atomically
-        noInterrupts();
-        uint32_t halfUs = zcLastDeltaHalfUs[ch];
-        interrupts();
+  // Frequency estimator (median-of-3 -> moving average of 32)
+  for (uint8_t ch=0; ch<NUM_CH; ++ch) {
+    uint32_t seq = zcSampleSeq[ch];
+    if (seq != lastSeqConsumed[ch]) {
+      noInterrupts();
+      uint32_t half = zcHalfUsLatest[ch];
+      interrupts();
 
-        if (halfUs >= HALF_MIN_US && halfUs <= HALF_MAX_US) {
-          halfUsFilt[ch] = (ALPHA * (double)halfUs) + ((1.0 - ALPHA) * halfUsFilt[ch]);
-          // f_x100 = 50,000,000 / half_us
-          double fx100 = 50000000.0 / halfUsFilt[ch];
-          if (fx100 < 0.0) fx100 = 0.0;
-          if (fx100 > 65535.0) fx100 = 65535.0;
-          freq_x100[ch] = (uint16_t)lround(fx100);
-          mb.setHreg(HREG_FREQ_X100_BASE + ch, freq_x100[ch]);
-        }
-        lastConsumedSample[ch] = sc;
-      }
+      med3[ch][medIdx[ch] % MED_W] = half;
+      medIdx[ch]++;
+      uint32_t a=med3[ch][0], b=med3[ch][1], c=med3[ch][2];
+      uint32_t med = (a>b) ? ((b>c)? b : (a>c? c:a)) : ((a>c)? a : (b>c? c:b));
+
+      avgSum[ch] -= avgBuf[ch][avgIdx[ch]];
+      avgBuf[ch][avgIdx[ch]] = med;
+      avgSum[ch] += med;
+      avgIdx[ch] = (avgIdx[ch] + 1) % AVG_N;
+
+      double mean_half = corr_half_us((double)avgSum[ch] / (double)AVG_N);
+      double fx100 = 50000000.0 / mean_half; // 100*1e6 / (2*half_us)
+      if (fx100 < 0.0) fx100 = 0.0;
+      if (fx100 > 65535.0) fx100 = 65535.0;
+      freq_x100[ch] = (uint16_t)lround(fx100);
+      mb.setHreg(HREG_FREQ_X100_BASE + ch, freq_x100[ch]);
+
+      uint32_t stable_half = (uint32_t)lround(mean_half);
+      if (stable_half < HALF_MIN_US || stable_half > HALF_MAX_US) stable_half = HALF_US_DEFAULT;
+      gateHalfUs[ch] = stable_half;
+
+      lastSeqConsumed[ch] = seq;
     }
   }
 
@@ -765,15 +928,15 @@ void loop() {
     cfgDirty = false;
   }
 
-  // -------- Buttons: read (ACTIVE-LOW), rising edge ----------
+  // Buttons (ACTIVE-LOW)
   for (int i = 0; i < NUM_BTN; i++) {
     bool pressed = (digitalRead(BTN_PINS[i]) == LOW);
     buttonPrev[i] = buttonState[i];
     buttonState[i] = pressed;
     if (!buttonPrev[i] && buttonState[i]) {
       switch (btnCfg[i].action) {
-        case 1: applyActionToTarget(1, 1 /*toggle*/, now); break;
-        case 2: applyActionToTarget(2, 1 /*toggle*/, now); break;
+        case 1: applyActionToTarget(1, 1, now); break;
+        case 2: applyActionToTarget(2, 1, now); break;
         case 3: clampAndSetLevel(0, chLevel[0] + 10); cfgDirty=true; lastCfgTouchMs=now; break;
         case 4: clampAndSetLevel(0, chLevel[0] - 10); cfgDirty=true; lastCfgTouchMs=now; break;
         case 5: clampAndSetLevel(1, chLevel[1] + 10); cfgDirty=true; lastCfgTouchMs=now; break;
@@ -783,7 +946,7 @@ void loop() {
     }
   }
 
-  // -------- Inputs (4) with Actions & Targets ----------
+  // Inputs (4)
   JSONVar inputs;
   for (int i = 0; i < NUM_DI; i++) {
     bool val = false;
@@ -797,16 +960,15 @@ void loop() {
     inputs[i] = val;
     mb.setIsts(ISTS_DI_BASE + i, val);
 
-    // Edge detection
     bool rising  = (!prev && val);
     bool falling = (prev && !val);
 
     uint8_t act = diCfg[i].action;
-    if (act == 1) { if (rising || falling) { applyActionToTarget(diCfg[i].target, 1 /*toggle*/, now); } }
-    else if (act == 2) { if (rising) { applyActionToTarget(diCfg[i].target, 2 /*pulse*/, now); } }
+    if (act == 1) { if (rising || falling) { applyActionToTarget(diCfg[i].target, 1, now); } }
+    else if (act == 2) { if (rising) { applyActionToTarget(diCfg[i].target, 2, now); } }
   }
 
-  // Handle pulse timeout restore
+  // Pulse timeout restore
   for (int c=0;c<NUM_CH;c++) {
     if (chPulseUntil[c] != 0 && timeAfter32(now, chPulseUntil[c])) {
       clampAndSetLevel(c, chLastNonZero[c]);
@@ -814,11 +976,11 @@ void loop() {
     }
   }
 
-  // -------- Channel "on" states & LEDs ----------
+  // LEDs
   JSONVar LedStateList;
   for (int i=0;i<NUM_LED;i++) {
     bool srcActive = false;
-    uint8_t src = ledCfg[i].source; // 0=None, 1..2
+    uint8_t src = ledCfg[i].source;
     if (src >= 1 && src <= 2) {
       int c = src - 1;
       bool chOn = (chCfg[c].enabled && chLevel[c] > 0);
@@ -830,30 +992,24 @@ void loop() {
     mb.setIsts(ISTS_LED_BASE + i, phys);
   }
 
-  // Push channel "on" discrete inputs
+  // Channel "on" discrete inputs
   for (int c=0;c<NUM_CH;c++) {
     bool on = (chCfg[c].enabled && chLevel[c] > 0);
     mb.setIsts(ISTS_CH_BASE + c, on);
   }
 
-  // -------- WebSerial UI updates --------
+  // WebSerial UI updates
   if (millis() - lastSend >= sendInterval) {
     lastSend = millis();
     WebSerial.check();
 
-    // ZC monitor arrays in status & dedicated list
-    JSONVar zcList;
-    for (int i=0;i<NUM_CH;i++) zcList[i] = zcOk[i];
+    JSONVar zcList; for (int i=0;i<NUM_CH;i++) zcList[i] = zcOk[i];
     modbusStatus["zc_ok"] = zcList;
     WebSerial.send("ZcOkList", zcList);
 
-    // >>> NEW: frequency list (Hz*100) + embed in status
-    {
-      JSONVar freqList;
-      for (int i=0;i<NUM_CH;i++) freqList[i] = (int)freq_x100[i];
-      WebSerial.send("FreqX100List", freqList);
-      modbusStatus["freq_x100"] = freqList;
-    }
+    JSONVar freqList; for (int i=0;i<NUM_CH;i++) freqList[i] = (int)freq_x100[i];
+    WebSerial.send("FreqX100List", freqList);
+    modbusStatus["freq_x100"] = freqList;
 
     WebSerial.send("status", modbusStatus);
 
@@ -861,16 +1017,19 @@ void loop() {
     for (int i=0;i<NUM_DI;i++) {
       invertList[i] = diCfg[i].inverted;
       enableList[i] = diCfg[i].enabled;
-      actionList[i] = diCfg[i].action; // 0=None,1=Toggle,2=Pulse
-      targetList[i] = diCfg[i].target; // 4=None,0=All,1..2
+      actionList[i] = diCfg[i].action;
+      targetList[i] = diCfg[i].target;
     }
 
-    JSONVar channelEnabled, channelLevels, channelLower, channelUpper;
+    JSONVar channelEnabled, channelLevels, channelLower, channelUpper, channelPercent, loadTypes, cutModes;
     for (int i=0;i<NUM_CH;i++) {
       channelEnabled[i] = chCfg[i].enabled;
-      channelLevels[i]  = (int)chLevel[i];
+      channelLevels[i]  = (int)chLevel[i];             // show 0..255
       channelLower[i]   = (int)chLower[i];
       channelUpper[i]   = (int)chUpper[i];
+      channelPercent[i] = (int)min((int)(chPctX10[i]/10), 100); // echo 0..100 for UI
+      loadTypes[i]      = (int)chLoadType[i];
+      cutModes[i]       = (int)chCutMode[i];           // NEW
     }
 
     JSONVar ButtonStateList, ButtonGroupList;
@@ -890,6 +1049,9 @@ void loop() {
     WebSerial.send("channelLevels", channelLevels);
     WebSerial.send("channelLower", channelLower);
     WebSerial.send("channelUpper", channelUpper);
+    WebSerial.send("channelPercent", channelPercent);  // UI should send this back on change
+    WebSerial.send("LoadTypeList", loadTypes);
+    WebSerial.send("CutModeList",  cutModes);          // NEW
     WebSerial.send("ButtonStateList", ButtonStateList);
     WebSerial.send("ButtonGroupList", ButtonGroupList);
     WebSerial.send("LedConfigList", LedConfigList);
