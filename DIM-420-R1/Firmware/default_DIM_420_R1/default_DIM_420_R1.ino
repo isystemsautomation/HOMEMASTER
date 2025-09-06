@@ -5,20 +5,22 @@ struct PersistConfig;
  * DIM-420-R1 — RP2350A (Pico 2) firmware (DROP-IN)
  * - 4× DI:     GPIO8, GPIO9, GPIO15, GPIO16
  * - 2× DIM:    CH1 ZC=GPIO0, Gate=GPIO1; CH2 ZC=GPIO2, Gate=GPIO3
- * - 4× BTN:    GPIO22..25 (active-LOW)
+ * - 4× BTN:    GPIO22..25 (board buttons; schematic is INVERTED)
  * - 4× LEDs:   GPIO18..21 (active-HIGH)
  * - Modbus/RS485 on Serial2: TX=GPIO4, RX=GPIO5
  *
  * Additions:
  * - 50/60 Hz auto: robust per-channel mains frequency estimation (centi-Hz)
  * - Per-channel Load Type: 0=Lamp (log map), 1=Heater (linear), 2=Key
- * - NEW: Per-channel Cutoff Mode for MOSFET dimmer:
+ * - Per-channel Cutoff Mode for MOSFET dimmer:
  *        0 = Leading edge (RL type load), 1 = Trailing edge (RC type load)
  * - Percent setpoint input (0–100%), mapped to level 0–255 with thresholds
  * - Modbus HREG 440..441 => setpoint percent ×10 (0..1000)
  * - Modbus HREG 460..461 => load type (0,1,2)
- * - NEW: Modbus HREG 470..471 => cutoff mode (0=Leading, 1=Trailing)
- * - UI still shows actual 0–255 & thresholds; UI sends percent (+ optional cutMode)
+ * - Modbus HREG 470..471 => cutoff mode (0=Leading, 1=Trailing)
+ * - NEW: Per-channel Preset Level (used on toggle from DI/BTN)
+ *        Modbus HREG 480..481 => preset level (0..255)
+ * - UI still shows actual 0–255 & thresholds; UI sends percent / preset (+ optional cutMode)
  **************************************************************/
 
 #include <Arduino.h>
@@ -46,7 +48,7 @@ static const uint8_t ZC_PINS[2]   = {0, 2};       // CH1/CH2 zero-cross
 static const uint8_t GATE_PINS[2] = {1, 3};       // CH1/CH2 gate (MOSFET driver)
 // User LEDs (active-HIGH)
 static const uint8_t LED_PINS[4]  = {18, 19, 20, 21};
-// Buttons (active-LOW, internal pullups)
+// Buttons (schematic inverted: active-HIGH, use INPUT_PULLDOWN or pad with logic)
 static const uint8_t BTN_PINS[4]  = {22, 23, 24, 25};
 
 // ================== Sizes ==================
@@ -63,7 +65,7 @@ constexpr uint32_t GATE_PULSE_US    = 120u;   // kept for compatibility (not use
 
 // ---- State (volatile: accessed in ISR) ----
 volatile uint8_t  chLevel[NUM_CH] = {0,0};           // 0..255 current
-volatile uint8_t  chLastNonZero[NUM_CH] = {200,200}; // remembered for toggles
+volatile uint8_t  chLastNonZero[NUM_CH] = {200,200}; // remembered last non-zero
 
 // ================== Config & runtime ==================
 struct InCfg { bool enabled; bool inverted; uint8_t action; uint8_t target; };
@@ -127,6 +129,9 @@ uint16_t chPctX10[NUM_CH]   = {0,0};   // percent ×10 (0..1000)
 enum CutMode : uint8_t { CUT_LEADING=0, CUT_TRAILING=1 };
 uint8_t chCutMode[NUM_CH] = {CUT_LEADING, CUT_LEADING};
 
+// ================== NEW: Per-channel preset level (used by toggle) ==================
+uint8_t chPreset[NUM_CH] = {200,200};
+
 // ================== Web Serial & Modbus status ==================
 SimpleWebSerial WebSerial;
 JSONVar modbusStatus;
@@ -157,15 +162,16 @@ struct PersistConfig {
   uint8_t chUpper[NUM_CH];
   uint8_t chLoadType[NUM_CH];
   uint16_t chPctX10[NUM_CH];
-  uint8_t chCutMode[NUM_CH];   // NEW
+  uint8_t chCutMode[NUM_CH];
+  uint8_t chPreset[NUM_CH];         // NEW
   uint8_t mb_address;
   uint32_t mb_baud;
   uint32_t crc32;
 } __attribute__((packed));
 
 static const uint32_t CFG_MAGIC   = 0x314D4449UL; // 'IDM1'
-// VERSION BUMP for cutoff mode
-static const uint16_t CFG_VERSION = 0x0004;
+// VERSION BUMP for preset support
+static const uint16_t CFG_VERSION = 0x0005;
 static const char*    CFG_PATH    = "/cfg.bin";
 
 volatile bool   cfgDirty       = false;
@@ -249,16 +255,18 @@ void zc_isr_ch0(){ zc_isr_common(0); }
 void zc_isr_ch1(){ zc_isr_common(1); }
 
 // ================== Mapping helpers (percent -> level) ==================
-constexpr double LAMP_LOG_K = 9.0; // larger => more expansion at low end
+constexpr double LAMP_LOG_MAX = 6.0;  // log "top". log=1 -> lower, log=LMAX -> upper
 inline uint8_t clamp8(int v){ return (uint8_t)constrain(v, 0, 255); }
 
+// Lamp mapping (unchanged)
 uint8_t mapLampPercentToLevel(uint8_t ch, double pct) {
   if (pct <= 0.0) return 0;
-  if (pct < 1.0)  return chLower[ch];
   if (pct > 100.0) pct = 100.0;
-  double x = pct;
-  double y = (log(1.0 + LAMP_LOG_K * (x/100.0)) / log(1.0 + LAMP_LOG_K)) * 255.0;
-  int lvl = (int)lround(y);
+  if (pct <= 1.0) return chLower[ch];
+  const double L = 1.0 + (LAMP_LOG_MAX - 1.0) * ((pct - 1.0) / 99.0);
+  const double t = (L - 1.0) / (LAMP_LOG_MAX - 1.0);
+  const double span = (double)(chUpper[ch] - chLower[ch]);
+  int lvl = (int)lround(chLower[ch] + t * span);
   if (lvl > 0 && lvl < chLower[ch]) lvl = chLower[ch];
   if (lvl > chUpper[ch]) lvl = chUpper[ch];
   return clamp8(lvl);
@@ -275,10 +283,10 @@ uint8_t mapHeaterPercentToLevel(uint8_t ch, double pct) {
   return clamp8(lvl);
 }
 
+// KEY mode per user spec: 0% => 0 (off); >0% => go to maximum threshold
 uint8_t mapKeyPercentToLevel(uint8_t ch, double pct) {
-  if (pct <= 0.0)   return 0;
-  if (pct >= 100.0) return chUpper[ch];
-  return chLower[ch];
+  if (pct <= 0.0) return 0;
+  return chUpper[ch];
 }
 
 uint8_t mapPercentToLevel(uint8_t ch, double pct) {
@@ -298,6 +306,13 @@ void setLevelDirect(uint8_t ch, uint8_t lvl) {
 
 // ================== Defaults / persist ==================
 static inline void setThresholds(uint8_t ch, int lower, int upper);
+static inline void clampAndApplyPreset(uint8_t ch) {
+  if (ch >= NUM_CH) return;
+  if (chPreset[ch] > 0) {
+    if (chPreset[ch] < chLower[ch]) chPreset[ch] = chLower[ch];
+    if (chPreset[ch] > chUpper[ch]) chPreset[ch] = chUpper[ch];
+  }
+}
 
 void initFreqEstimator() {
   for (int i=0;i<NUM_CH;i++) {
@@ -332,6 +347,7 @@ void setDefaults() {
     chLoadType[i] = LOAD_LAMP;
     chPctX10[i]   = 0;
     chCutMode[i]  = CUT_LEADING; // default
+    chPreset[i]   = 200;         // default preset
   }
 
   g_mb_address = 3;
@@ -358,7 +374,8 @@ void captureToPersist(PersistConfig &pc) {
     pc.chUpper[i]       = chUpper[i];
     pc.chLoadType[i]    = chLoadType[i];
     pc.chPctX10[i]      = chPctX10[i];
-    pc.chCutMode[i]     = chCutMode[i]; // NEW
+    pc.chCutMode[i]     = chCutMode[i];
+    pc.chPreset[i]      = chPreset[i];
   }
 
   pc.mb_address = g_mb_address;
@@ -388,6 +405,9 @@ bool applyFromPersist(const PersistConfig &pc) {
     chLoadType[i]    = (pc.chLoadType[i] <= LOAD_KEY) ? pc.chLoadType[i] : LOAD_LAMP;
     chPctX10[i]      = (pc.chPctX10[i] > 1000) ? 1000 : pc.chPctX10[i];
     chCutMode[i]     = (pc.chCutMode[i] <= CUT_TRAILING) ? pc.chCutMode[i] : CUT_LEADING;
+    chPreset[i]      = pc.chPreset[i];
+
+    clampAndApplyPreset(i);
 
     uint8_t lvl = pc.chLevel[i];
     if (lvl == 0) chLevel[i] = 0;
@@ -479,7 +499,8 @@ enum : uint16_t {
   HREG_FREQ_X100_BASE   = 430,  // 430..431: Hz ×100
   HREG_PCT_X10_BASE     = 440,  // 440..441: setpoint percent ×10 (0..1000)
   HREG_LOADTYPE_BASE    = 460,  // 460..461: 0=Lamp,1=Heater,2=Key
-  HREG_CUTMODE_BASE     = 470   // 470..471: 0=Leading,1=Trailing   (NEW)
+  HREG_CUTMODE_BASE     = 470,  // 470..471: 0=Leading,1=Trailing
+  HREG_PRESET_BASE      = 480   // 480..481: preset level (0..255)  NEW
 };
 
 // ================== Fw decls (helpers) ==================
@@ -501,7 +522,8 @@ void setup() {
   // GPIO directions
   for (uint8_t i=0;i<NUM_DI;i++) pinMode(DI_PINS[i], INPUT);
   for (uint8_t i=0;i<NUM_LED;i++) { pinMode(LED_PINS[i], OUTPUT); digitalWrite(LED_PINS[i], LOW); }
-  for (uint8_t i=0;i<NUM_BTN;i++) pinMode(BTN_PINS[i], INPUT_PULLUP);
+  // Schematic says user buttons are inverted (active-HIGH). Use INPUT and read HIGH as "pressed".
+  for (uint8_t i=0;i<NUM_BTN;i++) pinMode(BTN_PINS[i], INPUT);
 
   // Dimmer pins
   for (uint8_t i=0;i<NUM_CH;i++) { pinMode(GATE_PINS[i], OUTPUT); digitalWrite(GATE_PINS[i], LOW); }
@@ -538,7 +560,8 @@ void setup() {
     mb.addHreg(HREG_FREQ_X100_BASE + i, freq_x100[i]);
     mb.addHreg(HREG_PCT_X10_BASE   + i, chPctX10[i]);
     mb.addHreg(HREG_LOADTYPE_BASE  + i, chLoadType[i]);
-    mb.addHreg(HREG_CUTMODE_BASE   + i, chCutMode[i]); // NEW
+    mb.addHreg(HREG_CUTMODE_BASE   + i, chCutMode[i]);
+    mb.addHreg(HREG_PRESET_BASE    + i, chPreset[i]); // NEW
   }
 
   for (uint16_t i=0;i<NUM_CH;i++){ mb.addCoil(CMD_CH_ON_BASE + i);  mb.setCoil(CMD_CH_ON_BASE + i,  false); }
@@ -553,7 +576,7 @@ void setup() {
   WebSerial.on("values",  handleValues);
   WebSerial.on("Config",  handleUnifiedConfig);
   WebSerial.on("command", handleCommand);
-  WebSerial.send("message", "Boot OK (50/60 Hz auto, LoadType+Percent, MOSFET Leading/Trailing)");
+  WebSerial.send("message", "Boot OK (50/60 Hz auto, LoadType+Percent, CutMode, Preset; BTN inverted)");
   sendAllEchoesOnce();
 }
 
@@ -615,7 +638,8 @@ void handleValues(JSONVar values) {
 //  - lower (0..255), upper (0..255)
 //  - percent (double 0..100)  <<< preferred
 //  - loadType (0,1,2)
-//  - cutMode (0=Leading,1=Trailing)  <<< NEW
+//  - cutMode (0=Leading,1=Trailing)
+//  - preset (0..255)          <<< NEW
 //  - level (0..255)           (legacy fallback)
 void handleUnifiedConfig(JSONVar obj) {
   const char* t = (const char*)obj["t"];
@@ -655,17 +679,26 @@ void handleUnifiedConfig(JSONVar obj) {
         mb.setHreg(HREG_LOADTYPE_BASE + i, chLoadType[i]);
       }
 
-      // NEW: cutoff mode
+      // cutoff mode
       if (list[i].hasOwnProperty("cutMode")) {
         int cm = (int)list[i]["cutMode"];
         chCutMode[i] = (uint8_t)constrain(cm, 0, 1);
         mb.setHreg(HREG_CUTMODE_BASE + i, chCutMode[i]);
       }
 
+      // preset (NEW)
+      if (list[i].hasOwnProperty("preset")) {
+        int pv = (int)list[i]["preset"];
+        pv = constrain(pv, 0, 255);
+        chPreset[i] = (uint8_t)pv;
+        clampAndApplyPreset(i);
+        mb.setHreg(HREG_PRESET_BASE + i, chPreset[i]);
+      }
+
       // preferred: percent setpoint
       if (list[i].hasOwnProperty("percent")) {
         double pct = (double)list[i]["percent"];
-        if ((LoadType)chLoadType[i] != LOAD_KEY) pct = constrain(pct, 0.0, 100.0); // key mode allows >100 as "max"
+        if ((LoadType)chLoadType[i] != LOAD_KEY) pct = constrain(pct, 0.0, 100.0); // KEY allows >0 => max
         chPctX10[i] = (uint16_t)constrain((int)lround(pct*10.0), 0, 1000);
         mb.setHreg(HREG_PCT_X10_BASE + i, chPctX10[i]);
 
@@ -709,6 +742,7 @@ static inline void setThresholds(uint8_t ch, int lower, int upper) {
   chUpper[ch] = (uint8_t)upper;
 
   chLastNonZero[ch] = constrain(chLastNonZero[ch], chLower[ch], chUpper[ch]);
+  clampAndApplyPreset(ch);
 
   if (chLevel[ch] > 0) {
     if (chLevel[ch] < chLower[ch]) chLevel[ch] = chLower[ch];
@@ -740,7 +774,8 @@ void applyActionToTarget(uint8_t target, uint8_t action, uint32_t now) {
   auto doCh = [&](int idx) {
     if (idx < 0 || idx >= NUM_CH) return;
     if (action == 1) {
-      if (chLevel[idx] == 0) clampAndSetLevel(idx, chLastNonZero[idx]);
+      // Toggle -> use PRESET when turning ON (NEW)
+      if (chLevel[idx] == 0) clampAndSetLevel(idx, chPreset[idx]);
       else clampAndSetLevel(idx, 0);
       chPulseUntil[idx] = 0;
     } else if (action == 2) {
@@ -762,11 +797,13 @@ void processModbusCommandPulses() {
   for (int c=0;c<NUM_CH;c++) {
     if (mb.Coil(CMD_CH_ON_BASE + c)) {
       mb.setCoil(CMD_CH_ON_BASE + c, false);
-      clampAndSetLevel(c, chLastNonZero[c]); cfgDirty = true; lastCfgTouchMs = millis();
+      clampAndSetLevel(c, chPreset[c]); // use preset when ON
+      cfgDirty = true; lastCfgTouchMs = millis();
     }
     if (mb.Coil(CMD_CH_OFF_BASE + c)) {
       mb.setCoil(CMD_CH_OFF_BASE + c, false);
-      clampAndSetLevel(c, 0); cfgDirty = true; lastCfgTouchMs = millis();
+      clampAndSetLevel(c, 0);
+      cfgDirty = true; lastCfgTouchMs = millis();
     }
   }
   // DI enable/disable coils
@@ -775,7 +812,7 @@ void processModbusCommandPulses() {
     if (mb.Coil(CMD_DI_DIS_BASE + i)) { mb.setCoil(CMD_DI_DIS_BASE + i, false); if ( diCfg[i].enabled){ diCfg[i].enabled=false; cfgDirty=true; lastCfgTouchMs=millis(); } }
   }
 
-  // HREG writes (levels + thresholds + percent/loadtype/cutmode)
+  // HREG writes (levels + thresholds + percent/loadtype/cutmode/preset)
   for (int c=0;c<NUM_CH;c++) {
     // Thresholds
     uint16_t lo = mb.Hreg(HREG_DIM_LO_BASE + c);
@@ -787,14 +824,23 @@ void processModbusCommandPulses() {
     lt = constrain((int)lt, 0, 2);
     if (lt != chLoadType[c]) { chLoadType[c] = (uint8_t)lt; cfgDirty = true; lastCfgTouchMs = millis(); }
 
-    // Cutoff mode (NEW)
+    // Cutoff mode
     uint16_t cm = mb.Hreg(HREG_CUTMODE_BASE + c);
     cm = constrain((int)cm, 0, 1);
     if (cm != chCutMode[c]) { chCutMode[c] = (uint8_t)cm; cfgDirty = true; lastCfgTouchMs = millis(); }
 
+    // Preset (NEW)
+    uint16_t pv = mb.Hreg(HREG_PRESET_BASE + c);
+    pv = constrain((int)pv, 0, 255);
+    if (pv != chPreset[c]) {
+      chPreset[c] = (uint8_t)pv;
+      clampAndApplyPreset(c);
+      cfgDirty = true; lastCfgTouchMs = millis();
+    }
+
     // Percent setpoint (preferred)
     uint16_t p10 = mb.Hreg(HREG_PCT_X10_BASE + c);
-    if (p10 > 1000 && chLoadType[c] != LOAD_KEY) p10 = 1000; // in KEY we allow >100% (treated as max)
+    if (p10 > 1000 && chLoadType[c] != LOAD_KEY) p10 = 1000; // KEY: >0 => max
     if (p10 != chPctX10[c]) {
       chPctX10[c] = p10;
       double pct = chPctX10[c] / 10.0;
@@ -829,8 +875,8 @@ void sendAllEchoesOnce() {
   WebSerial.send("inputActionList", actionList);
   WebSerial.send("inputTargetList", targetList);
 
-  // Channels summary (enabled, level, thresholds, percent, loadType, cutMode)
-  JSONVar chEnabled, chLevels, chLowers, chUppers, chPercents, chTypes, cutModes;
+  // Channels summary (enabled, level, thresholds, percent, loadType, cutMode, preset)
+  JSONVar chEnabled, chLevels, chLowers, chUppers, chPercents, chTypes, cutModes, chPresets;
   for (int i=0;i<NUM_CH;i++){
     chEnabled[i]=chCfg[i].enabled;
     chLevels[i]= (int)chLevel[i];        // 0..255 (actual for UI display)
@@ -839,6 +885,7 @@ void sendAllEchoesOnce() {
     chPercents[i]= (int)min((int)(chPctX10[i]/10), 100); // echo 0..100
     chTypes[i]= (int)chLoadType[i];
     cutModes[i]= (int)chCutMode[i];
+    chPresets[i]= (int)chPreset[i];
   }
   WebSerial.send("channelEnabled", chEnabled);
   WebSerial.send("channelLevels", chLevels);
@@ -846,7 +893,8 @@ void sendAllEchoesOnce() {
   WebSerial.send("channelUpper", chUppers);
   WebSerial.send("channelPercent", chPercents);
   WebSerial.send("LoadTypeList", chTypes);
-  WebSerial.send("CutModeList", cutModes);   // NEW
+  WebSerial.send("CutModeList", cutModes);
+  WebSerial.send("channelPreset", chPresets);   // NEW
 
   // Buttons mapping
   JSONVar ButtonGroupList; for (int i=0;i<NUM_BTN;i++) ButtonGroupList[i]=btnCfg[i].action;
@@ -928,9 +976,9 @@ void loop() {
     cfgDirty = false;
   }
 
-  // Buttons (ACTIVE-LOW)
+  // Buttons — schematic inverted: HIGH = pressed (NEW)
   for (int i = 0; i < NUM_BTN; i++) {
-    bool pressed = (digitalRead(BTN_PINS[i]) == LOW);
+    bool pressed = (digitalRead(BTN_PINS[i]) == HIGH);
     buttonPrev[i] = buttonState[i];
     buttonState[i] = pressed;
     if (!buttonPrev[i] && buttonState[i]) {
@@ -1021,7 +1069,7 @@ void loop() {
       targetList[i] = diCfg[i].target;
     }
 
-    JSONVar channelEnabled, channelLevels, channelLower, channelUpper, channelPercent, loadTypes, cutModes;
+    JSONVar channelEnabled, channelLevels, channelLower, channelUpper, channelPercent, loadTypes, cutModes, channelPreset;
     for (int i=0;i<NUM_CH;i++) {
       channelEnabled[i] = chCfg[i].enabled;
       channelLevels[i]  = (int)chLevel[i];             // show 0..255
@@ -1029,7 +1077,8 @@ void loop() {
       channelUpper[i]   = (int)chUpper[i];
       channelPercent[i] = (int)min((int)(chPctX10[i]/10), 100); // echo 0..100 for UI
       loadTypes[i]      = (int)chLoadType[i];
-      cutModes[i]       = (int)chCutMode[i];           // NEW
+      cutModes[i]       = (int)chCutMode[i];
+      channelPreset[i]  = (int)chPreset[i];
     }
 
     JSONVar ButtonStateList, ButtonGroupList;
@@ -1051,7 +1100,8 @@ void loop() {
     WebSerial.send("channelUpper", channelUpper);
     WebSerial.send("channelPercent", channelPercent);  // UI should send this back on change
     WebSerial.send("LoadTypeList", loadTypes);
-    WebSerial.send("CutModeList",  cutModes);          // NEW
+    WebSerial.send("CutModeList",  cutModes);
+    WebSerial.send("channelPreset", channelPreset);    // NEW
     WebSerial.send("ButtonStateList", ButtonStateList);
     WebSerial.send("ButtonGroupList", ButtonGroupList);
     WebSerial.send("LedConfigList", LedConfigList);
