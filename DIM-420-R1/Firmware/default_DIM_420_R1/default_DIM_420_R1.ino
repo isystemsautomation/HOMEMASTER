@@ -2,29 +2,10 @@
 struct PersistConfig;
 
 /**************************************************************
- * DIM-420-R1 — RP2350A (Pico 2) firmware (DROP-IN)
- * - 4× DI:     GPIO8, GPIO9, GPIO15, GPIO16
- * - 2× DIM:    CH1 ZC=GPIO0, Gate=GPIO1; CH2 ZC=GPIO2, Gate=GPIO3
- * - 4× BTN:    GPIO22..25 (board buttons; schematic is INVERTED)
- * - 4× LEDs:   GPIO18..21 (active-HIGH)
- * - Modbus/RS485 on Serial2: TX=GPIO4, RX=GPIO5
- *
- * Additions:
- * - 50/60 Hz auto: robust per-channel mains frequency estimation (centi-Hz)
- * - Per-channel Load Type: 0=Lamp (log map), 1=Heater (linear), 2=Key
- * - Per-channel Cutoff Mode for MOSFET dimmer:
- *        0 = Leading edge (RL type load), 1 = Trailing edge (RC type load)
- * - Percent setpoint input (0–100%), mapped to level 0–255 with thresholds
- * - Modbus HREG 440..441 => setpoint percent ×10 (0..1000)
- * - Modbus HREG 460..461 => load type (0,1,2)
- * - Modbus HREG 470..471 => cutoff mode (0=Leading, 1=Trailing)
- * - Per-channel Preset Level (used on toggle from DI/BTN)
- *        Modbus HREG 480..481 => preset level (0..255)
- * - Digital Inputs model: Switch Type (Momentary/Latching),
- *        4 press types (Short/Long/DoubleShort/ShortThenLong) with per-press Action+Target,
- *        and Latching modes (ToggleToPresetOr0, PingPongUntilToggle).
- * - NEW: Debounced AC presence reporting (prevents log flapping)
- * - NEW: "echo" command sends a full state snapshot on demand
+ * DIM-420-R1 — RP2350A (Pico 2) firmware (QUIET WEB CONFIG)
+ * - Sends a compact JSON "config" snapshot via WebSerial once/second
+ * - Waits for settings from WebConfig ("values", "Config")
+ * - No handshakes/hello/echo/status messages
  **************************************************************/
 
 #include <Arduino.h>
@@ -52,7 +33,7 @@ static const uint8_t ZC_PINS[2]   = {0, 2};       // CH1/CH2 zero-cross
 static const uint8_t GATE_PINS[2] = {1, 3};       // CH1/CH2 gate (MOSFET driver)
 // User LEDs (active-HIGH)
 static const uint8_t LED_PINS[4]  = {18, 19, 20, 21};
-// Buttons (schematic inverted: active-HIGH, use INPUT)
+// Buttons (schematic inverted: active-HIGH)
 static const uint8_t BTN_PINS[4]  = {22, 23, 24, 25};
 
 // ================== Sizes ==================
@@ -65,47 +46,21 @@ static const uint8_t NUM_BTN  = 4;
 constexpr uint32_t HALF_US_DEFAULT  = 10000u; // fallback (50 Hz)
 constexpr uint32_t ZC_BLANK_US      = 100u;   // guard after ZC before switching
 constexpr uint32_t MOS_OFF_GUARD_US = 150u;   // guard before next ZC to switch OFF
-constexpr uint32_t GATE_PULSE_US    = 120u;   // kept for compatibility (not used for MOSFET)
+constexpr uint32_t GATE_PULSE_US    = 120u;   // (not used, MOSFET windows are timed)
 
 // ---- State (volatile: accessed in ISR) ----
 volatile uint8_t  chLevel[NUM_CH] = {0,0};           // 0..255 current
 volatile uint8_t  chLastNonZero[NUM_CH] = {200,200}; // remembered last non-zero
 
-// ================== NEW: Digital Input switch model ==================
-enum DiSwitchType : uint8_t {
-  DI_SW_MOMENTARY = 0,
-  DI_SW_LATCHING  = 1
+// ================== Digital Input switch model ==================
+enum DiSwitchType : uint8_t { DI_SW_MOMENTARY=0, DI_SW_LATCHING=1 };
+enum DiPressType  : uint8_t { PRESS_SHORT=0, PRESS_LONG=1, PRESS_DOUBLE_SHORT=2, PRESS_SHORT_THEN_LONG=3, PRESS_COUNT=4 };
+enum DiAction     : uint8_t {
+  DI_ACT_NONE=0, DI_ACT_TOGGLE_TO_PRESET=1, DI_ACT_TURN_OFF=2,
+  DI_ACT_TOGGLE_OUTPUT=3, DI_ACT_INC=4, DI_ACT_DEC=5, DI_ACT_INC_THEN_DEC=6
 };
-
-enum DiPressType : uint8_t {
-  PRESS_SHORT = 0,
-  PRESS_LONG  = 1,
-  PRESS_DOUBLE_SHORT = 2,
-  PRESS_SHORT_THEN_LONG = 3,
-  PRESS_COUNT = 4
-};
-
-enum DiAction : uint8_t {
-  DI_ACT_NONE = 0,
-  DI_ACT_TOGGLE_TO_PRESET = 1,
-  DI_ACT_TURN_OFF = 2,
-  DI_ACT_TOGGLE_OUTPUT = 3,
-  DI_ACT_INC = 4,
-  DI_ACT_DEC = 5,
-  DI_ACT_INC_THEN_DEC = 6
-};
-
-enum DiTarget : uint8_t {
-  DI_TGT_NONE = 0,
-  DI_TGT_CH1  = 1,
-  DI_TGT_CH2  = 2,
-  DI_TGT_ALL  = 4
-};
-
-enum DiLatchMode : uint8_t {
-  LATCH_TOGGLE_TO_PRESET_OR_0 = 0,
-  LATCH_PINGPONG_UNTIL_TOGGLE = 1
-};
+enum DiTarget     : uint8_t { DI_TGT_NONE=0, DI_TGT_CH1=1, DI_TGT_CH2=2, DI_TGT_ALL=4 };
+enum DiLatchMode  : uint8_t { LATCH_TOGGLE_TO_PRESET_OR_0=0, LATCH_PINGPONG_UNTIL_TOGGLE=1 };
 
 // ================== Config & runtime ==================
 struct InCfg {
@@ -128,10 +83,7 @@ BtnCfg btnCfg[NUM_BTN];
 
 bool buttonState[NUM_BTN] = {false,false,false,false};
 bool buttonPrev[NUM_BTN]  = {false,false,false,false};
-bool diState[NUM_DI]      = {false,false,false,false};
-bool diPrev[NUM_DI]       = {false,false,false,false};
 
-// Pulse handling (legacy CH pulse window, still supported)
 uint32_t chPulseUntil[NUM_CH] = {0,0};
 const uint32_t PULSE_MS = 500;
 
@@ -140,10 +92,10 @@ volatile uint32_t zcLastEdgeMs[NUM_CH] = {0,0}; // last ISR edge time (ms)
 bool zcOk[NUM_CH]      = {false,false};
 bool zcPrevOk[NUM_CH]  = {false,false};
 
-// --- Debounce / hysteresis for AC presence (prevents log flapping)
-const uint32_t ZC_FAULT_TIMEOUT_MS = 1000;    // if no ZC for 1s => potentially fault
-const uint8_t  ZC_OK_STREAK_N      = 6;       // need 6 consecutive "good" checks to assert OK
-const uint8_t  ZC_FAULT_STREAK_N   = 6;       // need 6 consecutive "bad" checks to clear OK
+// Debounce / hysteresis for AC presence
+const uint32_t ZC_FAULT_TIMEOUT_MS = 1000;
+const uint8_t  ZC_OK_STREAK_N      = 6;
+const uint8_t  ZC_FAULT_STREAK_N   = 6;
 uint8_t zcOkStreak[NUM_CH]    = {0,0};
 uint8_t zcFaultStreak[NUM_CH] = {0,0};
 
@@ -152,9 +104,8 @@ volatile uint64_t zcPrevEdgeUs64[NUM_CH] = {0,0};
 volatile uint32_t zcHalfUsLatest[NUM_CH] = {HALF_US_DEFAULT,HALF_US_DEFAULT};
 volatile uint32_t zcSampleSeq[NUM_CH]    = {0,0};
 
-// 50/60 Hz guard window
-constexpr uint32_t HALF_MIN_US = 7500;   // ~66.6 Hz upper bound
-constexpr uint32_t HALF_MAX_US = 12000;  // ~41.6 Hz lower bound
+constexpr uint32_t HALF_MIN_US = 7500;   // ~66.6 Hz
+constexpr uint32_t HALF_MAX_US = 12000;  // ~41.6 Hz
 
 constexpr int MED_W = 3;
 constexpr int AVG_N = 32;
@@ -168,7 +119,7 @@ uint32_t lastSeqConsumed[NUM_CH] = {0,0};
 constexpr int CLOCK_PPM_CORR = 0;
 inline double corr_half_us(double half_us){ return half_us * (1.0 + (CLOCK_PPM_CORR / 1e6)); }
 uint16_t freq_x100[NUM_CH] = {5000,5000}; // Hz × 100
-volatile uint32_t gateHalfUs[NUM_CH] = {HALF_US_DEFAULT,HALF_US_DEFAULT}; // used by ISR
+volatile uint32_t gateHalfUs[NUM_CH] = {HALF_US_DEFAULT,HALF_US_DEFAULT};
 
 // ================== Dimming thresholds (per-channel) ==================
 uint8_t chLower[NUM_CH] = {20,20};
@@ -177,7 +128,7 @@ uint8_t chUpper[NUM_CH] = {255,255};
 // ================== Load type + percent setpoint ==================
 enum LoadType : uint8_t { LOAD_LAMP=0, LOAD_HEATER=1, LOAD_KEY=2 };
 uint8_t  chLoadType[NUM_CH] = {LOAD_LAMP, LOAD_LAMP};
-uint16_t chPctX10[NUM_CH]   = {0,0};   // percent ×10 (0..1000)
+uint16_t chPctX10[NUM_CH]   = {0,0};     // percent ×10 (0..1000)
 
 // ================== MOSFET cutoff (waveform) mode ==================
 enum CutMode : uint8_t { CUT_LEADING=0, CUT_TRAILING=1 };
@@ -192,7 +143,7 @@ JSONVar modbusStatus;
 
 // ================== Timing ==================
 unsigned long lastSend = 0;
-const unsigned long sendInterval = 250;
+const unsigned long sendInterval = 1000; // << once per second
 unsigned long lastBlinkToggle = 0;
 const unsigned long blinkPeriodMs = 400;
 bool blinkPhase = false;
@@ -231,8 +182,10 @@ volatile bool   cfgDirty       = false;
 uint32_t        lastCfgTouchMs = 0;
 const uint32_t  CFG_AUTOSAVE_MS= 1500;
 
-// ===== NEW: one-shot DI echo gating =====
+// ===== DI echo gating (unused but kept for state) =====
 volatile bool diCfgEchoPending = false;
+
+// (Removed UI handshake/announce flags)
 
 // ================== Utils ==================
 uint32_t crc32_update(uint32_t crc, const uint8_t* data, size_t len) {
@@ -277,7 +230,6 @@ void zc_isr_common(uint8_t ch) {
   uint32_t half_us = gateHalfUs[ch];
   if (half_us < HALF_MIN_US || half_us > HALF_MAX_US) half_us = HALF_US_DEFAULT;
 
-  // Time budget inside half-wave where we can conduct
   const uint32_t usable = (half_us > (ZC_BLANK_US + MOS_OFF_GUARD_US + 20))
                         ? (half_us - ZC_BLANK_US - MOS_OFF_GUARD_US)
                         : (half_us/2);
@@ -288,7 +240,7 @@ void zc_isr_common(uint8_t ch) {
   if (chCutMode[ch] == CUT_TRAILING) {
     // Trailing-edge (RC): ON shortly after ZC, OFF earlier than next ZC
     uint32_t on_time = (uint32_t)((uint64_t)lvl * usable / 255u);
-    if (on_time == 0) return; // no conduction
+    if (on_time == 0) return;
     uint32_t t_on_from_zc  = ZC_BLANK_US;
     uint32_t t_off_from_zc = ZC_BLANK_US + on_time;
     uint32_t latest_off    = half_us - MOS_OFF_GUARD_US;
@@ -301,7 +253,7 @@ void zc_isr_common(uint8_t ch) {
     // Leading-edge (RL): OFF after ZC, then ON until near next ZC
     uint32_t delay_to_on   = ZC_BLANK_US + (uint32_t)((uint64_t)(255 - lvl) * usable / 255u);
     uint32_t t_off_from_zc = half_us - MOS_OFF_GUARD_US;
-    if (delay_to_on >= t_off_from_zc) return; // nothing to conduct
+    if (delay_to_on >= t_off_from_zc) return;
 
     add_alarm_in_us((int64_t)delay_to_on,   on_cb,  nullptr, true);
     add_alarm_in_us((int64_t)t_off_from_zc, off_cb, nullptr, true);
@@ -311,10 +263,9 @@ void zc_isr_ch0(){ zc_isr_common(0); }
 void zc_isr_ch1(){ zc_isr_common(1); }
 
 // ================== Mapping helpers (percent -> level) ==================
-constexpr double LAMP_LOG_MAX = 6.0;  // log "top". log=1 -> lower, log=LMAX -> upper
+constexpr double LAMP_LOG_MAX = 6.0;
 inline uint8_t clamp8(int v){ return (uint8_t)constrain(v, 0, 255); }
 
-// Lamp mapping (unchanged)
 uint8_t mapLampPercentToLevel(uint8_t ch, double pct) {
   if (pct <= 0.0) return 0;
   if (pct > 100.0) pct = 100.0;
@@ -339,7 +290,7 @@ uint8_t mapHeaterPercentToLevel(uint8_t ch, double pct) {
   return clamp8(lvl);
 }
 
-// KEY mode per user spec: 0% => 0 (off); >0% => go to maximum threshold
+// KEY mode: 0% => 0; >0% => upper threshold
 uint8_t mapKeyPercentToLevel(uint8_t ch, double pct) {
   if (pct <= 0.0) return 0;
   return chUpper[ch];
@@ -350,14 +301,14 @@ uint8_t mapPercentToLevel(uint8_t ch, double pct) {
     case LOAD_LAMP:   return mapLampPercentToLevel(ch, pct);
     case LOAD_HEATER: return mapHeaterPercentToLevel(ch, pct);
     case LOAD_KEY:    return mapKeyPercentToLevel(ch, pct);
-    default:          return mapLampPercentToLevel(ch, pct);
   }
+  return mapLampPercentToLevel(ch, pct);
 }
 
 void setLevelDirect(uint8_t ch, uint8_t lvl) {
   chLevel[ch] = lvl;
   if (lvl > 0) chLastNonZero[ch] = lvl;
-  mb.setHreg(400 + ch, chLevel[ch]); // reflect in HREG_DIM_LEVEL_BASE
+  mb.setHreg(400 + ch, chLevel[ch]);
 }
 
 // ================== Defaults / persist ==================
@@ -381,7 +332,7 @@ void initFreqEstimator() {
     avgIdx[i] = 0;
     avgSum[i] = (uint64_t)HALF_US_DEFAULT * AVG_N;
     lastSeqConsumed[i] = 0;
-    freq_x100[i] = 5000; // ~50.00 Hz initial
+    freq_x100[i] = 5000;
     gateHalfUs[i] = HALF_US_DEFAULT;
   }
 }
@@ -397,9 +348,9 @@ void setDefaults() {
     diCfg[i].latchTarget= DI_TGT_NONE;
   }
 
-  for (int i = 0; i < NUM_CH; i++)  chCfg[i] = { true };
-  for (int i = 0; i < NUM_LED; i++) ledCfg[i] = { 0, 0 };
-  for (int i = 0; i < NUM_BTN; i++) btnCfg[i] = { 0 };
+  for (int i=0; i<NUM_CH; i++)  chCfg[i] = { true };
+  for (int i=0; i<NUM_LED; i++) ledCfg[i] = { 0, 0 };
+  for (int i=0; i<NUM_BTN; i++) btnCfg[i] = { 0 };
 
   for (int i=0;i<NUM_CH;i++) {
     chLevel[i] = 0;
@@ -412,8 +363,8 @@ void setDefaults() {
     chUpper[i] = 255;
     chLoadType[i] = LOAD_LAMP;
     chPctX10[i]   = 0;
-    chCutMode[i]  = CUT_LEADING; // default
-    chPreset[i]   = 200;         // default preset
+    chCutMode[i]  = CUT_LEADING;
+    chPreset[i]   = 200;
   }
 
   g_mb_address = 3;
@@ -490,50 +441,44 @@ bool applyFromPersist(const PersistConfig &pc) {
 bool saveConfigFS() {
   PersistConfig pc{}; captureToPersist(pc);
   File f = LittleFS.open(CFG_PATH, "w");
-  if (!f) { WebSerial.send("message", "save: open failed"); return false; }
+  if (!f) return false;
   size_t n = f.write((const uint8_t*)&pc, sizeof(pc));
   f.flush(); f.close();
-  if (n != sizeof(pc)) { WebSerial.send("message", String("save: short write ")+n); return false; }
+  if (n != sizeof(pc)) return false;
 
   File r = LittleFS.open(CFG_PATH, "r");
-  if (!r) { WebSerial.send("message", "save: reopen failed"); return false; }
-  if ((size_t)r.size() != sizeof(PersistConfig)) { WebSerial.send("message", "save: size mismatch"); r.close(); return false; }
+  if (!r) return false;
+  if ((size_t)r.size() != sizeof(PersistConfig)) { r.close(); return false; }
   PersistConfig back{}; size_t nr = r.read((uint8_t*)&back, sizeof(back)); r.close();
-  if (nr != sizeof(back)) { WebSerial.send("message", "save: short readback"); return false; }
+  if (nr != sizeof(back)) return false;
   PersistConfig tmp2 = back; uint32_t crc = tmp2.crc32; tmp2.crc32 = 0;
-  if (crc32_update(0, (const uint8_t*)&tmp2, sizeof(tmp2)) != crc) { WebSerial.send("message", "save: CRC verify failed"); return false; }
+  if (crc32_update(0, (const uint8_t*)&tmp2, sizeof(tmp2)) != crc) return false;
   return true;
 }
 
 bool loadConfigFS() {
   File f = LittleFS.open(CFG_PATH, "r");
-  if (!f) { WebSerial.send("message", "load: open failed"); return false; }
-  if (f.size() != sizeof(PersistConfig)) { WebSerial.send("message", String("load: size ")+f.size()+" != "+sizeof(PersistConfig)); f.close(); return false; }
+  if (!f) return false;
+  if (f.size() != sizeof(PersistConfig)) { f.close(); return false; }
   PersistConfig pc{}; size_t n = f.read((uint8_t*)&pc, sizeof(pc)); f.close();
-  if (n != sizeof(pc)) { WebSerial.send("message", "load: short read"); return false; }
-  if (!applyFromPersist(pc)) { WebSerial.send("message", "load: magic/version/crc mismatch"); return false; }
+  if (n != sizeof(pc)) return false;
+  if (!applyFromPersist(pc)) return false;
   return true;
 }
 
 // ================== Guarded FS init ==================
 bool initFilesystemAndConfig() {
   if (!LittleFS.begin()) {
-    WebSerial.send("message", "LittleFS mount failed. Formatting…");
     if (!LittleFS.format() || !LittleFS.begin()) {
-      WebSerial.send("message", "FATAL: FS mount/format failed"); return false;
+      return false;
     }
   }
-  if (loadConfigFS()) { WebSerial.send("message", "Config loaded from flash"); return true; }
-  WebSerial.send("message", "No valid config. Using defaults.");
+  if (loadConfigFS()) return true;
   setDefaults();
-  if (saveConfigFS()) { WebSerial.send("message", "Defaults saved"); return true; }
-  WebSerial.send("message", "First save failed. Formatting FS…");
-  if (!LittleFS.format() || !LittleFS.begin()) {
-    WebSerial.send("message", "FATAL: FS format failed"); return false;
-  }
+  if (saveConfigFS()) return true;
+  if (!LittleFS.format() || !LittleFS.begin()) return false;
   setDefaults();
-  if (saveConfigFS()) { WebSerial.send("message", "FS formatted and config saved"); return true; }
-  WebSerial.send("message", "FATAL: save still failing after format");
+  if (saveConfigFS()) return true;
   return false;
 }
 
@@ -576,13 +521,11 @@ void handleUnifiedConfig(JSONVar obj);
 void handleCommand(JSONVar obj);
 void performReset();
 JSONVar LedConfigListFromCfg();
-void sendAllEchoesOnce();
 void processModbusCommandPulses();
 void applyActionToTarget(uint8_t target, uint8_t action, uint32_t now);
 void clampAndSetLevel(uint8_t ch, int value);
-void sendDiConfigEcho(); // NEW
 
-// ================== NEW: DI press detection runtime ==================
+// ================== DI press detection runtime ==================
 const uint32_t SHORT_MAX_MS = 350;
 const uint32_t LONG_MIN_MS  = 700;
 const uint32_t DOUBLE_GAP_MS= 300;
@@ -604,6 +547,77 @@ struct DiRuntime {
 };
 DiRuntime diRt[NUM_DI];
 
+// ============ COMPACT CONFIG SNAPSHOT SENDER ============
+void sendConfigSnapshot() {
+  JSONVar cfg;
+
+  // System
+  cfg["mb"]["address"] = (int)g_mb_address;
+  cfg["mb"]["baud"]    = (int)g_mb_baud;
+
+  // Per-channel runtime + config
+  for (int i=0;i<NUM_CH;i++){
+    JSONVar ch;
+    ch["enabled"]  = chCfg[i].enabled;
+    ch["level"]    = (int)chLevel[i];
+    ch["lower"]    = (int)chLower[i];
+    ch["upper"]    = (int)chUpper[i];
+    ch["loadType"] = (int)chLoadType[i];
+    ch["percent"]  = (int)min((int)(chPctX10[i]/10), 100);
+    ch["cutMode"]  = (int)chCutMode[i];
+    ch["preset"]   = (int)chPreset[i];
+    ch["freq_x100"]= (int)freq_x100[i];
+    ch["zc_ok"]    = zcOk[i];
+    cfg["ch"][i]   = ch;
+  }
+
+  // DIs
+  for (int i=0;i<NUM_DI;i++){
+    JSONVar d;
+    d["enabled"]    = diCfg[i].enabled;
+    d["invert"]     = diCfg[i].inverted;
+    d["switchType"] = diCfg[i].switchType;
+    d["press"]["short"]["action"]        = diCfg[i].pressAction[PRESS_SHORT];
+    d["press"]["short"]["target"]        = diCfg[i].pressTarget[PRESS_SHORT];
+    d["press"]["long"]["action"]         = diCfg[i].pressAction[PRESS_LONG];
+    d["press"]["long"]["target"]         = diCfg[i].pressTarget[PRESS_LONG];
+    d["press"]["doubleShort"]["action"]  = diCfg[i].pressAction[PRESS_DOUBLE_SHORT];
+    d["press"]["doubleShort"]["target"]  = diCfg[i].pressTarget[PRESS_DOUBLE_SHORT];
+    d["press"]["shortThenLong"]["action"]= diCfg[i].pressAction[PRESS_SHORT_THEN_LONG];
+    d["press"]["shortThenLong"]["target"]= diCfg[i].pressTarget[PRESS_SHORT_THEN_LONG];
+    d["latchMode"]  = diCfg[i].latchMode;
+    d["latchTarget"]= diCfg[i].latchTarget;
+    cfg["di"][i] = d;
+  }
+
+  // Buttons
+  for (int i=0;i<NUM_BTN;i++){
+    JSONVar b;
+    b["action"] = btnCfg[i].action;
+    b["state"]  = buttonState[i];
+    cfg["btn"][i] = b;
+  }
+
+  // LEDs
+  for (int i=0;i<NUM_LED;i++){
+    JSONVar L;
+    L["mode"]   = ledCfg[i].mode;
+    L["source"] = ledCfg[i].source;
+    bool srcActive = false;
+    uint8_t src = ledCfg[i].source;
+    if (src >= 1 && src <= 2) {
+      int c = src - 1;
+      bool chOn = (chCfg[c].enabled && chLevel[c] > 0);
+      srcActive = chOn;
+    }
+    bool phys = (ledCfg[i].mode == 0) ? srcActive : (srcActive && (blinkPhase));
+    L["state"] = phys;
+    cfg["led"][i] = L;
+  }
+
+  WebSerial.send("config", cfg);
+}
+
 // ================== Setup ==================
 void setup() {
   Serial.begin(57600);
@@ -611,10 +625,8 @@ void setup() {
   // GPIO directions
   for (uint8_t i=0;i<NUM_DI;i++) pinMode(DI_PINS[i], INPUT);
   for (uint8_t i=0;i<NUM_LED;i++) { pinMode(LED_PINS[i], OUTPUT); digitalWrite(LED_PINS[i], LOW); }
-  // Buttons are inverted (active-HIGH). Use INPUT and read HIGH as "pressed".
-  for (uint8_t i=0;i<NUM_BTN;i++) pinMode(BTN_PINS[i], INPUT);
+  for (uint8_t i=0;i<NUM_BTN;i++) pinMode(BTN_PINS[i], INPUT); // inverted, HIGH=pressed
 
-  // Dimmer pins
   for (uint8_t i=0;i<NUM_CH;i++) { pinMode(GATE_PINS[i], OUTPUT); digitalWrite(GATE_PINS[i], LOW); }
   pinMode(ZC_PINS[0], INPUT_PULLUP);
   pinMode(ZC_PINS[1], INPUT_PULLUP);
@@ -662,46 +674,40 @@ void setup() {
   modbusStatus["baud"]    = g_mb_baud;
   modbusStatus["state"]   = 0;
 
+  // WebSerial handlers (quiet)
   WebSerial.on("values",  handleValues);
   WebSerial.on("Config",  handleUnifiedConfig);
   WebSerial.on("command", handleCommand);
-  WebSerial.send("message", "Boot OK (50/60 Hz auto, LoadType+Percent, CutMode, Preset; DI switch model; BTN inverted)");
 
-  // Initial full echo (one-shot)
-  sendAllEchoesOnce();
+  // (No boot messages, no echo/handshake)
 }
 
 // ================== Command handler / reset ==================
 void handleCommand(JSONVar obj) {
   const char* actC = (const char*)obj["action"];
-  if (!actC) { WebSerial.send("message", "command: missing 'action'"); return; }
+  if (!actC) return;
   String act = String(actC); act.toLowerCase();
 
   if (act == "reset" || act == "reboot") {
-    bool ok = saveConfigFS();
-    WebSerial.send("message", ok ? "Saved. Rebooting…" : "WARNING: Save verify FAILED. Rebooting anyway…");
-    delay(400); performReset();
+    saveConfigFS();
+    delay(200);
+    performReset();
+
   } else if (act == "save") {
-    WebSerial.send("message", saveConfigFS() ? "Configuration saved" : "ERROR: Save failed");
+    saveConfigFS();
+
   } else if (act == "load") {
     if (loadConfigFS()) {
-      WebSerial.send("message", "Configuration loaded");
-      sendAllEchoesOnce();
       applyModbusSettings(g_mb_address, g_mb_baud);
-    } else WebSerial.send("message", "ERROR: Load failed/invalid");
+    }
+
   } else if (act == "factory") {
     setDefaults();
     if (saveConfigFS()) {
-      WebSerial.send("message", "Factory defaults restored & saved");
-      sendAllEchoesOnce();
       applyModbusSettings(g_mb_address, g_mb_baud);
-    } else WebSerial.send("message", "ERROR: Save after factory reset failed");
-  } else if (act == "echo") {
-    sendAllEchoesOnce();
-    WebSerial.send("message", "Echo snapshot sent");
-  } else {
-    WebSerial.send("message", String("Unknown command: ") + actC);
+    }
   }
+  // Unknowns are ignored silently (quiet mode)
 }
 
 void performReset() {
@@ -721,14 +727,13 @@ void applyModbusSettings(uint8_t addr, uint32_t baud) {
   modbusStatus["baud"]    = g_mb_baud;
 }
 
-// ================== WebSerial config handlers ==================
+// ================== WebSerial config handlers (quiet) ==================
 void handleValues(JSONVar values) {
   int addr = (int)values["mb_address"];
   int baud = (int)values["mb_baud"];
   addr = constrain(addr, 1, 255);
   baud = constrain(baud, 9600, 115200);
   applyModbusSettings((uint8_t)addr, (uint32_t)baud);
-  WebSerial.send("message", "Modbus configuration updated");
   cfgDirty = true; lastCfgTouchMs = millis();
 }
 
@@ -743,55 +748,55 @@ void handleUnifiedConfig(JSONVar obj) {
 
   if (type == "inputEnable") {
     for (int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].enabled = (bool)list[i];
-    WebSerial.send("message", "Input Enabled list updated"); changed = true; diCfgEchoPending = true;
+    changed = true; diCfgEchoPending = true;
 
   } else if (type == "inputInvert") {
     for (int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].inverted = (bool)list[i];
-    WebSerial.send("message", "Input Invert list updated"); changed = true; diCfgEchoPending = true;
+    changed = true; diCfgEchoPending = true;
 
   } else if (type == "inputSwitchType") {
     for (int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].switchType = (uint8_t)constrain((int)list[i], 0, 1);
-    WebSerial.send("message","Input SwitchType updated"); changed = true; diCfgEchoPending = true;
+    changed = true; diCfgEchoPending = true;
 
   } else if (type == "inputPressActionShort") {
     for (int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].pressAction[PRESS_SHORT] = (uint8_t)constrain((int)list[i], 0, 6);
-    WebSerial.send("message","PressAction Short updated"); changed = true; diCfgEchoPending = true;
+    changed = true; diCfgEchoPending = true;
 
   } else if (type == "inputPressTargetShort") {
     for (int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].pressTarget[PRESS_SHORT] = (uint8_t)list[i];
-    WebSerial.send("message","PressTarget Short updated"); changed = true; diCfgEchoPending = true;
+    changed = true; diCfgEchoPending = true;
 
   } else if (type == "inputPressActionLong") {
     for (int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].pressAction[PRESS_LONG] = (uint8_t)constrain((int)list[i], 0, 6);
-    WebSerial.send("message","PressAction Long updated"); changed = true; diCfgEchoPending = true;
+    changed = true; diCfgEchoPending = true;
 
   } else if (type == "inputPressTargetLong") {
     for (int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].pressTarget[PRESS_LONG] = (uint8_t)list[i];
-    WebSerial.send("message","PressTarget Long updated"); changed = true; diCfgEchoPending = true;
+    changed = true; diCfgEchoPending = true;
 
   } else if (type == "inputPressActionDoubleShort") {
     for (int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].pressAction[PRESS_DOUBLE_SHORT] = (uint8_t)constrain((int)list[i], 0, 6);
-    WebSerial.send("message","PressAction DoubleShort updated"); changed = true; diCfgEchoPending = true;
+    changed = true; diCfgEchoPending = true;
 
   } else if (type == "inputPressTargetDoubleShort") {
     for (int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].pressTarget[PRESS_DOUBLE_SHORT] = (uint8_t)list[i];
-    WebSerial.send("message","PressTarget DoubleShort updated"); changed = true; diCfgEchoPending = true;
+    changed = true; diCfgEchoPending = true;
 
   } else if (type == "inputPressActionShortThenLong") {
     for (int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].pressAction[PRESS_SHORT_THEN_LONG] = (uint8_t)constrain((int)list[i], 0, 6);
-    WebSerial.send("message","PressAction ShortThenLong updated"); changed = true; diCfgEchoPending = true;
+    changed = true; diCfgEchoPending = true;
 
   } else if (type == "inputPressTargetShortThenLong") {
     for (int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].pressTarget[PRESS_SHORT_THEN_LONG] = (uint8_t)list[i];
-    WebSerial.send("message","PressTarget ShortThenLong updated"); changed = true; diCfgEchoPending = true;
+    changed = true; diCfgEchoPending = true;
 
   } else if (type == "inputLatchMode") {
     for (int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].latchMode = (uint8_t)constrain((int)list[i], 0, 1);
-    WebSerial.send("message","LatchMode updated"); changed = true; diCfgEchoPending = true;
+    changed = true; diCfgEchoPending = true;
 
   } else if (type == "inputLatchTarget") {
     for (int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].latchTarget = (uint8_t)list[i];
-    WebSerial.send("message","LatchTarget updated"); changed = true; diCfgEchoPending = true;
+    changed = true; diCfgEchoPending = true;
 
   } else if (type == "channels") {
     for (int i=0; i<NUM_CH && i<list.length(); i++) {
@@ -834,14 +839,14 @@ void handleUnifiedConfig(JSONVar obj) {
         clampAndSetLevel(i, lvl);
       }
     }
-    WebSerial.send("message", "Channels Configuration updated"); changed = true;
+    changed = true;
 
   } else if (type == "buttons") {
     for (int i=0;i<NUM_BTN && i<list.length();i++) {
       int a = (int)list[i]["action"];
       btnCfg[i].action = (uint8_t)constrain(a, 0, 6);
     }
-    WebSerial.send("message", "Buttons Configuration updated"); changed = true;
+    changed = true;
 
   } else if (type == "leds") {
     for (int i=0;i<NUM_LED && i<list.length();i++) {
@@ -849,10 +854,7 @@ void handleUnifiedConfig(JSONVar obj) {
       int src = (int)list[i]["source"];
       ledCfg[i].source = (uint8_t)((src==0 || src==1 || src==2) ? src : 0);
     }
-    WebSerial.send("message", "LEDs Configuration updated"); changed = true;
-
-  } else {
-    WebSerial.send("message", "Unknown Config type");
+    changed = true;
   }
 
   if (changed) { cfgDirty = true; lastCfgTouchMs = millis(); }
@@ -880,7 +882,6 @@ static inline void setThresholds(uint8_t ch, int lower, int upper) {
   mb.setHreg(HREG_DIM_LEVEL_BASE + ch, chLevel[ch]);
 }
 
-// Direction-aware clamp (legacy paths: buttons/DI/Modbus level writes)
 void clampAndSetLevel(uint8_t ch, int value) {
   if (ch >= NUM_CH) return;
   value = constrain(value, 0, 255);
@@ -896,7 +897,7 @@ void clampAndSetLevel(uint8_t ch, int value) {
   setLevelDirect(ch, out);
 }
 
-// Legacy helper used by on-board buttons (kept)
+// Legacy helper used by on-board buttons
 void applyActionToTarget(uint8_t target, uint8_t action, uint32_t now) {
   auto doCh = [&](int idx) {
     if (idx < 0 || idx >= NUM_CH) return;
@@ -918,7 +919,7 @@ void applyActionToTarget(uint8_t target, uint8_t action, uint32_t now) {
   cfgDirty = true; lastCfgTouchMs = now;
 }
 
-// ================== NEW: Apply DI action helper ==================
+// ================== Apply DI action ==================
 void applyDiAction(uint8_t target, uint8_t action, uint32_t now){
   if (action == DI_ACT_NONE || target == DI_TGT_NONE) return;
 
@@ -969,88 +970,6 @@ JSONVar LedConfigListFromCfg() {
   return arr;
 }
 
-// ===== NEW: one-shot/full DI config echo =====
-void sendDiConfigEcho() {
-  JSONVar enableList, invertList, swType;
-  JSONVar aS, tS, aL, tL, aDS, tDS, aSL, tSL, lMode, lTgt;
-
-  for (int i=0;i<NUM_DI;i++){
-    enableList[i] = diCfg[i].enabled;
-    invertList[i] = diCfg[i].inverted;
-    swType[i]     = diCfg[i].switchType;
-
-    aS[i]  = diCfg[i].pressAction[PRESS_SHORT];
-    tS[i]  = diCfg[i].pressTarget[PRESS_SHORT];
-    aL[i]  = diCfg[i].pressAction[PRESS_LONG];
-    tL[i]  = diCfg[i].pressTarget[PRESS_LONG];
-    aDS[i] = diCfg[i].pressAction[PRESS_DOUBLE_SHORT];
-    tDS[i] = diCfg[i].pressTarget[PRESS_DOUBLE_SHORT];
-    aSL[i] = diCfg[i].pressAction[PRESS_SHORT_THEN_LONG];
-    tSL[i] = diCfg[i].pressTarget[PRESS_SHORT_THEN_LONG];
-
-    lMode[i] = diCfg[i].latchMode;
-    lTgt[i]  = diCfg[i].latchTarget;
-  }
-
-  WebSerial.send("enableList", enableList);
-  WebSerial.send("invertList", invertList);
-  WebSerial.send("inputSwitchTypeList", swType);
-
-  WebSerial.send("pressActionShort", aS);        WebSerial.send("pressTargetShort", tS);
-  WebSerial.send("pressActionLong", aL);         WebSerial.send("pressTargetLong", tL);
-  WebSerial.send("pressActionDoubleShort", aDS); WebSerial.send("pressTargetDoubleShort", tDS);
-  WebSerial.send("pressActionShortThenLong", aSL); WebSerial.send("pressTargetShortThenLong", tSL);
-
-  WebSerial.send("latchModeList", lMode);
-  WebSerial.send("latchTargetList", lTgt);
-}
-
-void sendAllEchoesOnce() {
-  // --- DI config (one shot) ---
-  sendDiConfigEcho();
-
-  // --- Channels summary (enabled, level, thresholds, percent, loadType, cutMode, preset)
-  JSONVar chEnabled, chLevels, chLowers, chUppers, chPercents, chTypes, cutModes, chPresets;
-  for (int i=0;i<NUM_CH;i++){
-    chEnabled[i]=chCfg[i].enabled;
-    chLevels[i]= (int)chLevel[i];
-    chLowers[i]= (int)chLower[i];
-    chUppers[i]= (int)chUpper[i];
-    chPercents[i]= (int)min((int)(chPctX10[i]/10), 100);
-    chTypes[i]= (int)chLoadType[i];
-    cutModes[i]= (int)chCutMode[i];
-    chPresets[i]= (int)chPreset[i];
-  }
-  WebSerial.send("channelEnabled", chEnabled);
-  WebSerial.send("channelLevels", chLevels);
-  WebSerial.send("channelLower", chLowers);
-  WebSerial.send("channelUpper", chUppers);
-  WebSerial.send("channelPercent", chPercents);
-  WebSerial.send("LoadTypeList", chTypes);
-  WebSerial.send("CutModeList", cutModes);
-  WebSerial.send("channelPreset", chPresets);
-
-  // Buttons
-  JSONVar ButtonGroupList; for (int i=0;i<NUM_BTN;i++) ButtonGroupList[i]=btnCfg[i].action;
-  WebSerial.send("ButtonGroupList", ButtonGroupList);
-
-  // LEDs
-  WebSerial.send("LedConfigList", LedConfigListFromCfg());
-
-  // ZC flags + frequency + status
-  JSONVar zcList; for (int i=0;i<NUM_CH;i++) zcList[i] = zcOk[i];
-  WebSerial.send("ZcOkList", zcList);
-
-  JSONVar freqList; for (int i=0;i<NUM_CH;i++) freqList[i] = (int)freq_x100[i];
-  WebSerial.send("FreqX100List", freqList);
-
-  modbusStatus["address"] = g_mb_address;
-  modbusStatus["baud"]    = g_mb_baud;
-  modbusStatus["zc_ok"]   = zcList;
-  modbusStatus["freq_x100"] = freqList;
-  WebSerial.send("status", modbusStatus);
-}
-
 // ================== Main loop ==================
 void loop() {
   unsigned long now = millis();
@@ -1070,7 +989,6 @@ void loop() {
       if (!zcOk[c] && zcOkStreak[c] >= ZC_OK_STREAK_N) {
         zcOk[c] = true;
         mb.setIsts(ISTS_ZC_OK_BASE + c, true);
-        WebSerial.send("message", String("CH") + (c+1) + ": AC present (zero-cross OK)");
       }
     } else {
       if (zcFaultStreak[c] < 255) zcFaultStreak[c]++;
@@ -1078,12 +996,11 @@ void loop() {
       if (zcOk[c] && zcFaultStreak[c] >= ZC_FAULT_STREAK_N) {
         zcOk[c] = false;
         mb.setIsts(ISTS_ZC_OK_BASE + c, false);
-        WebSerial.send("message", String("CH") + (c+1) + ": No AC on L-N detected — check wiring");
       }
     }
   }
 
-  // ===== Frequency estimator (median-of-3 -> moving average of 32) =====
+  // ===== Frequency estimator =====
   for (uint8_t ch=0; ch<NUM_CH; ++ch) {
     uint32_t seq = zcSampleSeq[ch];
     if (seq != lastSeqConsumed[ch]) {
@@ -1118,12 +1035,11 @@ void loop() {
 
   // Auto-save after quiet period
   if (cfgDirty && (now - lastCfgTouchMs >= CFG_AUTOSAVE_MS)) {
-    if (saveConfigFS()) WebSerial.send("message", "Configuration saved");
-    else WebSerial.send("message", "ERROR: Save failed");
+    saveConfigFS();
     cfgDirty = false;
   }
 
-  // Buttons — schematic inverted: HIGH = pressed (handled here)
+  // Buttons (inverted: HIGH = pressed)
   for (int i = 0; i < NUM_BTN; i++) {
     bool pressed = (digitalRead(BTN_PINS[i]) == HIGH);
     buttonPrev[i] = buttonState[i];
@@ -1142,7 +1058,6 @@ void loop() {
   }
 
   // ================== Digital Inputs (Momentary/Latching) ==================
-  JSONVar inputs;
   for (int i = 0; i < NUM_DI; i++) {
     bool val = false;
     if (diCfg[i].enabled) {
@@ -1152,7 +1067,6 @@ void loop() {
     DiRuntime &rt = diRt[i];
     rt.prev = rt.cur;
     rt.cur  = val;
-    inputs[i] = val;
     mb.setIsts(ISTS_DI_BASE + i, val);
 
     uint32_t nowMs = millis();
@@ -1245,8 +1159,7 @@ void loop() {
     }
   }
 
-  // LEDs
-  JSONVar LedStateList;
+  // LEDs drive + Modbus mirror
   for (int i=0;i<NUM_LED;i++) {
     bool srcActive = false;
     uint8_t src = ledCfg[i].source;
@@ -1256,72 +1169,21 @@ void loop() {
       srcActive = chOn;
     }
     bool phys = (ledCfg[i].mode == 0) ? srcActive : (srcActive && blinkPhase);
-    LedStateList[i] = phys;
     digitalWrite(LED_PINS[i], phys ? HIGH : LOW);
     mb.setIsts(ISTS_LED_BASE + i, phys);
   }
 
-  // Channel "on" discrete inputs
+  // Channel "on" mirror
   for (int c=0;c<NUM_CH;c++) {
-    bool on = (chCfg[c].enabled && chLevel[c] > 0);
-    mb.setIsts(ISTS_CH_BASE + c, on);
+    bool onb = (chCfg[c].enabled && chLevel[c] > 0);
+    mb.setIsts(ISTS_CH_BASE + c, onb);
   }
 
-  // WebSerial UI updates (streaming mirrors, throttled)
+  // ===== Quiet, periodic config snapshot =====
   if (millis() - lastSend >= sendInterval) {
     lastSend = millis();
     WebSerial.check();
-
-    JSONVar zcList; for (int i=0;i<NUM_CH;i++) zcList[i] = zcOk[i];
-    modbusStatus["zc_ok"] = zcList;
-    WebSerial.send("ZcOkList", zcList);
-
-    JSONVar freqList; for (int i=0;i<NUM_CH;i++) freqList[i] = (int)freq_x100[i];
-    WebSerial.send("FreqX100List", freqList);
-    modbusStatus["freq_x100"] = freqList;
-
-    WebSerial.send("status", modbusStatus);
-
-    // DI config echo only when changed
-    if (diCfgEchoPending) {
-      sendDiConfigEcho();
-      diCfgEchoPending = false;
-    }
-
-    // Channels mirrors
-    JSONVar channelEnabled, channelLevels, channelLower, channelUpper, channelPercent, loadTypes, cutModes, channelPreset;
-    for (int i=0;i<NUM_CH;i++) {
-      channelEnabled[i] = chCfg[i].enabled;
-      channelLevels[i]  = (int)chLevel[i];
-      channelLower[i]   = (int)chLower[i];
-      channelUpper[i]   = (int)chUpper[i];
-      channelPercent[i] = (int)min((int)(chPctX10[i]/10), 100);
-      loadTypes[i]      = (int)chLoadType[i];
-      cutModes[i]       = (int)chCutMode[i];
-      channelPreset[i]  = (int)chPreset[i];
-    }
-
-    JSONVar ButtonStateList, ButtonGroupList;
-    for (int i=0;i<NUM_BTN;i++) {
-      ButtonStateList[i] = buttonState[i];
-      ButtonGroupList[i] = btnCfg[i].action;
-    }
-
-    JSONVar LedConfigList = LedConfigListFromCfg();
-
-    WebSerial.send("inputs", inputs);
-    WebSerial.send("channelEnabled", channelEnabled);
-    WebSerial.send("channelLevels", channelLevels);
-    WebSerial.send("channelLower", channelLower);
-    WebSerial.send("channelUpper", channelUpper);
-    WebSerial.send("channelPercent", channelPercent);
-    WebSerial.send("LoadTypeList", loadTypes);
-    WebSerial.send("CutModeList",  cutModes);
-    WebSerial.send("channelPreset", channelPreset);
-    WebSerial.send("ButtonStateList", ButtonStateList);
-    WebSerial.send("ButtonGroupList", ButtonGroupList);
-    WebSerial.send("LedConfigList", LedConfigList);
-    WebSerial.send("LedStateList", LedStateList);
+    sendConfigSnapshot();
   }
 }
 
