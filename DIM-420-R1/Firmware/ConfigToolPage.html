@@ -1,4 +1,4 @@
-<section style="font-family:'Segoe UI',sans-serif;padding:2rem;max-width:960px;margin:auto;">
+<section style="font-family:'Segoe UI',system-ui,Roboto,Arial,sans-serif;padding:2rem;max-width:1100px;margin:auto;">
   <style>
     .layout-2col{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;}
     .span-2{grid-column:1 / -1;}
@@ -6,8 +6,17 @@
     @media (max-width:720px){
       .layout-2col{grid-template-columns:1fr;}
       .cards-2col{grid-template-columns:1fr;}
+      section{padding:0}
     }
+    /* Cards & bits (kept inline so your embed keeps its layout) */
+    .card{border:1px solid #ccc;border-radius:6px;padding:1rem;background:#fff}
+    .card.di{background:#e6f7e8;}
+    .label{font-size:.9rem;color:#333;margin-bottom:.25rem;display:block;}
+    .tiny{font-size:.8rem;color:#666;}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin:.35rem 0;}
+    .row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;margin:.35rem 0;}
     .pill{font-size:.85rem;padding:.15rem .5rem;border-radius:999px;border:1px solid #ddd;background:#eef;color:#223;}
+    button{cursor:pointer}
   </style>
 
   <div style="text-align:center;margin-bottom:2rem;">
@@ -16,7 +25,7 @@
     <p>Configure Modbus, <strong>digital inputs (4)</strong>, <strong>dimming channels (2)</strong>, <strong>buttons (4)</strong>, and <strong>user LEDs (4)</strong> via Web Serial.</p>
   </div>
 
-  <div style="background:#f1f1f1;padding:1rem 1.5rem;margin-bottom:2rem;border-radius:6px;border-left:4px solid #007bff;">
+  <div style="background:#f1f5ff;padding:1rem 1.25rem;margin-bottom:2rem;border-radius:6px;border-left:4px solid #2f6fff;">
     <strong>Active Modbus Configuration</strong><br>
     Address: <span id="live-address" style="font-weight:600;">--</span> |
     Baud Rate: <span id="live-baud" style="font-weight:600;">--</span>
@@ -24,18 +33,18 @@
 
   <form id="modbus-config" style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:2rem;">
     <div>
-      <label for="modbus-address"><strong>Modbus Address</strong></label>
-      <select id="modbus-address" style="width:100%;padding:10px;border-radius:4px;"></select>
+      <label for="modbus-address" class="label"><strong>Modbus Address</strong></label>
+      <select id="modbus-address" style="width:100%;padding:10px;border-radius:6px;border:1px solid #ccc;"></select>
     </div>
     <div>
-      <label for="modbus-baud"><strong>Baud Rate</strong></label>
-      <select id="modbus-baud" style="width:100%;padding:10px;border-radius:4px;">
+      <label for="modbus-baud" class="label"><strong>Baud Rate</strong></label>
+      <select id="modbus-baud" style="width:100%;padding:10px;border-radius:6px;border:1px solid #ccc;">
         <option>9600</option><option selected="">19200</option><option>38400</option><option>57600</option><option>115200</option>
       </select>
     </div>
     <div style="grid-column:span 2;text-align:right;">
-      <button id="connect-button" type="button" style="padding:10px 20px;background:#007bff;color:#fff;border:none;border-radius:4px;">Connect</button>
-      <button id="reset-button" type="button" style="padding:10px 20px;background:#dc3545;color:#fff;border:none;border-radius:4px;margin-left:0.75rem;" disabled="">Reset Device</button>
+      <button id="connect-button" type="button" style="padding:.55rem .9rem;border-radius:6px;border:1px solid #2f6fff;background:#2f6fff;color:#fff;">Connect</button>
+      <button id="reset-button" type="button" style="padding:.55rem .9rem;border-radius:6px;border:1px solid #dc3545;background:#dc3545;color:#fff;margin-left:.6rem;" disabled="">Reset Device</button>
     </div>
   </form>
 
@@ -45,7 +54,7 @@
       <p style="margin:.25rem 0 1rem;color:#444;">Are you sure you want to reset the module? The serial connection will be temporarily interrupted.</p>
       <div style="display:flex;justify-content:flex-end;gap:.5rem;">
         <button id="dlg-cancel" value="cancel" style="padding:.5rem .9rem;border-radius:6px;border:1px solid #ccc;background:#fff;">Cancel</button>
-        <button id="dlg-confirm" value="confirm" style="padding:.5rem .9rem;border:none;border-radius:6px;background:#dc3545;color:#fff;">Reset</button>
+        <button id="dlg-confirm" value="confirm" style="padding:.5rem .9rem;border-radius:6px;border:1px solid #dc3545;background:#dc3545;color:#fff;">Reset</button>
       </div>
     </form>
   </dialog>
@@ -63,14 +72,15 @@
 
     <section class="span-2">
       <h2 style="font-size:1.2rem;">Digital Inputs (4)</h2>
+      
       <div id="inputs-config" class="cards-2col"></div>
     </section>
 
     <section class="span-2">
       <h2 style="font-size:1.2rem;">Buttons (4)</h2>
       <div id="buttons-config" class="cards-2col"></div>
-      <p style="color:#444;margin-top:.5rem;font-size:.9rem;">
-        <em>Hardware note:</em> User buttons are <strong>inverted in the schematic</strong> and are handled in firmware (HIGH = pressed). No extra UI setting needed.
+      <p class="tiny" style="margin-top:.5rem;">
+        <em>Hardware note:</em> On-board buttons are inverted in the schematic and handled in firmware (HIGH = pressed).
       </p>
     </section>
 
@@ -84,516 +94,433 @@
   <script>
   (function () {
     // ---------- Constants ----------
-    const LOG_MAX = 4;
-    const NUM_DI = 4, NUM_CH = 2, NUM_BTN = 4, NUM_LED = 4;
-
-    // UI echo-suppression
-    const LOCAL_HOLD_MS = 2200;
-    const DEBOUNCE_MS   = 250;
-    const RELEASE_MS    = 600;
+    const NUM_DI=4, NUM_CH=2, NUM_BTN=4, NUM_LED=4;
+    const LOG_STORE_MAX=50, LOG_SHOW_LAST=4;
+    const DEBOUNCE_MS=200;
 
     // ---------- Helpers ----------
-    const $ = (id) => document.getElementById(id);
+    const $ = id => document.getElementById(id);
+    const clamp255 = n => Math.min(255, Math.max(0, Number(n)||0));
+    const clamp100 = n => Math.min(100, Math.max(0, Number(n)||0));
+    const clampLT  = n => Math.min(2, Math.max(0, Number(n)||0));
+    const clamp01  = n => Math.min(1, Math.max(0, Number(n)||0));
     const logBuffer = [];
-    const clamp255 = (n) => Math.min(255, Math.max(0, Number(n) || 0));
-    const clamp100 = (n) => Math.min(100, Math.max(0, Number(n) || 0));
-    const clampLT  = (n) => Math.min(2, Math.max(0, Number(n) || 0)); // LoadType 0..2
-    const clamp01  = (n) => Math.min(1, Math.max(0, Number(n) || 0)); // CutMode  0..1
-
-    // Per-channel local state
-    const holdUntil = Array(NUM_CH + 1).fill(0);          // 1-based index
-    const editTimers = Array(NUM_CH + 1).fill(0);
-    const editing = { pct: new Set(), lo: new Set(), hi: new Set(), preset: new Set() };
-    let sendTimer = null;
-    let lastSentStr = "";
-
-    function nowMs(){ return Date.now(); }
-    function markHold(idx){ holdUntil[idx] = nowMs() + LOCAL_HOLD_MS; }
-    function isHeld(idx){ return nowMs() < holdUntil[idx]; }
-
-    function setEditing(kind, idx, on){
-      const S = (kind==='percent') ? editing.pct : (kind==='lower' ? editing.lo : (kind==='upper' ? editing.hi : editing.preset));
-      if (on) { S.add(idx); markHold(idx); }
-      else { S.delete(idx); }
-      clearTimeout(editTimers[idx]);
-      if (on) editTimers[idx] = setTimeout(()=>{ S.delete(idx); }, RELEASE_MS);
+    function appendLog(label, data){
+      const el=$("log-content"); if(!el) return;
+      const t=new Date().toLocaleTimeString();
+      const line = `[${t}] ${label}: ${typeof data==='string'?data:JSON.stringify(data)}`;
+      logBuffer.push(line); if(logBuffer.length>LOG_STORE_MAX) logBuffer.shift();
+      el.innerText = logBuffer.slice(-LOG_SHOW_LAST).join('\n');
     }
-
-    function appendLog(label, data) {
-      const logEl = $("log-content"); if (!logEl) return;
-      const time = new Date().toLocaleTimeString();
-      const line = `[${time}] ${label}: ${typeof data === 'string' ? data : JSON.stringify(data)}`;
-      logBuffer.unshift(line); if (logBuffer.length > LOG_MAX) logBuffer.pop();
-      logEl.innerText = logBuffer.join('\n');
-    }
-
-    function fixThresholdPair(idx) {
-      const loEl = $('lower-ch'+idx), hiEl = $('upper-ch'+idx);
-      if (!loEl || !hiEl) return;
-      let lo = clamp255(loEl.value), hi = clamp255(hiEl.value);
-      if (hi < lo) hi = lo;
-      loEl.value = String(lo);
-      hiEl.value = String(hi);
-      const badge = $('range-ch'+idx);
-      if (badge) badge.textContent = '['+lo+'..'+hi+']';
-      // keep preset within thresholds
-      const pEl = $('preset-ch'+idx);
-      if (pEl){
-        let pv = clamp255(pEl.value);
-        if (pv && pv < lo) pv = lo;
-        if (pv > hi) pv = hi;
-        pEl.value = String(pv);
-      }
-    }
-
-    function updateChOnDot(idx){
-      const enEl = $('enable-ch'+idx);
-      const lvlValEl = $('level-val-ch'+idx);
-      const dot = $('on-ch'+idx);
-      if (dot && enEl && lvlValEl) {
-        const on = enEl.checked && Number(lvlValEl.textContent||0) > 0;
-        dot.style.background = on ? '#4caf50' : '#ccc';
-      }
-    }
-
-    function updateAcBadge(idx, on) {
-      const badge = $('ac-badge-ch' + idx);
-      if (!badge) return;
-      if (on) {
-        badge.textContent = 'ON';
-        badge.style.background = '#d4edda';
-        badge.style.color = '#155724';
-        badge.style.borderColor = '#c3e6cb';
-      } else {
-        badge.textContent = 'OFF';
-        badge.style.background = '#fdecea';
-        badge.style.color = '#b71c1c';
-        badge.style.borderColor = '#f5c6cb';
-      }
-    }
-
-    function updateKeyHint(idx){
-      const lt = parseInt(($('lt-ch'+idx)?.value)||"0",10);
-      const hint = $('key-hint-ch'+idx);
-      if (hint) hint.style.display = (lt === 2 ? 'inline' : 'none');
-    }
-
-    // Populate Modbus addresses
-    (function populateAddresses() {
-      const sel = $('modbus-address'); if (!sel) return;
-      for (let i = 1; i <= 255; i++) {
-        const opt = document.createElement('option');
-        opt.value = i; opt.textContent = i;
-        if (i === 3) opt.selected = true;
-        sel.appendChild(opt);
-      }
-    })();
 
     // ---------- Web Serial ----------
-    const connection = SimpleWebSerial.setupSerialConnection({
-      requestAccessOnPageLoad: false,
-      requestElement: 'connect-button'
+    const conn = SimpleWebSerial.setupSerialConnection({requestAccessOnPageLoad:false, requestElement:'connect-button'});
+    const isOpen = ()=>{ try { return typeof conn.isOpen==='function' ? conn.isOpen() : !!conn.port; } catch { return false; } };
+    const setResetEnabled = on => { const b=$('reset-button'); if(b) b.disabled=!on; };
+
+    conn.on('open', async ()=>{
+      setResetEnabled(true);
+      try{ await conn.send("command",{action:"load"});}catch(e){}
+    });
+    conn.on('close', ()=> setResetEnabled(false));
+    conn.on('message', msg => appendLog('DIM-420-R1', msg));
+
+    // Live Modbus snapshot
+    conn.on('status', (m)=>{
+      $('live-address').textContent = (m && 'address' in m) ? m.address : '--';
+      $('live-baud').textContent    = (m && 'baud' in m)    ? m.baud    : '--';
     });
 
-    function isPortOpen() {
-      try { return typeof connection.isOpen === 'function' ? connection.isOpen() : !!connection.port; }
-      catch { return false; }
-    }
-    function updateResetEnabled() { const b = $('reset-button'); if (b) b.disabled = !isPortOpen(); }
+    // Populate address select (1..255)
+    (function(){
+      const sel=$('modbus-address'); if(!sel) return;
+      for(let i=1;i<=255;i++){ const o=document.createElement('option'); o.value=i; o.textContent=i; if(i===3) o.selected=true; sel.appendChild(o); }
+    })();
+    $('modbus-address').addEventListener('input', ()=>{ if(isOpen()) conn.send("values",{mb_address:parseInt($('modbus-address').value||"3",10)}); });
+    $('modbus-baud').addEventListener('input',   ()=>{ if(isOpen()) conn.send("values",{mb_baud:   parseInt($('modbus-baud').value||"19200",10)}); });
 
-    // Live status
-    connection.on('status', (modbus) => {
-      $('live-address').textContent = (modbus && 'address' in modbus) ? modbus.address : '--';
-      $('live-baud').textContent    = (modbus && 'baud' in modbus)    ? modbus.baud    : '--';
-      if (modbus && modbus.address) $('modbus-address').value = modbus.address;
-      if (modbus && modbus.baud)    $('modbus-baud').value    = String(modbus.baud);
-
-      const arr = (modbus && modbus.ac_present) ? modbus.ac_present
-                : (modbus && modbus.zc_ok)      ? modbus.zc_ok
-                : null;
-      if (Array.isArray(arr)) arr.forEach((v,i)=> updateAcBadge(i+1, !!v));
-
-      if (modbus && modbus.freq_x100 && Array.isArray(modbus.freq_x100)) {
-        modbus.freq_x100.forEach((v,i)=>{
-          const el = $('freq-badge-ch'+(i+1));
-          if (el) { el.textContent = (Number(v||0)/100).toFixed(2) + ' Hz'; }
-        });
-      }
-
-      updateResetEnabled();
-    });
-    connection.on('open',  updateResetEnabled);
-    connection.on('close', updateResetEnabled);
-    connection.on('message', (msg) => appendLog("DIM-420-R1", msg));
-
-    // ---------- Modbus config push ----------
-    $('modbus-address').addEventListener('input', pushModbus);
-    $('modbus-baud').addEventListener('input', pushModbus);
-    async function pushModbus() {
-      const mb_address = parseInt($('modbus-address').value || "3", 10);
-      const mb_baud = parseInt($('modbus-baud').value || "19200", 10);
-      await connection.send("values", { mb_address, mb_baud });
-    }
-
-    // ---------- Reset flow ----------
-    const resetBtn   = $('reset-button');
-    const dlg        = $('reset-dialog');
-    const dlgCancel  = $('dlg-cancel');
-    const dlgConfirm = $('dlg-confirm');
-
-    resetBtn.addEventListener('click', () => {
-      updateResetEnabled();
-      if (resetBtn.disabled) return appendLog("System", "Connect to the device before resetting.");
-      if (dlg && typeof dlg.showModal === 'function') { if (!dlg.open) dlg.showModal(); }
-      else doReset();
-    });
-    dlgCancel && dlgCancel.addEventListener('click', (e)=>{ e.preventDefault(); dlg.close('cancel'); });
-    dlgConfirm && dlgConfirm.addEventListener('click', async (e)=>{ e.preventDefault(); dlg.close('confirm'); await doReset(); });
-    dlg && dlg.addEventListener('click', (ev) => {
-      const r = dlg.getBoundingClientRect();
-      const inside = ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom;
-      if (!inside && dlg.open) dlg.close('backdrop');
-    });
-    async function doReset() {
-      try { await connection.send("command", { action: "reset" }); appendLog("System", "Reset command sent"); resetBtn.disabled = true; setTimeout(updateResetEnabled, 3000); }
-      catch (err) { appendLog("Error", `Failed to send reset: ${err && err.message ? err.message : err}`); }
-    }
-
-    // ---------- Build UI ----------
-    // Inputs
-    (function buildInputs() {
-      const container = $('inputs-config'); if (!container) return;
-      const ACTIONS = [{v:0,t:'None'},{v:1,t:'Toggle'},{v:2,t:'Pulse'}];
-      const TARGETS = [{v:4,t:'None'},{v:0,t:'All channels'},{v:1,t:'Channel 1'},{v:2,t:'Channel 2'}];
-      for (let i=1;i<=NUM_DI;i++){
-        const card = document.createElement('div');
-        card.innerHTML = `
-        <div style="border:1px solid #ccc;border-radius:6px;background:#e6f7e8;padding:1rem;">
-          <div style="display:flex;justify-content:space-between;font-weight:600;">
-            IN${i}
-            <span id="state-in${i}" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;"></span>
-          </div>
-          <label><input type="checkbox" id="enable-in${i}"> Enabled</label><br>
-          <label><input type="checkbox" id="invert-in${i}"> Inverted</label><br>
-          <label>Action:
-            <select id="action-in${i}" style="width:100%;padding:6px;border-radius:4px;">
-              ${ACTIONS.map(a=>`<option value="${a.v}">${a.t}</option>`).join('')}
-            </select>
-          </label><br>
-          <label>Control target:
-            <select id="target-in${i}" style="width:100%;padding:6px;border-radius:4px;">
-              ${TARGETS.map(t=>`<option value="${t.v}">${t.t}</option>`).join('')}
-            </select>
-          </label>
-        </div>`;
-        container.appendChild(card);
-      }
+    // Reset flow (dialog)
+    (function(){
+      const btn=$('reset-button'), dlg=$('reset-dialog');
+      $('dlg-cancel')?.addEventListener('click', e=>{e.preventDefault(); dlg.close('cancel');});
+      $('dlg-confirm')?.addEventListener('click', async e=>{
+        e.preventDefault(); dlg.close('confirm');
+        if(isOpen()) await conn.send("command",{action:"reset"});
+        setResetEnabled(false);
+      });
+      btn.addEventListener('click', ()=>{
+        if(btn.disabled) { appendLog("System","Connect to the device before resetting."); return; }
+        if(dlg?.showModal) dlg.showModal();
+      });
+      dlg?.addEventListener('click', ev=>{
+        const r=dlg.getBoundingClientRect();
+        const inBox = ev.clientX>=r.left&&ev.clientX<=r.right&&ev.clientY>=r.top&&ev.clientY<=r.bottom;
+        if(!inBox && dlg.open) dlg.close('backdrop');
+      });
     })();
 
-    // Channels (now includes Cutoff Mode + NEW Preset + Key-mode hint)
+    // ---------- Build Channels UI ----------
+    function updateAcBadge(idx,on){
+      const badge=$('ac-badge-ch'+idx); if(!badge) return;
+      if(on){ badge.textContent='ON'; badge.style.background='#d4edda'; badge.style.color='#155724'; badge.style.borderColor='#c3e6cb'; }
+      else  { badge.textContent='OFF';badge.style.background='#fdecea'; badge.style.color='#b71c1c'; badge.style.borderColor='#f5c6cb'; }
+    }
     (function buildChannels(){
-      const container = $('channels-config'); if (!container) return;
-      for (let i=1;i<=NUM_CH;i++){
-        const card = document.createElement('div');
-        card.innerHTML = `
-        <div style="border:1px solid #ccc;border-radius:6px;background:#f1f1f1;padding:1rem;">
+      const c=$('channels-config'); if(!c) return;
+      for(let i=1;i<=NUM_CH;i++){
+        const card=document.createElement('div');
+        card.innerHTML=`
+        <div class="card" style="background:#f1f1f1;">
           <div style="display:flex;justify-content:space-between;align-items:center;font-weight:600;">
             <span>Channel ${i}</span>
-            <span id="on-ch${i}" title="On state" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;"></span>
+            <span id="on-ch${i}" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;"></span>
           </div>
-
           <div style="display:flex;gap:.5rem;align-items:center;margin:.35rem 0 .6rem;flex-wrap:wrap;">
-            <span style="font-size:.9rem;color:#555;">AC on L–N:</span>
-            <span id="ac-badge-ch${i}" class="pill" title="AC presence on L–N">--</span>
-            <span style="margin-left:.5rem;font-size:.9rem;color:#555;">Frequency:</span>
-            <span id="freq-badge-ch${i}" class="pill" title="Measured mains frequency">--.-- Hz</span>
+            <span class="tiny" style="color:#555;">AC on L–N:</span>
+            <span id="ac-badge-ch${i}" class="pill">--</span>
+            <span class="tiny" style="margin-left:.5rem;color:#555;">Frequency:</span>
+            <span id="freq-badge-ch${i}" class="pill">--.-- Hz</span>
           </div>
 
-          <label style="display:block;margin:.25rem 0;"><input type="checkbox" id="enable-ch${i}"> Enabled</label>
-
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin:.5rem 0;">
-            <label>Load Type
+          <label class="label"><input type="checkbox" id="enable-ch${i}"> Enabled</label>
+          <div class="row">
+            <label class="label">Load Type
               <select id="lt-ch${i}" style="width:100%;padding:.4rem;border-radius:6px;border:1px solid #ccc;">
-                <option value="0">Lamp (log)</option>
-                <option value="1">Heater (linear)</option>
-                <option value="2">Key</option>
+                <option value="0">Lamp (log)</option><option value="1">Heater (linear)</option><option value="2">Key</option>
               </select>
             </label>
-            <label>Cutoff Mode
-              <select id="cm-ch${i}" style="width:100%;padding:.4rem;border-radius:6px;border:1px solid #ccc;" title="Leading (RL) or Trailing (RC) MOSFET dimming">
-                <option value="0">Leading (RL)</option>
-                <option value="1">Trailing (RC)</option>
+            <label class="label">Cutoff Mode
+              <select id="cm-ch${i}" style="width:100%;padding:.4rem;border-radius:6px;border:1px solid #ccc;">
+                <option value="0">Leading (RL)</option><option value="1">Trailing (RC)</option>
               </select>
             </label>
           </div>
 
           <div style="display:flex;justify-content:space-between;align-items:center;margin-top:.2rem;">
-            <label style="flex:1;">Setpoint (%)
+            <label class="label" style="flex:1;">Setpoint (%)
               <input type="range" id="percent-ch${i}" min="0" max="100" step="1" value="0" style="width:100%;">
-              <small id="key-hint-ch${i}" style="display:none;color:#5c5c5c;">Key mode: <strong>0%</strong> = OFF, <strong>&gt;0%</strong> = MAX</small>
             </label>
             <div style="width:160px;margin-left:.6rem;font-size:.95rem;color:#333;display:flex;flex-direction:column;align-items:flex-end;">
               <span>Actual level: <strong id="level-val-ch${i}">0</strong></span>
-              <span title="Effective dimming window" style="font-family:monospace;">range <span id="range-ch${i}">[20..255]</span></span>
+              <span style="font-family:monospace;">range <span id="range-ch${i}">[20..255]</span></span>
               <span><strong id="percent-val-ch${i}">0</strong>%</span>
             </div>
           </div>
 
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-top:.6rem;">
-            <label>Lower threshold
+          <div class="row" style="margin-top:.6rem;">
+            <label class="label">Lower threshold
               <input type="number" id="lower-ch${i}" min="0" max="255" step="1" value="20" style="width:100%;padding:.4rem;border-radius:6px;border:1px solid #ccc;">
             </label>
-            <label>Upper threshold
+            <label class="label">Upper threshold
               <input type="number" id="upper-ch${i}" min="0" max="255" step="1" value="255" style="width:100%;padding:.4rem;border-radius:6px;border:1px solid #ccc;">
             </label>
           </div>
 
-          <div style="display:grid;grid-template-columns:1fr;gap:.6rem;margin-top:.6rem;">
-            <label>Preset level (0–255) <span class="pill" title="Used when toggling via DI/Button">Used on Toggle</span>
+          <div class="row" style="margin-top:.6rem;grid-template-columns:1fr;">
+            <label class="label">Preset level (0–255) <span class="pill">Used on Toggle</span>
               <input type="number" id="preset-ch${i}" min="0" max="255" step="1" value="200" style="width:100%;padding:.4rem;border-radius:6px;border:1px solid #ccc;">
             </label>
           </div>
         </div>`;
-        container.appendChild(card);
+        c.appendChild(card);
       }
     })();
 
-    // Buttons
-    (function buildButtons(){
-      const container = $('buttons-config'); if (!container) return;
-      const ACTIONS = [
-        {v:0,t:'None'},
-        {v:1,t:'Toggle CH1'}, {v:2,t:'Toggle CH2'},
-        {v:3,t:'Step Up CH1'}, {v:4,t:'Step Down CH1'},
-        {v:5,t:'Step Up CH2'}, {v:6,t:'Step Down CH2'}
-      ];
-      for (let i=1;i<=NUM_BTN;i++){
-        const card = document.createElement('div');
-        card.innerHTML = `
-        <div style="border:1px solid #ccc;border-radius:6px;background:#cbdcf7;padding:1rem;">
-          <div style="font-weight:600;">
-            Button ${i}
-            <span id="state-button${i}" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;float:right;"></span>
-          </div>
-          <label>Action:
-            <select id="action-button${i}" style="width:100%;padding:6px;border-radius:4px;">
-              ${ACTIONS.map(a=>`<option value="${a.v}">${a.t}</option>`).join('')}
-            </select>
-          </label>
-        </div>`;
-        container.appendChild(card);
-      }
-    })();
-
-    // LEDs
-    (function buildLEDs(){
-      const container = $('leds-config'); if (!container) return;
-      const LED_MODE   = [{v:0,t:'Steady (when source active)'},{v:1,t:'Blink (when source active)'}];
-      const LED_SOURCE = [{v:0,t:'None'},{v:1,t:'Channel 1'},{v:2,t:'Channel 2'}];
-      for (let i=1;i<=NUM_LED;i++){
-        const card = document.createElement('div');
-        card.innerHTML = `
-        <div style="border:1px solid #ccc;border-radius:6px;background:#f3f5d0;padding:1rem;">
-          <div style="font-weight:600;">
-            User LED ${i}
-            <span id="state-led${i}" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;float:right;"></span>
-          </div>
-          <label>Mode:
-            <select id="mode-led${i}" style="width:100%;padding:6px;border-radius:4px;">
-              ${LED_MODE.map(m=>`<option value="${m.v}">${m.t}</option>`).join('')}
-            </select>
-          </label><br>
-          <label>Source:
-            <select id="source-led${i}" style="width:100%;padding:6px;border-radius:4px;">
-              ${LED_SOURCE.map(s=>`<option value="${s.v}">${s.t}</option>`).join('')}
-            </select>
-          </label>
-        </div>`;
-        container.appendChild(card);
-      }
-    })();
-
-    // ---------- RECEIVE: update UI ----------
-    // Inputs
-    connection.on('inputs', (list=[]) => list.forEach((v,i)=>{ const dot=$('state-in'+(i+1)); if(dot) dot.style.background = v ? '#4caf50' : '#ccc'; }));
-    connection.on('enableList', (list=[]) => list.forEach((v,i)=>{ const el=$('enable-in'+(i+1)); if(el) el.checked=!!v; }));
-    connection.on('invertList', (list=[]) => list.forEach((v,i)=>{ const el=$('invert-in'+(i+1)); if(el) el.checked=!!v; }));
-    connection.on('inputActionList', (list=[]) => list.forEach((v,i)=>{ const el=$('action-in'+(i+1)); if(el) el.value=String(v||0); }));
-    connection.on('inputTargetList', (list=[]) => list.forEach((v,i)=>{ const el=$('target-in'+(i+1)); if(el) el.value=String(typeof v==='number'?v:0); }));
-
-    // Channels (skip updates while locally editing/held)
-    connection.on('channelEnabled', (list=[]) => list.forEach((v,i)=>{ const idx=i+1; const el=$('enable-ch'+idx); if(el){ el.checked=!!v; updateChOnDot(idx); } }));
-    connection.on('channelLevels',  (list=[]) => list.forEach((v,i)=>{
-      const idx=i+1;
-      const valEl=$('level-val-ch'+idx);
-      if(valEl){ valEl.textContent = String(v||0); }
-      updateChOnDot(idx);
-    }));
-    connection.on('channelLower', (list=[]) => list.forEach((v,i)=>{
-      const idx=i+1; if (isHeld(idx) || editing.lo.has(idx)) return;
-      const el=$('lower-ch'+idx); if(el){ el.value=String(clamp255(v)); fixThresholdPair(idx); }
-    }));
-    connection.on('channelUpper', (list=[]) => list.forEach((v,i)=>{
-      const idx=i+1; if (isHeld(idx) || editing.hi.has(idx)) return;
-      const el=$('upper-ch'+idx); if(el){ el.value=String(clamp255(v)); fixThresholdPair(idx); }
-    }));
-    connection.on('channelPercent', (list=[]) => list.forEach((v,i)=>{
-      const idx=i+1; if (isHeld(idx) || editing.pct.has(idx)) return;
-      const el=$('percent-ch'+idx), lab=$('percent-val-ch'+idx);
-      const p = clamp100(v);
-      if(el) el.value = String(p);
-      if(lab) lab.textContent = String(p);
-    }));
-    connection.on('LoadTypeList', (list=[]) => list.forEach((v,i)=>{
-      const idx=i+1;
-      const el=$('lt-ch'+idx);
-      if(el) { el.value = String(clampLT(v)); updateKeyHint(idx); }
-    }));
-    // NEW: Cutoff mode echo
-    connection.on('CutModeList', (list=[]) => list.forEach((v,i)=>{
-      const idx=i+1;
-      const el=$('cm-ch'+idx);
-      if(el) el.value = String(clamp01(v));
-    }));
-    // NEW: Preset echo
-    connection.on('channelPreset', (list=[]) => list.forEach((v,i)=>{
-      const idx=i+1; if (isHeld(idx) || editing.preset.has(idx)) return;
-      const el=$('preset-ch'+idx); if(el){ el.value = String(clamp255(v)); fixThresholdPair(idx); }
-    }));
-
-    // AC presence + Frequency
-    connection.on('AcPresentList', (list=[]) => list.forEach((v,i)=> updateAcBadge(i+1, !!v)));
-    connection.on('ZcOkList',      (list=[]) => list.forEach((v,i)=> updateAcBadge(i+1, !!v)));
-    connection.on('FreqX100List', (list=[]) => list.forEach((v,i)=>{
-      const el = $('freq-badge-ch'+(i+1));
-      if (el){
-        const hz = (Number(v||0) / 100).toFixed(2);
-        el.textContent = hz + ' Hz';
-      }
-    }));
-
-    // Buttons (firmware already handles inverted schematic)
-    connection.on('ButtonStateList', (list=[]) => list.forEach((v,i)=>{ const dot=$('state-button'+(i+1)); if(dot) dot.style.background = v ? '#4caf50' : '#ccc'; }));
-    connection.on('ButtonGroupList', (list=[]) => list.forEach((v,i)=>{ const el=$('action-button'+(i+1)); if(el) el.value=String(v||0); }));
-
-    // LEDs
-    connection.on('LedConfigList', (list=[]) => list.forEach((o,i)=>{
-      const m=$('mode-led'+(i+1)), s=$('source-led'+(i+1));
-      if(m && o && typeof o.mode!=='undefined')   m.value = String(o.mode);
-      if(s && o && typeof o.source!=='undefined') s.value = String(o.source);
-    }));
-    connection.on('LedStateList', (list=[]) => list.forEach((v,i)=>{ const dot=$('state-led'+(i+1)); if(dot) dot.style.background = v ? '#ffb300' : '#ccc'; }));
-
-    // ---------- SEND: change handlers ----------
-    // Inputs
-    for (let i=1;i<=NUM_DI;i++){
-      $('enable-in'+i).addEventListener('change', sendInputEnable);
-      $('invert-in'+i).addEventListener('change', sendInputInvert);
-      $('action-in'+i).addEventListener('change', sendInputAction);
-      $('target-in'+i).addEventListener('change', sendInputTarget);
-    }
-    async function sendInputEnable(){ const list=[]; for(let i=1;i<=NUM_DI;i++) list.push(!!$('enable-in'+i).checked); await connection.send("Config",{t:"inputEnable",list}); }
-    async function sendInputInvert(){ const list=[]; for(let i=1;i<=NUM_DI;i++) list.push(!!$('invert-in'+i).checked); await connection.send("Config",{t:"inputInvert",list}); }
-    async function sendInputAction(){ const list=[]; for(let i=1;i<=NUM_DI;i++) list.push(parseInt($('action-in'+i).value||"0",10)); await connection.send("Config",{t:"inputAction",list}); }
-    async function sendInputTarget(){ const list=[]; for(let i=1;i<=NUM_DI;i++) list.push(parseInt($('target-in'+i).value||"0",10)); await connection.send("Config",{t:"inputTarget",list}); }
-
-    // Channels (enabled + percent + thresholds + load type + cutoff mode + NEW preset)
-    for (let i=1;i<=NUM_CH;i++){
-      const pctEl = $('percent-ch'+i);
-      if (pctEl){
-        pctEl.addEventListener('pointerdown', ()=> setEditing('percent', i, true));
-        pctEl.addEventListener('input', (e)=>{
-          $('percent-val-ch'+i).textContent = clamp100(e.target.value);
-          setEditing('percent', i, true);
-          debounceSend();
-        });
-        pctEl.addEventListener('change', ()=>{ setEditing('percent', i, false); markHold(i); sendChannelsConfig(); });
-        pctEl.addEventListener('pointerup', ()=>{ setEditing('percent', i, false); markHold(i); sendChannelsConfig(); });
-        pctEl.addEventListener('pointercancel', ()=> setEditing('percent', i, false));
-      }
-
-      const enEl = $('enable-ch'+i);
-      if (enEl) enEl.addEventListener('change', ()=>{ markHold(i); sendChannelsConfig(); });
-
-      const ltEl = $('lt-ch'+i);
-      if (ltEl) ltEl.addEventListener('change', ()=>{ updateKeyHint(i); markHold(i); sendChannelsConfig(); });
-
-      const cmEl = $('cm-ch'+i); // cutoff mode
-      if (cmEl) cmEl.addEventListener('change', ()=>{ markHold(i); sendChannelsConfig(); });
-
-      const loEl = $('lower-ch'+i), hiEl = $('upper-ch'+i);
-      if (loEl && hiEl){
-        const onLoInput = ()=>{ setEditing('lower', i, true);  fixThresholdPair(i); debounceSend(); };
-        const onHiInput = ()=>{ setEditing('upper', i, true);  fixThresholdPair(i); debounceSend(); };
-        loEl.addEventListener('input', onLoInput);
-        hiEl.addEventListener('input', onHiInput);
-
-        const commitLo = ()=>{ setEditing('lower', i, false); fixThresholdPair(i); markHold(i); sendChannelsConfig(); };
-        const commitHi = ()=>{ setEditing('upper', i, false); fixThresholdPair(i); markHold(i); sendChannelsConfig(); };
-        loEl.addEventListener('change', commitLo);
-        hiEl.addEventListener('change', commitHi);
-        loEl.addEventListener('blur', commitLo);
-        hiEl.addEventListener('blur', commitHi);
-      }
-
-      const pEl = $('preset-ch'+i);
-      if (pEl){
-        const onPresetInput = ()=>{ setEditing('preset', i, true); fixThresholdPair(i); debounceSend(); };
-        const commitPreset  = ()=>{ setEditing('preset', i, false); fixThresholdPair(i); markHold(i); sendChannelsConfig(); };
-        pEl.addEventListener('input', onPresetInput);
-        pEl.addEventListener('change', commitPreset);
-        pEl.addEventListener('blur',   commitPreset);
-      }
-    }
-
-    function debounceSend(){ clearTimeout(sendTimer); sendTimer = setTimeout(sendChannelsConfig, DEBOUNCE_MS); }
-
-    async function sendChannelsConfig(){
+    // --- Channels send (debounced, echo-guard) ---
+    let chApplyingEcho=false;
+    const chTimers={}; const CH_DEB_MS=120;
+    function withChApply(fn){ chApplyingEcho=true; try{fn();} finally{ chApplyingEcho=false; } }
+    function scheduleCh(){ if(!isOpen()||chApplyingEcho) return; clearTimeout(chTimers.all); chTimers.all=setTimeout(sendCh, CH_DEB_MS); }
+    function sendCh(){
+      if(!isOpen()||chApplyingEcho) return;
       const list=[];
       for(let i=1;i<=NUM_CH;i++){
-        fixThresholdPair(i);
-        const payload = {
-          enabled: $('enable-ch'+i).checked,
-          lower:   clamp255($('lower-ch'+i).value),
-          upper:   clamp255($('upper-ch'+i).value),
-          loadType: clampLT($('lt-ch'+i).value),
-          cutMode:  clamp01($('cm-ch'+i).value),
-          percent:  clamp100($('percent-ch'+i).value),
-          preset:   clamp255($('preset-ch'+i).value) // NEW
-        };
-        list.push(payload);
-        markHold(i);
-      }
-      const body = { t:"channels", list };
-      const s = JSON.stringify(body);
-      if (s === lastSentStr) return;
-      lastSentStr = s;
-      await connection.send("Config", body);
-    }
-
-    // Buttons
-    for (let i=1;i<=NUM_BTN;i++){ const el=$('action-button'+i); if (el) el.addEventListener('change', sendButtons); }
-    async function sendButtons(){
-      const list=[]; for(let i=1;i<=NUM_BTN;i++) list.push({action:parseInt(($('action-button'+i).value)||"0",10)});
-      await connection.send("Config",{t:"buttons",list});
-    }
-
-    // LEDs
-    for (let i=1;i<=NUM_LED;i++){
-      const m=$('mode-led'+i), s=$('source-led'+i);
-      if (m) m.addEventListener('change', sendLEDs);
-      if (s) s.addEventListener('change', sendLEDs);
-    }
-    async function sendLEDs(){
-      const list=[];
-      for(let i=1;i<=NUM_LED;i++){
         list.push({
-          mode:   parseInt(($('mode-led'+i).value)||"0",10),
-          source: parseInt(($('source-led'+i).value)||"0",10)
+          enabled: $('enable-ch'+i)?.checked ?? false,
+          lower:   clamp255($('lower-ch'+i)?.value ?? 0),
+          upper:   clamp255($('upper-ch'+i)?.value ?? 255),
+          loadType: clampLT($('lt-ch'+i)?.value ?? 0),
+          cutMode:  clamp01($('cm-ch'+i)?.value ?? 0),
+          percent:  clamp100($('percent-ch'+i)?.value ?? 0),
+          preset:   clamp255($('preset-ch'+i)?.value ?? 0)
+        });
+        const range=$('range-ch'+i);
+        if(range) range.textContent='['+clamp255($('lower-ch'+i)?.value ?? 0)+'..'+clamp255($('upper-ch'+i)?.value ?? 255)+']';
+      }
+      conn.send("Config",{t:"channels",list});
+    }
+    for(let i=1;i<=NUM_CH;i++){
+      const pct=$('percent-ch'+i);
+      pct?.addEventListener('input', ()=>{ const v=clamp100(pct.value); $('percent-val-ch'+i).textContent=String(v); });
+      ['enable','lt','cm','lower','upper','preset','percent'].forEach(k=>{
+        const id=(k==='enable')?'enable-ch': (k==='lt')?'lt-ch': (k==='cm')?'cm-ch': (k==='percent')?'percent-ch': (k+'-ch');
+        $(id+i)?.addEventListener('change', scheduleCh);
+        if(k==='lower'||k==='upper'||k==='preset') $(id+i)?.addEventListener('input', scheduleCh);
+      });
+    }
+
+    // --- Channels receives ---
+    conn.on('channelEnabled', list=> withChApply(()=> list.forEach((v,i)=>{ const el=$('enable-ch'+(i+1)); if(el) el.checked=!!v; })));
+    conn.on('channelLevels',  list=> list.forEach((v,i)=>{ const idx=i+1; $('level-val-ch'+idx).textContent=String(v||0); $('on-ch'+idx).style.background=(v>0)?'#4caf50':'#ccc'; }));
+    conn.on('channelLower',   list=> withChApply(()=> list.forEach((v,i)=>{ const el=$('lower-ch'+(i+1)); if(el) el.value=String(clamp255(v)); })));
+    conn.on('channelUpper',   list=> withChApply(()=> list.forEach((v,i)=>{ const el=$('upper-ch'+(i+1)); if(el) el.value=String(clamp255(v)); })));
+    conn.on('channelPercent', list=> withChApply(()=> list.forEach((v,i)=>{ const e=$('percent-ch'+(i+1)), l=$('percent-val-ch'+(i+1)); const p=clamp100(v); if(e) e.value=String(p); if(l) l.textContent=String(p);})));
+    conn.on('LoadTypeList',   list=> withChApply(()=> list.forEach((v,i)=>{ const el=$('lt-ch'+(i+1)); if(el) el.value=String(clampLT(v)); })));
+    conn.on('CutModeList',    list=> withChApply(()=> list.forEach((v,i)=>{ const el=$('cm-ch'+(i+1)); if(el) el.value=String(clamp01(v)); })));
+    conn.on('channelPreset',  list=> withChApply(()=> list.forEach((v,i)=>{ const el=$('preset-ch'+(i+1)); if(el) el.value=String(clamp255(v)); })));
+    conn.on('ZcOkList',       list=> list.forEach((v,i)=> updateAcBadge(i+1, !!v)));
+    conn.on('FreqX100List',   list=> list.forEach((v,i)=>{ const el=$('freq-badge-ch'+(i+1)); if(el) el.textContent=(Number(v||0)/100).toFixed(2)+' Hz'; }));
+
+    // ---------- FULL DI UI (Firmware-compatible) ----------
+    const DI_ACTIONS = [
+      {v:0,t:'None'},
+      {v:1,t:'Toggle to preset/0'},
+      {v:2,t:'Turn off'},
+      {v:3,t:'Toggle output'},
+      {v:4,t:'Increase'},
+      {v:5,t:'Decrease'},
+      {v:6,t:'Increase then Decrease'}
+    ];
+    const DI_TARGETS = [
+      {v:0,t:'None'},
+      {v:4,t:'All channels'},
+      {v:1,t:'Channel 1'},
+      {v:2,t:'Channel 2'}
+    ];
+    const DI_SW_TYPES   = [{v:0,t:'Momentary pushbutton'},{v:1,t:'Latching switch'}];
+    const DI_LATCH_MODES= [{v:0,t:'Toggle to preset or 0'},{v:1,t:'Increase/Decrease until toggle'}];
+
+    // Build inputs
+    (function buildInputs(){
+      const wrap=$('inputs-config'); if(!wrap) return;
+      for(let i=1;i<=NUM_DI;i++){
+        const card=document.createElement('div'); card.className='card di';
+        card.innerHTML=`
+          <div style="display:flex;justify-content:space-between;align-items:center;font-weight:600;margin-bottom:.4rem;">
+            <span>IN${i}</span>
+            <span id="state-in${i}" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;"></span>
+          </div>
+
+          <div class="row-3">
+            <label class="label"><input type="checkbox" id="enable-in${i}"> Enabled</label>
+            <label class="label"><input type="checkbox" id="invert-in${i}"> Inverted</label>
+            <label class="label">Switch Type
+              <select id="swtype-in${i}" style="width:100%;padding:.35rem;border-radius:6px;border:1px solid #ccc;"></select>
+            </label>
+          </div>
+
+          <div id="momentary-wrap-in${i}" style="border:1px dashed #a6c8a6;border-radius:6px;padding:.6rem;margin-top:.4rem;">
+            <div class="tiny" style="margin-bottom:.25rem;">Momentary press mappings</div>
+            ${['Short','Long','DoubleShort','ShortThenLong'].map(key=>`
+              <div class="row">
+                <label class="label" style="margin:0;">${key} — Action
+                  <select id="act-${key.toLowerCase()}-in${i}" style="width:100%;padding:.35rem;border-radius:6px;border:1px solid #ccc;"></select>
+                </label>
+                <label class="label" style="margin:0;">${key} — Target
+                  <select id="tgt-${key.toLowerCase()}-in${i}" style="width:100%;padding:.35rem;border-radius:6px;border:1px solid #ccc;"></select>
+                </label>
+              </div>
+            `).join('')}
+          </div>
+
+          <div id="latching-wrap-in${i}" style="border:1px dashed #a6c8a6;border-radius:6px;padding:.6rem;margin-top:.4rem;display:none;">
+            <div class="tiny" style="margin-bottom:.25rem;">Latching toggle behavior</div>
+            <div class="row">
+              <label class="label">Latch Mode
+                <select id="lmode-in${i}" style="width:100%;padding:.35rem;border-radius:6px;border:1px solid #ccc;"></select>
+              </label>
+              <label class="label">Latch Target
+                <select id="ltgt-in${i}" style="width:100%;padding:.35rem;border-radius:6px;border:1px solid #ccc;"></select>
+              </label>
+            </div>
+          </div>
+        `;
+        wrap.appendChild(card);
+
+        // populate selects
+        const fill=(el,items)=>{ if(el) el.innerHTML = items.map(o=>`<option value="${o.v}">${o.t}</option>`).join(''); };
+        fill($('swtype-in'+i), DI_SW_TYPES);
+        ['short','long','doubleshort','shortthenlong'].forEach(k=>{
+          fill($('act-'+k+'-in'+i), DI_ACTIONS);
+          fill($('tgt-'+k+'-in'+i), DI_TARGETS);
+        });
+        fill($('lmode-in'+i), DI_LATCH_MODES);
+        fill($('ltgt-in'+i), DI_TARGETS);
+      }
+    })();
+
+    // --- DI instant-apply with debounce & echo-suppression ---
+    const diKeys = [
+      'inputEnable','inputInvert','inputSwitchType',
+      'inputPressActionShort','inputPressTargetShort',
+      'inputPressActionLong','inputPressTargetLong',
+      'inputPressActionDoubleShort','inputPressTargetDoubleShort',
+      'inputPressActionShortThenLong','inputPressTargetShortThenLong',
+      'inputLatchMode','inputLatchTarget'
+    ];
+    const diSent = Object.fromEntries(diKeys.map(k=>[k, Array(NUM_DI).fill(null)]));
+    let diApplyingEcho=false; const diTimers={};
+    const arrEq=(a,b)=> a&&b&&a.length===b.length && a.every((v,i)=>v===b[i]);
+
+    function diReadUI(){
+      const v = {
+        inputEnable:[],inputInvert:[],inputSwitchType:[],
+        inputPressActionShort:[],inputPressTargetShort:[],
+        inputPressActionLong:[],inputPressTargetLong:[],
+        inputPressActionDoubleShort:[],inputPressTargetDoubleShort:[],
+        inputPressActionShortThenLong:[],inputPressTargetShortThenLong:[],
+        inputLatchMode:[],inputLatchTarget:[]
+      };
+      for(let i=1;i<=NUM_DI;i++){
+        v.inputEnable.push( !!$('enable-in'+i).checked );
+        v.inputInvert.push( !!$('invert-in'+i).checked );
+        v.inputSwitchType.push( parseInt($('swtype-in'+i).value||"0",10) );
+        v.inputPressActionShort.push(        parseInt($('act-short-in'+i).value||"0",10) );
+        v.inputPressTargetShort.push(        parseInt($('tgt-short-in'+i).value||"0",10) );
+        v.inputPressActionLong.push(         parseInt($('act-long-in'+i).value||"0",10) );
+        v.inputPressTargetLong.push(         parseInt($('tgt-long-in'+i).value||"0",10) );
+        v.inputPressActionDoubleShort.push(  parseInt($('act-doubleshort-in'+i).value||"0",10) );
+        v.inputPressTargetDoubleShort.push(  parseInt($('tgt-doubleshort-in'+i).value||"0",10) );
+        v.inputPressActionShortThenLong.push(parseInt($('act-shortthenlong-in'+i).value||"0",10) );
+        v.inputPressTargetShortThenLong.push(parseInt($('tgt-shortthenlong-in'+i).value||"0",10) );
+        v.inputLatchMode.push(   parseInt($('lmode-in'+i).value||"0",10) );
+        v.inputLatchTarget.push( parseInt($('ltgt-in'+i).value||"0",10) );
+      }
+      return v;
+    }
+
+    function diApplyEchoShowHide(){
+      for(let i=1;i<=NUM_DI;i++){
+        const sw=parseInt($('swtype-in'+i).value||"0",10);
+        $('momentary-wrap-in'+i).style.display = (sw===0) ? '' : 'none';
+        $('latching-wrap-in'+i).style.display  = (sw===1) ? '' : 'none';
+      }
+    }
+
+    function diScheduleSend(key){
+      if(diApplyingEcho || !isOpen()) return;
+      clearTimeout(diTimers[key]);
+      diTimers[key] = setTimeout(async ()=>{
+        const ui=diReadUI();
+        if(!arrEq(ui[key], diSent[key])){
+          await conn.send("Config", { t:key, list:ui[key] });
+          diSent[key] = ui[key].slice();
+        }
+      }, DEBOUNCE_MS);
+    }
+
+    // Bind DI change handlers
+    for(let i=1;i<=NUM_DI;i++){
+      $('enable-in'+i).addEventListener('change', ()=>diScheduleSend('inputEnable'));
+      $('invert-in'+i).addEventListener('change', ()=>diScheduleSend('inputInvert'));
+      $('swtype-in'+i).addEventListener('change', ()=>{ diApplyEchoShowHide(); diScheduleSend('inputSwitchType'); });
+      $('act-short-in'+i).addEventListener('change', ()=>diScheduleSend('inputPressActionShort'));
+      $('tgt-short-in'+i).addEventListener('change', ()=>diScheduleSend('inputPressTargetShort'));
+      $('act-long-in'+i).addEventListener('change',  ()=>diScheduleSend('inputPressActionLong'));
+      $('tgt-long-in'+i).addEventListener('change',  ()=>diScheduleSend('inputPressTargetLong'));
+      $('act-doubleshort-in'+i).addEventListener('change', ()=>diScheduleSend('inputPressActionDoubleShort'));
+      $('tgt-doubleshort-in'+i).addEventListener('change', ()=>diScheduleSend('inputPressTargetDoubleShort'));
+      $('act-shortthenlong-in'+i).addEventListener('change', ()=>diScheduleSend('inputPressActionShortThenLong'));
+      $('tgt-shortthenlong-in'+i).addEventListener('change', ()=>diScheduleSend('inputPressTargetShortThenLong'));
+      $('lmode-in'+i).addEventListener('change', ()=>diScheduleSend('inputLatchMode'));
+      $('ltgt-in'+i).addEventListener('change', ()=>diScheduleSend('inputLatchTarget'));
+    }
+
+    // --- DI receive (echo to UI without re-sending) ---
+    function diEcho(name, list, setter){
+      diApplyingEcho=true;
+      if(Array.isArray(list)) list.forEach((v,i)=> setter(i+1,v));
+      diApplyingEcho=false;
+      diApplyEchoShowHide();
+      diSent[name] = Array.isArray(list) ? list.slice() : diSent[name];
+    }
+    conn.on('inputs', (list=[]) => list.forEach((v,i)=>{ const dot=$('state-in'+(i+1)); if(dot) dot.style.background = v ? '#4caf50' : '#ccc'; }));
+    conn.on('enableList',  list=> diEcho('inputEnable', list, (idx,v)=>{ const el=$('enable-in'+idx); if(el) el.checked=!!v; }));
+    conn.on('invertList',  list=> diEcho('inputInvert', list, (idx,v)=>{ const el=$('invert-in'+idx); if(el) el.checked=!!v; }));
+    conn.on('inputSwitchTypeList', list=> diEcho('inputSwitchType', list, (idx,v)=>{ const el=$('swtype-in'+idx); if(el) el.value=String(v||0); }));
+    conn.on('pressActionShort', list=> diEcho('inputPressActionShort', list, (idx,v)=>{ const el=$('act-short-in'+idx); if(el) el.value=String(v||0); }));
+    conn.on('pressTargetShort', list=> diEcho('inputPressTargetShort', list, (idx,v)=>{ const el=$('tgt-short-in'+idx); if(el) el.value=String(v||0); }));
+    conn.on('pressActionLong',  list=> diEcho('inputPressActionLong',  list, (idx,v)=>{ const el=$('act-long-in'+idx); if(el) el.value=String(v||0); }));
+    conn.on('pressTargetLong',  list=> diEcho('inputPressTargetLong',  list, (idx,v)=>{ const el=$('tgt-long-in'+idx); if(el) el.value=String(v||0); }));
+    conn.on('pressActionDoubleShort', list=> diEcho('inputPressActionDoubleShort', list, (idx,v)=>{ const el=$('act-doubleshort-in'+idx); if(el) el.value=String(v||0); }));
+    conn.on('pressTargetDoubleShort', list=> diEcho('inputPressTargetDoubleShort', list, (idx,v)=>{ const el=$('tgt-doubleshort-in'+idx); if(el) el.value=String(v||0); }));
+    conn.on('pressActionShortThenLong', list=> diEcho('inputPressActionShortThenLong', list, (idx,v)=>{ const el=$('act-shortthenlong-in'+idx); if(el) el.value=String(v||0); }));
+    conn.on('pressTargetShortThenLong', list=> diEcho('inputPressTargetShortThenLong', list, (idx,v)=>{ const el=$('tgt-shortthenlong-in'+idx); if(el) el.value=String(v||0); }));
+    conn.on('latchModeList',  list=> diEcho('inputLatchMode',  list, (idx,v)=>{ const el=$('lmode-in'+idx); if(el) el.value=String(v||0); }));
+    conn.on('latchTargetList',list=> diEcho('inputLatchTarget',list, (idx,v)=>{ const el=$('ltgt-in'+idx); if(el) el.value=String(v||0); }));
+
+    // ---------- Buttons ----------
+    (function buildButtons(){
+      const c=$('buttons-config'); if(!c) return;
+      const ACTIONS=[{v:0,t:'None'},{v:1,t:'Toggle CH1'},{v:2,t:'Toggle CH2'},{v:3,t:'Step Up CH1'},{v:4,t:'Step Down CH1'},{v:5,t:'Step Up CH2'},{v:6,t:'Step Down CH2'}];
+      for(let i=1;i<=NUM_BTN;i++){
+        const card=document.createElement('div');
+        card.innerHTML=`
+          <div class="card" style="background:#cbdcf7;">
+            <div style="font-weight:600;">
+              Button ${i}
+              <span id="state-button${i}" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;float:right;"></span>
+            </div>
+            <label class="label">Action:
+              <select id="action-button${i}" style="width:100%;padding:6px;border-radius:4px;border:1px solid #ccc;">
+                ${ACTIONS.map(a=>`<option value="${a.v}">${a.t}</option>`).join('')}
+              </select>
+            </label>
+          </div>`;
+        c.appendChild(card);
+      }
+      // send on change
+      for(let i=1;i<=NUM_BTN;i++){
+        $('action-button'+i)?.addEventListener('change', ()=>{
+          if(!isOpen()) return;
+          const list=[]; for(let j=1;j<=NUM_BTN;j++) list.push({action:parseInt(($('action-button'+j).value)||"0",10)});
+          conn.send("Config",{t:"buttons",list});
         });
       }
-      await connection.send("Config",{t:"leds",list});
-    }
+    })();
+    conn.on('ButtonStateList', list=> list.forEach((v,i)=>{ const dot=$('state-button'+(i+1)); if(dot) dot.style.background = v ? '#4caf50' : '#ccc'; }));
+    conn.on('ButtonGroupList', list=> list.forEach((v,i)=>{ const sel=$('action-button'+(i+1)); if(sel) sel.value=String(list[i]?.action ?? list[i] ?? 0); }));
+
+    // ---------- LEDs ----------
+    (function buildLEDs(){
+      const c=$('leds-config'); if(!c) return;
+      for(let i=1;i<=NUM_LED;i++){
+        const card=document.createElement('div');
+        card.innerHTML=`
+          <div class="card" style="background:#f3f5d0;">
+            <div style="font-weight:600;">
+              User LED ${i}
+              <span id="state-led${i}" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;float:right;"></span>
+            </div>
+            <label class="label">Mode:
+              <select id="mode-led${i}" style="width:100%;padding:6px;border-radius:4px;border:1px solid #ccc;">
+                <option value="0">Steady (active)</option>
+                <option value="1">Blink (active)</option>
+              </select>
+            </label><br>
+            <label class="label">Source:
+              <select id="source-led${i}" style="width:100%;padding:6px;border-radius:4px;border:1px solid #ccc;">
+                <option value="0">None</option>
+                <option value="1">Channel 1</option>
+                <option value="2">Channel 2</option>
+              </select>
+            </label>
+          </div>`;
+        c.appendChild(card);
+      }
+      // send on change
+      for(let i=1;i<=NUM_LED;i++){
+        const send=()=>{ if(!isOpen()) return;
+          const list=[]; for(let j=1;j<=NUM_LED;j++) list.push({mode:parseInt(($('mode-led'+j).value)||"0",10), source:parseInt(($('source-led'+j).value)||"0",10)});
+          conn.send("Config",{t:"leds",list});
+        };
+        $('mode-led'+i)?.addEventListener('change', send);
+        $('source-led'+i)?.addEventListener('change', send);
+      }
+    })();
+    conn.on('LedConfigList', (list=[])=> list.forEach((cfg,i)=>{ const m=$('mode-led'+(i+1)), s=$('source-led'+(i+1)); if(m&&cfg&&typeof cfg.mode!=='undefined') m.value=String(cfg.mode); if(s&&cfg&&typeof cfg.source!=='undefined') s.value=String(cfg.source); }));
+    conn.on('LedStateList',  (list=[])=> list.forEach((v,i)=>{ const dot=$('state-led'+(i+1)); if(dot) dot.style.background = v ? '#ffb300' : '#ccc'; }));
+
   })();
   </script>
 </section>
