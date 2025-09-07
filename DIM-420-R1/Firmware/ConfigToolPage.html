@@ -39,20 +39,8 @@
     </div>
     <div style="grid-column:span 2;text-align:right;">
       <button id="connect-button" type="button" style="padding:.55rem .9rem;border-radius:6px;border:1px solid #2f6fff;background:#2f6fff;color:#fff;">Connect</button>
-      <button id="reset-button" type="button" style="padding:.55rem .9rem;border-radius:6px;border:1px solid #dc3545;background:#dc3545;color:#fff;margin-left:.6rem;" disabled="">Reset Device</button>
     </div>
   </form>
-
-  <dialog id="reset-dialog" style="border:none;border-radius:10px;padding:0;max-width:420px;width:90%;box-shadow:0 10px 30px rgba(0,0,0,.2);">
-    <form id="reset-form" method="dialog" style="padding:1rem 1.25rem;">
-      <h3 style="margin:.25rem 0 .5rem;">Confirm reset</h3>
-      <p style="margin:.25rem 0 1rem;color:#444;">Are you sure you want to reset the module? The serial connection will be temporarily interrupted.</p>
-      <div style="display:flex;justify-content:flex-end;gap:.5rem;">
-        <button id="dlg-cancel" value="cancel" style="padding:.5rem .9rem;border-radius:6px;border:1px solid #ccc;background:#fff;">Cancel</button>
-        <button id="dlg-confirm" value="confirm" style="padding:.5rem .9rem;border-radius:6px;border:1px solid #dc3545;background:#dc3545;color:#fff;">Reset</button>
-      </div>
-    </form>
-  </dialog>
 
   <div id="log-line" style="margin-bottom:1.5rem;padding:1rem;background:#f9f9f9;border:1px solid #ccc;border-radius:6px;font-size:0.9rem;color:#333;font-family:monospace;">
     <strong>Serial Log:</strong>
@@ -84,7 +72,8 @@
     </section>
   </div>
 
-  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
+  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
+  <script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
   <script>
   (function () {
     // ---------- Constants & helpers ----------
@@ -144,16 +133,7 @@
         </div>
       </div>`;
 
-    /* CHANGED: value 1 label -> "Turn on" (was "Toggle to preset/0") */
-    const DI_ACT=[
-      {v:0,t:'None'},
-      {v:1,t:'Turn on'},
-      {v:2,t:'Turn off'},
-      {v:3,t:'Toggle output'},
-      {v:4,t:'Increase'},
-      {v:5,t:'Decrease'},
-      {v:6,t:'Increase then Decrease'}
-    ];
+    const DI_ACT=[{v:0,t:'None'},{v:1,t:'Turn on'},{v:2,t:'Turn off'},{v:3,t:'Toggle output'},{v:4,t:'Increase'},{v:5,t:'Decrease'},{v:6,t:'Increase then Decrease'}];
     const DI_TGT=[{v:0,t:'None'},{v:4,t:'All channels'},{v:1,t:'Channel 1'},{v:2,t:'Channel 2'}];
     const DI_SW=[{v:0,t:'Momentary pushbutton'},{v:1,t:'Latching switch'}];
     const DI_LM=[{v:0,t:'Toggle to preset or 0'},{v:1,t:'Increase/Decrease until toggle'}];
@@ -211,17 +191,11 @@
     const conn=SimpleWebSerial.setupSerialConnection({requestAccessOnPageLoad:false, requestElement:'connect-button'});
     const isOpen=()=>{ try{return typeof conn.isOpen==='function'?conn.isOpen():!!conn.port;}catch{return false;} };
     const send=(t,p)=>{ if(isOpen()) try{ conn.send(t,p); }catch(e){} };
-    const setReset=(on)=>{ const b=$('reset-button'); if(b) b.disabled=!on; };
 
-    conn.on('open', ()=>{ setReset(true); pingValues(); });
-    conn.on('close', ()=>{ setReset(false); });
+    conn.on('open', ()=>{ pingValues(); });
+    conn.on('close', ()=>{ /* no reset handling */ });
     conn.on('message', msg=> log('DIM-420-R1', msg));
-
-    // Reset dialog
-    const dlg=$('reset-dialog'); $('reset-button').addEventListener('click',()=> dlg.showModal());
-    $('reset-form').addEventListener('close',()=>{ if(dlg.returnValue==='confirm'){ send('command',{action:'reset'}); }});
-    $('dlg-cancel').addEventListener('click',(e)=>{ e.preventDefault(); dlg.close('cancel'); });
-    $('dlg-confirm').addEventListener('click',(e)=>{ e.preventDefault(); dlg.close('confirm'); });
+    conn.on('config', cfg => applyConfig(cfg));
 
     // Modbus -> values
     const pingValues=()=> {
@@ -343,6 +317,10 @@
           const lm=$('lmode-in'+i), lt=$('ltgt-in'+i);
           if(lm) lm.value=String(d.latchMode||0);
           if(lt) lt.value=String(d.latchTarget||0);
+
+          // NEW: live DI state bubble
+          const st=$('state-in'+i);
+          if(st && typeof d.state!=='undefined'){ st.style.background=d.state ? '#4caf50' : '#ccc'; }
         });
       }finally{ echoGuard=false; }
       diShow();
@@ -359,8 +337,6 @@
         ledA.forEach((L,idx)=>{ const i=idx+1; const m=$('mode-led'+i), s=$('source-led'+i), st=$('state-led'+i); if(m&&L) m.value=String(L.mode||0); if(s&&L) s.value=String(L.source||0); if(st&&L) st.style.background=L.state?'#ffb300':'#ccc'; });
       }finally{ echoGuard=false; }
     }
-
-    conn.on('config', cfg => applyConfig(cfg));
   })();
   </script>
 </section>
