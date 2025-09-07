@@ -133,7 +133,17 @@
         </div>
       </div>`;
 
-    const DI_ACT=[{v:0,t:'None'},{v:1,t:'Turn on'},{v:2,t:'Turn off'},{v:3,t:'Toggle output'},{v:4,t:'Increase'},{v:5,t:'Decrease'},{v:6,t:'Increase then Decrease'}];
+    /* CHANGE #1: add Go to maximum (v:8) */
+    const DI_ACT=[
+      {v:0,t:'None'},
+      {v:1,t:'Turn on'},
+      {v:2,t:'Turn off'},
+      {v:3,t:'Toggle output'},
+      {v:4,t:'Increase'},
+      {v:5,t:'Decrease'},
+      {v:6,t:'Increase then Decrease'},
+      {v:8,t:'Go to maximum'}
+    ];
     const DI_TGT=[{v:0,t:'None'},{v:4,t:'All channels'},{v:1,t:'Channel 1'},{v:2,t:'Channel 2'}];
     const DI_SW=[{v:0,t:'Momentary pushbutton'},{v:1,t:'Latching switch'}];
     const DI_LM=[{v:0,t:'Toggle to preset or 0'},{v:1,t:'Increase/Decrease until toggle'}];
@@ -175,7 +185,18 @@
         </div>
       </div>`;
 
-    const BTN_ACT=[{v:0,t:'None'},{v:1,t:'Toggle CH1'},{v:2,t:'Toggle CH2'},{v:3,t:'Step Up CH1'},{v:4,t:'Step Down CH1'},{v:5,t:'Step Up CH2'},{v:6,t:'Step Down CH2'}];
+    /* CHANGE #2 (optional, to match firmware): add Max CH1/CH2 */
+    const BTN_ACT=[
+      {v:0,t:'None'},
+      {v:1,t:'Toggle CH1'},
+      {v:2,t:'Toggle CH2'},
+      {v:3,t:'Step Up CH1'},
+      {v:4,t:'Step Down CH1'},
+      {v:5,t:'Step Up CH2'},
+      {v:6,t:'Step Down CH2'},
+      {v:7,t:'Go to MAX CH1'},
+      {v:8,t:'Go to MAX CH2'}
+    ];
     const BTN = i => `<div class="card btn"><div style="font-weight:600;">Button ${i}<span id="state-button${i}" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;float:right;"></span></div><label class="label">Action:<select id="action-button${i}" style="width:100%;padding:6px;border-radius:4px;border:1px solid #ccc;">${opt(BTN_ACT)}</select></label></div>`;
     const LED = i => `<div class="card led"><div style="font-weight:600;">User LED ${i}<span id="state-led${i}" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;float:right;"></span></div><label class="label">Mode:<select id="mode-led${i}" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;"><option value="0">Steady (active)</option><option value="1">Blink (active)</option></select></label><br><label class="label">Source:<select id="source-led${i}" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;"><option value="0">None</option><option value="1">Channel 1</option><option value="2">Channel 2</option></select></label></div>`;
 
@@ -318,7 +339,6 @@
           if(lm) lm.value=String(d.latchMode||0);
           if(lt) lt.value=String(d.latchTarget||0);
 
-          // NEW: live DI state bubble
           const st=$('state-in'+i);
           if(st && typeof d.state!=='undefined'){ st.style.background=d.state ? '#4caf50' : '#ccc'; }
         });
