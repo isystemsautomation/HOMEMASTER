@@ -57,10 +57,10 @@ enum DiAction : uint8_t {
   DI_ACT_TOGGLE_OUTPUT=3,      // toggle using last non-zero level
   DI_ACT_INC=4,
   DI_ACT_DEC=5,
-  DI_ACT_INC_THEN_DEC=6,
+  DI_ACT_INC_THEN_DEC=6,       // <-- short press: 1 step ping-pong; long: continuous ping-pong
   // internal (not sent by UI)
   DI_ACT_TOGGLE_TO_PRESET=7,
-  // NEW: go straight to channel upper threshold (MAX)
+  // go straight to channel upper threshold (MAX)
   DI_ACT_GO_MAX=8
 };
 
@@ -245,7 +245,7 @@ bool applyFromPersist(const PersistConfig &pc){
   g_mb_address=pc.mb_address; g_mb_baud=pc.mb_baud; return true;
 }
 bool saveConfigFS(){ PersistConfig pc{}; captureToPersist(pc); File f=LittleFS.open(CFG_PATH,"w"); if(!f) return false; size_t n=f.write((const uint8_t*)&pc,sizeof(pc)); f.flush(); f.close(); if(n!=sizeof(pc)) return false;
-  File r=LittleFS.open(CFG_PATH,"r"); if(!r) return false; if((size_t)r.size()!=sizeof(PersistConfig)){ r.close(); return false; } PersistConfig back{}; size_t nr=r.read((uint8_t*)&back,sizeof(back)); r.close(); if(nr!=sizeof(back)) return false;
+  File r=LittleFS.open(CFG_PATH,"r"); if(!r) return false; if((size_t)r.size()!=sizeof(PersistConfig)){ r.close(); return false; } PersistConfig back{}; size_t nr=r.read((uint8_t*)&back,sizeof(back)); r.close(); if(n!=sizeof(back)) return false;
   PersistConfig tmp2=back; uint32_t crc=tmp2.crc32; tmp2.crc32=0; if(crc32_update(0,(const uint8_t*)&tmp2,sizeof(tmp2))!=crc) return false; wsLog("config: saved to FS"); return true; }
 bool loadConfigFS(){ File f=LittleFS.open(CFG_PATH,"r"); if(!f) return false; if(f.size()!=sizeof(PersistConfig)){ f.close(); return false; } PersistConfig pc{}; size_t n=f.read((uint8_t*)&pc,sizeof(pc)); f.close(); if(n!=sizeof(pc)) return false; if(!applyFromPersist(pc)) return false; wsLog("config: loaded from FS"); return true; }
 bool initFilesystemAndConfig(){ if(!LittleFS.begin()){ if(!LittleFS.format()||!LittleFS.begin()){ wsLog("fs: init failed"); return false; } } if(loadConfigFS()) return true; setDefaults(); if(saveConfigFS()) return true; if(!LittleFS.format()||!LittleFS.begin()) return false; setDefaults(); if(saveConfigFS()) return true; return false; }
@@ -270,9 +270,33 @@ void applyActionToTarget(uint8_t target,uint8_t action,uint32_t now);
 void clampAndSetLevel(uint8_t ch,int value);
 
 // ================== DI press detection runtime ==================
-struct DiRuntime{ bool cur=false, prev=false; uint32_t lastChange=0, pressStart=0; bool waitingSecond=false; uint32_t firstShortAt=0; bool shortThenLongArmed=false; bool rampActive=false; int8_t rampDir=+1; uint32_t lastRampTick=0; };
+struct DiRuntime{
+  bool cur=false, prev=false;
+  uint32_t lastChange=0, pressStart=0;
+  bool waitingSecond=false;
+  uint32_t firstShortAt=0;
+  bool shortThenLongArmed=false;
+
+  // Per-DI, per-channel short-press ping-pong direction (+1 up, -1 down)
+  int8_t shortDir[NUM_CH] = {+1, +1};
+
+  // Latching ping-pong
+  bool rampActive=false; int8_t rampDir=+1; uint32_t lastRampTick=0;
+
+  // Momentary LONG press continuous ramp
+  bool longHold=false;           // true while auto-stepping for LONG
+  bool longUsed=false;           // set if at least one LONG step happened
+  int8_t longDir=+1;
+  uint32_t longLastTick=0;
+};
 DiRuntime diRt[NUM_DI];
-const uint16_t RAMP_TICK_MS=80;  // for DI latch ping-pong
+
+// Cadence for DI LONG press ramping (≈ 1 step per second)
+const uint16_t DI_LONG_RAMP_TICK_MS = 1000;
+// [CHANGE] Dedicated cadence for LATCH ping-pong (1 step/sec)
+const uint16_t LATCH_RAMP_TICK_MS = 1000;
+
+const uint16_t RAMP_TICK_MS=80;  // retained for legacy fast ramps
 
 // ============ COMPACT CONFIG SNAPSHOT SENDER ============
 void sendConfigSnapshot(){
@@ -426,7 +450,7 @@ void applyActionToTarget(uint8_t target,uint8_t action,uint32_t now){
   cfgDirty=true; lastCfgTouchMs=now; wsLog("button: target="+String(target)+" action="+String(action));
 }
 
-// ===== DI actions (with GO_MAX) =====
+// ===== DI actions (generic, keep burst for non-short contexts) =====
 void applyDiAction(uint8_t target,uint8_t action,uint32_t now){
   if(action==DI_ACT_NONE || target==DI_TGT_NONE) return;
   auto doCh=[&](int idx){ if(idx<0||idx>=NUM_CH) return; switch(action){
@@ -435,7 +459,7 @@ void applyDiAction(uint8_t target,uint8_t action,uint32_t now){
     case DI_ACT_TOGGLE_OUTPUT:     clampAndSetLevel(idx,(chLevel[idx]==0)?chLastNonZero[idx]:0); break;
     case DI_ACT_INC:               clampAndSetLevel(idx,chLevel[idx]+STEP_DELTA); break;
     case DI_ACT_DEC:               clampAndSetLevel(idx,chLevel[idx]-STEP_DELTA); break;
-    case DI_ACT_INC_THEN_DEC: {
+    case DI_ACT_INC_THEN_DEC: {    // NOTE: kept as burst for non-short uses (e.g., Modbus)
       static const uint8_t burst=8;
       for(uint8_t k=0;k<burst;k++){ if(chLevel[idx]<chUpper[idx]) clampAndSetLevel(idx,chLevel[idx]+STEP_DELTA); }
       if(chLevel[idx]>=chUpper[idx]){ for(uint8_t k=0;k<burst;k++){ if(chLevel[idx]>0) clampAndSetLevel(idx,chLevel[idx]-STEP_DELTA); } }
@@ -449,6 +473,15 @@ void applyDiAction(uint8_t target,uint8_t action,uint32_t now){
 }
 
 JSONVar LedConfigListFromCfg(){ JSONVar arr; for(int i=0;i<NUM_LED;i++){ JSONVar o; o["mode"]=ledCfg[i].mode; o["source"]=ledCfg[i].source; arr[i]=o; } return arr; }
+
+// ---- helper: one ping-pong step for a channel with external direction ref
+static inline void onePingPongStep(int ch, int8_t &dir){
+  if(ch<0 || ch>=NUM_CH) return;
+  int next = (int)chLevel[ch] + (int)dir * (int)STEP_DELTA;
+  if(next >= (int)chUpper[ch]){ next = chUpper[ch]; dir = -1; }
+  else if(next <= 0){ next = 0; dir = +1; }
+  clampAndSetLevel(ch, next);
+}
 
 // ================== Main loop ==================
 void loop(){
@@ -547,42 +580,130 @@ void loop(){
     }
   }
 
-  // ================== Digital Inputs (unchanged runtime except new action) ==================
+  // ================== Digital Inputs ==================
   for(int i=0;i<NUM_DI;i++){
     bool val=false; if(diCfg[i].enabled){ val=(digitalRead(DI_PINS[i])==HIGH); if(diCfg[i].inverted) val=!val; }
     DiRuntime &rt=diRt[i]; rt.prev=rt.cur; rt.cur=val; mb.setIsts(ISTS_DI_BASE + i, val);
     uint32_t nowMs=millis(); bool rising=(!rt.prev && rt.cur), falling=(rt.prev && !rt.cur);
 
+    const uint8_t shortAct = diCfg[i].pressAction[PRESS_SHORT];
+    const uint8_t shortTgt = diCfg[i].pressTarget[PRESS_SHORT];
+
+    const uint8_t longAct   = diCfg[i].pressAction[PRESS_LONG];
+    const uint8_t longTgt   = diCfg[i].pressTarget[PRESS_LONG];
+    const bool longIsRamp   = (longAct==DI_ACT_INC || longAct==DI_ACT_DEC || longAct==DI_ACT_INC_THEN_DEC);
+
+    // [CHANGE] For LATCHING switches, act on ANY state change (both edges)
+    if(diCfg[i].switchType==DI_SW_LATCHING && (rising || falling)){
+      if(diCfg[i].latchMode==LATCH_TOGGLE_TO_PRESET_OR_0){
+        // Toggle to preset/0 every time the DI toggles
+        applyDiAction(diCfg[i].latchTarget, DI_ACT_TOGGLE_TO_PRESET, nowMs);
+        wsLog(String("DI")+String(i+1)+": latch toggle preset/0 on edge");
+      } else { // LATCH_PINGPONG_UNTIL_TOGGLE
+        // Toggle the continuous 1Hz ping-pong on each DI edge
+        rt.rampActive = !rt.rampActive;
+        if(rt.rampActive){
+          rt.rampDir = +1;                 // start by increasing
+          rt.lastRampTick = nowMs;
+          wsLog(String("DI")+String(i+1)+": latch ping-pong START");
+        } else {
+          wsLog(String("DI")+String(i+1)+": latch ping-pong STOP");
+        }
+      }
+      rt.lastChange=nowMs;
+    }
+
     if(rising){
       rt.pressStart=nowMs;
-      if(diCfg[i].switchType==DI_SW_LATCHING){
-        if(diCfg[i].latchMode==LATCH_TOGGLE_TO_PRESET_OR_0){ applyDiAction(diCfg[i].latchTarget, DI_ACT_TOGGLE_TO_PRESET, nowMs); }
-        else { rt.rampActive=true; rt.rampDir=+1; rt.lastRampTick=nowMs; }
-      }
+      rt.longHold=false; rt.longUsed=false; rt.longDir=+1; rt.longLastTick=nowMs;
       rt.lastChange=nowMs;
     } else if(falling){
       uint32_t dur=nowMs-rt.pressStart;
+
       if(diCfg[i].switchType==DI_SW_MOMENTARY){
-        if(dur>=LONG_MIN_MS){
-          if(rt.shortThenLongArmed){ applyDiAction(diCfg[i].pressTarget[PRESS_SHORT_THEN_LONG], diCfg[i].pressAction[PRESS_SHORT_THEN_LONG], nowMs); rt.shortThenLongArmed=false; rt.waitingSecond=false; }
-          else { applyDiAction(diCfg[i].pressTarget[PRESS_LONG], diCfg[i].pressAction[PRESS_LONG], nowMs); }
-        } else if(dur<=SHORT_MAX_MS){
-          if(!rt.waitingSecond){ rt.waitingSecond=true; rt.firstShortAt=nowMs; rt.shortThenLongArmed=true; }
-          else { applyDiAction(diCfg[i].pressTarget[PRESS_DOUBLE_SHORT], diCfg[i].pressAction[PRESS_DOUBLE_SHORT], nowMs); rt.waitingSecond=false; rt.shortThenLongArmed=false; }
+        if(rt.longUsed){
+          rt.longHold=false; rt.longUsed=false;
+          { String msg="DI"; msg+=String(i+1); msg+=": long-ramp stop"; wsLog(msg); }
+        }else{
+          if(dur>=LONG_MIN_MS){
+            applyDiAction(longTgt, longAct, nowMs);
+          } else if(dur<=SHORT_MAX_MS){
+            // stage for double-short; will resolve below after timeout
+            if(!rt.waitingSecond){ rt.waitingSecond=true; rt.firstShortAt=nowMs; rt.shortThenLongArmed=true; }
+            else { applyDiAction(diCfg[i].pressTarget[PRESS_DOUBLE_SHORT], diCfg[i].pressAction[PRESS_DOUBLE_SHORT], nowMs); rt.waitingSecond=false; rt.shortThenLongArmed=false; }
+          }
         }
-      } else { if(diCfg[i].latchMode==LATCH_PINGPONG_UNTIL_TOGGLE) rt.rampActive=false; }
+      }
       rt.lastChange=nowMs;
     }
 
+    // Resolve pending single SHORT after double-gap window
     if(diCfg[i].switchType==DI_SW_MOMENTARY && rt.waitingSecond){
-      if((uint32_t)(nowMs-rt.firstShortAt)>DOUBLE_GAP_MS){ applyDiAction(diCfg[i].pressTarget[PRESS_SHORT], diCfg[i].pressAction[PRESS_SHORT], nowMs); rt.waitingSecond=false; rt.shortThenLongArmed=false; }
+      if((uint32_t)(nowMs-rt.firstShortAt)>DOUBLE_GAP_MS){
+        if(shortAct==DI_ACT_INC_THEN_DEC){
+          // One ping-pong step per channel in target, with per-DI direction
+          if(shortTgt==DI_TGT_CH1) onePingPongStep(0, rt.shortDir[0]);
+          else if(shortTgt==DI_TGT_CH2) onePingPongStep(1, rt.shortDir[1]);
+          else if(shortTgt==DI_TGT_ALL){ onePingPongStep(0, rt.shortDir[0]); onePingPongStep(1, rt.shortDir[1]); }
+          cfgDirty=true; lastCfgTouchMs=nowMs;
+          { String msg="DI"; msg+=String(i+1); msg+=": short ping-pong step"; wsLog(msg); }
+        }else{
+          // Legacy single-shot actions
+          applyDiAction(shortTgt, shortAct, nowMs);
+        }
+        rt.waitingSecond=false; rt.shortThenLongArmed=false;
+      }
     }
 
+    // ---------- Momentary LONG press continuous ramp ----------
+    if(diCfg[i].switchType==DI_SW_MOMENTARY && rt.cur && longIsRamp){
+      if(!rt.longHold && (uint32_t)(nowMs - rt.pressStart) >= LONG_MIN_MS){
+        // start ramp
+        rt.longHold=true; rt.longLastTick=nowMs; rt.longUsed=false;
+        rt.longDir = (longAct==DI_ACT_DEC) ? -1 : +1;
+        { String msg="DI"; msg+=String(i+1); msg+=": long-ramp start (act="; msg+=String(longAct); msg+=")"; wsLog(msg); }
+      }
+      if(rt.longHold && (uint32_t)(nowMs - rt.longLastTick) >= DI_LONG_RAMP_TICK_MS){
+        rt.longLastTick=nowMs; rt.longUsed=true;
+
+        auto stepOne=[&](int ch){
+          if(ch<0||ch>=NUM_CH) return;
+          int next = (int)chLevel[ch] + (int)rt.longDir * (int)STEP_DELTA;
+
+          if(longAct==DI_ACT_INC){
+            if(next >= (int)chUpper[ch]){ next = chUpper[ch]; }
+          } else if(longAct==DI_ACT_DEC){
+            if(next <= 0){ next = 0; }
+          } else { // INC_THEN_DEC ping-pong
+            if(next >= (int)chUpper[ch]){ next = chUpper[ch]; rt.longDir = -1; }
+            if(next <= 0){ next = 0; rt.longDir = +1; }
+          }
+
+          clampAndSetLevel(ch, next);
+        };
+
+        if(longTgt==DI_TGT_CH1) stepOne(0);
+        else if(longTgt==DI_TGT_CH2) stepOne(1);
+        else if(longTgt==DI_TGT_ALL){ stepOne(0); stepOne(1); }
+
+        cfgDirty=true; lastCfgTouchMs=nowMs;
+      }
+    }
+
+    // [CHANGE] Latching ping-pong at 1 Hz until next DI toggle
     if(diCfg[i].switchType==DI_SW_LATCHING && diCfg[i].latchMode==LATCH_PINGPONG_UNTIL_TOGGLE && rt.rampActive){
-      if((uint32_t)(nowMs-rt.lastRampTick)>=RAMP_TICK_MS){
+      if((uint32_t)(nowMs-rt.lastRampTick)>=LATCH_RAMP_TICK_MS){
         rt.lastRampTick=nowMs;
-        auto rampOne=[&](int ch){ if(ch<0||ch>=NUM_CH) return; int next=(int)chLevel[ch]+(rt.rampDir>0?STEP_DELTA:-STEP_DELTA); if(next>=(int)chUpper[ch]){ next=chUpper[ch]; rt.rampDir=-1; } if(next<=0){ next=0; rt.rampDir=+1; } clampAndSetLevel(ch,next); };
-        if(diCfg[i].latchTarget==DI_TGT_CH1) rampOne(0); else if(diCfg[i].latchTarget==DI_TGT_CH2) rampOne(1); else if(diCfg[i].latchTarget==DI_TGT_ALL){ rampOne(0); rampOne(1); }
+        auto rampOne=[&](int ch){
+          if(ch<0||ch>=NUM_CH) return;
+          int next = (int)chLevel[ch] + (rt.rampDir>0?STEP_DELTA:-STEP_DELTA);
+          if(next>=(int)chUpper[ch]){ next=chUpper[ch]; rt.rampDir=-1; }
+          if(next<=0){ next=0; rt.rampDir=+1; }
+          clampAndSetLevel(ch,next);
+        };
+        if(diCfg[i].latchTarget==DI_TGT_CH1) rampOne(0);
+        else if(diCfg[i].latchTarget==DI_TGT_CH2) rampOne(1);
+        else if(diCfg[i].latchTarget==DI_TGT_ALL){ rampOne(0); rampOne(1); }
       }
     }
   }

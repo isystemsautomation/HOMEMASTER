@@ -12,6 +12,25 @@
     .pill{font-size:.85rem;padding:.15rem .5rem;border-radius:999px;border:1px solid #ddd;background:#eef;color:#223}
     .inline{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
     button{cursor:pointer}
+
+    /* --- Fixed 5-row log window --- */
+    #log-line{margin-bottom:1.5rem;padding:1rem;background:#f9f9f9;border:1px solid #ccc;border-radius:6px;font-size:0.9rem;color:#333;}
+    #log-content{
+      --lh: 1.25em;            /* line-height unit */
+      font-family:monospace;
+      line-height:var(--lh);
+      height: calc(var(--lh) * 5);   /* exactly 5 rows tall */
+      display:flex;
+      flex-direction:column;
+      justify-content:flex-end; /* stick messages to the bottom */
+      overflow:auto;
+      white-space:pre;          /* preserve a single line per entry */
+    }
+    #log-content .log-row{white-space:pre; }
+    #log-empty{
+      opacity:.55;
+      font-style:italic;
+    }
   </style>
 
   <div style="text-align:center;margin-bottom:2rem;">
@@ -42,9 +61,11 @@
     </div>
   </form>
 
-  <div id="log-line" style="margin-bottom:1.5rem;padding:1rem;background:#f9f9f9;border:1px solid #ccc;border-radius:6px;font-size:0.9rem;color:#333;font-family:monospace;">
+  <div id="log-line">
     <strong>Serial Log:</strong>
-    <div id="log-content" style="white-space:pre-wrap;"></div>
+    <div id="log-content">
+      <div id="log-empty" class="log-row">— no messages —</div>
+    </div>
   </div>
 
   <div class="layout-2col">
@@ -73,17 +94,48 @@
   </div>
 
   <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
+  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
   <script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
   <script>
   (function () {
     // ---------- Constants & helpers ----------
-    const N={DI:4,CH:2,BTN:4,LED:4}; const LOG_STORE=80, LOG_SHOW=10, DEB=200, CH_DEB=120;
+    const N={DI:4,CH:2,BTN:4,LED:4};
+    const LOG_STORE=80, LOG_SHOW=5;            // exactly 5 visible rows
+    const DEB=200, CH_DEB=120;
     const $=id=>document.getElementById(id);
     const clamp=(a,v,b)=>Math.min(b,Math.max(a,Number(v)||0));
     const c255=v=>clamp(0,v,255), c100=v=>clamp(0,v,100), c2=v=>clamp(0,v,2), c01=v=>clamp(0,v,1);
     const on=(el,ev,fn)=>el&&el.addEventListener(ev,fn,{passive:true});
-    const logBuf=[]; const log=(lbl,data)=>{const t=new Date().toLocaleTimeString(); const line=`[${t}] ${lbl}: ${typeof data==='string'?data:JSON.stringify(data)}`; logBuf.push(line); if(logBuf.length>LOG_STORE) logBuf.shift(); $("log-content").innerText=logBuf.slice(-LOG_SHOW).join("\n");};
     const asArr=(x)=> Array.isArray(x) ? x : (x && typeof x==='object' ? Object.values(x) : []);
+
+    // --- log buffer: newest at bottom, older above, fixed 5-row viewport
+    const logBuf=[];
+    function renderLog(){
+      const box = $("log-content");
+      if(!box) return;
+      box.innerHTML="";
+      const slice = logBuf.slice(-LOG_SHOW);  // last 5 lines, chronological
+      if(slice.length===0){
+        const empty=document.createElement('div');
+        empty.id="log-empty"; empty.className="log-row"; empty.textContent="— no messages —";
+        box.appendChild(empty);
+        return;
+      }
+      slice.forEach(line=>{
+        const row=document.createElement('div');
+        row.className="log-row";
+        row.textContent=line;
+        box.appendChild(row);
+      });
+      box.scrollTop = box.scrollHeight; // keep view pinned to bottom as new lines arrive
+    }
+    const log=(lbl,data)=>{
+      const t=new Date().toLocaleTimeString();
+      const line=`[${t}] ${lbl}: ${typeof data==='string'?data:JSON.stringify(data)}`;
+      logBuf.push(line);
+      if(logBuf.length>LOG_STORE) logBuf.shift();
+      renderLog();
+    };
 
     // ---------- Builders ----------
     const CH = i => `
@@ -213,8 +265,8 @@
     const isOpen=()=>{ try{return typeof conn.isOpen==='function'?conn.isOpen():!!conn.port;}catch{return false;} };
     const send=(t,p)=>{ if(isOpen()) try{ conn.send(t,p); }catch(e){} };
 
-    conn.on('open', ()=>{ pingValues(); });
-    conn.on('close', ()=>{ /* no reset handling */ });
+    conn.on('open', ()=>{ pingValues(); log('Serial','Connected'); });
+    conn.on('close', ()=>{ log('Serial','Disconnected'); });
     conn.on('message', msg=> log('DIM-420-R1', msg));
     conn.on('config', cfg => applyConfig(cfg));
 
@@ -295,7 +347,8 @@
       const mb = cfg.mb || {};
       $('live-address').textContent = (mb.address!=null)? String(mb.address) : '--';
       $('live-baud').textContent    = (mb.baud!=null)? String(mb.baud) : '--';
-      echoGuard=true;
+      // reflect into controls quietly
+      let echoGuard=true;
       try{
         if(mb.address!=null) $('modbus-address').value=String(mb.address);
         if(mb.baud!=null)    $('modbus-baud').value=String(mb.baud);
@@ -319,8 +372,10 @@
         const lvl = Number(c.level||0);
         $('level-val-ch'+i).textContent=String(lvl);
         $('on-ch'+i).style.background=(lvl>0)?'#4caf50':'#ccc';
-        acBadge('ac-badge-ch'+i, !!c.zc_ok);
-        const f=$('freq-badge-ch'+i); if(f) f.textContent=((Number(c.freq_x100||0)/100).toFixed(2)+' Hz');
+        const ac_ok = !!c.zc_ok; const f=$('freq-badge-ch'+i);
+        const bId='ac-badge-ch'+i; const b=$(bId);
+        if(b){ if(ac_ok){ b.textContent='ON'; b.style.background='#d4edda'; b.style.color='#155724'; b.style.borderColor='#c3e6cb'; } else { b.textContent='OFF'; b.style.background='#fdecea'; b.style.color='#b71c1c'; b.style.borderColor='#f5c6cb'; } }
+        if(f) f.textContent=((Number(c.freq_x100||0)/100).toFixed(2)+' Hz');
       });
 
       const diA = asArr(cfg.di);
@@ -357,6 +412,9 @@
         ledA.forEach((L,idx)=>{ const i=idx+1; const m=$('mode-led'+i), s=$('source-led'+i), st=$('state-led'+i); if(m&&L) m.value=String(L.mode||0); if(s&&L) s.value=String(L.source||0); if(st&&L) st.style.background=L.state?'#ffb300':'#ccc'; });
       }finally{ echoGuard=false; }
     }
+
+    // initial render so the box has the fixed height even before messages
+    renderLog();
   })();
   </script>
 </section>
