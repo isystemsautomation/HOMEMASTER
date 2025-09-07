@@ -57,7 +57,7 @@ enum DiAction : uint8_t {
   DI_ACT_TOGGLE_OUTPUT=3,      // toggle using last non-zero level
   DI_ACT_INC=4,
   DI_ACT_DEC=5,
-  DI_ACT_INC_THEN_DEC=6,       // <-- short press: 1 step ping-pong; long: continuous ping-pong
+  DI_ACT_INC_THEN_DEC=6,       // short press: one step ping-pong; long: continuous ping-pong
   // internal (not sent by UI)
   DI_ACT_TOGGLE_TO_PRESET=7,
   // go straight to channel upper threshold (MAX)
@@ -67,10 +67,15 @@ enum DiAction : uint8_t {
 enum DiTarget     : uint8_t { DI_TGT_NONE=0, DI_TGT_CH1=1, DI_TGT_CH2=2, DI_TGT_ALL=4 };
 enum DiLatchMode  : uint8_t { LATCH_TOGGLE_TO_PRESET_OR_0=0, LATCH_PINGPONG_UNTIL_TOGGLE=1 };
 
+// ================== LED routing (new) ==================
+// [LED] type selects the kind of source; index selects which channel/DI
+enum LedSourceType : uint8_t { LEDSRC_NONE=0, LEDSRC_CH_ON=1, LEDSRC_AC_OK=2, LEDSRC_DI_STATE=3 };
+
 // ================== Config & runtime ==================
 struct InCfg { bool enabled; bool inverted; uint8_t switchType; uint8_t pressAction[PRESS_COUNT]; uint8_t pressTarget[PRESS_COUNT]; uint8_t latchMode; uint8_t latchTarget; };
 struct ChCfg { bool enabled; };
-struct LedCfg { uint8_t mode; uint8_t source; };
+// [LED] expanded LED config: mode + type + index
+struct LedCfg { uint8_t mode; uint8_t type; uint8_t index; };
 struct BtnCfg { uint8_t action; };   // see mapping below
 
 InCfg  diCfg[NUM_DI];
@@ -153,7 +158,10 @@ struct PersistConfig {
   uint8_t mb_address; uint32_t mb_baud; uint32_t crc32;
 } __attribute__((packed));
 
-static const uint32_t CFG_MAGIC=0x314D4449UL; static const uint16_t CFG_VERSION=0x0006; static const char* CFG_PATH="/cfg.bin";
+// [LED] bump config version due to LedCfg change (added 'type' and 'index')
+static const uint32_t CFG_MAGIC=0x314D4449UL;
+static const uint16_t CFG_VERSION=0x0007;        // was 0x0006
+static const char*   CFG_PATH="/cfg.bin";
 
 volatile bool cfgDirty=false; uint32_t lastCfgTouchMs=0; const uint32_t CFG_AUTOSAVE_MS=1500;
 volatile bool diCfgEchoPending=false;
@@ -222,8 +230,16 @@ void setDefaults(){
   for(int i=0;i<NUM_DI;i++){ diCfg[i].enabled=true; diCfg[i].inverted=false; diCfg[i].switchType=DI_SW_MOMENTARY;
     for(int p=0;p<PRESS_COUNT;p++){ diCfg[i].pressAction[p]=DI_ACT_NONE; diCfg[i].pressTarget[p]=DI_TGT_NONE; }
     diCfg[i].latchMode=LATCH_TOGGLE_TO_PRESET_OR_0; diCfg[i].latchTarget=DI_TGT_NONE; }
-  for(int i=0;i<NUM_CH;i++) chCfg[i]={true}; for(int i=0;i<NUM_LED;i++) ledCfg[i]={0,0}; for(int i=0;i<NUM_BTN;i++) btnCfg[i]={0};
-  for(int i=0;i<NUM_CH;i++){ chLevel[i]=0; chLastNonZero[i]=200; chPulseUntil[i]=0; zcLastEdgeMs[i]=0; zcOk[i]=zcPrevOk[i]=false; zcOkStreak[i]=zcFaultStreak[i]=0; chLower[i]=20; chUpper[i]=255; chLoadType[i]=LOAD_LAMP; chPctX10[i]=0; chCutMode[i]=CUT_LEADING; chPreset[i]=200; }
+  for(int i=0;i<NUM_CH;i++) chCfg[i]={true};
+  // [LED] defaults: all LEDs off / unassigned
+  for(int i=0;i<NUM_LED;i++){ ledCfg[i].mode=0; ledCfg[i].type=LEDSRC_NONE; ledCfg[i].index=0; }
+  for(int i=0;i<NUM_BTN;i++) btnCfg[i]={0};
+
+  for(int i=0;i<NUM_CH;i++){
+    chLevel[i]=0; chLastNonZero[i]=200; chPulseUntil[i]=0; zcLastEdgeMs[i]=0;
+    zcOk[i]=zcPrevOk[i]=false; zcOkStreak[i]=zcFaultStreak[i]=0;
+    chLower[i]=20; chUpper[i]=255; chLoadType[i]=LOAD_LAMP; chPctX10[i]=0; chCutMode[i]=CUT_LEADING; chPreset[i]=200;
+  }
   g_mb_address=3; g_mb_baud=19200; initFreqEstimator();
 }
 
@@ -235,20 +251,55 @@ void captureToPersist(PersistConfig &pc){
   pc.mb_address=g_mb_address; pc.mb_baud=g_mb_baud; pc.crc32=0; pc.crc32=crc32_update(0,(const uint8_t*)&pc,sizeof(PersistConfig));
 }
 bool applyFromPersist(const PersistConfig &pc){
-  if(pc.magic!=CFG_MAGIC || pc.size!=sizeof(PersistConfig)) return false; PersistConfig tmp=pc; uint32_t crc=tmp.crc32; tmp.crc32=0;
-  if(crc32_update(0,(const uint8_t*)&tmp,sizeof(PersistConfig))!=crc) return false; if(pc.version!=CFG_VERSION) return false;
+  if(pc.magic!=CFG_MAGIC || pc.size!=sizeof(PersistConfig)) return false;
+  PersistConfig tmp=pc; uint32_t crc=tmp.crc32; tmp.crc32=0;
+  if(crc32_update(0,(const uint8_t*)&tmp,sizeof(PersistConfig))!=crc) return false;
+  if(pc.version!=CFG_VERSION) return false; // version bump, reset to defaults if mismatch
+
   memcpy(diCfg,pc.diCfg,sizeof(diCfg)); memcpy(chCfg,pc.chCfg,sizeof(chCfg)); memcpy(ledCfg,pc.ledCfg,sizeof(ledCfg)); memcpy(btnCfg,pc.btnCfg,sizeof(btnCfg));
-  for(int i=0;i<NUM_CH;i++){ chLower[i]=pc.chLower[i]; chUpper[i]=pc.chUpper[i]; chLastNonZero[i]=constrain(pc.chLastNonZero[i],chLower[i],chUpper[i]);
-    chLoadType[i]=(pc.chLoadType[i]<=LOAD_KEY)?pc.chLoadType[i]:LOAD_LAMP; chPctX10[i]=(pc.chPctX10[i]>1000)?1000:pc.chPctX10[i];
-    chCutMode[i]=(pc.chCutMode[i]<=CUT_TRAILING)?pc.chCutMode[i]:CUT_LEADING; chPreset[i]=pc.chPreset[i]; clampAndApplyPreset(i);
-    uint8_t lvl=pc.chLevel[i]; if(lvl==0) chLevel[i]=0; else if(lvl<chLower[i]) chLevel[i]=0; else if(lvl>chUpper[i]) chLevel[i]=chUpper[i]; else chLevel[i]=lvl; }
-  g_mb_address=pc.mb_address; g_mb_baud=pc.mb_baud; return true;
+
+  for(int i=0;i<NUM_CH;i++){
+    chLower[i]=pc.chLower[i]; chUpper[i]=pc.chUpper[i];
+    chLastNonZero[i]=constrain(pc.chLastNonZero[i],chLower[i],chUpper[i]);
+    chLoadType[i]=(pc.chLoadType[i]<=LOAD_KEY)?pc.chLoadType[i]:LOAD_LAMP;
+    chPctX10[i]=(pc.chPctX10[i]>1000)?1000:pc.chPctX10[i];
+    chCutMode[i]=(pc.chCutMode[i]<=CUT_TRAILING)?pc.chCutMode[i]:CUT_LEADING;
+    chPreset[i]=pc.chPreset[i]; clampAndApplyPreset(i);
+    uint8_t lvl=pc.chLevel[i];
+    if(lvl==0) chLevel[i]=0; else if(lvl<chLower[i]) chLevel[i]=0; else if(lvl>chUpper[i]) chLevel[i]=chUpper[i]; else chLevel[i]=lvl;
+  }
+  g_mb_address=pc.mb_address; g_mb_baud=pc.mb_baud;
+  return true;
 }
-bool saveConfigFS(){ PersistConfig pc{}; captureToPersist(pc); File f=LittleFS.open(CFG_PATH,"w"); if(!f) return false; size_t n=f.write((const uint8_t*)&pc,sizeof(pc)); f.flush(); f.close(); if(n!=sizeof(pc)) return false;
-  File r=LittleFS.open(CFG_PATH,"r"); if(!r) return false; if((size_t)r.size()!=sizeof(PersistConfig)){ r.close(); return false; } PersistConfig back{}; size_t nr=r.read((uint8_t*)&back,sizeof(back)); r.close(); if(n!=sizeof(back)) return false;
-  PersistConfig tmp2=back; uint32_t crc=tmp2.crc32; tmp2.crc32=0; if(crc32_update(0,(const uint8_t*)&tmp2,sizeof(tmp2))!=crc) return false; wsLog("config: saved to FS"); return true; }
-bool loadConfigFS(){ File f=LittleFS.open(CFG_PATH,"r"); if(!f) return false; if(f.size()!=sizeof(PersistConfig)){ f.close(); return false; } PersistConfig pc{}; size_t n=f.read((uint8_t*)&pc,sizeof(pc)); f.close(); if(n!=sizeof(pc)) return false; if(!applyFromPersist(pc)) return false; wsLog("config: loaded from FS"); return true; }
-bool initFilesystemAndConfig(){ if(!LittleFS.begin()){ if(!LittleFS.format()||!LittleFS.begin()){ wsLog("fs: init failed"); return false; } } if(loadConfigFS()) return true; setDefaults(); if(saveConfigFS()) return true; if(!LittleFS.format()||!LittleFS.begin()) return false; setDefaults(); if(saveConfigFS()) return true; return false; }
+bool saveConfigFS(){
+  PersistConfig pc{}; captureToPersist(pc);
+  File f=LittleFS.open(CFG_PATH,"w"); if(!f) return false;
+  size_t n=f.write((const uint8_t*)&pc,sizeof(pc)); f.flush(); f.close(); if(n!=sizeof(pc)) return false;
+  File r=LittleFS.open(CFG_PATH,"r"); if(!r) return false;
+  if((size_t)r.size()!=sizeof(PersistConfig)){ r.close(); return false; }
+  PersistConfig back{}; size_t nr=r.read((uint8_t*)&back,sizeof(back)); r.close(); if(nr!=sizeof(back)) return false;
+  PersistConfig tmp2=back; uint32_t crc=tmp2.crc32; tmp2.crc32=0;
+  if(crc32_update(0,(const uint8_t*)&tmp2,sizeof(tmp2))!=crc) return false;
+  wsLog("config: saved to FS"); return true;
+}
+bool loadConfigFS(){
+  File f=LittleFS.open(CFG_PATH,"r"); if(!f) return false;
+  if(f.size()!=sizeof(PersistConfig)){ f.close(); return false; }
+  PersistConfig pc{}; size_t n=f.read((uint8_t*)&pc,sizeof(pc)); f.close(); if(n!=sizeof(pc)) return false;
+  if(!applyFromPersist(pc)) return false; wsLog("config: loaded from FS"); return true;
+}
+bool initFilesystemAndConfig(){
+  if(!LittleFS.begin()){
+    if(!LittleFS.format()||!LittleFS.begin()){ wsLog("fs: init failed"); return false; }
+  }
+  if(loadConfigFS()) return true;
+  setDefaults();
+  if(saveConfigFS()) return true;
+  if(!LittleFS.format()||!LittleFS.begin()) return false;
+  setDefaults();
+  if(saveConfigFS()) return true;
+  return false;
+}
 
 // ================== SFINAE helper ==================
 template <class M> inline auto setSlaveIdIfAvailable(M& m,uint8_t id)->decltype(std::declval<M&>().setSlaveId(uint8_t{}),void()){ m.setSlaveId(id); }
@@ -293,7 +344,7 @@ DiRuntime diRt[NUM_DI];
 
 // Cadence for DI LONG press ramping (≈ 1 step per second)
 const uint16_t DI_LONG_RAMP_TICK_MS = 1000;
-// [CHANGE] Dedicated cadence for LATCH ping-pong (1 step/sec)
+// Dedicated cadence for LATCH ping-pong (1 step/sec)
 const uint16_t LATCH_RAMP_TICK_MS = 1000;
 
 const uint16_t RAMP_TICK_MS=80;  // retained for legacy fast ramps
@@ -302,15 +353,65 @@ const uint16_t RAMP_TICK_MS=80;  // retained for legacy fast ramps
 void sendConfigSnapshot(){
   JSONVar cfg;
   cfg["mb"]["address"]=(int)g_mb_address; cfg["mb"]["baud"]=(int)g_mb_baud;
-  for(int i=0;i<NUM_CH;i++){ JSONVar ch; ch["enabled"]=chCfg[i].enabled; ch["level"]=(int)chLevel[i]; ch["lower"]=(int)chLower[i]; ch["upper"]=(int)chUpper[i]; ch["loadType"]=(int)chLoadType[i]; ch["percent"]=(int)min((int)(chPctX10[i]/10),100); ch["cutMode"]=(int)chCutMode[i]; ch["preset"]=(int)chPreset[i]; ch["freq_x100"]=(int)freq_x100[i]; ch["zc_ok"]=zcOk[i]; cfg["ch"][i]=ch; }
-  for(int i=0;i<NUM_DI;i++){ JSONVar d; d["enabled"]=diCfg[i].enabled; d["invert"]=diCfg[i].inverted; d["switchType"]=diCfg[i].switchType; d["state"]=diRt[i].cur;
-    d["press"]["short"]["action"]=diCfg[i].pressAction[PRESS_SHORT]; d["press"]["short"]["target"]=diCfg[i].pressTarget[PRESS_SHORT];
-    d["press"]["long"]["action"]=diCfg[i].pressAction[PRESS_LONG]; d["press"]["long"]["target"]=diCfg[i].pressTarget[PRESS_LONG];
-    d["press"]["doubleShort"]["action"]=diCfg[i].pressAction[PRESS_DOUBLE_SHORT]; d["press"]["doubleShort"]["target"]=diCfg[i].pressTarget[PRESS_DOUBLE_SHORT];
-    d["press"]["shortThenLong"]["action"]=diCfg[i].pressAction[PRESS_SHORT_THEN_LONG]; d["press"]["shortThenLong"]["target"]=diCfg[i].pressTarget[PRESS_SHORT_THEN_LONG];
-    d["latchMode"]=diCfg[i].latchMode; d["latchTarget"]=diCfg[i].latchTarget; cfg["di"][i]=d; }
+
+  for(int i=0;i<NUM_CH;i++){
+    JSONVar ch;
+    ch["enabled"]=chCfg[i].enabled;
+    ch["level"]=(int)chLevel[i];
+    ch["lower"]=(int)chLower[i];
+    ch["upper"]=(int)chUpper[i];
+    ch["loadType"]=(int)chLoadType[i];
+    ch["percent"]=(int)min((int)(chPctX10[i]/10),100);
+    ch["cutMode"]=(int)chCutMode[i];
+    ch["preset"]=(int)chPreset[i];
+    ch["freq_x100"]=(int)freq_x100[i];
+    ch["zc_ok"]=zcOk[i];                // AC presence
+    cfg["ch"][i]=ch;
+  }
+
+  for(int i=0;i<NUM_DI;i++){
+    JSONVar d;
+    d["enabled"]=diCfg[i].enabled;
+    d["invert"]=diCfg[i].inverted;
+    d["switchType"]=diCfg[i].switchType;
+    d["state"]=diRt[i].cur;             // DI live state
+    d["press"]["short"]["action"]=diCfg[i].pressAction[PRESS_SHORT];
+    d["press"]["short"]["target"]=diCfg[i].pressTarget[PRESS_SHORT];
+    d["press"]["long"]["action"]=diCfg[i].pressAction[PRESS_LONG];
+    d["press"]["long"]["target"]=diCfg[i].pressTarget[PRESS_LONG];
+    d["press"]["doubleShort"]["action"]=diCfg[i].pressAction[PRESS_DOUBLE_SHORT];
+    d["press"]["doubleShort"]["target"]=diCfg[i].pressTarget[PRESS_DOUBLE_SHORT];
+    d["press"]["shortThenLong"]["action"]=diCfg[i].pressAction[PRESS_SHORT_THEN_LONG];
+    d["press"]["shortThenLong"]["target"]=diCfg[i].pressTarget[PRESS_SHORT_THEN_LONG];
+    d["latchMode"]=diCfg[i].latchMode; d["latchTarget"]=diCfg[i].latchTarget;
+    cfg["di"][i]=d;
+  }
+
   for(int i=0;i<NUM_BTN;i++){ JSONVar b; b["action"]=btnCfg[i].action; b["state"]=buttonState[i]; cfg["btn"][i]=b; }
-  for(int i=0;i<NUM_LED;i++){ JSONVar L; L["mode"]=ledCfg[i].mode; L["source"]=ledCfg[i].source; bool srcActive=false; uint8_t src=ledCfg[i].source; if(src>=1 && src<=2){ int c=src-1; bool chOn=(chCfg[c].enabled && chLevel[c]>0); srcActive=chOn; } bool phys=(ledCfg[i].mode==0)?srcActive:(srcActive && (blinkPhase)); L["state"]=phys; cfg["led"][i]=L; }
+
+  // [LED] expose mode/type/index plus computed state; keep legacy 'source' if UI still uses it
+  for(int i=0;i<NUM_LED;i++){
+    JSONVar L;
+    L["mode"]=ledCfg[i].mode;
+    L["type"]=ledCfg[i].type;
+    L["index"]=ledCfg[i].index;
+    // legacy: map CH_ON type back to source (1/2) so old UIs don't break
+    if(ledCfg[i].type==LEDSRC_CH_ON && ledCfg[i].index<NUM_CH) L["source"]=(int)(ledCfg[i].index+1);
+    else L["source"]=0;
+
+    // compute state preview (same logic as the physical LED)
+    bool active=false;
+    switch(ledCfg[i].type){
+      case LEDSRC_CH_ON:    if(ledCfg[i].index<NUM_CH) active = (chCfg[ledCfg[i].index].enabled && chLevel[ledCfg[i].index]>0); break;
+      case LEDSRC_AC_OK:    if(ledCfg[i].index<NUM_CH) active = zcOk[ledCfg[i].index]; break;
+      case LEDSRC_DI_STATE: if(ledCfg[i].index<NUM_DI) active = diRt[ledCfg[i].index].cur; break;
+      default: active=false; break;
+    }
+    bool phys=(ledCfg[i].mode==0)?active:(active && blinkPhase);
+    L["state"]=phys;
+    cfg["led"][i]=L;
+  }
+
   WebSerial.send("config", cfg);
 }
 
@@ -330,7 +431,8 @@ void setup(){
 
   setDefaults(); initFreqEstimator(); initFilesystemAndConfig();
 
-  uint32_t now=millis(); for(int i=0;i<NUM_CH;i++){ zcLastEdgeMs[i]=now; zcOk[i]=zcPrevOk[i]=false; zcOkStreak[i]=zcFaultStreak[i]=0; }
+  uint32_t now=millis();
+  for(int i=0;i<NUM_CH;i++){ zcLastEdgeMs[i]=now; zcOk[i]=zcPrevOk[i]=false; zcOkStreak[i]=zcFaultStreak[i]=0; }
 
   // Serial2 / Modbus
   Serial2.setTX(TX2); Serial2.setRX(RX2); Serial2.begin(g_mb_baud); mb.config(g_mb_baud);
@@ -341,7 +443,16 @@ void setup(){
   for(uint16_t i=0;i<NUM_CH;i++)  mb.addIsts(ISTS_CH_BASE + i);
   for(uint16_t i=0;i<NUM_LED;i++) mb.addIsts(ISTS_LED_BASE + i);
   for(uint16_t i=0;i<NUM_CH;i++)  mb.addIsts(ISTS_ZC_OK_BASE + i);
-  for(uint16_t i=0;i<NUM_CH;i++){ mb.addHreg(HREG_DIM_LEVEL_BASE + i, chLevel[i]); mb.addHreg(HREG_DIM_LO_BASE + i, chLower[i]); mb.addHreg(HREG_DIM_HI_BASE + i, chUpper[i]); mb.addHreg(HREG_FREQ_X100_BASE + i, freq_x100[i]); mb.addHreg(HREG_PCT_X10_BASE + i, chPctX10[i]); mb.addHreg(HREG_LOADTYPE_BASE + i, chLoadType[i]); mb.addHreg(HREG_CUTMODE_BASE + i, chCutMode[i]); mb.addHreg(HREG_PRESET_BASE + i, chPreset[i]); }
+  for(uint16_t i=0;i<NUM_CH;i++){
+    mb.addHreg(HREG_DIM_LEVEL_BASE + i, chLevel[i]);
+    mb.addHreg(HREG_DIM_LO_BASE + i, chLower[i]);
+    mb.addHreg(HREG_DIM_HI_BASE + i, chUpper[i]);
+    mb.addHreg(HREG_FREQ_X100_BASE + i, freq_x100[i]);
+    mb.addHreg(HREG_PCT_X10_BASE + i, chPctX10[i]);
+    mb.addHreg(HREG_LOADTYPE_BASE + i, chLoadType[i]);
+    mb.addHreg(HREG_CUTMODE_BASE + i, chCutMode[i]);
+    mb.addHreg(HREG_PRESET_BASE + i, chPreset[i]);
+  }
   for(uint16_t i=0;i<NUM_CH;i++){ mb.addCoil(CMD_CH_ON_BASE + i);  mb.setCoil(CMD_CH_ON_BASE + i, false); }
   for(uint16_t i=0;i<NUM_CH;i++){ mb.addCoil(CMD_CH_OFF_BASE + i); mb.setCoil(CMD_CH_OFF_BASE + i, false); }
   for(uint16_t i=0;i<NUM_DI;i++){ mb.addCoil(CMD_DI_EN_BASE + i);  mb.setCoil(CMD_DI_EN_BASE + i, false); }
@@ -365,18 +476,22 @@ void handleCommand(JSONVar obj){
   else if(act=="factory"){ wsLog("cmd: factory"); setDefaults(); if(saveConfigFS()){ applyModbusSettings(g_mb_address,g_mb_baud); } }
 }
 void applyModbusSettings(uint8_t addr,uint32_t baud){
-  bool baudChanged=((uint32_t)modbusStatus["baud"]!=baud); if(baudChanged){ Serial2.end(); Serial2.begin(baud); mb.config(baud); }
-  setSlaveIdIfAvailable(mb, addr); g_mb_address=addr; g_mb_baud=baud; modbusStatus["address"]=g_mb_address; modbusStatus["baud"]=g_mb_baud;
+  bool baudChanged=((uint32_t)modbusStatus["baud"]!=baud);
+  if(baudChanged){ Serial2.end(); Serial2.begin(baud); mb.config(baud); }
+  setSlaveIdIfAvailable(mb, addr); g_mb_address=addr; g_mb_baud=baud;
+  modbusStatus["address"]=g_mb_address; modbusStatus["baud"]=g_mb_baud;
   wsLog("modbus: addr="+String(addr)+" baud="+String(baud));
 }
 
 // ================== WebSerial config handlers ==================
 void handleValues(JSONVar values){
-  int addr=(int)values["mb_address"], baud=(int)values["mb_baud"]; addr=constrain(addr,1,255); baud=constrain(baud,9600,115200);
+  int addr=(int)values["mb_address"], baud=(int)values["mb_baud"];
+  addr=constrain(addr,1,255); baud=constrain(baud,9600,115200);
   applyModbusSettings((uint8_t)addr,(uint32_t)baud); cfgDirty=true; lastCfgTouchMs=millis();
 }
 void handleUnifiedConfig(JSONVar obj){
   const char* t=(const char*)obj["t"]; JSONVar list=obj["list"]; if(!t) return; String type=String(t); bool changed=false;
+
   if(type=="inputEnable"){ for(int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].enabled=(bool)list[i]; changed=true; diCfgEchoPending=true; wsLog("cfg: inputEnable"); }
   else if(type=="inputInvert"){ for(int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].inverted=(bool)list[i]; changed=true; diCfgEchoPending=true; wsLog("cfg: inputInvert"); }
   else if(type=="inputSwitchType"){ for(int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].switchType=(uint8_t)constrain((int)list[i],0,1); changed=true; diCfgEchoPending=true; wsLog("cfg: inputSwitchType"); }
@@ -413,7 +528,22 @@ void handleUnifiedConfig(JSONVar obj){
     }
     changed=true; wsLog("cfg: buttons");
   }
-  else if(type=="leds"){ for(int i=0;i<NUM_LED && i<list.length();i++){ ledCfg[i].mode=(uint8_t)constrain((int)list[i]["mode"],0,1); int src=(int)list[i]["source"]; ledCfg[i].source=(uint8_t)((src==0||src==1||src==2)?src:0); } changed=true; wsLog("cfg: leds"); }
+  // [LED] new LED config accepts mode/type/index; still accepts legacy 'source'
+  else if(type=="leds"){
+    for(int i=0;i<NUM_LED && i<list.length();i++){
+      const JSONVar &e=list[i];
+      if(e.hasOwnProperty("mode"))  ledCfg[i].mode  =(uint8_t)constrain((int)e["mode"],0,1);
+      if(e.hasOwnProperty("type"))  ledCfg[i].type  =(uint8_t)constrain((int)e["type"],0,3);
+      if(e.hasOwnProperty("index")) ledCfg[i].index =(uint8_t)constrain((int)e["index"],0, (ledCfg[i].type==LEDSRC_DI_STATE? (NUM_DI-1):(NUM_CH-1)));
+      // legacy mapping: "source": 0/1/2 -> CH_ON index -1/+0/+1
+      if(e.hasOwnProperty("source") && !e.hasOwnProperty("type")){
+        int src=(int)e["source"]; if(src==1||src==2){ ledCfg[i].type=LEDSRC_CH_ON; ledCfg[i].index=(uint8_t)(src-1); }
+        else { ledCfg[i].type=LEDSRC_NONE; ledCfg[i].index=0; }
+      }
+    }
+    changed=true; wsLog("cfg: leds");
+  }
+
   if(changed){ cfgDirty=true; lastCfgTouchMs=millis(); }
 }
 
@@ -459,7 +589,7 @@ void applyDiAction(uint8_t target,uint8_t action,uint32_t now){
     case DI_ACT_TOGGLE_OUTPUT:     clampAndSetLevel(idx,(chLevel[idx]==0)?chLastNonZero[idx]:0); break;
     case DI_ACT_INC:               clampAndSetLevel(idx,chLevel[idx]+STEP_DELTA); break;
     case DI_ACT_DEC:               clampAndSetLevel(idx,chLevel[idx]-STEP_DELTA); break;
-    case DI_ACT_INC_THEN_DEC: {    // NOTE: kept as burst for non-short uses (e.g., Modbus)
+    case DI_ACT_INC_THEN_DEC: {    // burst, non-short contexts
       static const uint8_t burst=8;
       for(uint8_t k=0;k<burst;k++){ if(chLevel[idx]<chUpper[idx]) clampAndSetLevel(idx,chLevel[idx]+STEP_DELTA); }
       if(chLevel[idx]>=chUpper[idx]){ for(uint8_t k=0;k<burst;k++){ if(chLevel[idx]>0) clampAndSetLevel(idx,chLevel[idx]-STEP_DELTA); } }
@@ -472,7 +602,16 @@ void applyDiAction(uint8_t target,uint8_t action,uint32_t now){
   cfgDirty=true; lastCfgTouchMs=now; wsLog("DI: target="+String(target)+" action="+String(action));
 }
 
-JSONVar LedConfigListFromCfg(){ JSONVar arr; for(int i=0;i<NUM_LED;i++){ JSONVar o; o["mode"]=ledCfg[i].mode; o["source"]=ledCfg[i].source; arr[i]=o; } return arr; }
+JSONVar LedConfigListFromCfg(){
+  JSONVar arr;
+  for(int i=0;i<NUM_LED;i++){
+    JSONVar o; o["mode"]=ledCfg[i].mode; o["type"]=ledCfg[i].type; o["index"]=ledCfg[i].index;
+    // legacy helper
+    if(ledCfg[i].type==LEDSRC_CH_ON && ledCfg[i].index<NUM_CH) o["source"]=(int)(ledCfg[i].index+1); else o["source"]=0;
+    arr[i]=o;
+  }
+  return arr;
+}
 
 // ---- helper: one ping-pong step for a channel with external direction ref
 static inline void onePingPongStep(int ch, int8_t &dir){
@@ -492,8 +631,19 @@ void loop(){
   // ZC presence/fault
   for(int c=0;c<NUM_CH;c++){
     bool okNow=((uint32_t)(now-zcLastEdgeMs[c])<=ZC_FAULT_TIMEOUT_MS);
-    if(okNow){ if(zcOkStreak[c]<255) zcOkStreak[c]++; zcFaultStreak[c]=0; if(!zcOk[c] && zcOkStreak[c]>=ZC_OK_STREAK_N){ zcOk[c]=true; mb.setIsts(ISTS_ZC_OK_BASE+c,true); wsLog("zc["+String(c)+"]: OK"); } }
-    else { if(zcFaultStreak[c]<255) zcFaultStreak[c]++; zcOkStreak[c]=0; if(zcOk[c] && zcFaultStreak[c]>=ZC_FAULT_STREAK_N){ zcOk[c]=false; mb.setIsts(ISTS_ZC_OK_BASE+c,false); wsLog("zc["+String(c)+"]: FAULT"); } }
+    if(okNow){
+      if(zcOkStreak[c]<255) zcOkStreak[c]++;
+      zcFaultStreak[c]=0;
+      if(!zcOk[c] && zcOkStreak[c]>=ZC_OK_STREAK_N){
+        zcOk[c]=true; mb.setIsts(ISTS_ZC_OK_BASE + c,true); wsLog("zc["+String(c)+"]: OK");
+      }
+    } else {
+      if(zcFaultStreak[c]<255) zcFaultStreak[c]++;
+      zcOkStreak[c]=0;
+      if(zcOk[c] && zcFaultStreak[c]>=ZC_FAULT_STREAK_N){
+        zcOk[c]=false; mb.setIsts(ISTS_ZC_OK_BASE + c,false); wsLog("zc["+String(c)+"]: FAULT");
+      }
+    }
   }
 
   // Frequency estimator
@@ -533,13 +683,13 @@ void loop(){
         case 1: /* Toggle CH1 */ if(chLevel[0]==0) clampAndSetLevel(0,chPreset[0]); else clampAndSetLevel(0,0); cfgDirty=true; lastCfgTouchMs=now; wsLog("button: toggle CH1"); break;
         case 2: /* Toggle CH2 */ if(chLevel[1]==0) clampAndSetLevel(1,chPreset[1]); else clampAndSetLevel(1,0); cfgDirty=true; lastCfgTouchMs=now; wsLog("button: toggle CH2"); break;
 
-        // Old logic single-step immediately (hold will start auto-ramp later if long)
+        // step controls
         case 3: clampAndSetLevel(0, chLevel[0]+STEP_DELTA); cfgDirty=true; lastCfgTouchMs=now; wsLog("button: stepUp CH1"); break;
         case 4: clampAndSetLevel(0, chLevel[0]-STEP_DELTA); cfgDirty=true; lastCfgTouchMs=now; wsLog("button: stepDown CH1"); break;
         case 5: clampAndSetLevel(1, chLevel[1]+STEP_DELTA); cfgDirty=true; lastCfgTouchMs=now; wsLog("button: stepUp CH2"); break;
         case 6: clampAndSetLevel(1, chLevel[1]-STEP_DELTA); cfgDirty=true; lastCfgTouchMs=now; wsLog("button: stepDown CH2"); break;
 
-        // New: go to MAX threshold
+        // go to MAX threshold
         case 7: clampAndSetLevel(0, chUpper[0]); cfgDirty=true; lastCfgTouchMs=now; wsLog("button: MAX CH1"); break;
         case 8: clampAndSetLevel(1, chUpper[1]); cfgDirty=true; lastCfgTouchMs=now; wsLog("button: MAX CH2"); break;
 
@@ -558,7 +708,6 @@ void loop(){
       }
       if(btnRt[i].rampActive && (now - btnRt[i].lastRampTick) >= BTN_RAMP_TICK_MS){
         btnRt[i].lastRampTick = now;
-        // perform repeated steps
         switch(btnCfg[i].action){
           case 3: clampAndSetLevel(0, chLevel[0]+STEP_DELTA); break;
           case 4: clampAndSetLevel(0, chLevel[0]-STEP_DELTA); break;
@@ -582,7 +731,8 @@ void loop(){
 
   // ================== Digital Inputs ==================
   for(int i=0;i<NUM_DI;i++){
-    bool val=false; if(diCfg[i].enabled){ val=(digitalRead(DI_PINS[i])==HIGH); if(diCfg[i].inverted) val=!val; }
+    bool val=false;
+    if(diCfg[i].enabled){ val=(digitalRead(DI_PINS[i])==HIGH); if(diCfg[i].inverted) val=!val; }
     DiRuntime &rt=diRt[i]; rt.prev=rt.cur; rt.cur=val; mb.setIsts(ISTS_DI_BASE + i, val);
     uint32_t nowMs=millis(); bool rising=(!rt.prev && rt.cur), falling=(rt.prev && !rt.cur);
 
@@ -593,18 +743,15 @@ void loop(){
     const uint8_t longTgt   = diCfg[i].pressTarget[PRESS_LONG];
     const bool longIsRamp   = (longAct==DI_ACT_INC || longAct==DI_ACT_DEC || longAct==DI_ACT_INC_THEN_DEC);
 
-    // [CHANGE] For LATCHING switches, act on ANY state change (both edges)
+    // LATCHING: act on ANY state change (both edges)
     if(diCfg[i].switchType==DI_SW_LATCHING && (rising || falling)){
       if(diCfg[i].latchMode==LATCH_TOGGLE_TO_PRESET_OR_0){
-        // Toggle to preset/0 every time the DI toggles
         applyDiAction(diCfg[i].latchTarget, DI_ACT_TOGGLE_TO_PRESET, nowMs);
         wsLog(String("DI")+String(i+1)+": latch toggle preset/0 on edge");
       } else { // LATCH_PINGPONG_UNTIL_TOGGLE
-        // Toggle the continuous 1Hz ping-pong on each DI edge
         rt.rampActive = !rt.rampActive;
         if(rt.rampActive){
-          rt.rampDir = +1;                 // start by increasing
-          rt.lastRampTick = nowMs;
+          rt.rampDir = +1; rt.lastRampTick = nowMs;
           wsLog(String("DI")+String(i+1)+": latch ping-pong START");
         } else {
           wsLog(String("DI")+String(i+1)+": latch ping-pong STOP");
@@ -622,13 +769,11 @@ void loop(){
 
       if(diCfg[i].switchType==DI_SW_MOMENTARY){
         if(rt.longUsed){
-          rt.longHold=false; rt.longUsed=false;
-          { String msg="DI"; msg+=String(i+1); msg+=": long-ramp stop"; wsLog(msg); }
+          rt.longHold=false; rt.longUsed=false; wsLog(String("DI")+String(i+1)+": long-ramp stop");
         }else{
           if(dur>=LONG_MIN_MS){
             applyDiAction(longTgt, longAct, nowMs);
           } else if(dur<=SHORT_MAX_MS){
-            // stage for double-short; will resolve below after timeout
             if(!rt.waitingSecond){ rt.waitingSecond=true; rt.firstShortAt=nowMs; rt.shortThenLongArmed=true; }
             else { applyDiAction(diCfg[i].pressTarget[PRESS_DOUBLE_SHORT], diCfg[i].pressAction[PRESS_DOUBLE_SHORT], nowMs); rt.waitingSecond=false; rt.shortThenLongArmed=false; }
           }
@@ -641,27 +786,23 @@ void loop(){
     if(diCfg[i].switchType==DI_SW_MOMENTARY && rt.waitingSecond){
       if((uint32_t)(nowMs-rt.firstShortAt)>DOUBLE_GAP_MS){
         if(shortAct==DI_ACT_INC_THEN_DEC){
-          // One ping-pong step per channel in target, with per-DI direction
           if(shortTgt==DI_TGT_CH1) onePingPongStep(0, rt.shortDir[0]);
           else if(shortTgt==DI_TGT_CH2) onePingPongStep(1, rt.shortDir[1]);
           else if(shortTgt==DI_TGT_ALL){ onePingPongStep(0, rt.shortDir[0]); onePingPongStep(1, rt.shortDir[1]); }
-          cfgDirty=true; lastCfgTouchMs=nowMs;
-          { String msg="DI"; msg+=String(i+1); msg+=": short ping-pong step"; wsLog(msg); }
+          cfgDirty=true; lastCfgTouchMs=nowMs; wsLog(String("DI")+String(i+1)+": short ping-pong step");
         }else{
-          // Legacy single-shot actions
           applyDiAction(shortTgt, shortAct, nowMs);
         }
         rt.waitingSecond=false; rt.shortThenLongArmed=false;
       }
     }
 
-    // ---------- Momentary LONG press continuous ramp ----------
+    // Momentary LONG press continuous ramp
     if(diCfg[i].switchType==DI_SW_MOMENTARY && rt.cur && longIsRamp){
       if(!rt.longHold && (uint32_t)(nowMs - rt.pressStart) >= LONG_MIN_MS){
-        // start ramp
         rt.longHold=true; rt.longLastTick=nowMs; rt.longUsed=false;
         rt.longDir = (longAct==DI_ACT_DEC) ? -1 : +1;
-        { String msg="DI"; msg+=String(i+1); msg+=": long-ramp start (act="; msg+=String(longAct); msg+=")"; wsLog(msg); }
+        wsLog(String("DI")+String(i+1)+": long-ramp start (act=")+String(longAct)+")";
       }
       if(rt.longHold && (uint32_t)(nowMs - rt.longLastTick) >= DI_LONG_RAMP_TICK_MS){
         rt.longLastTick=nowMs; rt.longUsed=true;
@@ -669,16 +810,14 @@ void loop(){
         auto stepOne=[&](int ch){
           if(ch<0||ch>=NUM_CH) return;
           int next = (int)chLevel[ch] + (int)rt.longDir * (int)STEP_DELTA;
-
           if(longAct==DI_ACT_INC){
-            if(next >= (int)chUpper[ch]){ next = chUpper[ch]; }
+            if(next >= (int)chUpper[ch]) next = chUpper[ch];
           } else if(longAct==DI_ACT_DEC){
-            if(next <= 0){ next = 0; }
-          } else { // INC_THEN_DEC ping-pong
+            if(next <= 0) next = 0;
+          } else { // ping-pong
             if(next >= (int)chUpper[ch]){ next = chUpper[ch]; rt.longDir = -1; }
             if(next <= 0){ next = 0; rt.longDir = +1; }
           }
-
           clampAndSetLevel(ch, next);
         };
 
@@ -690,7 +829,7 @@ void loop(){
       }
     }
 
-    // [CHANGE] Latching ping-pong at 1 Hz until next DI toggle
+    // Latching ping-pong at 1 Hz until next DI toggle
     if(diCfg[i].switchType==DI_SW_LATCHING && diCfg[i].latchMode==LATCH_PINGPONG_UNTIL_TOGGLE && rt.rampActive){
       if((uint32_t)(nowMs-rt.lastRampTick)>=LATCH_RAMP_TICK_MS){
         rt.lastRampTick=nowMs;
@@ -709,17 +848,45 @@ void loop(){
   }
 
   // Pulse timeout restore
-  for(int c=0;c<NUM_CH;c++){ if(chPulseUntil[c]!=0 && timeAfter32(now,chPulseUntil[c])){ clampAndSetLevel(c,chLastNonZero[c]); chPulseUntil[c]=0; wsLog("channel["+String(c)+"]: pulse end -> restore"); } }
+  for(int c=0;c<NUM_CH;c++){
+    if(chPulseUntil[c]!=0 && timeAfter32(now,chPulseUntil[c])){
+      clampAndSetLevel(c,chLastNonZero[c]); chPulseUntil[c]=0; wsLog("channel["+String(c)+"]: pulse end -> restore");
+    }
+  }
 
-  // LEDs drive + Modbus mirror
-  for(int i=0;i<NUM_LED;i++){ bool srcActive=false; uint8_t src=ledCfg[i].source; if(src>=1 && src<=2){ int c=src-1; bool chOn=(chCfg[c].enabled && chLevel[c]>0); srcActive=chOn; }
-    bool phys=(ledCfg[i].mode==0)?srcActive:(srcActive && blinkPhase); digitalWrite(LED_PINS[i], phys?HIGH:LOW); mb.setIsts(ISTS_LED_BASE + i, phys); }
+  // ================== LEDs drive + Modbus mirror ==================
+  for(int i=0;i<NUM_LED;i++){
+    // [LED] compute 'active' per configured source
+    bool active=false;
+    switch(ledCfg[i].type){
+      case LEDSRC_CH_ON:
+        if(ledCfg[i].index<NUM_CH) active = (chCfg[ledCfg[i].index].enabled && chLevel[ledCfg[i].index]>0);
+        break;
+      case LEDSRC_AC_OK:
+        if(ledCfg[i].index<NUM_CH) active = zcOk[ledCfg[i].index];
+        break;
+      case LEDSRC_DI_STATE:
+        if(ledCfg[i].index<NUM_DI) active = diRt[ledCfg[i].index].cur;
+        break;
+      default: active=false; break;
+    }
+    bool phys=(ledCfg[i].mode==0)?active:(active && blinkPhase);
+    digitalWrite(LED_PINS[i], phys?HIGH:LOW);
+    mb.setIsts(ISTS_LED_BASE + i, phys);
+  }
 
-  // Channel "on" mirror
-  for(int c=0;c<NUM_CH;c++){ bool onb=(chCfg[c].enabled && chLevel[c]>0); mb.setIsts(ISTS_CH_BASE + c, onb); }
+  // Channel "on" mirror (still exported separately)
+  for(int c=0;c<NUM_CH;c++){
+    bool onb=(chCfg[c].enabled && chLevel[c]>0);
+    mb.setIsts(ISTS_CH_BASE + c, onb);
+  }
 
   // Periodic snapshot
-  if(millis()-lastSend>=sendInterval){ lastSend=millis(); WebSerial.check(); sendConfigSnapshot(); }
+  if(millis()-lastSend>=sendInterval){
+    lastSend=millis();
+    WebSerial.check();
+    sendConfigSnapshot();
+  }
 }
 
 // ================== Modbus helpers ==================
