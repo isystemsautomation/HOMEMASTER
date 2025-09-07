@@ -2,10 +2,11 @@
 struct PersistConfig;
 
 /**************************************************************
- * DIM-420-R1 — RP2350A (Pico 2) firmware (QUIET WEB CONFIG)
+ * DIM-420-R1 — RP2350A (Pico 2) firmware (QUIET WEB CONFIG + LOGS)
  * - Sends a compact JSON "config" snapshot via WebSerial once/second
  * - Waits for settings from WebConfig ("values", "Config")
- * - No handshakes/hello/echo/status messages
+ * - NO handshakes/hello/echo/status messages
+ * - NEW: emits minimal "log" events via WebSerial for user actions/changes
  **************************************************************/
 
 #include <Arduino.h>
@@ -141,6 +142,11 @@ uint8_t chPreset[NUM_CH] = {200,200};
 SimpleWebSerial WebSerial;
 JSONVar modbusStatus;
 
+// ------------------ LOGGING (WebSerial "log" event) ------------------
+static inline void wsLog(const String& line) {
+  WebSerial.send("message", (const char*)line.c_str());
+}
+
 // ================== Timing ==================
 unsigned long lastSend = 0;
 const unsigned long sendInterval = 1000; // << once per second
@@ -184,8 +190,6 @@ const uint32_t  CFG_AUTOSAVE_MS= 1500;
 
 // ===== DI echo gating (unused but kept for state) =====
 volatile bool diCfgEchoPending = false;
-
-// (Removed UI handshake/announce flags)
 
 // ================== Utils ==================
 uint32_t crc32_update(uint32_t crc, const uint8_t* data, size_t len) {
@@ -453,6 +457,8 @@ bool saveConfigFS() {
   if (nr != sizeof(back)) return false;
   PersistConfig tmp2 = back; uint32_t crc = tmp2.crc32; tmp2.crc32 = 0;
   if (crc32_update(0, (const uint8_t*)&tmp2, sizeof(tmp2)) != crc) return false;
+
+  wsLog("config: saved to FS");
   return true;
 }
 
@@ -463,6 +469,7 @@ bool loadConfigFS() {
   PersistConfig pc{}; size_t n = f.read((uint8_t*)&pc, sizeof(pc)); f.close();
   if (n != sizeof(pc)) return false;
   if (!applyFromPersist(pc)) return false;
+  wsLog("config: loaded from FS");
   return true;
 }
 
@@ -470,6 +477,7 @@ bool loadConfigFS() {
 bool initFilesystemAndConfig() {
   if (!LittleFS.begin()) {
     if (!LittleFS.format() || !LittleFS.begin()) {
+      wsLog("fs: init failed");
       return false;
     }
   }
@@ -679,7 +687,8 @@ void setup() {
   WebSerial.on("Config",  handleUnifiedConfig);
   WebSerial.on("command", handleCommand);
 
-  // (No boot messages, no echo/handshake)
+  // No boot chatter beyond this:
+  wsLog("boot: ready");
 }
 
 // ================== Command handler / reset ==================
@@ -689,25 +698,29 @@ void handleCommand(JSONVar obj) {
   String act = String(actC); act.toLowerCase();
 
   if (act == "reset" || act == "reboot") {
+    wsLog("cmd: reset");
     saveConfigFS();
     delay(200);
     performReset();
 
   } else if (act == "save") {
+    wsLog("cmd: save");
     saveConfigFS();
 
   } else if (act == "load") {
+    wsLog("cmd: load");
     if (loadConfigFS()) {
       applyModbusSettings(g_mb_address, g_mb_baud);
     }
 
   } else if (act == "factory") {
+    wsLog("cmd: factory");
     setDefaults();
     if (saveConfigFS()) {
       applyModbusSettings(g_mb_address, g_mb_baud);
     }
   }
-  // Unknowns are ignored silently (quiet mode)
+  // Unknowns ignored (quiet)
 }
 
 void performReset() {
@@ -718,13 +731,17 @@ void performReset() {
 }
 
 void applyModbusSettings(uint8_t addr, uint32_t baud) {
-  if ((uint32_t)modbusStatus["baud"] != baud) {
+  bool baudChanged = ((uint32_t)modbusStatus["baud"] != baud);
+  if (baudChanged) {
     Serial2.end(); Serial2.begin(baud); mb.config(baud);
   }
   setSlaveIdIfAvailable(mb, addr);
   g_mb_address = addr; g_mb_baud = baud;
   modbusStatus["address"] = g_mb_address;
   modbusStatus["baud"]    = g_mb_baud;
+
+  String s = "modbus: addr=" + String(addr) + " baud=" + String(baud);
+  wsLog(s);
 }
 
 // ================== WebSerial config handlers (quiet) ==================
@@ -737,8 +754,6 @@ void handleValues(JSONVar values) {
   cfgDirty = true; lastCfgTouchMs = millis();
 }
 
-// Supported t: inputEnable/inputInvert/inputSwitchType/press maps/latch modes + targets
-// channels, buttons, leds
 void handleUnifiedConfig(JSONVar obj) {
   const char* t = (const char*)obj["t"];
   JSONVar list = obj["list"];
@@ -749,54 +764,67 @@ void handleUnifiedConfig(JSONVar obj) {
   if (type == "inputEnable") {
     for (int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].enabled = (bool)list[i];
     changed = true; diCfgEchoPending = true;
+    wsLog("cfg: inputEnable");
 
   } else if (type == "inputInvert") {
     for (int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].inverted = (bool)list[i];
     changed = true; diCfgEchoPending = true;
+    wsLog("cfg: inputInvert");
 
   } else if (type == "inputSwitchType") {
     for (int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].switchType = (uint8_t)constrain((int)list[i], 0, 1);
     changed = true; diCfgEchoPending = true;
+    wsLog("cfg: inputSwitchType");
 
   } else if (type == "inputPressActionShort") {
     for (int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].pressAction[PRESS_SHORT] = (uint8_t)constrain((int)list[i], 0, 6);
     changed = true; diCfgEchoPending = true;
+    wsLog("cfg: pressActionShort");
 
   } else if (type == "inputPressTargetShort") {
     for (int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].pressTarget[PRESS_SHORT] = (uint8_t)list[i];
     changed = true; diCfgEchoPending = true;
+    wsLog("cfg: pressTargetShort");
 
   } else if (type == "inputPressActionLong") {
     for (int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].pressAction[PRESS_LONG] = (uint8_t)constrain((int)list[i], 0, 6);
     changed = true; diCfgEchoPending = true;
+    wsLog("cfg: pressActionLong");
 
   } else if (type == "inputPressTargetLong") {
     for (int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].pressTarget[PRESS_LONG] = (uint8_t)list[i];
     changed = true; diCfgEchoPending = true;
+    wsLog("cfg: pressTargetLong");
 
   } else if (type == "inputPressActionDoubleShort") {
     for (int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].pressAction[PRESS_DOUBLE_SHORT] = (uint8_t)constrain((int)list[i], 0, 6);
     changed = true; diCfgEchoPending = true;
+    wsLog("cfg: pressActionDoubleShort");
 
   } else if (type == "inputPressTargetDoubleShort") {
     for (int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].pressTarget[PRESS_DOUBLE_SHORT] = (uint8_t)list[i];
     changed = true; diCfgEchoPending = true;
+    wsLog("cfg: pressTargetDoubleShort");
 
   } else if (type == "inputPressActionShortThenLong") {
     for (int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].pressAction[PRESS_SHORT_THEN_LONG] = (uint8_t)constrain((int)list[i], 0, 6);
     changed = true; diCfgEchoPending = true;
+    wsLog("cfg: pressActionShortThenLong");
 
   } else if (type == "inputPressTargetShortThenLong") {
     for (int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].pressTarget[PRESS_SHORT_THEN_LONG] = (uint8_t)list[i];
     changed = true; diCfgEchoPending = true;
+    wsLog("cfg: pressTargetShortThenLong");
 
   } else if (type == "inputLatchMode") {
     for (int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].latchMode = (uint8_t)constrain((int)list[i], 0, 1);
     changed = true; diCfgEchoPending = true;
+    wsLog("cfg: inputLatchMode");
 
   } else if (type == "inputLatchTarget") {
     for (int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].latchTarget = (uint8_t)list[i];
     changed = true; diCfgEchoPending = true;
+    wsLog("cfg: inputLatchTarget");
 
   } else if (type == "channels") {
     for (int i=0; i<NUM_CH && i<list.length(); i++) {
@@ -804,7 +832,7 @@ void handleUnifiedConfig(JSONVar obj) {
 
       int lo = (int)list[i]["lower"];
       int hi = (int)list[i]["upper"];
-      setThresholds(i, lo, hi);
+      setThresholds(i, lo, hi); // will no-op if unchanged
 
       if (list[i].hasOwnProperty("loadType")) {
         int lt = (int)list[i]["loadType"];
@@ -834,12 +862,15 @@ void handleUnifiedConfig(JSONVar obj) {
 
         uint8_t lvl = mapPercentToLevel(i, pct);
         setLevelDirect(i, lvl);
+        String s = "channel[" + String(i) + "]: percent=" + String((int)pct) + " -> level=" + String(lvl);
+        wsLog(s);
       } else if (list[i].hasOwnProperty("level")) {
         int lvl = (int)list[i]["level"];
         clampAndSetLevel(i, lvl);
       }
     }
     changed = true;
+    wsLog("cfg: channels");
 
   } else if (type == "buttons") {
     for (int i=0;i<NUM_BTN && i<list.length();i++) {
@@ -847,6 +878,7 @@ void handleUnifiedConfig(JSONVar obj) {
       btnCfg[i].action = (uint8_t)constrain(a, 0, 6);
     }
     changed = true;
+    wsLog("cfg: buttons");
 
   } else if (type == "leds") {
     for (int i=0;i<NUM_LED && i<list.length();i++) {
@@ -855,6 +887,7 @@ void handleUnifiedConfig(JSONVar obj) {
       ledCfg[i].source = (uint8_t)((src==0 || src==1 || src==2) ? src : 0);
     }
     changed = true;
+    wsLog("cfg: leds");
   }
 
   if (changed) { cfgDirty = true; lastCfgTouchMs = millis(); }
@@ -866,6 +899,10 @@ static inline void setThresholds(uint8_t ch, int lower, int upper) {
   lower = constrain(lower, 0, 255);
   upper = constrain(upper, 0, 255);
   if (upper < lower) upper = lower;
+
+  // --- FIX: Early exit if nothing changed (no Modbus writes, no log) ---
+  if ((uint8_t)lower == chLower[ch] && (uint8_t)upper == chUpper[ch]) return;
+
   chLower[ch] = (uint8_t)lower;
   chUpper[ch] = (uint8_t)upper;
 
@@ -877,24 +914,31 @@ static inline void setThresholds(uint8_t ch, int lower, int upper) {
     else if (chLevel[ch] > chUpper[ch]) chLevel[ch] = chUpper[ch];
   }
 
+  // Mirror to Modbus only when changed
   mb.setHreg(HREG_DIM_LO_BASE + ch, chLower[ch]);
   mb.setHreg(HREG_DIM_HI_BASE + ch, chUpper[ch]);
   mb.setHreg(HREG_DIM_LEVEL_BASE + ch, chLevel[ch]);
+
+  String s = "channel[" + String(ch) + "]: range=[" + String(chLower[ch]) + ".." + String(chUpper[ch]) + "]";
+  wsLog(s);
 }
 
 void clampAndSetLevel(uint8_t ch, int value) {
   if (ch >= NUM_CH) return;
   value = constrain(value, 0, 255);
+  uint8_t prev = chLevel[ch];
 
-  uint8_t cur = chLevel[ch];
   uint8_t out;
-
   if (value == 0) out = 0;
   else if (value > chUpper[ch]) out = chUpper[ch];
   else if (value >= chLower[ch]) out = (uint8_t)value;
-  else out = (cur == 0) ? chLower[ch] : 0;
+  else out = (prev == 0) ? chLower[ch] : 0;
 
   setLevelDirect(ch, out);
+  if (out != prev) {
+    String s = "channel[" + String(ch) + "]: level " + String(prev) + " -> " + String(out);
+    wsLog(s);
+  }
 }
 
 // Legacy helper used by on-board buttons
@@ -917,6 +961,7 @@ void applyActionToTarget(uint8_t target, uint8_t action, uint32_t now) {
   else if (target>=1 && target<=2) { doCh(target-1); }
 
   cfgDirty = true; lastCfgTouchMs = now;
+  wsLog("button: target=" + String(target) + " action=" + String(action));
 }
 
 // ================== Apply DI action ==================
@@ -957,6 +1002,7 @@ void applyDiAction(uint8_t target, uint8_t action, uint32_t now){
   else if (target == DI_TGT_CH2){ doCh(1); }
 
   cfgDirty = true; lastCfgTouchMs = now;
+  wsLog("DI: target=" + String(target) + " action=" + String(action));
 }
 
 JSONVar LedConfigListFromCfg() {
@@ -989,6 +1035,7 @@ void loop() {
       if (!zcOk[c] && zcOkStreak[c] >= ZC_OK_STREAK_N) {
         zcOk[c] = true;
         mb.setIsts(ISTS_ZC_OK_BASE + c, true);
+        wsLog("zc[" + String(c) + "]: OK");
       }
     } else {
       if (zcFaultStreak[c] < 255) zcFaultStreak[c]++;
@@ -996,6 +1043,7 @@ void loop() {
       if (zcOk[c] && zcFaultStreak[c] >= ZC_FAULT_STREAK_N) {
         zcOk[c] = false;
         mb.setIsts(ISTS_ZC_OK_BASE + c, false);
+        wsLog("zc[" + String(c) + "]: FAULT");
       }
     }
   }
@@ -1022,8 +1070,9 @@ void loop() {
       double fx100 = 50000000.0 / mean_half; // 100*1e6 / (2*half_us)
       if (fx100 < 0.0) fx100 = 0.0;
       if (fx100 > 65535.0) fx100 = 65535.0;
+      uint16_t prevF = freq_x100[ch];
       freq_x100[ch] = (uint16_t)lround(fx100);
-      mb.setHreg(HREG_FREQ_X100_BASE + ch, freq_x100[ch]);
+      if (freq_x100[ch] != prevF) mb.setHreg(HREG_FREQ_X100_BASE + ch, freq_x100[ch]);
 
       uint32_t stable_half = (uint32_t)lround(mean_half);
       if (stable_half < HALF_MIN_US || stable_half > HALF_MAX_US) stable_half = HALF_US_DEFAULT;
@@ -1035,7 +1084,7 @@ void loop() {
 
   // Auto-save after quiet period
   if (cfgDirty && (now - lastCfgTouchMs >= CFG_AUTOSAVE_MS)) {
-    saveConfigFS();
+    if (saveConfigFS()) wsLog("config: autosaved");
     cfgDirty = false;
   }
 
@@ -1048,10 +1097,10 @@ void loop() {
       switch (btnCfg[i].action) {
         case 1: applyActionToTarget(1, 1, now); break;
         case 2: applyActionToTarget(2, 1, now); break;
-        case 3: clampAndSetLevel(0, chLevel[0] + 10); cfgDirty=true; lastCfgTouchMs=now; break;
-        case 4: clampAndSetLevel(0, chLevel[0] - 10); cfgDirty=true; lastCfgTouchMs=now; break;
-        case 5: clampAndSetLevel(1, chLevel[1] + 10); cfgDirty=true; lastCfgTouchMs=now; break;
-        case 6: clampAndSetLevel(1, chLevel[1] - 10); cfgDirty=true; lastCfgTouchMs=now; break;
+        case 3: clampAndSetLevel(0, chLevel[0] + 10); cfgDirty=true; lastCfgTouchMs=now; wsLog("button: stepUp CH1"); break;
+        case 4: clampAndSetLevel(0, chLevel[0] - 10); cfgDirty=true; lastCfgTouchMs=now; wsLog("button: stepDown CH1"); break;
+        case 5: clampAndSetLevel(1, chLevel[1] + 10); cfgDirty=true; lastCfgTouchMs=now; wsLog("button: stepUp CH2"); break;
+        case 6: clampAndSetLevel(1, chLevel[1] - 10); cfgDirty=true; lastCfgTouchMs=now; wsLog("button: stepDown CH2"); break;
         default: break;
       }
     }
@@ -1156,6 +1205,7 @@ void loop() {
     if (chPulseUntil[c] != 0 && timeAfter32(now, chPulseUntil[c])) {
       clampAndSetLevel(c, chLastNonZero[c]);
       chPulseUntil[c] = 0;
+      wsLog("channel[" + String(c) + "]: pulse end -> restore");
     }
   }
 
@@ -1195,35 +1245,45 @@ void processModbusCommandPulses() {
       mb.setCoil(CMD_CH_ON_BASE + c, false);
       clampAndSetLevel(c, chPreset[c]); // use preset when ON
       cfgDirty = true; lastCfgTouchMs = millis();
+      wsLog("modbus: CH" + String(c+1) + " ON");
     }
     if (mb.Coil(CMD_CH_OFF_BASE + c)) {
       mb.setCoil(CMD_CH_OFF_BASE + c, false);
       clampAndSetLevel(c, 0);
       cfgDirty = true; lastCfgTouchMs = millis();
+      wsLog("modbus: CH" + String(c+1) + " OFF");
     }
   }
   // DI enable/disable coils
   for (int i=0;i<NUM_DI;i++) {
-    if (mb.Coil(CMD_DI_EN_BASE + i))  { mb.setCoil(CMD_DI_EN_BASE + i,  false); if (!diCfg[i].enabled){ diCfg[i].enabled=true;  cfgDirty=true; lastCfgTouchMs=millis(); diCfgEchoPending=true; } }
-    if (mb.Coil(CMD_DI_DIS_BASE + i)) { mb.setCoil(CMD_DI_DIS_BASE + i, false); if ( diCfg[i].enabled){ diCfg[i].enabled=false; cfgDirty=true; lastCfgTouchMs=millis(); diCfgEchoPending=true; } }
+    if (mb.Coil(CMD_DI_EN_BASE + i))  {
+      mb.setCoil(CMD_DI_EN_BASE + i,  false);
+      if (!diCfg[i].enabled){ diCfg[i].enabled=true;  cfgDirty=true; lastCfgTouchMs=millis(); diCfgEchoPending=true; wsLog("modbus: DI" + String(i+1) + " enable"); }
+    }
+    if (mb.Coil(CMD_DI_DIS_BASE + i)) {
+      mb.setCoil(CMD_DI_DIS_BASE + i, false);
+      if ( diCfg[i].enabled){ diCfg[i].enabled=false; cfgDirty=true; lastCfgTouchMs=millis(); diCfgEchoPending=true; wsLog("modbus: DI" + String(i+1) + " disable"); }
+    }
   }
 
   // HREG writes (levels + thresholds + percent/loadtype/cutmode/preset)
   for (int c=0;c<NUM_CH;c++) {
-    // Thresholds
+    // Thresholds — only apply and log if different (FIX)
     uint16_t lo = mb.Hreg(HREG_DIM_LO_BASE + c);
     uint16_t hi = mb.Hreg(HREG_DIM_HI_BASE + c);
-    setThresholds(c, (int)lo, (int)hi);
+    if (lo != chLower[c] || hi != chUpper[c]) {
+      setThresholds(c, (int)lo, (int)hi);
+    }
 
     // Load type
     uint16_t lt = mb.Hreg(HREG_LOADTYPE_BASE + c);
     lt = constrain((int)lt, 0, 2);
-    if (lt != chLoadType[c]) { chLoadType[c] = (uint8_t)lt; cfgDirty = true; lastCfgTouchMs = millis(); }
+    if (lt != chLoadType[c]) { chLoadType[c] = (uint8_t)lt; cfgDirty = true; lastCfgTouchMs = millis(); wsLog("modbus: CH"+String(c+1)+" loadType="+String(lt)); }
 
     // Cutoff mode
     uint16_t cm = mb.Hreg(HREG_CUTMODE_BASE + c);
     cm = constrain((int)cm, 0, 1);
-    if (cm != chCutMode[c]) { chCutMode[c] = (uint8_t)cm; cfgDirty = true; lastCfgTouchMs = millis(); }
+    if (cm != chCutMode[c]) { chCutMode[c] = (uint8_t)cm; cfgDirty = true; lastCfgTouchMs = millis(); wsLog("modbus: CH"+String(c+1)+" cutMode="+String(cm)); }
 
     // Preset
     uint16_t pv = mb.Hreg(HREG_PRESET_BASE + c);
@@ -1232,6 +1292,7 @@ void processModbusCommandPulses() {
       chPreset[c] = (uint8_t)pv;
       clampAndApplyPreset(c);
       cfgDirty = true; lastCfgTouchMs = millis();
+      wsLog("modbus: CH"+String(c+1)+" preset="+String((int)chPreset[c]));
     }
 
     // Percent setpoint (preferred)
@@ -1243,6 +1304,7 @@ void processModbusCommandPulses() {
       uint8_t lvl = mapPercentToLevel(c, pct);
       setLevelDirect(c, lvl);
       cfgDirty = true; lastCfgTouchMs = millis();
+      wsLog("modbus: CH"+String(c+1)+" percent="+String(pct,1)+" -> level="+String(lvl));
     }
 
     // Legacy direct level write still supported

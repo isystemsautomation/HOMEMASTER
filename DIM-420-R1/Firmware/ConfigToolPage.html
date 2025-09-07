@@ -34,12 +34,12 @@
     <div>
       <label for="modbus-baud" class="label"><strong>Baud Rate</strong></label>
       <select id="modbus-baud" style="width:100%;padding:10px;border-radius:6px;border:1px solid #ccc;">
-        <option>9600</option><option selected>19200</option><option>38400</option><option>57600</option><option>115200</option>
+        <option>9600</option><option selected="">19200</option><option>38400</option><option>57600</option><option>115200</option>
       </select>
     </div>
     <div style="grid-column:span 2;text-align:right;">
       <button id="connect-button" type="button" style="padding:.55rem .9rem;border-radius:6px;border:1px solid #2f6fff;background:#2f6fff;color:#fff;">Connect</button>
-      <button id="reset-button" type="button" style="padding:.55rem .9rem;border-radius:6px;border:1px solid #dc3545;background:#dc3545;color:#fff;margin-left:.6rem;" disabled>Reset Device</button>
+      <button id="reset-button" type="button" style="padding:.55rem .9rem;border-radius:6px;border:1px solid #dc3545;background:#dc3545;color:#fff;margin-left:.6rem;" disabled="">Reset Device</button>
     </div>
   </form>
 
@@ -84,7 +84,7 @@
     </section>
   </div>
 
-  <script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
+  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
   <script>
   (function () {
     // ---------- Constants & helpers ----------
@@ -144,7 +144,16 @@
         </div>
       </div>`;
 
-    const DI_ACT=[{v:0,t:'None'},{v:1,t:'Toggle to preset/0'},{v:2,t:'Turn off'},{v:3,t:'Toggle output'},{v:4,t:'Increase'},{v:5,t:'Decrease'},{v:6,t:'Increase then Decrease'}];
+    /* CHANGED: value 1 label -> "Turn on" (was "Toggle to preset/0") */
+    const DI_ACT=[
+      {v:0,t:'None'},
+      {v:1,t:'Turn on'},
+      {v:2,t:'Turn off'},
+      {v:3,t:'Toggle output'},
+      {v:4,t:'Increase'},
+      {v:5,t:'Decrease'},
+      {v:6,t:'Increase then Decrease'}
+    ];
     const DI_TGT=[{v:0,t:'None'},{v:4,t:'All channels'},{v:1,t:'Channel 1'},{v:2,t:'Channel 2'}];
     const DI_SW=[{v:0,t:'Momentary pushbutton'},{v:1,t:'Latching switch'}];
     const DI_LM=[{v:0,t:'Toggle to preset or 0'},{v:1,t:'Increase/Decrease until toggle'}];
@@ -191,7 +200,6 @@
     const LED = i => `<div class="card led"><div style="font-weight:600;">User LED ${i}<span id="state-led${i}" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;float:right;"></span></div><label class="label">Mode:<select id="mode-led${i}" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;"><option value="0">Steady (active)</option><option value="1">Blink (active)</option></select></label><br><label class="label">Source:<select id="source-led${i}" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;"><option value="0">None</option><option value="1">Channel 1</option><option value="2">Channel 2</option></select></label></div>`;
 
     (function mount(){
-      // Address choices
       const addrSel=$('modbus-address'); for(let i=1;i<=247;i++){ const o=document.createElement('option'); o.value=String(i); o.textContent=String(i); addrSel.appendChild(o); }
       const ch=$('channels-config'); for(let i=1;i<=N.CH;i++) ch.insertAdjacentHTML('beforeend', CH(i));
       const di=$('inputs-config');   for(let i=1;i<=N.DI;i++) di.insertAdjacentHTML('beforeend', DI(i));
@@ -205,18 +213,17 @@
     const send=(t,p)=>{ if(isOpen()) try{ conn.send(t,p); }catch(e){} };
     const setReset=(on)=>{ const b=$('reset-button'); if(b) b.disabled=!on; };
 
-    conn.on('open', ()=>{ setReset(true); /* Optional: ping values so MCU reflects mb settings we pick */ pingValues(); });
+    conn.on('open', ()=>{ setReset(true); pingValues(); });
     conn.on('close', ()=>{ setReset(false); });
-    conn.on('message', msg=> log('DIM-420-R1', msg)); // raw log if any
+    conn.on('message', msg=> log('DIM-420-R1', msg));
 
-    // ---------- UI actions ----------
     // Reset dialog
     const dlg=$('reset-dialog'); $('reset-button').addEventListener('click',()=> dlg.showModal());
     $('reset-form').addEventListener('close',()=>{ if(dlg.returnValue==='confirm'){ send('command',{action:'reset'}); }});
     $('dlg-cancel').addEventListener('click',(e)=>{ e.preventDefault(); dlg.close('cancel'); });
     $('dlg-confirm').addEventListener('click',(e)=>{ e.preventDefault(); dlg.close('confirm'); });
 
-    // Modbus settings -> "values"
+    // Modbus -> values
     const pingValues=()=> {
       const addr = Number($('modbus-address').value||3);
       const baud = Number($('modbus-baud').value||19200);
@@ -286,28 +293,22 @@
     const ledSend=()=>{ if(!isOpen()) return; const list=[]; for(let j=1;j<=N.LED;j++) list.push({mode:parseInt(($('mode-led'+j).value)||'0',10), source:parseInt(($('source-led'+j).value)||'0',10)}); send('Config',{t:'leds',list}); };
     for(let i=1;i<=N.LED;i++){ on($('mode-led'+i),'change',ledSend); on($('source-led'+i),'change',ledSend); }
 
-    // ---------- Single SOURCE OF TRUTH from MCU (quiet firmware) ----------
-    // We only listen to "config" snapshots and reflect them into UI.
+    // ---------- Apply quiet-firmware snapshots ----------
     function applyConfig(cfg){
       if(!cfg) return;
 
-      // Modbus header
       const mb = cfg.mb || {};
       $('live-address').textContent = (mb.address!=null)? String(mb.address) : '--';
       $('live-baud').textContent    = (mb.baud!=null)? String(mb.baud) : '--';
-      // Keep selects in sync without firing sends
       echoGuard=true;
       try{
         if(mb.address!=null) $('modbus-address').value=String(mb.address);
         if(mb.baud!=null)    $('modbus-baud').value=String(mb.baud);
       }finally{ echoGuard=false; }
 
-      // Channels
       const chA = asArr(cfg.ch);
       chA.forEach((c,idx)=>{
-        const i=idx+1;
-        if(!c) return;
-        // controls
+        const i=idx+1; if(!c) return;
         echoGuard=true;
         try{
           const en=$('enable-ch'+i), lo=$('lower-ch'+i), hi=$('upper-ch'+i), lt=$('lt-ch'+i), cm=$('cm-ch'+i), pr=$('preset-ch'+i), pc=$('percent-ch'+i);
@@ -320,7 +321,6 @@
           if(pc){ const p=c100(c.percent); pc.value=String(p); const pv=$('percent-val-ch'+i); if(pv) pv.textContent=String(p); }
           const r=$('range-ch'+i); if(r) r.textContent=`[${c255(c.lower)}..${c255(c.upper)}]`;
         }finally{ echoGuard=false; }
-        // runtime mirrors
         const lvl = Number(c.level||0);
         $('level-val-ch'+i).textContent=String(lvl);
         $('on-ch'+i).style.background=(lvl>0)?'#4caf50':'#ccc';
@@ -328,7 +328,6 @@
         const f=$('freq-badge-ch'+i); if(f) f.textContent=((Number(c.freq_x100||0)/100).toFixed(2)+' Hz');
       });
 
-      // DIs
       const diA = asArr(cfg.di);
       echoGuard=true;
       try{
@@ -346,16 +345,14 @@
           if(lt) lt.value=String(d.latchTarget||0);
         });
       }finally{ echoGuard=false; }
-      diShow(); // toggle DI sections based on switch type
+      diShow();
 
-      // Buttons
       const btnA=asArr(cfg.btn);
       echoGuard=true;
       try{
         btnA.forEach((b,idx)=>{ const i=idx+1; const sel=$('action-button'+i), st=$('state-button'+i); if(sel&&b) sel.value=String(b.action||0); if(st&&b) st.style.background=b.state?'#4caf50':'#ccc'; });
       }finally{ echoGuard=false; }
 
-      // LEDs
       const ledA=asArr(cfg.led);
       echoGuard=true;
       try{
@@ -363,7 +360,6 @@
       }finally{ echoGuard=false; }
     }
 
-    // Listen to compact snapshots from quiet firmware
     conn.on('config', cfg => applyConfig(cfg));
   })();
   </script>
