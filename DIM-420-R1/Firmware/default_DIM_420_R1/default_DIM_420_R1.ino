@@ -19,7 +19,6 @@ struct PersistConfig;
 #include <LittleFS.h>
 #include <utility>
 #include <math.h>
-// (removed watchdog) #include "hardware/watchdog.h"
 #include "pico/time.h"          // time_us_64(), add_alarm_in_us(), alarm_id_t
 
 // ================== UART2 (RS-485 / Modbus) ==================
@@ -49,7 +48,22 @@ volatile uint8_t  chLastNonZero[NUM_CH] = {200,200};
 // ================== Digital Input switch model ==================
 enum DiSwitchType : uint8_t { DI_SW_MOMENTARY=0, DI_SW_LATCHING=1 };
 enum DiPressType  : uint8_t { PRESS_SHORT=0, PRESS_LONG=1, PRESS_DOUBLE_SHORT=2, PRESS_SHORT_THEN_LONG=3, PRESS_COUNT=4 };
-enum DiAction     : uint8_t { DI_ACT_NONE=0, DI_ACT_TOGGLE_TO_PRESET=1, DI_ACT_TURN_OFF=2, DI_ACT_TOGGLE_OUTPUT=3, DI_ACT_INC=4, DI_ACT_DEC=5, DI_ACT_INC_THEN_DEC=6 };
+
+// --------- DI actions aligned with UI (1 = Turn on) ----------
+enum DiAction : uint8_t {
+  DI_ACT_NONE=0,
+  DI_ACT_TURN_ON=1,            // only turns on (to preset) if currently off
+  DI_ACT_TURN_OFF=2,
+  DI_ACT_TOGGLE_OUTPUT=3,      // toggle using last non-zero level
+  DI_ACT_INC=4,
+  DI_ACT_DEC=5,
+  DI_ACT_INC_THEN_DEC=6,
+  // internal (not sent by UI)
+  DI_ACT_TOGGLE_TO_PRESET=7,
+  // NEW: go straight to channel upper threshold (MAX)
+  DI_ACT_GO_MAX=8
+};
+
 enum DiTarget     : uint8_t { DI_TGT_NONE=0, DI_TGT_CH1=1, DI_TGT_CH2=2, DI_TGT_ALL=4 };
 enum DiLatchMode  : uint8_t { LATCH_TOGGLE_TO_PRESET_OR_0=0, LATCH_PINGPONG_UNTIL_TOGGLE=1 };
 
@@ -57,7 +71,7 @@ enum DiLatchMode  : uint8_t { LATCH_TOGGLE_TO_PRESET_OR_0=0, LATCH_PINGPONG_UNTI
 struct InCfg { bool enabled; bool inverted; uint8_t switchType; uint8_t pressAction[PRESS_COUNT]; uint8_t pressTarget[PRESS_COUNT]; uint8_t latchMode; uint8_t latchTarget; };
 struct ChCfg { bool enabled; };
 struct LedCfg { uint8_t mode; uint8_t source; };
-struct BtnCfg { uint8_t action; };
+struct BtnCfg { uint8_t action; };   // see mapping below
 
 InCfg  diCfg[NUM_DI];
 ChCfg  chCfg[NUM_CH];
@@ -66,6 +80,13 @@ BtnCfg btnCfg[NUM_BTN];
 
 bool buttonState[NUM_BTN] = {false,false,false,false};
 bool buttonPrev[NUM_BTN]  = {false,false,false,false};
+
+// --- Button hold-to-ramp runtime ----
+const uint8_t  STEP_DELTA=10;
+const uint16_t BTN_RAMP_TICK_MS=80;     // stepping cadence during long press
+const uint32_t SHORT_MAX_MS=350, LONG_MIN_MS=700, DOUBLE_GAP_MS=300;
+struct BtnRuntime { bool pressed=false; uint32_t pressStart=0; bool rampActive=false; uint32_t lastRampTick=0; };
+BtnRuntime btnRt[NUM_BTN];
 
 uint32_t chPulseUntil[NUM_CH] = {0,0};
 const uint32_t PULSE_MS = 500;
@@ -249,9 +270,9 @@ void applyActionToTarget(uint8_t target,uint8_t action,uint32_t now);
 void clampAndSetLevel(uint8_t ch,int value);
 
 // ================== DI press detection runtime ==================
-const uint32_t SHORT_MAX_MS=350, LONG_MIN_MS=700, DOUBLE_GAP_MS=300; const uint8_t STEP_DELTA=10; const uint16_t RAMP_TICK_MS=80;
 struct DiRuntime{ bool cur=false, prev=false; uint32_t lastChange=0, pressStart=0; bool waitingSecond=false; uint32_t firstShortAt=0; bool shortThenLongArmed=false; bool rampActive=false; int8_t rampDir=+1; uint32_t lastRampTick=0; };
 DiRuntime diRt[NUM_DI];
+const uint16_t RAMP_TICK_MS=80;  // for DI latch ping-pong
 
 // ============ COMPACT CONFIG SNAPSHOT SENDER ============
 void sendConfigSnapshot(){
@@ -335,16 +356,20 @@ void handleUnifiedConfig(JSONVar obj){
   if(type=="inputEnable"){ for(int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].enabled=(bool)list[i]; changed=true; diCfgEchoPending=true; wsLog("cfg: inputEnable"); }
   else if(type=="inputInvert"){ for(int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].inverted=(bool)list[i]; changed=true; diCfgEchoPending=true; wsLog("cfg: inputInvert"); }
   else if(type=="inputSwitchType"){ for(int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].switchType=(uint8_t)constrain((int)list[i],0,1); changed=true; diCfgEchoPending=true; wsLog("cfg: inputSwitchType"); }
-  else if(type=="inputPressActionShort"){ for(int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].pressAction[PRESS_SHORT]=(uint8_t)constrain((int)list[i],0,6); changed=true; diCfgEchoPending=true; wsLog("cfg: pressActionShort"); }
+
+  // Accept DI actions 0..8 (includes GO_MAX=8). 7 remains internal.
+  else if(type=="inputPressActionShort"){ for(int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].pressAction[PRESS_SHORT]=(uint8_t)constrain((int)list[i],0,8); changed=true; diCfgEchoPending=true; wsLog("cfg: pressActionShort"); }
   else if(type=="inputPressTargetShort"){ for(int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].pressTarget[PRESS_SHORT]=(uint8_t)list[i]; changed=true; diCfgEchoPending=true; wsLog("cfg: pressTargetShort"); }
-  else if(type=="inputPressActionLong"){ for(int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].pressAction[PRESS_LONG]=(uint8_t)constrain((int)list[i],0,6); changed=true; diCfgEchoPending=true; wsLog("cfg: pressActionLong"); }
+  else if(type=="inputPressActionLong"){ for(int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].pressAction[PRESS_LONG]=(uint8_t)constrain((int)list[i],0,8); changed=true; diCfgEchoPending=true; wsLog("cfg: pressActionLong"); }
   else if(type=="inputPressTargetLong"){ for(int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].pressTarget[PRESS_LONG]=(uint8_t)list[i]; changed=true; diCfgEchoPending=true; wsLog("cfg: pressTargetLong"); }
-  else if(type=="inputPressActionDoubleShort"){ for(int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].pressAction[PRESS_DOUBLE_SHORT]=(uint8_t)constrain((int)list[i],0,6); changed=true; diCfgEchoPending=true; wsLog("cfg: pressActionDoubleShort"); }
+  else if(type=="inputPressActionDoubleShort"){ for(int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].pressAction[PRESS_DOUBLE_SHORT]=(uint8_t)constrain((int)list[i],0,8); changed=true; diCfgEchoPending=true; wsLog("cfg: pressActionDoubleShort"); }
   else if(type=="inputPressTargetDoubleShort"){ for(int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].pressTarget[PRESS_DOUBLE_SHORT]=(uint8_t)list[i]; changed=true; diCfgEchoPending=true; wsLog("cfg: pressTargetDoubleShort"); }
-  else if(type=="inputPressActionShortThenLong"){ for(int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].pressAction[PRESS_SHORT_THEN_LONG]=(uint8_t)constrain((int)list[i],0,6); changed=true; diCfgEchoPending=true; wsLog("cfg: pressActionShortThenLong"); }
+  else if(type=="inputPressActionShortThenLong"){ for(int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].pressAction[PRESS_SHORT_THEN_LONG]=(uint8_t)constrain((int)list[i],0,8); changed=true; diCfgEchoPending=true; wsLog("cfg: pressActionShortThenLong"); }
   else if(type=="inputPressTargetShortThenLong"){ for(int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].pressTarget[PRESS_SHORT_THEN_LONG]=(uint8_t)list[i]; changed=true; diCfgEchoPending=true; wsLog("cfg: pressTargetShortThenLong"); }
+
   else if(type=="inputLatchMode"){ for(int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].latchMode=(uint8_t)constrain((int)list[i],0,1); changed=true; diCfgEchoPending=true; wsLog("cfg: inputLatchMode"); }
   else if(type=="inputLatchTarget"){ for(int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].latchTarget=(uint8_t)list[i]; changed=true; diCfgEchoPending=true; wsLog("cfg: inputLatchTarget"); }
+
   else if(type=="channels"){
     for(int i=0;i<NUM_CH && i<list.length();i++){
       chCfg[i].enabled=(bool)list[i]["enabled"];
@@ -356,7 +381,14 @@ void handleUnifiedConfig(JSONVar obj){
       else if(list[i].hasOwnProperty("level")){ int lvl=(int)list[i]["level"]; clampAndSetLevel(i,lvl); }
     }
     changed=true; wsLog("cfg: channels");
-  } else if(type=="buttons"){ for(int i=0;i<NUM_BTN && i<list.length();i++){ int a=(int)list[i]["action"]; btnCfg[i].action=(uint8_t)constrain(a,0,6); } changed=true; wsLog("cfg: buttons"); }
+  }
+  else if(type=="buttons"){ // ACCEPT 0..8 now
+    for(int i=0;i<NUM_BTN && i<list.length();i++){
+      int a=(int)list[i]["action"];
+      btnCfg[i].action=(uint8_t)constrain(a,0,8);
+    }
+    changed=true; wsLog("cfg: buttons");
+  }
   else if(type=="leds"){ for(int i=0;i<NUM_LED && i<list.length();i++){ ledCfg[i].mode=(uint8_t)constrain((int)list[i]["mode"],0,1); int src=(int)list[i]["source"]; ledCfg[i].source=(uint8_t)((src==0||src==1||src==2)?src:0); } changed=true; wsLog("cfg: leds"); }
   if(changed){ cfgDirty=true; lastCfgTouchMs=millis(); }
 }
@@ -375,26 +407,47 @@ void clampAndSetLevel(uint8_t ch,int value){
   if(value==0) out=0; else if(value>chUpper[ch]) out=chUpper[ch]; else if(value>=chLower[ch]) out=(uint8_t)value; else out=(prev==0)?chLower[ch]:0;
   setLevelDirect(ch,out); if(out!=prev){ wsLog("channel["+String(ch)+"]: level "+String(prev)+" -> "+String(out)); }
 }
+
+// Old helper for mapped button target actions (toggle/pulse demo)
 void applyActionToTarget(uint8_t target,uint8_t action,uint32_t now){
-  auto doCh=[&](int idx){ if(idx<0||idx>=NUM_CH) return; if(action==1){ if(chLevel[idx]==0) clampAndSetLevel(idx,chPreset[idx]); else clampAndSetLevel(idx,0); chPulseUntil[idx]=0; }
-    else if(action==2){ chPulseUntil[idx]=now+PULSE_MS; clampAndSetLevel(idx,255); } };
-  if(action==0) return; if(target==4) return; if(target==0){ for(int i=0;i<NUM_CH;i++) doCh(i); } else if(target>=1 && target<=2){ doCh(target-1); }
+  auto doCh=[&](int idx){
+    if(idx<0||idx>=NUM_CH) return;
+    if(action==1){ // toggle to preset
+      if(chLevel[idx]==0) clampAndSetLevel(idx,chPreset[idx]); else clampAndSetLevel(idx,0);
+      chPulseUntil[idx]=0;
+    } else if(action==2){ // pulse full
+      chPulseUntil[idx]=now+PULSE_MS; clampAndSetLevel(idx,255);
+    }
+  };
+  if(action==0) return;
+  if(target==4) return;
+  if(target==0){ for(int i=0;i<NUM_CH;i++) doCh(i); }
+  else if(target>=1 && target<=2){ doCh(target-1); }
   cfgDirty=true; lastCfgTouchMs=now; wsLog("button: target="+String(target)+" action="+String(action));
 }
+
+// ===== DI actions (with GO_MAX) =====
 void applyDiAction(uint8_t target,uint8_t action,uint32_t now){
   if(action==DI_ACT_NONE || target==DI_TGT_NONE) return;
   auto doCh=[&](int idx){ if(idx<0||idx>=NUM_CH) return; switch(action){
-    case DI_ACT_TOGGLE_TO_PRESET: if(chLevel[idx]==0) clampAndSetLevel(idx,chPreset[idx]); else clampAndSetLevel(idx,0); break;
-    case DI_ACT_TURN_OFF: clampAndSetLevel(idx,0); break;
-    case DI_ACT_TOGGLE_OUTPUT: clampAndSetLevel(idx,(chLevel[idx]==0)?chLastNonZero[idx]:0); break;
-    case DI_ACT_INC: clampAndSetLevel(idx,chLevel[idx]+STEP_DELTA); break;
-    case DI_ACT_DEC: clampAndSetLevel(idx,chLevel[idx]-STEP_DELTA); break;
-    case DI_ACT_INC_THEN_DEC: { static const uint8_t burst=8; for(uint8_t k=0;k<burst;k++){ if(chLevel[idx]<chUpper[idx]) clampAndSetLevel(idx,chLevel[idx]+STEP_DELTA); }
-      if(chLevel[idx]>=chUpper[idx]){ for(uint8_t k=0;k<burst;k++){ if(chLevel[idx]>0) clampAndSetLevel(idx,chLevel[idx]-STEP_DELTA); } } break; }
+    case DI_ACT_TURN_ON:           if(chLevel[idx]==0) clampAndSetLevel(idx, chPreset[idx]); break;
+    case DI_ACT_TURN_OFF:          clampAndSetLevel(idx,0); break;
+    case DI_ACT_TOGGLE_OUTPUT:     clampAndSetLevel(idx,(chLevel[idx]==0)?chLastNonZero[idx]:0); break;
+    case DI_ACT_INC:               clampAndSetLevel(idx,chLevel[idx]+STEP_DELTA); break;
+    case DI_ACT_DEC:               clampAndSetLevel(idx,chLevel[idx]-STEP_DELTA); break;
+    case DI_ACT_INC_THEN_DEC: {
+      static const uint8_t burst=8;
+      for(uint8_t k=0;k<burst;k++){ if(chLevel[idx]<chUpper[idx]) clampAndSetLevel(idx,chLevel[idx]+STEP_DELTA); }
+      if(chLevel[idx]>=chUpper[idx]){ for(uint8_t k=0;k<burst;k++){ if(chLevel[idx]>0) clampAndSetLevel(idx,chLevel[idx]-STEP_DELTA); } }
+      break;
+    }
+    case DI_ACT_TOGGLE_TO_PRESET:  if(chLevel[idx]==0) clampAndSetLevel(idx, chPreset[idx]); else clampAndSetLevel(idx,0); break;
+    case DI_ACT_GO_MAX:            clampAndSetLevel(idx, chUpper[idx]); break;
   } };
   if(target==DI_TGT_ALL){ doCh(0); doCh(1); } else if(target==DI_TGT_CH1){ doCh(0); } else if(target==DI_TGT_CH2){ doCh(1); }
   cfgDirty=true; lastCfgTouchMs=now; wsLog("DI: target="+String(target)+" action="+String(action));
 }
+
 JSONVar LedConfigListFromCfg(){ JSONVar arr; for(int i=0;i<NUM_LED;i++){ JSONVar o; o["mode"]=ledCfg[i].mode; o["source"]=ledCfg[i].source; arr[i]=o; } return arr; }
 
 // ================== Main loop ==================
@@ -414,12 +467,15 @@ void loop(){
   for(uint8_t ch=0; ch<NUM_CH; ++ch){
     uint32_t seq=zcSampleSeq[ch]; if(seq!=lastSeqConsumed[ch]){
       noInterrupts(); uint32_t half=zcHalfUsLatest[ch]; interrupts();
-      med3[ch][medIdx[ch]%MED_W]=half; medIdx[ch]++; uint32_t a=med3[ch][0],b=med3[ch][1],c=med3[ch][2];
+      med3[ch][medIdx[ch]%MED_W]=half; medIdx[ch]++;
+      uint32_t a=med3[ch][0],b=med3[ch][1],c=med3[ch][2];
       uint32_t med=(a>b)?((b>c)?b:(a>c?c:a)):((a>c)?a:(b>c?c:b));
       avgSum[ch]-=avgBuf[ch][avgIdx[ch]]; avgBuf[ch][avgIdx[ch]]=med; avgSum[ch]+=med; avgIdx[ch]=(uint8_t)((avgIdx[ch]+1)%AVG_N);
-      double mean_half=corr_half_us((double)avgSum[ch]/(double)AVG_N); double fx100=50000000.0/mean_half; if(fx100<0.0) fx100=0.0; if(fx100>65535.0) fx100=65535.0;
+      double mean_half=corr_half_us((double)avgSum[ch]/(double)AVG_N);
+      double fx100=50000000.0/mean_half; if(fx100<0.0) fx100=0.0; if(fx100>65535.0) fx100=65535.0;
       uint16_t prevF=freq_x100[ch]; freq_x100[ch]=(uint16_t)lround(fx100); if(freq_x100[ch]!=prevF) mb.setHreg(HREG_FREQ_X100_BASE + ch, freq_x100[ch]);
-      uint32_t stable_half=(uint32_t)lround(mean_half); if(stable_half<HALF_MIN_US || stable_half>HALF_MAX_US) stable_half=HALF_US_DEFAULT; gateHalfUs[ch]=stable_half;
+      uint32_t stable_half=(uint32_t)lround(mean_half);
+      if(stable_half<HALF_MIN_US || stable_half>HALF_MAX_US) stable_half=HALF_US_DEFAULT; gateHalfUs[ch]=stable_half;
       lastSeqConsumed[ch]=seq;
     }
   }
@@ -427,23 +483,71 @@ void loop(){
   // Auto-save
   if(cfgDirty && (now-lastCfgTouchMs>=CFG_AUTOSAVE_MS)){ if(saveConfigFS()) wsLog("config: autosaved"); cfgDirty=false; }
 
-  // Buttons (inverted: HIGH = pressed)
+  // ================== Buttons (inverted: HIGH = pressed) ==================
   for(int i=0;i<NUM_BTN;i++){
-    bool pressed=(digitalRead(BTN_PINS[i])==HIGH); buttonPrev[i]=buttonState[i]; buttonState[i]=pressed;
+    bool pressed=(digitalRead(BTN_PINS[i])==HIGH);
+    buttonPrev[i]=buttonState[i];
+    buttonState[i]=pressed;
+
+    // rising edge: apply old single action immediately
     if(!buttonPrev[i] && buttonState[i]){
+      btnRt[i].pressed = true;
+      btnRt[i].pressStart = now;
+      btnRt[i].rampActive = false;
+      btnRt[i].lastRampTick = now;
+
       switch(btnCfg[i].action){
-        case 1: applyActionToTarget(1,1,now); break;
-        case 2: applyActionToTarget(2,1,now); break;
-        case 3: clampAndSetLevel(0,chLevel[0]+10); cfgDirty=true; lastCfgTouchMs=now; wsLog("button: stepUp CH1"); break;
-        case 4: clampAndSetLevel(0,chLevel[0]-10); cfgDirty=true; lastCfgTouchMs=now; wsLog("button: stepDown CH1"); break;
-        case 5: clampAndSetLevel(1,chLevel[1]+10); cfgDirty=true; lastCfgTouchMs=now; wsLog("button: stepUp CH2"); break;
-        case 6: clampAndSetLevel(1,chLevel[1]-10); cfgDirty=true; lastCfgTouchMs=now; wsLog("button: stepDown CH2"); break;
+        case 1: /* Toggle CH1 */ if(chLevel[0]==0) clampAndSetLevel(0,chPreset[0]); else clampAndSetLevel(0,0); cfgDirty=true; lastCfgTouchMs=now; wsLog("button: toggle CH1"); break;
+        case 2: /* Toggle CH2 */ if(chLevel[1]==0) clampAndSetLevel(1,chPreset[1]); else clampAndSetLevel(1,0); cfgDirty=true; lastCfgTouchMs=now; wsLog("button: toggle CH2"); break;
+
+        // Old logic single-step immediately (hold will start auto-ramp later if long)
+        case 3: clampAndSetLevel(0, chLevel[0]+STEP_DELTA); cfgDirty=true; lastCfgTouchMs=now; wsLog("button: stepUp CH1"); break;
+        case 4: clampAndSetLevel(0, chLevel[0]-STEP_DELTA); cfgDirty=true; lastCfgTouchMs=now; wsLog("button: stepDown CH1"); break;
+        case 5: clampAndSetLevel(1, chLevel[1]+STEP_DELTA); cfgDirty=true; lastCfgTouchMs=now; wsLog("button: stepUp CH2"); break;
+        case 6: clampAndSetLevel(1, chLevel[1]-STEP_DELTA); cfgDirty=true; lastCfgTouchMs=now; wsLog("button: stepDown CH2"); break;
+
+        // New: go to MAX threshold
+        case 7: clampAndSetLevel(0, chUpper[0]); cfgDirty=true; lastCfgTouchMs=now; wsLog("button: MAX CH1"); break;
+        case 8: clampAndSetLevel(1, chUpper[1]); cfgDirty=true; lastCfgTouchMs=now; wsLog("button: MAX CH2"); break;
+
         default: break;
       }
     }
+
+    // while held: after LONG_MIN_MS, if action is step up/down -> enable ramp
+    if(buttonState[i]){
+      if(!btnRt[i].rampActive && (now - btnRt[i].pressStart) >= LONG_MIN_MS){
+        if(btnCfg[i].action==3 || btnCfg[i].action==4 || btnCfg[i].action==5 || btnCfg[i].action==6){
+          btnRt[i].rampActive = true;
+          btnRt[i].lastRampTick = now;
+          wsLog(String("button: ramp start #")+String(i+1));
+        }
+      }
+      if(btnRt[i].rampActive && (now - btnRt[i].lastRampTick) >= BTN_RAMP_TICK_MS){
+        btnRt[i].lastRampTick = now;
+        // perform repeated steps
+        switch(btnCfg[i].action){
+          case 3: clampAndSetLevel(0, chLevel[0]+STEP_DELTA); break;
+          case 4: clampAndSetLevel(0, chLevel[0]-STEP_DELTA); break;
+          case 5: clampAndSetLevel(1, chLevel[1]+STEP_DELTA); break;
+          case 6: clampAndSetLevel(1, chLevel[1]-STEP_DELTA); break;
+          default: break;
+        }
+        cfgDirty=true; lastCfgTouchMs=now;
+      }
+    }
+
+    // falling edge: stop ramp
+    if(buttonPrev[i] && !buttonState[i]){
+      if(btnRt[i].rampActive){
+        btnRt[i].rampActive=false;
+        wsLog(String("button: ramp stop #")+String(i+1));
+      }
+      btnRt[i].pressed=false;
+    }
   }
 
-  // Digital Inputs
+  // ================== Digital Inputs (unchanged runtime except new action) ==================
   for(int i=0;i<NUM_DI;i++){
     bool val=false; if(diCfg[i].enabled){ val=(digitalRead(DI_PINS[i])==HIGH); if(diCfg[i].inverted) val=!val; }
     DiRuntime &rt=diRt[i]; rt.prev=rt.cur; rt.cur=val; mb.setIsts(ISTS_DI_BASE + i, val);
