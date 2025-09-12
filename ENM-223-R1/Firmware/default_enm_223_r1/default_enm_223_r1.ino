@@ -6,6 +6,7 @@
 
 // ---- FIX for Arduino auto-prototype: make PersistConfig visible to auto-prototypes
 struct PersistConfig;
+struct AlarmRule;
 
 #include <Arduino.h>
 #include <SPI.h>
@@ -98,11 +99,11 @@ uint32_t q_scale_mvar_per_lsb_x1000    = 1;
 uint32_t s_scale_mva_per_lsb_x1000     = 1;
 
 // Energy scales (persisted)
-uint32_t e_ap_kWh_per_cnt_x1e5 = 1;
-uint32_t e_an_kWh_per_cnt_x1e5 = 1;
+uint32_t e_ap_kWh_per_cnt_x1e5   = 1;
+uint32_t e_an_kWh_per_cnt_x1e5   = 1;
 uint32_t e_rp_kvarh_per_cnt_x1e5 = 1;
-uint32_t e_rn_kvarh_per_cnt_x1e5 = 1;
-uint32_t e_s_kVAh_per_cnt_x1e5 = 1;
+uint32_t e_rn_kvarh_per_cnt_x1e5 = 1;  // NOTE: kvarh
+uint32_t e_s_kVAh_per_cnt_x1e5   = 1;
 
 // Persisted relay polarity & defaults
 uint8_t  relay_active_low = RELAY_ACTIVE_LOW;
@@ -112,10 +113,21 @@ bool     relay_default[2] = {false,false};
 enum : uint8_t { CH_L1=0, CH_L2=1, CH_L3=2, CH_TOT=3, CH_COUNT=4 };
 enum : uint8_t { AK_ALARM=0, AK_WARNING=1, AK_EVENT=2, AK_COUNT=3 };
 
+// NEW: which measurement a rule watches
+enum AlarmMetric : uint8_t {
+  AM_VOLTAGE   = 0,  // Urms   (centivolts, 0.01 V)
+  AM_CURRENT   = 1,  // Irms   (milliamps, 0.001 A)
+  AM_P_ACTIVE  = 2,  // P      (W)
+  AM_Q_REACTIVE= 3,  // Q      (var)
+  AM_S_APPARENT= 4,  // S “Total power” (VA) — per phase or total
+  AM_FREQ      = 5   // Freq   (centi-Hz, 0.01 Hz), channel ignored
+};
+
 struct AlarmRule {
   bool     enabled;     // enable/disable type
-  int32_t  min_va;      // inclusive
-  int32_t  max_va;      // inclusive
+  int32_t  min;         // inclusive, engineering units (see AlarmMetric units above)
+  int32_t  max;         // inclusive
+  uint8_t  metric;      // AlarmMetric
 };
 
 struct AlarmRuntime {
@@ -167,18 +179,19 @@ struct PersistConfig {
   uint32_t e_ap_kWh_per_cnt_x1e5;
   uint32_t e_an_kWh_per_cnt_x1e5;
   uint32_t e_rp_kvarh_per_cnt_x1e5;
-  uint32_t e_rn_kvarh_per_cnt_x1e5;
+  uint32_t e_rn_kvarh_per_cnt_x1e5;   // NOTE: kvarh
   uint32_t e_s_kVAh_per_cnt_x1e5;
 
   // ===== Alarms (persisted) =====
   uint8_t  alarm_ack_required[CH_COUNT];
-  struct PackedRule { uint8_t enabled; int32_t min_va; int32_t max_va; } alarm_rules[CH_COUNT][AK_COUNT];
+  struct PackedRule { uint8_t enabled; int32_t min; int32_t max; uint8_t metric; } alarm_rules[CH_COUNT][AK_COUNT];
 
   uint32_t crc32;
 } __attribute__((packed));
 
 static const uint32_t CFG_MAGIC   = 0x324D4E45UL; // 'ENM2'
-static const uint16_t CFG_VERSION = 0x0005;       // bumped for alarms
+// Bumped for alarm metric support
+static const uint16_t CFG_VERSION = 0x0006;       // <- updated
 static const char*    CFG_PATH    = "/enm223.bin";
 
 volatile bool   cfgDirty        = false;
@@ -206,11 +219,10 @@ inline bool readPressed(int i){
 
 // ================== Defaults ==================
 static inline void setAlarmDefaults() {
-  // Sensible defaults; edit as needed
-  // Alarm: 0..100kVA, Warning: 0..120kVA, Event: unbounded (all events on)
-  const AlarmRule defAlarm   = {true,   0, 100000};
-  const AlarmRule defWarn    = {true,   0, 120000};
-  const AlarmRule defEvent   = {true,   std::numeric_limits<int32_t>::min(), std::numeric_limits<int32_t>::max()};
+  // Defaults preserve old behavior: watch Apparent Power (S) in VA ranges
+  const AlarmRule defAlarm   = {true,   0, 100000, (uint8_t)AM_S_APPARENT};
+  const AlarmRule defWarn    = {true,   0, 120000, (uint8_t)AM_S_APPARENT};
+  const AlarmRule defEvent   = {true,   std::numeric_limits<int32_t>::min(), std::numeric_limits<int32_t>::max(), (uint8_t)AM_S_APPARENT};
   for (int ch=0; ch<CH_COUNT; ++ch) {
     g_alarmCfg[ch].ackRequired = false; // default: without acknowledge
     g_alarmCfg[ch].rule[AK_ALARM]   = defAlarm;
@@ -244,11 +256,11 @@ void setDefaults() {
   q_scale_mvar_per_lsb_x1000 = 1;
   s_scale_mva_per_lsb_x1000  = 1;
 
-  e_ap_kWh_per_cnt_x1e5  = 1;
-  e_an_kWh_per_cnt_x1e5  = 1;
-  e_rp_kvarh_per_cnt_x1e5= 1;
-  e_rn_kvarh_per_cnt_x1e5= 1;
-  e_s_kVAh_per_cnt_x1e5  = 1;
+  e_ap_kWh_per_cnt_x1e5   = 1;
+  e_an_kWh_per_cnt_x1e5   = 1;
+  e_rp_kvarh_per_cnt_x1e5 = 1;
+  e_rn_kvarh_per_cnt_x1e5 = 1;
+  e_s_kVAh_per_cnt_x1e5   = 1;
 
   setAlarmDefaults(); // alarms
 }
@@ -288,8 +300,9 @@ void captureToPersist(PersistConfig &pc) {
     pc.alarm_ack_required[ch] = g_alarmCfg[ch].ackRequired ? 1 : 0;
     for (int k=0;k<AK_COUNT;++k) {
       pc.alarm_rules[ch][k].enabled = g_alarmCfg[ch].rule[k].enabled ? 1 : 0;
-      pc.alarm_rules[ch][k].min_va  = g_alarmCfg[ch].rule[k].min_va;
-      pc.alarm_rules[ch][k].max_va  = g_alarmCfg[ch].rule[k].max_va;
+      pc.alarm_rules[ch][k].min     = g_alarmCfg[ch].rule[k].min;
+      pc.alarm_rules[ch][k].max     = g_alarmCfg[ch].rule[k].max;
+      pc.alarm_rules[ch][k].metric  = g_alarmCfg[ch].rule[k].metric;
     }
   }
 
@@ -327,7 +340,7 @@ bool applyFromPersist(const PersistConfig &pc) {
   e_ap_kWh_per_cnt_x1e5   = pc.e_ap_kWh_per_cnt_x1e5;
   e_an_kWh_per_cnt_x1e5   = pc.e_an_kWh_per_cnt_x1e5;
   e_rp_kvarh_per_cnt_x1e5 = pc.e_rp_kvarh_per_cnt_x1e5;
-  e_rn_kvarh_per_cnt_x1e5 = pc.e_rn_kvarh_per_cnt_x1e5;
+  e_rn_kvarh_per_cnt_x1e5 = pc.e_rn_kvarh_per_cnt_x1e5; // NOTE
   e_s_kVAh_per_cnt_x1e5   = pc.e_s_kVAh_per_cnt_x1e5;
 
   // Alarms
@@ -336,8 +349,9 @@ bool applyFromPersist(const PersistConfig &pc) {
     g_alarmCfg[ch].ackRequired = pc.alarm_ack_required[ch] ? true : false;
     for (int k=0;k<AK_COUNT;++k) {
       g_alarmCfg[ch].rule[k].enabled = pc.alarm_rules[ch][k].enabled ? true : false;
-      g_alarmCfg[ch].rule[k].min_va  = pc.alarm_rules[ch][k].min_va;
-      g_alarmCfg[ch].rule[k].max_va  = pc.alarm_rules[ch][k].max_va;
+      g_alarmCfg[ch].rule[k].min     = pc.alarm_rules[ch][k].min;
+      g_alarmCfg[ch].rule[k].max     = pc.alarm_rules[ch][k].max;
+      g_alarmCfg[ch].rule[k].metric  = pc.alarm_rules[ch][k].metric;
       g_alarmRt[ch][k] = {false,false,false};
     }
   }
@@ -703,26 +717,29 @@ void echoRelayState() {
 }
 
 // ===== Alarms helpers =====
+static inline int32_t p_raw_to_W(int32_t p_raw){
+  int64_t num = (int64_t)p_raw * (int64_t)p_scale_mW_per_lsb;
+  return (int32_t)(num / 1000); // mW -> W
+}
+static inline int32_t q_raw_to_var(int32_t q_raw){
+  int64_t num = (int64_t)q_raw * (int64_t)q_scale_mvar_per_lsb_x1000;
+  return (int32_t)(num / 1000); // mvar*1000 per lsb -> var
+}
 static inline int32_t s_raw_to_VA(int32_t s_raw){
-  // s_scale_mva_per_lsb_x1000 is (mVA/lsb)×1000
-  // VA = raw * (mVA/lsb)/1000 = raw * s_scale / 1000
   int64_t num = (int64_t)s_raw * (int64_t)s_scale_mva_per_lsb_x1000;
-  if (num > INT64_MAX/1) { num = (int64_t)INT64_MAX; }
-  if (num < INT64_MIN/1) { num = (int64_t)INT64_MIN; }
-  return (int32_t)(num / 1000);
+  return (int32_t)(num / 1000); // mVA -> VA
 }
 
 static inline bool out_of_band(int32_t v, const AlarmRule& r){
   if (!r.enabled) return false;
-  if (v < r.min_va) return true;
-  if (v > r.max_va) return true;
+  if (v < r.min) return true;
+  if (v > r.max) return true;
   return false;
 }
 
 static void alarms_ack_channel(uint8_t ch){
   if (ch >= CH_COUNT) return;
   for (int k=0;k<AK_COUNT;++k) {
-    // Clear latch only if condition is normal now
     if (!g_alarmRt[ch][k].conditionNow) {
       g_alarmRt[ch][k].latched = false;
       g_alarmRt[ch][k].active  = false;
@@ -738,8 +755,9 @@ static void alarms_publish_cfg(){
     for (int k=0;k<AK_COUNT;++k) {
       JSONVar r;
       r["enabled"]= g_alarmCfg[ch].rule[k].enabled;
-      r["min_va"] = (int32_t)g_alarmCfg[ch].rule[k].min_va;
-      r["max_va"] = (int32_t)g_alarmCfg[ch].rule[k].max_va;
+      r["min"]    = (int32_t)g_alarmCfg[ch].rule[k].min;
+      r["max"]    = (int32_t)g_alarmCfg[ch].rule[k].max;
+      r["metric"] = (uint8_t)g_alarmCfg[ch].rule[k].metric; // NEW
       chO[k]=r; // 0:Alarm,1:Warning,2:Event
     }
     alCfg[ch]=chO;
@@ -763,33 +781,51 @@ static void alarms_publish_state(){
   WebSerial.send("AlarmsState", st);
 }
 
+// Snapshot of measurements in integer engineering units for rule checks
+struct MetricsSnapshot {
+  int32_t Urms_cV[3];   // 0.01 V
+  int32_t Irms_mA[3];   // 0.001 A
+  int32_t P_W[4];       // W (L1..L3, total)
+  int32_t Q_var[4];     // var (L1..L3, total)
+  int32_t S_VA[4];      // VA (L1..L3, total)
+  int32_t Freq_cHz;     // 0.01 Hz
+};
+
 // ---- Alarm evaluation (call each sample) ----
-static void eval_alarms_from_S_VA(int32_t sL1_VA, int32_t sL2_VA, int32_t sL3_VA, int32_t sTot_VA){
-  int32_t sVA[CH_COUNT] = { sL1_VA, sL2_VA, sL3_VA, sTot_VA };
+static int32_t pick_metric_value(uint8_t ch, uint8_t metric, const MetricsSnapshot& m) {
+  switch ((AlarmMetric)metric) {
+    case AM_VOLTAGE:    if (ch<3) return m.Urms_cV[ch]; else return (m.Urms_cV[0]+m.Urms_cV[1]+m.Urms_cV[2])/3; // Totals = avg V
+    case AM_CURRENT:    if (ch<3) return m.Irms_mA[ch]; else return m.Irms_mA[0]+m.Irms_mA[1]+m.Irms_mA[2];      // Totals = sum I
+    case AM_P_ACTIVE:   return m.P_W[ch<3?ch:3];
+    case AM_Q_REACTIVE: return m.Q_var[ch<3?ch:3];
+    case AM_S_APPARENT: return m.S_VA[ch<3?ch:3];
+    case AM_FREQ:       return m.Freq_cHz; // channel ignored
+    default:            return 0;
+  }
+}
+
+static void eval_alarms_with_metrics(const MetricsSnapshot& snap){
   for (int ch=0; ch<CH_COUNT; ++ch) {
     for (int k=0; k<AK_COUNT; ++k) {
-      bool cond = out_of_band(sVA[ch], g_alarmCfg[ch].rule[k]);
+      const AlarmRule& rule = g_alarmCfg[ch].rule[k];
+      int32_t v = pick_metric_value(ch, rule.metric, snap);
+      bool cond = out_of_band(v, rule);
       g_alarmRt[ch][k].conditionNow = cond;
       if (g_alarmCfg[ch].ackRequired) {
         if (cond) { g_alarmRt[ch][k].latched = true; g_alarmRt[ch][k].active = true; }
         else {
-          // only clear when not latched (i.e., acknowledged)
           if (!g_alarmRt[ch][k].latched) g_alarmRt[ch][k].active = false;
         }
       } else {
-        // auto-clear
         g_alarmRt[ch][k].active  = cond;
         g_alarmRt[ch][k].latched = false;
       }
-      // Update Modbus input bit
       mb.setIsts(ISTS_ALARM_BASE + (ch*AK_COUNT + k), g_alarmRt[ch][k].active);
     }
   }
 }
 
 // ---- WebSerial alarm handlers ----
-// Config shape (echoed by AlarmsCfg):
-//   [ {ack:bool, 0:{enabled,min_va,max_va}, 1:{...}, 2:{...}}, ... (4 channels) ]
 void handleAlarmsCfg(JSONVar cfgArr){
   bool changed=false;
   for (int ch=0; ch<CH_COUNT && ch<cfgArr.length(); ++ch) {
@@ -802,8 +838,14 @@ void handleAlarmsCfg(JSONVar cfgArr){
       if (c.hasOwnProperty(String(k))) {
         JSONVar r = c[String(k)];
         if (r.hasOwnProperty("enabled")) { g_alarmCfg[ch].rule[k].enabled = (bool)r["enabled"]; changed=true; }
-        if (r.hasOwnProperty("min_va"))  { g_alarmCfg[ch].rule[k].min_va  = (int32_t)r["min_va"]; changed=true; }
-        if (r.hasOwnProperty("max_va"))  { g_alarmCfg[ch].rule[k].max_va  = (int32_t)r["max_va"]; changed=true; }
+        if (r.hasOwnProperty("min"))     { g_alarmCfg[ch].rule[k].min     = (int32_t)r["min"]; changed=true; }
+        if (r.hasOwnProperty("max"))     { g_alarmCfg[ch].rule[k].max     = (int32_t)r["max"]; changed=true; }
+        if (r.hasOwnProperty("metric"))  {
+          int m = (int)r["metric"];
+          if (m < 0) m = 0; if (m > 5) m = 5;
+          g_alarmCfg[ch].rule[k].metric = (uint8_t)m;
+          changed=true;
+        }
       }
     }
   }
@@ -812,8 +854,7 @@ void handleAlarmsCfg(JSONVar cfgArr){
   WebSerial.send("message","AlarmsCfg updated");
 }
 
-// Acknowledge payloads:
-//  { ch: 0..3 }  OR  { list:[bool,bool,bool,bool] }
+// Acknowledge payloads: { ch: 0..3 }  OR  { list:[bool,bool,bool,bool] }
 void handleAlarmsAck(JSONVar v){
   bool any=false;
   if (v.hasOwnProperty("ch")) {
@@ -843,10 +884,11 @@ void sendAllEchoesOnce() {
   opts["sample_ms"]=sample_ms;
   opts["p_mW_per_lsb"]=p_scale_mW_per_lsb;
   opts["q_mvar_x1k_per_lsb"]=q_scale_mvar_per_lsb_x1000;
-  opts["s_mva_per_lsb_x1000"]=s_scale_mva_per_lsb_x1000;
+  opts["s_mva_per_lsb_x1000"]=s_scale_mva_per_lsb_x1000;   // UI expects this name
   opts["e_ap_kWh_x1e5"]=e_ap_kWh_per_cnt_x1e5;
   opts["e_an_kWh_x1e5"]=e_an_kWh_per_cnt_x1e5;
   opts["e_rp_kvarh_x1e5"]=e_rp_kvarh_per_cnt_x1e5;
+  opts["e_rn_kWh_x1e5"]=e_rn_kvarh_per_cnt_x1e5;  // keep old key for compatibility
   opts["e_rn_kvarh_x1e5"]=e_rn_kvarh_per_cnt_x1e5;
   opts["e_s_kVAh_x1e5"]=e_s_kVAh_per_cnt_x1e5;
   WebSerial.send("MeterOptions", opts);
@@ -926,15 +968,22 @@ void handleUnifiedConfig(JSONVar obj) {
     int smp = (int)c["sample_ms"]; sample_ms = (uint16_t)constrain(smp, 10, 5000);
 
     uint32_t v;
-    if ((v=(uint32_t)c["p_mW_per_lsb"]))         p_scale_mW_per_lsb = v;
-    if ((v=(uint32_t)c["q_mvar_x1k_per_lsb"]))   q_scale_mvar_per_lsb_x1000 = v;
-    if ((v=(uint32_t)c["s_mva_x1k_per_lsb"]))    s_scale_mva_per_lsb_x1000  = v;
+    if ((v=(uint32_t)c["p_mW_per_lsb"]))              p_scale_mW_per_lsb = v;
+    if ((v=(uint32_t)c["q_mvar_x1k_per_lsb"]))        q_scale_mvar_per_lsb_x1000 = v;
 
-    if ((v=(uint32_t)c["e_ap_kWh_x1e5"]))  e_ap_kWh_per_cnt_x1e5 = v;
-    if ((v=(uint32_t)c["e_an_kWh_x1e5"]))  e_an_kWh_per_cnt_x1e5 = v;
-    if ((v=(uint32_t)c["e_rp_kvarh_x1e5"]))e_rp_kvarh_per_cnt_x1e5 = v;
-    if ((v=(uint32_t)c["e_rn_kvarh_x1e5"]))e_rn_kvarh_per_cnt_x1e5 = v;
-    if ((v=(uint32_t)c["e_s_kVAh_x1e5"]))  e_s_kVAh_per_cnt_x1e5 = v;
+    // Accept both names for 's' scale
+    if ((v=(uint32_t)c["s_mva_per_lsb_x1000"]))       s_scale_mva_per_lsb_x1000  = v;
+    else if ((v=(uint32_t)c["s_mva_x1k_per_lsb"]))    s_scale_mva_per_lsb_x1000  = v;
+
+    if ((v=(uint32_t)c["e_ap_kWh_x1e5"]))            e_ap_kWh_per_cnt_x1e5 = v;
+    if ((v=(uint32_t)c["e_an_kWh_x1e5"]))            e_an_kWh_per_cnt_x1e5 = v;
+    if ((v=(uint32_t)c["e_rp_kvarh_x1e5"]))          e_rp_kvarh_per_cnt_x1e5 = v;
+
+    // Accept either RN key spelling (kWh vs kvarh in the key name)
+    if ((v=(uint32_t)c["e_rn_kWh_x1e5"]))            e_rn_kvarh_per_cnt_x1e5 = v;
+    else if ((v=(uint32_t)c["e_rn_kvarh_x1e5"]))     e_rn_kvarh_per_cnt_x1e5 = v;
+
+    if ((v=(uint32_t)c["e_s_kVAh_x1e5"]))            e_s_kVAh_per_cnt_x1e5 = v;
 
     changed = true;
     if (reinit) atm90_init();
@@ -953,7 +1002,6 @@ void handleUnifiedConfig(JSONVar obj) {
   else if (type == "buttons") {
     JSONVar list = obj["list"];
     for (int i=0;i<4 && i<list.length();i++) {
-      // keep only 0..6 (no Save/Reset actions via button)
       int a = (int)list[i]["action"];
       if (a < 0) a = 0; if (a > 6) a = 6;
       buttonCfg[i].action = (uint8_t)a;
@@ -963,7 +1011,7 @@ void handleUnifiedConfig(JSONVar obj) {
     WebSerial.send("ButtonConfigList", btnCfg);
     changed = true;
   }
-  else if (type == "relays") { // legacy path if you send Config{t:"relays",cfg:{...}}
+  else if (type == "relays") { // legacy path
     JSONVar rcfg = obj["cfg"];
     relay_active_low = (uint8_t)constrain((int)rcfg["active_low"], 0, 1);
     relay_default[0] = (bool)rcfg["def0"];
@@ -980,11 +1028,6 @@ void handleUnifiedConfig(JSONVar obj) {
 }
 
 // --- NEW: direct relay control via WebSerial ---
-// Accepts any of the following shapes:
-//  1) { idx:0|1, on:true|false }         // set one relay
-//  2) { idx:0|1, toggle:true }           // toggle one relay
-//  3) { list:[bool,bool] }               // set both relays
-//  4) { r1:true|false, r2:true|false }   // set individual by name
 void handleRelaysSet(JSONVar v){
   bool changed=false;
 
@@ -1017,7 +1060,6 @@ void handleRelaysSet(JSONVar v){
 }
 
 // Configure relay polarity & power-on defaults (persisted)
-// Payload: { active_low:0|1, def0:true|false, def1:true|false }
 void handleRelaysCfg(JSONVar v){
   if (v.hasOwnProperty("active_low")) {
     relay_active_low = (uint8_t)constrain((int)v["active_low"],0,1);
@@ -1025,7 +1067,6 @@ void handleRelaysCfg(JSONVar v){
   if (v.hasOwnProperty("def0")) relay_default[0] = (bool)v["def0"];
   if (v.hasOwnProperty("def1")) relay_default[1] = (bool)v["def1"];
 
-  // Re-apply current states with new polarity
   setRelayPhys(0, relayState[0]);
   setRelayPhys(1, relayState[1]);
 
@@ -1139,7 +1180,7 @@ void setup() {
 
   // Initial echoes
   sendAllEchoesOnce();
-  WebSerial.send("message", "Boot OK (ENM-223-R1, ATM90E32 on SPI1 + 2x Relays, NO library, Alarms enabled)");
+  WebSerial.send("message", "Boot OK (ENM-223-R1, ATM90E32 on SPI1 + 2x Relays, NO library, Alarms w/ selectable metrics)");
 }
 
 // ================== HREG write watcher ==================
@@ -1165,7 +1206,7 @@ void serviceHregWrites() {
   e_ap_kWh_per_cnt_x1e5         = readU32H(HREG_E_AP_kWh_x1e5_L);
   e_an_kWh_per_cnt_x1e5         = readU32H(HREG_E_AN_kWh_x1e5_L);
   e_rp_kvarh_per_cnt_x1e5       = readU32H(HREG_E_RP_kvarh_x1e5_L);
-  e_rn_kvarh_per_cnt_x1e5       = readU32H(HREG_E_RN_kvarh_x1e5_L);
+  e_rn_kvarh_per_cnt_x1e5       = readU32H(HREG_E_RN_kvarh_x1e5_L);   // FIXED NAME
   e_s_kVAh_per_cnt_x1e5         = readU32H(HREG_E_S_kVAh_x1e5_L);
 
   if (reinit) { atm90_init(); cfgDirty=true; lastCfgTouchMs=millis(); }
@@ -1319,12 +1360,21 @@ void loop() {
     put_u32(IREG_E_RN_MILLI, e_milli(e_rn, e_rn_kvarh_per_cnt_x1e5));
     put_u32(IREG_E_S_MILLI,  e_milli(e_s,  e_s_kVAh_per_cnt_x1e5));
 
-    // ---- Alarm evaluation on Apparent Power S (VA) ----
-    int32_t sVA_L1 = s_raw_to_VA(s_raw[0]);
-    int32_t sVA_L2 = s_raw_to_VA(s_raw[1]);
-    int32_t sVA_L3 = s_raw_to_VA(s_raw[2]);
-    int32_t sVA_T  = s_raw_to_VA(s_raw[3]);
-    eval_alarms_from_S_VA(sVA_L1, sVA_L2, sVA_L3, sVA_T);
+    // ---- Build metrics snapshot for alarms ----
+    MetricsSnapshot ms{};
+    for (int i=0;i<3;i++){
+      ms.Urms_cV[i] = (int32_t)lround(urms[i]*100.0);   // 0.01 V
+      ms.Irms_mA[i] = (int32_t)lround(irms[i]*1000.0);  // 0.001 A
+    }
+    for (int i=0;i<4;i++){
+      ms.P_W[i]   = p_raw_to_W(p_raw[i]);
+      ms.Q_var[i] = q_raw_to_var(q_raw[i]);
+      ms.S_VA[i]  = s_raw_to_VA(s_raw[i]);
+    }
+    ms.Freq_cHz = (int32_t)fraw; // already ×100
+
+    // ---- Alarm evaluation using chosen metrics ----
+    eval_alarms_with_metrics(ms);
 
     // ---- WebSerial live echo ----
     sendMeterEcho(urms, irms, p_raw, q_raw, s_raw, pf_raw, ang_raw, fraw, tC, e_ap,e_an,e_rp,e_rn,e_s);

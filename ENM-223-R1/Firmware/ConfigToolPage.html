@@ -1,8 +1,8 @@
-<section style="font-family:'Segoe UI',sans-serif;padding:2rem;max-width:1000px;margin:auto;">
+<section style="font-family:'Segoe UI',sans-serif;padding:2rem;max-width:1200px;margin:auto;">
   <div style="text-align:center;margin-bottom:2rem;">
     <img src="https://www.home-master.eu/web/image/product.product/719/image_1024/ALM-173-R1%20Module%20for%20Alarm%20Systems?unique=f079b61" alt="ENM-223-R1" style="max-width:300px;border-radius:8px;opacity:.9;" loading="lazy">
     <h2 style="margin:.5rem 0 0;">ENM-223-R1 Module Configuration</h2>
-    <p style="margin:.25rem 0 0;color:#333;">Configure Modbus and meter options (line frequency / sum mode / uCal / sample interval) and view live 3‑phase data via Web Serial.</p>
+    <p style="margin:.25rem 0 0;color:#333;">Configure Modbus, meter/scaling options, alarms (L1/L2/L3/Totals) and view live data via WebSerial.</p>
   </div>
 
   <div style="background:#f1f1f1;padding:1rem 1.5rem;margin-bottom:2rem;border-radius:6px;border-left:4px solid #007bff;">
@@ -19,7 +19,7 @@
     <div>
       <label for="modbus-baud"><strong>Baud Rate</strong></label>
       <select id="modbus-baud" style="width:100%;padding:10px;border-radius:4px;">
-        <option>9600</option><option selected>19200</option><option>38400</option><option>57600</option><option>115200</option>
+        <option>9600</option><option selected="">19200</option><option>38400</option><option>57600</option><option>115200</option>
       </select>
     </div>
     <div style="grid-column:span 2;display:flex;justify-content:flex-end;">
@@ -27,19 +27,19 @@
     </div>
   </form>
 
-  <!-- Fixed-height log window: exactly 5 rows (old at top, new at bottom) -->
   <div id="log-line" style="margin-bottom:1.5rem;padding:1rem;background:#f9f9f9;border:1px solid #ccc;border-radius:6px;font-size:0.9rem;color:#333;">
     <strong>Serial Log:</strong>
-    <pre id="log-content" style="white-space:pre-wrap;font-family:monospace;line-height:1.25em;margin:0;margin-top:.5rem;height:calc(1.25em * 5);overflow-y:auto;background:#fff;border:1px solid #e5e5e5;border-radius:4px;padding:.5rem;"></pre>
+    <pre id="log-content" style="white-space:pre-wrap;font-family:monospace;line-height:1.25em;margin:0;margin-top:.5rem;height:calc(1.25em * 6);overflow-y:auto;background:#fff;border:1px solid #e5e5e5;border-radius:4px;padding:.5rem;"></pre>
   </div>
 
+  
   <section style="margin-bottom:1.75rem;">
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Meter Options</h2>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem;">
       <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;">
         <label for="opt-lineHz"><strong>Line Frequency (Hz)</strong></label>
         <select id="opt-lineHz" style="width:100%;padding:10px;border-radius:4px;">
-          <option value="50" selected>50</option>
+          <option value="50" selected="">50</option>
           <option value="60">60</option>
         </select>
       </div>
@@ -47,7 +47,7 @@
         <label for="opt-sumAbs"><strong>Sum Mode</strong> <small style="color:#666;">(0=algebraic, 1=abs)</small></label>
         <select id="opt-sumAbs" style="width:100%;padding:10px;border-radius:4px;">
           <option value="0">0</option>
-          <option value="1" selected>1</option>
+          <option value="1" selected="">1</option>
         </select>
       </div>
       <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;">
@@ -60,10 +60,11 @@
       </div>
     </div>
     <div style="text-align:right;margin-top:.75rem;">
-      <button id="apply-meter" type="button" style="padding:10px 16px;background:#0d6efd;color:#fff;border:none;border-radius:6px;" disabled>Apply Meter Options</button>
+      <button id="apply-meter" type="button" style="padding:10px 16px;background:#0d6efd;color:#fff;border:none;border-radius:6px;" disabled="">Apply Meter Options</button>
     </div>
   </section>
 
+  
   <section style="margin-bottom:1.75rem;">
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Scaling (Engineering Units)</h2>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem;">
@@ -73,11 +74,11 @@
       </div>
       <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;">
         <label><strong>Q scale</strong> <small style="color:#666;">mvar×1000 per LSB</small></label>
-        <input id="sc-q" type="number" min="0" step="1" value="1" style="width:100%;padding:10px;border-radius:4px;border:1px solid #ccc;">
+        <input id="sc-q" type="number" min="0" step="1" value="1" style="width:100%;padding:10px;border-radius:4px;border:1px solid #ccc%;">
       </div>
       <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;">
         <label><strong>S scale</strong> <small style="color:#666;">mVA×1000 per LSB</small></label>
-        <input id="sc-s" type="number" min="0" step="1" value="1" style="width:100%;padding:10px;border-radius:4px;border:1px solid #ccc;">
+        <input id="sc-s" type="number" min="0" step="1" value="1" style="width:100%;padding:10px;border-radius:4px;border:1px solid #ccc%;">
       </div>
       <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;">
         <label><strong>AP energy</strong> <small style="color:#666;">kWh×1e5 per CNT</small></label>
@@ -101,164 +102,203 @@
       </div>
     </div>
     <div style="text-align:right;margin-top:.75rem;">
-      <button id="apply-scale" type="button" style="padding:10px 16px;background:#0d6efd;color:#fff;border:none;border-radius:6px;" disabled>Apply Scales</button>
+      <button id="apply-scale" type="button" style="padding:10px 16px;background:#0d6efd;color:#fff;border:none;border-radius:6px;" disabled="">Apply Scales</button>
     </div>
   </section>
 
+  
+  <section style="margin-bottom:1.75rem;">
+    <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Alarms (L1, L2, L3, Totals)</h2>
+    <div style="color:#555;margin-bottom:.5rem;">
+      <small>Each channel has three types: <strong>Alarm</strong>, <strong>Warning</strong>, <strong>Event</strong>. Configure min/max limits (inclusive) and enable/disable. Toggle “Ack required” to latch until acknowledged.</small>
+    </div>
+    <div id="alarms-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;"></div>
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap;justify-content:flex-end;margin-top:.75rem;">
+      <button id="apply-alarms" type="button" style="padding:8px 14px;background:#0d6efd;color:#fff;border:none;border-radius:6px;" disabled="">Apply Alarms</button>
+      <button id="ack-all" type="button" style="padding:8px 14px;background:#198754;color:#fff;border:none;border-radius:6px;" disabled="">Ack All</button>
+    </div>
+  </section>
+
+  
+  <section style="margin-bottom:1.5rem;">
+    <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Relays (2)</h2>
+    <div id="relays-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
+  </section>
+
+  
   <section style="margin-bottom:1.5rem;">
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Live Meter</h2>
     <div id="chan-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:1rem;"></div>
-    <small style="color:#666;">Firmware emits <code>ENM_Meter</code> via WebSerial: Urms/Irms/P/Q/S/PF/Angles/Freq/Temp/Energies.</small>
+    <small style="color:#666;">Firmware emits <code>ENM_Meter</code>: Urms/Irms/P/Q/S/PF/Angles/Freq/Temp/Energies + AlarmsState.</small>
   </section>
 
+  
   <section style="margin-bottom:1.5rem;">
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Buttons (4)</h2>
     <div id="buttons-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
   </section>
 
+  
   <section style="margin-bottom:1.5rem;">
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">User LEDs (4)</h2>
     <div id="leds-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
   </section>
 </section>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
-<script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
 <script>
-(function () {
+(function(){
   // ---------- Helpers ----------
-  var LOG_MAX = 200;
-  var logBuffer = [];
+  var LOG_MAX = 300, logBuffer = [];
   function $(id){ return document.getElementById(id); }
-
-  // Append messages to the BOTTOM; keep exactly 5-line viewport; auto-scroll to bottom
-  function appendLog(label, data) {
-    var el = $("log-content"); if (!el) return;
-    var time = new Date().toLocaleTimeString();
-    var body = (typeof data === 'string') ? data : JSON.stringify(data);
-    body = String(body).replace(/\r\n?|\n/g, '\n').replace(/\\r\\n|\\r|\\n/g, '\n');
-
-    // push new message to the end so old messages remain at the top
-    logBuffer.push("[" + time + "] " + label + ": " + body);
-    if (logBuffer.length > LOG_MAX) logBuffer.shift();
-
-    el.textContent = logBuffer.join('\n');
-
-    // keep the view anchored to the newest line at the bottom
-    el.scrollTop = el.scrollHeight;
+  function appendLog(label,data){
+    var el=$("log-content"); if(!el) return;
+    var time=new Date().toLocaleTimeString();
+    var body=(typeof data==='string')?data:JSON.stringify(data);
+    body=String(body).replace(/\r\n?|\n/g,'\n').replace(/\\r\\n|\\r|\\n/g,'\n');
+    logBuffer.push("["+time+"] "+label+": "+body);
+    if(logBuffer.length>LOG_MAX) logBuffer.shift();
+    el.textContent=logBuffer.join('\n'); el.scrollTop=el.scrollHeight;
+  }
+  function populateAddresses(){
+    var sel=$('modbus-address'); if(!sel) return; sel.innerHTML='';
+    for(var i=1;i<=255;i++){ var o=document.createElement('option'); o.value=i; o.textContent=i; sel.appendChild(o); }
+    sel.value='3';
+  }
+  function isPortOpen(){ try{ return (typeof connection.isOpen==='function')?connection.isOpen():!!connection.port; }catch(e){return false;} }
+  function setEnabled(ids, en){ ids.forEach(function(id){ var el=$(id); if(el) el.disabled=!en; }); }
+  function badge(color, text){
+    return '<span style="display:inline-block;padding:2px 6px;border-radius:10px;font-size:.75rem;background:'+color+';color:#fff;">'+text+'</span>';
   }
 
-  function populateAddresses() {
-    var sel = $('modbus-address'); if (!sel) return;
-    sel.innerHTML = '';
-    for (var i = 1; i <= 255; i++) {
-      var o = document.createElement('option'); o.value = i; o.textContent = i;
-      sel.appendChild(o);
-    }
-    sel.value = '3';
-  }
-
-  function isPortOpen() {
-    try { return (typeof connection.isOpen === 'function') ? connection.isOpen() : !!connection.port; }
-    catch (e) { return false; }
-  }
-  function setEnabled(ids, enabled) { for (var i=0;i<ids.length;i++){ var el=$(ids[i]); if (el) el.disabled = !enabled; } }
-
-  // ---------- Channel cards (for meter) ----------
-  function buildChannelCards() {
-    var grid = $('chan-grid'); if (!grid) return;
-    grid.innerHTML = '';
-    var labels = ['L1','L2','L3','Totals'];
-    for (var ch = 0; ch < 4; ch++) {
-      var card = document.createElement('div');
-      card.style = "border:1px solid #ddd;border-radius:8px;padding:1rem;background:#fff;";
-      var inner = ''
-        + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;">'
-        + '  <strong>' + labels[ch] + '</strong>'
-        + '</div>'
-        + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.35rem .75rem;font-size:.95rem;">'
-        + '  <div>U (V):</div><div id="u' + ch + '" style="text-align:right">--</div>'
-        + '  <div>I (A):</div><div id="i' + ch + '" style="text-align:right">--</div>'
-        + '  <div>P raw:</div><div id="p' + ch + '" style="text-align:right">--</div>'
-        + '  <div>Q raw:</div><div id="q' + ch + '" style="text-align:right">--</div>'
-        + '  <div>S raw:</div><div id="s' + ch + '" style="text-align:right">--</div>'
-        + (ch<3 ? ('  <div>PF raw:</div><div id="pf' + ch + '" style="text-align:right">--</div>'
-                 + '  <div>Angle (0.1°):</div><div id="ang' + ch + '" style="text-align:right">--</div>')
-                : ('  <div>PF tot raw:</div><div id="pft" style="text-align:right">--</div>'
-                 + '  <div>Freq (Hz):</div><div id="f" style="text-align:right">--</div>'
-                 + '  <div>Temp (°C):</div><div id="t" style="text-align:right">--</div>'))
-        + '</div>';
-      card.innerHTML = inner;
+  // ---------- Build UI blocks ----------
+  function buildChannelCards(){
+    var grid=$('chan-grid'); if(!grid) return; grid.innerHTML='';
+    var labels=['L1','L2','L3','Totals'];
+    for(var ch=0;ch<4;ch++){
+      var card=document.createElement('div');
+      card.style="border:1px solid #ddd;border-radius:8px;padding:1rem;background:#fff;";
+      card.innerHTML =
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;"><strong>'+labels[ch]+'</strong>'
+      + (ch===3?'<span>'+badge("#6c757d","totals")+'</span>':'' ) + '</div>'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.35rem .75rem;font-size:.95rem;">'
+      + '  <div>U (V):</div><div id="u'+ch+'" style="text-align:right">--</div>'
+      + '  <div>I (A):</div><div id="i'+ch+'" style="text-align:right">--</div>'
+      + '  <div>P raw:</div><div id="p'+ch+'" style="text-align:right">--</div>'
+      + '  <div>Q raw:</div><div id="q'+ch+'" style="text-align:right">--</div>'
+      + '  <div>S raw:</div><div id="s'+ch+'" style="text-align:right">--</div>'
+      + (ch<3 ? ('  <div>PF raw:</div><div id="pf'+ch+'" style="text-align:right">--</div>'
+               + '  <div>Angle (0.1°):</div><div id="ang'+ch+'" style="text-align:right">--</div>')
+              : ('  <div>PF tot raw:</div><div id="pft" style="text-align:right">--</div>'
+               + '  <div>Freq (Hz):</div><div id="f" style="text-align:right">--</div>'
+               + '  <div>Temp (°C):</div><div id="t" style="text-align:right">--</div>'))
+      + '</div>';
       grid.appendChild(card);
     }
   }
 
-  // ---------- Build Buttons & LEDs ----------
-  function buildButtons() {
-    var container = $('buttons-config'); if (!container) return;
-    container.innerHTML = '';
-    var ACTIONS = [
+  // Alarms UI
+  var AK_LABELS=['Alarm','Warning','Event'];
+  var CH_LABELS=['L1','L2','L3','Totals'];
+  function buildAlarmsUI(){
+    var grid=$('alarms-grid'); if(!grid) return; grid.innerHTML='';
+    for(var ch=0; ch<4; ch++){
+      var card=document.createElement('div');
+      card.style="border:1px solid #ddd;border-radius:8px;padding:1rem;background:#fff;";
+      var rows = AK_LABELS.map(function(lbl, ak){
+        return ''+
+        '<div style="display:grid;grid-template-columns:80px 1fr 1fr 1fr;gap:.4rem;align-items:center;margin:.25rem 0;">'
+        + ' <div><strong>'+lbl+'</strong></div>'
+        + ' <label style="display:flex;align-items:center;gap:.4rem;"><input type="checkbox" id="al-en-'+ch+'-'+ak+'"> <span>Enabled</span></label>'
+        + ' <input id="al-min-'+ch+'-'+ak+'" type="number" step="1" placeholder="min VA" style="padding:6px;border:1px solid #ccc;border-radius:4px;">'
+        + ' <input id="al-max-'+ch+'-'+ak+'" type="number" step="1" placeholder="max VA" style="padding:6px;border:1px solid #ccc;border-radius:4px;">'
+        + '</div>';
+      }).join('');
+      card.innerHTML =
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;">'
+        + '  <div><strong>'+CH_LABELS[ch]+'</strong></div>'
+        + '  <div id="al-live-'+ch+'" style="display:flex;gap:.3rem;align-items:center;">'
+        + '    <span id="al-led-'+ch+'-0" title="Alarm"   style="width:10px;height:10px;border-radius:50%;background:#ccc;display:inline-block;"></span>'
+        + '    <span id="al-led-'+ch+'-1" title="Warning" style="width:10px;height:10px;border-radius:50%;background:#ccc;display:inline-block;"></span>'
+        + '    <span id="al-led-'+ch+'-2" title="Event"   style="width:10px;height:10px;border-radius:50%;background:#ccc;display:inline-block;"></span>'
+        + '  </div>'
+        + '</div>'
+        + '<label style="display:flex;align-items:center;gap:.4rem;margin-bottom:.5rem;"><input type="checkbox" id="al-ackreq-'+ch+'"> <span> Ack required</span></label>'
+        + '<div style="border-top:1px dashed #ddd;margin:.5rem 0;"></div>'
+        + '<div style="font-size:.9rem;color:#666;margin-bottom:.25rem;">Limits are inclusive. Units: VA (on apparent power S).</div>'
+        + rows
+        + '<div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:.6rem;">'
+        + '  <button type="button" id="al-ack-'+ch+'" style="padding:6px 10px;background:#198754;border:none;border-radius:6px;color:#fff;">Ack '+CH_LABELS[ch]+'</button>'
+        + '</div>';
+      grid.appendChild(card);
+    }
+  }
+
+  // Relays UI
+  function buildRelays(){
+    var container=$('relays-config'); if(!container) return; container.innerHTML='';
+    for(var i=1;i<=2;i++){
+      var card=document.createElement('div');
+      card.innerHTML =
+        '<div style="border:1px solid #ccc;border-radius:6px;background:#f1f1f1;padding:1rem;">'
+      + '  <div style="font-weight:600;">Relay '+i+''
+      + '    <span style="float:right;"><input type="checkbox" id="state-relay'+i+'" disabled></span>'
+      + '  </div>'
+      + '  <label><input type="checkbox" id="enable-relay'+i+'"> Enabled</label><br>'
+      + '  <label><input type="checkbox" id="invert-relay'+i+'"> Inverted</label><br>'
+      + '  <label>Alarm Group:'
+      + '    <select id="group-relay'+i+'" style="width:100%;padding:6px;border-radius:4px;">'
+      + '      <option value="0">None</option>'
+      + '      <option value="1">Group 1</option>'
+      + '      <option value="2">Group 2</option>'
+      + '      <option value="3">Group 3</option>'
+      + '      <option value="4">Modbus Controlled</option>'
+      + '    </select>'
+      + '  </label>'
+      + '  <small style="color:#666;">Value 4 = controlled by Modbus/master; 1–3 = follow A Group 1–3; 0 = no follow.</small>'
+      + '</div>';
+      container.appendChild(card);
+    }
+  }
+
+  function buildButtons(){
+    var container=$('buttons-config'); if(!container) return; container.innerHTML='';
+    var ACTIONS=[ // 0..6 only (firmware clamps)
       {value:0,label:'None'},
       {value:1,label:'Toggle Relay 1'},
       {value:2,label:'Toggle Relay 2'},
       {value:3,label:'Toggle LED1'},
       {value:4,label:'Toggle LED2'},
       {value:5,label:'Toggle LED3'},
-      {value:6,label:'Toggle LED4'},
-      {value:7,label:'Save config'},
-      {value:8,label:'Reset device'}
+      {value:6,label:'Toggle LED4'}
     ];
-    for (var i = 1; i <= 4; i++) {
-      var options = ACTIONS.map(function(a){return '<option value="'+a.value+'">'+a.label+'</option>';}).join('');
-      var card = document.createElement('div');
+    for(var i=1;i<=4;i++){
+      var options=ACTIONS.map(a=>'<option value="'+a.value+'">'+a.label+'</option>').join('');
+      var card=document.createElement('div');
       card.innerHTML =
         '<div style="border:1px solid #ccc;border-radius:6px;background:#cbdcf7;padding:1rem;">'
-      + '  <div style="font-weight:600;">'
-      + '    Button ' + i
-      + '    <span id="state-button' + i + '" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;float:right;"></span>'
-      + '  </div>'
-      + '  <label>Action:'
-      + '    <select id="action-button' + i + '" style="width:100%;padding:6px;border-radius:4px;">'
-      +        options
-      + '    </select>'
-      + '  </label>'
+      + '  <div style="font-weight:600;">Button '+i+'<span id="state-button'+i+'" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;float:right;"></span></div>'
+      + '  <label>Action:<select id="action-button'+i+'" style="width:100%;padding:6px;border-radius:4px;">'+options+'</select></label>'
       + '</div>';
       container.appendChild(card);
     }
   }
-  function buildLEDs() {
-    var container = $('leds-config'); if (!container) return;
-    container.innerHTML = '';
-    var LED_MODE = [
-      {value:0,label:'Steady (when active)'},
-      {value:1,label:'Blink (when active)'}
-    ];
-    var LED_SOURCE = [
-      {value:0,label:'None'},
-      {value:1,label:'Heartbeat'},
-      {value:2,label:'Button 1 pressed'},
-      {value:3,label:'Button 2 pressed'},
-      {value:4,label:'Button 3 pressed'},
-      {value:5,label:'Button 4 pressed'},
-      {value:6,label:'Any button pressed'},
-      {value:7,label:'Sampling tick'}
-    ];
-    for (var i = 1; i <= 4; i++) {
-      var modeOpts = LED_MODE.map(function(a){return '<option value="'+a.value+'">'+a.label+'</option>';}).join('');
-      var srcOpts  = LED_SOURCE.map(function(a){return '<option value="'+a.value+'">'+a.label+'</option>';}).join('');
-      var card = document.createElement('div');
+
+  function buildLEDs(){
+    var container=$('leds-config'); if(!container) return; container.innerHTML='';
+    var LED_MODE=[{value:0,label:'Steady (when active)'},{value:1,label:'Blink (when active)'}];
+    var LED_SOURCE=[
+      {value:0,label:'None'},{value:1,label:'Heartbeat'},{value:2,label:'Button 1 pressed'},{value:3,label:'Button 2 pressed'},
+      {value:4,label:'Button 3 pressed'},{value:5,label:'Button 4 pressed'},{value:6,label:'Any button pressed'},{value:7,label:'Sampling tick'}];
+    for(var i=1;i<=4;i++){
+      var modeOpts=LED_MODE.map(a=>'<option value="'+a.value+'">'+a.label+'</option>').join('');
+      var srcOpts=LED_SOURCE.map(a=>'<option value="'+a.value+'">'+a.label+'</option>').join('');
+      var card=document.createElement('div');
       card.innerHTML =
         '<div style="border:1px solid #ccc;border-radius:6px;background:#f3f5d0;padding:1rem;">'
-      + '  <div style="font-weight:600;">'
-      + '    User LED ' + i
-      + '    <span id="state-led' + i + '" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;float:right;"></span>'
-      + '  </div>'
-      + '  <label>Mode:'
-      + '    <select id="mode-led' + i + '" style="width:100%;padding:6px;border-radius:4px;">' + modeOpts + '</select>'
-      + '  </label><br>'
-      + '  <label>Source:'
-      + '    <select id="source-led' + i + '" style="width:100%;padding:6px;border-radius:4px;">' + srcOpts + '</select>'
-      + '  </label>'
+      + '  <div style="font-weight:600;">User LED '+i+'<span id="state-led'+i+'" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;float:right;"></span></div>'
+      + '  <label>Mode:<select id="mode-led'+i+'" style="width:100%;padding:6px;border-radius:4px;">'+modeOpts+'</select></label><br>'
+      + '  <label>Source:<select id="source-led'+i+'" style="width:100%;padding:6px;border-radius:4px;">'+srcOpts+'</select></label>'
       + '</div>';
       container.appendChild(card);
     }
@@ -267,169 +307,236 @@
   // ---------- Init UI ----------
   populateAddresses();
   buildChannelCards();
+  buildAlarmsUI();
+  buildRelays();
   buildButtons();
   buildLEDs();
 
-  // ---------- Web Serial Setup ----------
-  var connection = SimpleWebSerial.setupSerialConnection({
-    requestAccessOnPageLoad: false,
-    requestElement: 'connect-button'
-  });
+  // ---------- WebSerial ----------
+  var connection = SimpleWebSerial.setupSerialConnection({ requestAccessOnPageLoad:false, requestElement:'connect-button' });
 
-  function onPortStateChange() {
-    var open = isPortOpen();
-    setEnabled(['apply-meter','apply-scale'], open);
-  }
-  connection.on('open',  onPortStateChange);
+  function onPortStateChange(){ setEnabled(['apply-meter','apply-scale','apply-alarms','ack-all'], isPortOpen()); }
+  connection.on('open', onPortStateChange);
   connection.on('close', onPortStateChange);
 
-  // Live status (from firmware)
   connection.on('status', function(modbus){
-    $('live-address').textContent = (modbus && typeof modbus.address !== 'undefined') ? modbus.address : '--';
-    $('live-baud').textContent    = (modbus && typeof modbus.baud    !== 'undefined') ? modbus.baud    : '--';
-    if (modbus && typeof modbus.address !== 'undefined') $('modbus-address').value = modbus.address;
-    if (modbus && typeof modbus.baud    !== 'undefined') $('modbus-baud').value    = String(modbus.baud);
+    $('live-address').textContent = (modbus && typeof modbus.address!=='undefined') ? modbus.address : '--';
+    $('live-baud').textContent    = (modbus && typeof modbus.baud!=='undefined')    ? modbus.baud    : '--';
+    if (modbus && typeof modbus.address!=='undefined') $('modbus-address').value = modbus.address;
+    if (modbus && typeof modbus.baud!=='undefined')    $('modbus-baud').value    = String(modbus.baud);
     onPortStateChange();
   });
+  connection.on('message', function(msg){ appendLog('ENM-223-R1', msg); });
 
-  // Meter options echo
-  connection.on('MeterOptions', function(opts){
-    if (!opts) return;
-    if (typeof opts.lineHz   !== 'undefined') $('opt-lineHz').value    = String(opts.lineHz);
-    if (typeof opts.sumAbs   !== 'undefined') $('opt-sumAbs').value    = String(opts.sumAbs);
-    if (typeof opts.ucal     !== 'undefined') $('opt-ucal').value      = String(opts.ucal);
-    if (typeof opts.sample_ms!== 'undefined') $('opt-samplems').value  = String(opts.sample_ms);
-    if (typeof opts.p_mW_per_lsb          !== 'undefined') $('sc-p').value  = String(opts.p_mW_per_lsb);
-    if (typeof opts.q_mvar_x1k_per_lsb    !== 'undefined') $('sc-q').value  = String(opts.q_mvar_x1k_per_lsb);
-    if (typeof opts.s_mva_x1k_per_lsb     !== 'undefined') $('sc-s').value  = String(opts.s_mva_x1k_per_lsb);
-    if (typeof opts.e_ap_kWh_x1e5         !== 'undefined') $('sc-eap').value= String(opts.e_ap_kWh_x1e5);
-    if (typeof opts.e_an_kWh_x1e5         !== 'undefined') $('sc-ean').value= String(opts.e_an_kWh_x1e5);
-    if (typeof opts.e_rp_kvarh_x1e5       !== 'undefined') $('sc-erp').value= String(opts.e_rp_kvarh_x1e5);
-    if (typeof opts.e_rn_kvarh_x1e5       !== 'undefined') $('sc-ern').value= String(opts.e_rn_kvarh_x1e5);
-    if (typeof opts.e_s_kVAh_x1e5         !== 'undefined') $('sc-es').value = String(opts.e_s_kVAh_x1e5);
-  });
-
-  // Serial log passthrough
-  connection.on('message', function(msg){ appendLog("ENM-223-R1", msg); });
-
-  // Live meter data
+  // ----- Live meter -----
   connection.on('ENM_Meter', function(m){
-    try {
-      var Urms = (m && m.Urms) ? m.Urms : [];
-      var Irms = (m && m.Irms) ? m.Irms : [];
-      var Praw = (m && m.Praw) ? m.Praw : [];
-      var Qraw = (m && m.Qraw) ? m.Qraw : [];
-      var Sraw = (m && m.Sraw) ? m.Sraw : [];
-      var PF   = (m && m.PFraw)? m.PFraw: [];
-      var Ang  = (m && m.Ang0p1deg)? m.Ang0p1deg: [];
-
-      for (var i=0;i<3;i++){
+    try{
+      var Urms=(m&&m.Urms)||[], Irms=(m&&m.Irms)||[], Praw=(m&&m.Praw)||[], Qraw=(m&&m.Qraw)||[], Sraw=(m&&m.Sraw)||[];
+      var PF=(m&&m.PFraw)||[], Ang=(m&&m.Ang0p1deg)||[];
+      for(var i=0;i<3;i++){
         var uEl=$('u'+i), iEl=$('i'+i), pEl=$('p'+i), qEl=$('q'+i), sEl=$('s'+i), pfEl=$('pf'+i), aEl=$('ang'+i);
-        if (uEl) uEl.textContent  = (typeof Urms[i] === 'number') ? Urms[i].toFixed(2) : '--';
-        if (iEl) iEl.textContent  = (typeof Irms[i] === 'number') ? Irms[i].toFixed(3) : '--';
-        if (pEl) pEl.textContent  = (typeof Praw[i] !== 'undefined') ? Praw[i] : '--';
-        if (qEl) qEl.textContent  = (typeof Qraw[i] !== 'undefined') ? Qraw[i] : '--';
-        if (sEl) sEl.textContent  = (typeof Sraw[i] !== 'undefined') ? Sraw[i] : '--';
-        if (pfEl)pfEl.textContent = (typeof PF[i]   !== 'undefined') ? PF[i]   : '--';
-        if (aEl) aEl.textContent  = (typeof Ang[i]  !== 'undefined') ? Ang[i]  : '--';
+        if(uEl) uEl.textContent = (typeof Urms[i]==='number')?Urms[i].toFixed(2):'--';
+        if(iEl) iEl.textContent = (typeof Irms[i]==='number')?Irms[i].toFixed(3):'--';
+        if(pEl) pEl.textContent = (typeof Praw[i]!=='undefined')?Praw[i]:'--';
+        if(qEl) qEl.textContent = (typeof Qraw[i]!=='undefined')?Qraw[i]:'--';
+        if(sEl) sEl.textContent = (typeof Sraw[i]!=='undefined')?Sraw[i]:'--';
+        if(pfEl)pfEl.textContent= (typeof PF[i]!=='undefined')?PF[i]:'--';
+        if(aEl) aEl.textContent = (typeof Ang[i]!=='undefined')?Ang[i]:'--';
       }
-      var pt=$('p3'), qt=$('q3'), st=$('s3'), pft=$('pft'), fEl=$('f'), tEl=$('t');
-      if (pt)  pt.textContent  = (typeof m.Ptot_raw !== 'undefined') ? m.Ptot_raw : '--';
-      if (qt)  qt.textContent  = (typeof m.Qtot_raw !== 'undefined') ? m.Qtot_raw : '--';
-      if (st)  st.textContent  = (typeof m.Stot_raw !== 'undefined') ? m.Stot_raw : '--';
-      if (pft) pft.textContent = (typeof m.PFtot_raw!== 'undefined') ? m.PFtot_raw: '--';
-      if (fEl) fEl.textContent = (typeof m.FreqHz   === 'number') ? m.FreqHz.toFixed(2) : (m && m.FreqHz ? m.FreqHz : '--');
-      if (tEl) tEl.textContent = (typeof m.TempC    !== 'undefined') ? m.TempC : '--';
-    } catch(e) {}
+      var pt=$('p3'),qt=$('q3'),st=$('s3'),pft=$('pft'),fEl=$('f'),tEl=$('t');
+      if(pt)  pt.textContent  = (typeof m.Ptot_raw!=='undefined')?m.Ptot_raw:'--';
+      if(qt)  qt.textContent  = (typeof m.Qtot_raw!=='undefined')?m.Qtot_raw:'--';
+      if(st)  st.textContent  = (typeof m.Stot_raw!=='undefined')?m.Stot_raw:'--';
+      if(pft) pft.textContent = (typeof m.PFtot_raw!=='undefined')?m.PFtot_raw:'--';
+      if(fEl) fEl.textContent = (typeof m.FreqHz==='number')?m.FreqHz.toFixed(2):((m&&m.FreqHz)?m.FreqHz:'--');
+      if(tEl) tEl.textContent = (typeof m.TempC!=='undefined')?m.TempC:'--';
+
+      // Also carry AlarmsState snapshot if present
+      if(m && m.AlarmsState) updateAlarmsState(m.AlarmsState);
+    }catch(e){}
   });
 
-  // Buttons receive/echo
+  // ----- Buttons echo -----
   connection.on('ButtonConfigList', function(list){
-    if (!list || typeof list.length === 'undefined') return;
-    for (var i=0;i<list.length && i<4;i++){
-      var el = $('action-button' + (i + 1));
-      if (el) el.value = String(list[i] || 0);
-    }
+    if(!list||typeof list.length==='undefined') return;
+    for(var i=0;i<list.length&&i<4;i++){ var el=$('action-button'+(i+1)); if(el) el.value=String(list[i]||0); }
   });
   connection.on('ButtonStateList', function(list){
-    if (!list || typeof list.length === 'undefined') return;
-    for (var i=0;i<list.length && i<4;i++){
-      var dot = $('state-button' + (i + 1));
-      if (dot) dot.style.background = list[i] ? '#4caf50' : '#ccc';
-    }
+    if(!list||typeof list.length==='undefined') return;
+    for(var i=0;i<list.length&&i<4;i++){ var dot=$('state-button'+(i+1)); if(dot) dot.style.background=list[i]?'#4caf50':'#ccc'; }
   });
 
-  // LEDs receive/echo
+  // ----- LEDs echo -----
   connection.on('LedConfigList', function(list){
-    if (!list || typeof list.length === 'undefined') return;
-    for (var i=0;i<list.length && i<4;i++){
-      var obj = list[i] || {};
-      var modeEl = $('mode-led' + (i + 1));
-      var srcEl  = $('source-led' + (i + 1));
-      if (modeEl && typeof obj.mode   !== 'undefined') modeEl.value = String(obj.mode);
-      if (srcEl  && typeof obj.source !== 'undefined') srcEl.value  = String(obj.source);
+    if(!list||typeof list.length==='undefined') return;
+    for(var i=0;i<list.length&&i<4;i++){
+      var o=list[i]||{}, m=$('mode-led'+(i+1)), s=$('source-led'+(i+1));
+      if(m && typeof o.mode!=='undefined')   m.value=String(o.mode);
+      if(s && typeof o.source!=='undefined') s.value=String(o.source);
     }
   });
   connection.on('LedStateList', function(list){
-    if (!list || typeof list.length === 'undefined') return;
-    for (var i=0;i<list.length && i<4;i++){
-      var dot = $('state-led' + (i + 1));
-      if (dot) dot.style.background = list[i] ? '#ffb300' : '#ccc';
-    }
+    if(!list||typeof list.length==='undefined') return;
+    for(var i=0;i<list.length&&i<4;i++){ var d=$('state-led'+(i+1)); if(d) d.style.background=list[i]?'#ffb300':'#ccc'; }
   });
 
-  // ---------- Controls ----------
-  // Modbus config push
-  $('modbus-address').addEventListener('input', pushModbus);
-  $('modbus-baud').addEventListener('input',    pushModbus);
-  function pushModbus() {
-    var mb_address = parseInt($('modbus-address').value || "3", 10);
-    var mb_baud    = parseInt($('modbus-baud').value    || "19200", 10);
-    connection.send("values", { mb_address: mb_address, mb_baud: mb_baud });
-    appendLog("values", { mb_address: mb_address, mb_baud: mb_baud });
+  // ----- Relays echo -----
+  function asBoolArray(x){
+    if(Array.isArray(x)) return x;
+    if(x && typeof x==='object' && ('0' in x || '1' in x)) return [!!x[0], !!x[1]];
+    return [];
+  }
+  connection.on('relayStateList', function(list){
+    var arr=asBoolArray(list);
+    for(var i=0;i<2;i++){ var el=$('state-relay'+(i+1)); if(el && typeof arr[i]!=='undefined') el.checked=!!arr[i]; }
+  });
+  connection.on('RelayState', function(obj){
+    var arr=asBoolArray(obj);
+    for(var i=0;i<2;i++){ var el=$('state-relay'+(i+1)); if(el && typeof arr[i]!=='undefined') el.checked=!!arr[i]; }
+  });
+
+  // ----- Alarms echo -----
+  connection.on('AlarmsCfg', function(cfg){ try{ populateAlarmsCfg(cfg); }catch(e){} });
+  connection.on('AlarmsState', function(state){ try{ updateAlarmsState(state); }catch(e){} });
+
+  function populateAlarmsCfg(cfgArr){
+    if(!cfgArr || typeof cfgArr.length==='undefined') return;
+    for(var ch=0; ch<cfgArr.length && ch<4; ch++){
+      var c = cfgArr[ch] || {};
+      var ackEl = $('al-ackreq-'+ch); if(ackEl) ackEl.checked = !!c.ack;
+      for(var ak=0; ak<3; ak++){
+        var r = c[ak] || {};
+        var en=$('al-en-'+ch+'-'+ak), mn=$('al-min-'+ch+'-'+ak), mx=$('al-max-'+ch+'-'+ak);
+        if(en && typeof r.enabled!=='undefined') en.checked = !!r.enabled;
+        if(mn && typeof r.min_va!=='undefined')  mn.value   = r.min_va;
+        if(mx && typeof r.max_va!=='undefined')  mx.value   = r.max_va;
+      }
+    }
+  }
+  function updateAlarmsState(state){
+    for(var ch=0; ch<4; ch++){
+      for(var ak=0; ak<3; ak++){
+        var dot=$('al-led-'+ch+'-'+ak);
+        var e = state && state[ch] && state[ch][ak];
+        var on = e && !!e.active;
+        if(dot) dot.style.background = on ? (ak===0?'#dc3545':ak===1?'#fd7e14':'#0dcaf0') : '#ccc';
+      }
+    }
   }
 
-  // Apply meter options
+  // ---------- Controls ----------
+  // Modbus live push (no Apply)
+  $('modbus-address').addEventListener('input', pushModbus);
+  $('modbus-baud').addEventListener('input',    pushModbus);
+  function pushModbus(){
+    var mb_address=parseInt($('modbus-address').value||"3",10);
+    var mb_baud   =parseInt($('modbus-baud').value||"19200",10);
+    connection.send("values", { mb_address:mb_address, mb_baud:mb_baud });
+    appendLog("values",{mb_address,mb_baud});
+  }
+
+  // Meter options apply
   $('apply-meter').addEventListener('click', function(){
-    var cfg = {
-      lineHz:    parseInt($('opt-lineHz').value   || "50", 10),
-      sumAbs:    parseInt($('opt-sumAbs').value   || "1", 10),
-      ucal:      parseInt($('opt-ucal').value     || "25256", 10),
-      sample_ms: parseInt($('opt-samplems').value || "200", 10),
-      p_mW_per_lsb:        parseInt($('sc-p').value   || "1", 10),
-      q_mvar_x1k_per_lsb:  parseInt($('sc-q').value   || "1", 10),
-      s_mva_x1k_per_lsb:   parseInt($('sc-s').value   || "1", 10),
-      e_ap_kWh_x1e5:       parseInt($('sc-eap').value || "1", 10),
-      e_an_kWh_x1e5:       parseInt($('sc-ean').value || "1", 10),
-      e_rp_kvarh_x1e5:     parseInt($('sc-erp').value || "1", 10),
-      e_rn_kvarh_x1e5:     parseInt($('sc-ern').value || "1", 10),
-      e_s_kVAh_x1e5:       parseInt($('sc-es').value  || "1", 10)
+    var cfg={
+      lineHz:parseInt($('opt-lineHz').value||"50",10),
+      sumAbs:parseInt($('opt-sumAbs').value||"1",10),
+      ucal:parseInt($('opt-ucal').value||"25256",10),
+      sample_ms:parseInt($('opt-samplems').value||"200",10),
+      p_mW_per_lsb:parseInt($('sc-p').value||"1",10),
+      q_mvar_x1k_per_lsb:parseInt($('sc-q').value||"1",10),
+      s_mva_per_lsb_x1000:parseInt($('sc-s').value||"1",10),
+      e_ap_kWh_x1e5:parseInt($('sc-eap').value||"1",10),
+      e_an_kWh_x1e5:parseInt($('sc-ean').value||"1",10),
+      e_rp_kvarh_x1e5:parseInt($('sc-erp').value||"1",10),
+      e_rn_kvarh_x1e5:parseInt($('sc-ern').value||"1",10),   // <- RN kvarh (firmware also accepts e_rn_kWh_x1e5)
+      e_s_kVAh_x1e5:parseInt($('sc-es').value||"1",10)
     };
-    connection.send("Config", { t:"meter", cfg: cfg });
+    connection.send("Config", { t:"meter", cfg:cfg });
     appendLog("Config.meter", cfg);
   });
 
-  // Apply scales only
+  // Scales-only apply (same payload keys)
   $('apply-scale').addEventListener('click', function(){
-    var cfg = {
-      lineHz:    parseInt($('opt-lineHz').value   || "50", 10),
-      sumAbs:    parseInt($('opt-sumAbs').value   || "1", 10),
-      ucal:      parseInt($('opt-ucal').value     || "25256", 10),
-      sample_ms: parseInt($('opt-samplems').value || "200", 10),
-      p_mW_per_lsb:        parseInt($('sc-p').value   || "1", 10),
-      q_mvar_x1k_per_lsb:  parseInt($('sc-q').value   || "1", 10),
-      s_mva_x1k_per_lsb:   parseInt($('sc-s').value   || "1", 10),
-      e_ap_kWh_x1e5:       parseInt($('sc-eap').value || "1", 10),
-      e_an_kWh_x1e5:       parseInt($('sc-ean').value || "1", 10),
-      e_rp_kvarh_x1e5:     parseInt($('sc-erp').value || "1", 10),
-      e_rn_kWh_x1e5:       parseInt($('sc-ern').value || "1", 10),
-      e_s_kVAh_x1e5:       parseInt($('sc-es').value  || "1", 10)
+    var cfg={
+      lineHz:parseInt($('opt-lineHz').value||"50",10),
+      sumAbs:parseInt($('opt-sumAbs').value||"1",10),
+      ucal:parseInt($('opt-ucal').value||"25256",10),
+      sample_ms:parseInt($('opt-samplems').value||"200",10),
+      p_mW_per_lsb:parseInt($('sc-p').value||"1",10),
+      q_mvar_x1k_per_lsb:parseInt($('sc-q').value||"1",10),
+      s_mva_per_lsb_x1000:parseInt($('sc-s').value||"1",10),
+      e_ap_kWh_x1e5:parseInt($('sc-eap').value||"1",10),
+      e_an_kWh_x1e5:parseInt($('sc-ean').value||"1",10),
+      e_rp_kvarh_x1e5:parseInt($('sc-erp').value||"1",10),
+      e_rn_kvarh_x1e5:parseInt($('sc-ern').value||"1",10),
+      e_s_kVAh_x1e5:parseInt($('sc-es').value||"1",10)
     };
-    connection.send("Config", { t:"meter", cfg: cfg });
+    connection.send("Config", { t:"meter", cfg:cfg });
     appendLog("Config.scale", cfg);
   });
 
-  // Enable buttons on connect
+  // Alarms apply
+  $('apply-alarms').addEventListener('click', function(){
+    var cfgArr=[];
+    for(var ch=0; ch<4; ch++){
+      var chO={ ack: $('al-ackreq-'+ch).checked };
+      for(var ak=0; ak<3; ak++){
+        chO[ak] = {
+          enabled: $('al-en-'+ch+'-'+ak).checked,
+          min_va:  parseInt($('al-min-'+ch+'-'+ak).value || "0",10),
+          max_va:  parseInt($('al-max-'+ch+'-'+ak).value || "0",10)
+        };
+      }
+      cfgArr.push(chO);
+    }
+    connection.send("AlarmsCfg", cfgArr);
+    appendLog("AlarmsCfg", cfgArr);
+  });
+
+  // Ack channel buttons
+  for(let ch=0; ch<4; ch++){
+    (function(idx){
+      var btn = $('al-ack-'+idx);
+      if(btn) btn.addEventListener('click', function(){
+        connection.send("AlarmsAck", { ch: idx });
+        appendLog("AlarmsAck", { ch: idx });
+      });
+    })(ch);
+  }
+  // Ack all
+  $('ack-all').addEventListener('click', function(){
+    connection.send("AlarmsAck", { list:[true,true,true,true] });
+    appendLog("AlarmsAck", { list:[true,true,true,true] });
+  });
+
+  // Relay config sender (placeholder – legacy firmware expects different payload; keep for compatibility)
+  for(let i=1;i<=2;i++){
+    $('enable-relay'+i).addEventListener('change', sendRelayConfig);
+    $('invert-relay'+i).addEventListener('change', sendRelayConfig);
+    $('group-relay'+i).addEventListener('change',  sendRelayConfig);
+  }
+  function sendRelayConfig(){
+    var list=[];
+    for(var i=1;i<=2;i++){
+      list.push({
+        enabled:  $('enable-relay'+i).checked,
+        inverted: $('invert-relay'+i).checked,
+        group:    parseInt($('group-relay'+i).value||"0",10)
+      });
+    }
+    connection.send("Config", { t:"relays", list:list });
+    appendLog("Config.relays", list);
+  }
+
+  // Buttons -> device
+  for(var i=1;i<=4;i++){ $('action-button'+i).addEventListener('change', sendButtonConfig); }
+  function sendButtonConfig(){
+    var list=[]; for(var i=1;i<=4;i++) list.push({ action: parseInt($('action-button'+i).value||"0",10) });
+    connection.send("Config", { t:"buttons", list:list });
+    appendLog("Config.buttons", list);
+  }
+
+  // Enable/disable Apply buttons with port state
   onPortStateChange();
 })();
 </script>
