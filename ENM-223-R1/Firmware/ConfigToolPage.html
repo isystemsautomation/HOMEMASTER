@@ -1,8 +1,8 @@
 <section style="font-family:'Segoe UI',sans-serif;padding:2rem;max-width:1000px;margin:auto;">
   <div style="text-align:center;margin-bottom:2rem;">
-    <img src="https://www.home-master.eu/web/image/product.product/719/image_1024/ALM-173-R1%20Module%20for%20Alarm%20Systems?unique=f079b61" alt="AIO-422-R1" style="max-width:300px;border-radius:8px;opacity:.9;" loading="lazy">
-    <h2 style="margin:.5rem 0 0;">AIO-422-R1 Module Configuration</h2>
-    <p style="margin:.25rem 0 0;color:#333;">Configure Modbus, ADS1115 (gain / data-rate / sample interval), view 4 analog channels, test LEDs, and manage device via Web Serial.</p>
+    <img src="https://www.home-master.eu/web/image/product.product/719/image_1024/ALM-173-R1%20Module%20for%20Alarm%20Systems?unique=f079b61" alt="ENM-223-R1" style="max-width:300px;border-radius:8px;opacity:.9;" loading="lazy">
+    <h2 style="margin:.5rem 0 0;">ENM-223-R1 Module Configuration</h2>
+    <p style="margin:.25rem 0 0;color:#333;">Configure Modbus and meter options (line frequency / sum mode / uCal / sample interval) and view live 3‑phase data via Web Serial.</p>
   </div>
 
   <div style="background:#f1f1f1;padding:1rem 1.5rem;margin-bottom:2rem;border-radius:6px;border-left:4px solid #007bff;">
@@ -11,7 +11,7 @@
     Baud Rate: <span id="live-baud" style="font-weight:600;">--</span>
   </div>
 
-  <form id="modbus-config" style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:2rem;">
+  <form id="modbus-config" style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:.75rem;">
     <div>
       <label for="modbus-address"><strong>Modbus Address</strong></label>
       <select id="modbus-address" style="width:100%;padding:10px;border-radius:4px;"></select>
@@ -19,69 +19,96 @@
     <div>
       <label for="modbus-baud"><strong>Baud Rate</strong></label>
       <select id="modbus-baud" style="width:100%;padding:10px;border-radius:4px;">
-        <option>9600</option><option selected="">19200</option><option>38400</option><option>57600</option><option>115200</option>
+        <option>9600</option><option selected>19200</option><option>38400</option><option>57600</option><option>115200</option>
       </select>
     </div>
-    <div style="grid-column:span 2;display:flex;justify-content:flex-end;gap:.75rem;">
-      <button id="connect-button" type="button" style="padding:10px 20px;background:#007bff;color:#fff;border:none;border-radius:4px;">Connect</button>
-      <button id="savecfg-button" type="button" style="padding:10px 20px;background:#198754;color:#fff;border:none;border-radius:4px;" disabled="">Save to Flash</button>
-      <button id="ledtest-button" type="button" style="padding:10px 20px;background:#6c757d;color:#fff;border:none;border-radius:4px;" disabled="">LED Test</button>
-      <button id="reset-button" type="button" style="padding:10px 20px;background:#dc3545;color:#fff;border:none;border-radius:4px;" disabled="">Reset Device</button>
+    <div style="grid-column:span 2;display:flex;justify-content:flex-end;">
+      <button id="connect-button" type="button" style="padding:10px 20px;background:#007bff;color:#fff;border:none;border-radius:4px;">Connect to device</button>
     </div>
   </form>
 
-  <dialog id="reset-dialog" style="border:none;border-radius:10px;padding:0;max-width:420px;width:90%;box-shadow:0 10px 30px rgba(0,0,0,.2);">
-    <form id="reset-form" method="dialog" style="padding:1rem 1.25rem;">
-      <h3 style="margin:.25rem 0 .5rem;">Confirm reset</h3>
-      <p style="margin:.25rem 0 1rem;color:#444;">Are you sure you want to reset the module? The serial connection will be temporarily interrupted.</p>
-      <div style="display:flex;justify-content:flex-end;gap:.5rem;">
-        <button id="dlg-cancel" value="cancel" style="padding:.5rem .9rem;border-radius:6px;border:1px solid #ccc;background:#fff;">Cancel</button>
-        <button id="dlg-confirm" value="confirm" style="padding:.5rem .9rem;border:none;border-radius:6px;background:#dc3545;color:#fff;">Reset</button>
-      </div>
-    </form>
-  </dialog>
+  <!-- Fixed-height log window: exactly 5 rows (old at top, new at bottom) -->
+  <div id="log-line" style="margin-bottom:1.5rem;padding:1rem;background:#f9f9f9;border:1px solid #ccc;border-radius:6px;font-size:0.9rem;color:#333;">
+    <strong>Serial Log:</strong>
+    <pre id="log-content" style="white-space:pre-wrap;font-family:monospace;line-height:1.25em;margin:0;margin-top:.5rem;height:calc(1.25em * 5);overflow-y:auto;background:#fff;border:1px solid #e5e5e5;border-radius:4px;padding:.5rem;"></pre>
+  </div>
 
   <section style="margin-bottom:1.75rem;">
-    <h2 style="font-size:1.2rem;margin-bottom:.75rem;">ADS1115 Configuration</h2>
+    <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Meter Options</h2>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem;">
       <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;">
-        <label for="ads-gain"><strong>Gain</strong> <small style="color:#666;">(0..5)</small></label>
-        <select id="ads-gain" style="width:100%;padding:10px;border-radius:4px;">
-          <option value="0">0 → ±6.144V (2/3×)</option>
-          <option value="1">1 → ±4.096V (1×)</option>
-          <option value="2">2 → ±2.048V (2×)</option>
-          <option value="3">3 → ±1.024V (4×)</option>
-          <option value="4">4 → ±0.512V (8×)</option>
-          <option value="5">5 → ±0.256V (16×)</option>
+        <label for="opt-lineHz"><strong>Line Frequency (Hz)</strong></label>
+        <select id="opt-lineHz" style="width:100%;padding:10px;border-radius:4px;">
+          <option value="50" selected>50</option>
+          <option value="60">60</option>
         </select>
       </div>
       <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;">
-        <label for="ads-drate"><strong>Data Rate</strong> <small style="color:#666;">(index 0..7)</small></label>
-        <select id="ads-drate" style="width:100%;padding:10px;border-radius:4px;">
-          <option value="0">0 → 8 SPS</option>
-          <option value="1">1 → 16 SPS</option>
-          <option value="2">2 → 32 SPS</option>
-          <option value="3">3 → 64 SPS</option>
-          <option value="4">4 → 128 SPS</option>
-          <option value="5">5 → 250 SPS</option>
-          <option value="6">6 → 475 SPS</option>
-          <option value="7">7 → 860 SPS</option>
+        <label for="opt-sumAbs"><strong>Sum Mode</strong> <small style="color:#666;">(0=algebraic, 1=abs)</small></label>
+        <select id="opt-sumAbs" style="width:100%;padding:10px;border-radius:4px;">
+          <option value="0">0</option>
+          <option value="1" selected>1</option>
         </select>
       </div>
       <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;">
-        <label for="ads-samplems"><strong>Sample Interval (ms)</strong></label>
-        <input id="ads-samplems" type="number" min="10" max="5000" step="10" value="50" style="width:100%;padding:10px;border-radius:4px;border:1px solid #ccc;">
+        <label for="opt-ucal"><strong>Ucal</strong> <small style="color:#666;">(gain)</small></label>
+        <input id="opt-ucal" type="number" min="1" max="65535" step="1" value="25256" style="width:100%;padding:10px;border-radius:4px;border:1px solid #ccc;">
+      </div>
+      <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;">
+        <label for="opt-samplems"><strong>Sample Interval (ms)</strong></label>
+        <input id="opt-samplems" type="number" min="10" max="5000" step="10" value="200" style="width:100%;padding:10px;border-radius:4px;border:1px solid #ccc;">
       </div>
     </div>
     <div style="text-align:right;margin-top:.75rem;">
-      <button id="apply-ads" type="button" style="padding:10px 16px;background:#0d6efd;color:#fff;border:none;border-radius:6px;" disabled="">Apply ADS Settings</button>
+      <button id="apply-meter" type="button" style="padding:10px 16px;background:#0d6efd;color:#fff;border:none;border-radius:6px;" disabled>Apply Meter Options</button>
+    </div>
+  </section>
+
+  <section style="margin-bottom:1.75rem;">
+    <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Scaling (Engineering Units)</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem;">
+      <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;">
+        <label><strong>P scale</strong> <small style="color:#666;">mW per LSB</small></label>
+        <input id="sc-p" type="number" min="0" step="1" value="1" style="width:100%;padding:10px;border-radius:4px;border:1px solid #ccc;">
+      </div>
+      <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;">
+        <label><strong>Q scale</strong> <small style="color:#666;">mvar×1000 per LSB</small></label>
+        <input id="sc-q" type="number" min="0" step="1" value="1" style="width:100%;padding:10px;border-radius:4px;border:1px solid #ccc;">
+      </div>
+      <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;">
+        <label><strong>S scale</strong> <small style="color:#666;">mVA×1000 per LSB</small></label>
+        <input id="sc-s" type="number" min="0" step="1" value="1" style="width:100%;padding:10px;border-radius:4px;border:1px solid #ccc;">
+      </div>
+      <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;">
+        <label><strong>AP energy</strong> <small style="color:#666;">kWh×1e5 per CNT</small></label>
+        <input id="sc-eap" type="number" min="0" step="1" value="1" style="width:100%;padding:10px;border-radius:4px;border:1px solid #ccc;">
+      </div>
+      <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;">
+        <label><strong>AN energy</strong> <small style="color:#666;">kWh×1e5 per CNT</small></label>
+        <input id="sc-ean" type="number" min="0" step="1" value="1" style="width:100%;padding:10px;border-radius:4px;border:1px solid #ccc;">
+      </div>
+      <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;">
+        <label><strong>RP energy</strong> <small style="color:#666;">kvarh×1e5 per CNT</small></label>
+        <input id="sc-erp" type="number" min="0" step="1" value="1" style="width:100%;padding:10px;border-radius:4px;border:1px solid #ccc;">
+      </div>
+      <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;">
+        <label><strong>RN energy</strong> <small style="color:#666;">kvarh×1e5 per CNT</small></label>
+        <input id="sc-ern" type="number" min="0" step="1" value="1" style="width:100%;padding:10px;border-radius:4px;border:1px solid #ccc;">
+      </div>
+      <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;">
+        <label><strong>S energy</strong> <small style="color:#666;">kVAh×1e5 per CNT</small></label>
+        <input id="sc-es" type="number" min="0" step="1" value="1" style="width:100%;padding:10px;border-radius:4px;border:1px solid #ccc;">
+      </div>
+    </div>
+    <div style="text-align:right;margin-top:.75rem;">
+      <button id="apply-scale" type="button" style="padding:10px 16px;background:#0d6efd;color:#fff;border:none;border-radius:6px;" disabled>Apply Scales</button>
     </div>
   </section>
 
   <section style="margin-bottom:1.5rem;">
-    <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Live Channels</h2>
+    <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Live Meter</h2>
     <div id="chan-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:1rem;"></div>
-    <small style="color:#666;">Firmware emits <code>AIO_Samples</code> via WebSerial: <code>{ raw:[..], mv:[..] }</code>.</small>
+    <small style="color:#666;">Firmware emits <code>ENM_Meter</code> via WebSerial: Urms/Irms/P/Q/S/PF/Angles/Freq/Temp/Energies.</small>
   </section>
 
   <section style="margin-bottom:1.5rem;">
@@ -93,130 +120,120 @@
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">User LEDs (4)</h2>
     <div id="leds-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
   </section>
-
-  <div id="log-line" style="margin-bottom:1.5rem;padding:1rem;background:#f9f9f9;border:1px solid #ccc;border-radius:6px;font-size:0.9rem;color:#333;font-family:monospace;">
-    <strong>Serial Log:</strong>
-    <div id="log-content" style="white-space:pre-wrap;"></div>
-  </div>
 </section>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
+<script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
 <script>
 (function () {
   // ---------- Helpers ----------
-  const LOG_MAX = 200;
-  const logBuffer = [];
-  const $ = (id) => document.getElementById(id);
+  var LOG_MAX = 200;
+  var logBuffer = [];
+  function $(id){ return document.getElementById(id); }
 
+  // Append messages to the BOTTOM; keep exactly 5-line viewport; auto-scroll to bottom
   function appendLog(label, data) {
-    const el = $("log-content"); if (!el) return;
-    const time = new Date().toLocaleTimeString();
-    let body = (typeof data === 'string') ? data : JSON.stringify(data);
-    // normalize escaped vs real newlines
-    body = String(body)
-      .replace(/\r\n?|\n/g, '\n')          // real CR/LF -> \n
-      .replace(/\\r\\n|\\r|\\n/g, '\n');   // escaped sequences -> \n
-    logBuffer.unshift(`[${time}] ${label}: ${body}`);
-    if (logBuffer.length > LOG_MAX) logBuffer.pop();
-    el.textContent = logBuffer.join('\n'); // ✅ actual newlines
+    var el = $("log-content"); if (!el) return;
+    var time = new Date().toLocaleTimeString();
+    var body = (typeof data === 'string') ? data : JSON.stringify(data);
+    body = String(body).replace(/\r\n?|\n/g, '\n').replace(/\\r\\n|\\r|\\n/g, '\n');
+
+    // push new message to the end so old messages remain at the top
+    logBuffer.push("[" + time + "] " + label + ": " + body);
+    if (logBuffer.length > LOG_MAX) logBuffer.shift();
+
+    el.textContent = logBuffer.join('\n');
+
+    // keep the view anchored to the newest line at the bottom
+    el.scrollTop = el.scrollHeight;
   }
 
   function populateAddresses() {
-    const sel = $('modbus-address'); if (!sel) return;
+    var sel = $('modbus-address'); if (!sel) return;
     sel.innerHTML = '';
-    for (let i = 1; i <= 255; i++) {
-      const o = document.createElement('option'); o.value = i; o.textContent = i;
+    for (var i = 1; i <= 255; i++) {
+      var o = document.createElement('option'); o.value = i; o.textContent = i;
       sel.appendChild(o);
     }
     sel.value = '3';
   }
 
   function isPortOpen() {
-    try { return typeof connection.isOpen === 'function' ? connection.isOpen() : !!connection.port; }
-    catch { return false; }
+    try { return (typeof connection.isOpen === 'function') ? connection.isOpen() : !!connection.port; }
+    catch (e) { return false; }
   }
-  function setEnabled(ids, enabled) { ids.forEach(id => { const el = $(id); if (el) el.disabled = !enabled; }); }
+  function setEnabled(ids, enabled) { for (var i=0;i<ids.length;i++){ var el=$(ids[i]); if (el) el.disabled = !enabled; } }
 
-  // ---------- Channel cards ----------
-  const FULL_SCALE_MV = [6144, 4096, 2048, 1024, 512, 256];
+  // ---------- Channel cards (for meter) ----------
   function buildChannelCards() {
-    const grid = $('chan-grid'); if (!grid) return;
+    var grid = $('chan-grid'); if (!grid) return;
     grid.innerHTML = '';
-    for (let ch = 0; ch < 4; ch++) {
-      const card = document.createElement('div');
+    var labels = ['L1','L2','L3','Totals'];
+    for (var ch = 0; ch < 4; ch++) {
+      var card = document.createElement('div');
       card.style = "border:1px solid #ddd;border-radius:8px;padding:1rem;background:#fff;";
-      card.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;">
-          <strong>Channel A${ch}</strong>
-          <span id="bar-a${ch}" style="flex:1;height:8px;background:#eee;border-radius:4px;margin-left:.75rem;overflow:hidden;">
-            <span id="barfill-a${ch}" style="display:block;height:100%;width:0%;background:#0d6efd;"></span>
-          </span>
-        </div>
-        <div style="display:flex;gap:1rem;align-items:baseline;">
-          <div><span id="mv-a${ch}" style="font-size:1.35rem;font-weight:700;">--</span> <span style="color:#666;">mV</span></div>
-          <div style="color:#666;">raw: <span id="raw-a${ch}">--</span></div>
-        </div>
-        <div style="margin-top:.4rem;color:#666;">FS: <span id="fs-a${ch}">--</span> mV</div>
-      `;
+      var inner = ''
+        + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;">'
+        + '  <strong>' + labels[ch] + '</strong>'
+        + '</div>'
+        + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.35rem .75rem;font-size:.95rem;">'
+        + '  <div>U (V):</div><div id="u' + ch + '" style="text-align:right">--</div>'
+        + '  <div>I (A):</div><div id="i' + ch + '" style="text-align:right">--</div>'
+        + '  <div>P raw:</div><div id="p' + ch + '" style="text-align:right">--</div>'
+        + '  <div>Q raw:</div><div id="q' + ch + '" style="text-align:right">--</div>'
+        + '  <div>S raw:</div><div id="s' + ch + '" style="text-align:right">--</div>'
+        + (ch<3 ? ('  <div>PF raw:</div><div id="pf' + ch + '" style="text-align:right">--</div>'
+                 + '  <div>Angle (0.1°):</div><div id="ang' + ch + '" style="text-align:right">--</div>')
+                : ('  <div>PF tot raw:</div><div id="pft" style="text-align:right">--</div>'
+                 + '  <div>Freq (Hz):</div><div id="f" style="text-align:right">--</div>'
+                 + '  <div>Temp (°C):</div><div id="t" style="text-align:right">--</div>'))
+        + '</div>';
+      card.innerHTML = inner;
       grid.appendChild(card);
     }
   }
-  function updateFSLabels(gainIdx) {
-    for (let ch = 0; ch < 4; ch++) {
-      const fs = FULL_SCALE_MV[gainIdx] || 6144;
-      const el = $('fs-a'+ch); if (el) el.textContent = fs;
-    }
-  }
-  function paintChannel(ch, mv, raw, gainIdx) {
-    const mvEl = $('mv-a'+ch), rawEl = $('raw-a'+ch), fill = $('barfill-a'+ch);
-    if (mvEl) mvEl.textContent = (typeof mv === 'number' ? mv : '--');
-    if (rawEl) rawEl.textContent = (typeof raw === 'number' ? raw : '--');
-    const fs = FULL_SCALE_MV[gainIdx] || 6144;
-    const pct = (typeof mv === 'number' && fs > 0) ? Math.max(0, Math.min(100, (mv / fs) * 100)) : 0;
-    if (fill) fill.style.width = pct.toFixed(1) + '%';
-  }
 
-  // ---------- Build Buttons & LEDs cards ----------
+  // ---------- Build Buttons & LEDs ----------
   function buildButtons() {
-    const container = $('buttons-config'); if (!container) return;
+    var container = $('buttons-config'); if (!container) return;
     container.innerHTML = '';
-    const ACTIONS = [
+    var ACTIONS = [
       {value:0,label:'None'},
-      {value:1,label:'Toggle LED1'},
-      {value:2,label:'Toggle LED2'},
-      {value:3,label:'Toggle LED3'},
-      {value:4,label:'Toggle LED4'},
-      {value:5,label:'Cycle ADS gain'},
-      {value:6,label:'LED test'},
+      {value:1,label:'Toggle Relay 1'},
+      {value:2,label:'Toggle Relay 2'},
+      {value:3,label:'Toggle LED1'},
+      {value:4,label:'Toggle LED2'},
+      {value:5,label:'Toggle LED3'},
+      {value:6,label:'Toggle LED4'},
       {value:7,label:'Save config'},
-      {value:8,label:'Reset device'},
+      {value:8,label:'Reset device'}
     ];
-    for (let i = 1; i <= 4; i++) {
-      const options = ACTIONS.map(a => `<option value="${a.value}">${a.label}</option>`).join('');
-      const card = document.createElement('div');
-      card.innerHTML = `
-        <div style="border:1px solid #ccc;border-radius:6px;background:#cbdcf7;padding:1rem;">
-          <div style="font-weight:600;">
-            Button ${i}
-            <span id="state-button${i}" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;float:right;"></span>
-          </div>
-          <label>Action:
-            <select id="action-button${i}" style="width:100%;padding:6px;border-radius:4px;">
-              ${options}
-            </select>
-          </label>
-        </div>`;
+    for (var i = 1; i <= 4; i++) {
+      var options = ACTIONS.map(function(a){return '<option value="'+a.value+'">'+a.label+'</option>';}).join('');
+      var card = document.createElement('div');
+      card.innerHTML =
+        '<div style="border:1px solid #ccc;border-radius:6px;background:#cbdcf7;padding:1rem;">'
+      + '  <div style="font-weight:600;">'
+      + '    Button ' + i
+      + '    <span id="state-button' + i + '" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;float:right;"></span>'
+      + '  </div>'
+      + '  <label>Action:'
+      + '    <select id="action-button' + i + '" style="width:100%;padding:6px;border-radius:4px;">'
+      +        options
+      + '    </select>'
+      + '  </label>'
+      + '</div>';
       container.appendChild(card);
     }
   }
   function buildLEDs() {
-    const container = $('leds-config'); if (!container) return;
+    var container = $('leds-config'); if (!container) return;
     container.innerHTML = '';
-    const LED_MODE = [
+    var LED_MODE = [
       {value:0,label:'Steady (when active)'},
-      {value:1,label:'Blink (when active)'},
+      {value:1,label:'Blink (when active)'}
     ];
-    const LED_SOURCE = [
+    var LED_SOURCE = [
       {value:0,label:'None'},
       {value:1,label:'Heartbeat'},
       {value:2,label:'Button 1 pressed'},
@@ -224,25 +241,25 @@
       {value:4,label:'Button 3 pressed'},
       {value:5,label:'Button 4 pressed'},
       {value:6,label:'Any button pressed'},
-      {value:7,label:'Sampling tick'},
+      {value:7,label:'Sampling tick'}
     ];
-    for (let i = 1; i <= 4; i++) {
-      const modeOpts = LED_MODE.map(a => `<option value="${a.value}">${a.label}</option>`).join('');
-      const srcOpts  = LED_SOURCE.map(a => `<option value="${a.value}">${a.label}</option>`).join('');
-      const card = document.createElement('div');
-      card.innerHTML = `
-        <div style="border:1px solid #ccc;border-radius:6px;background:#f3f5d0;padding:1rem;">
-          <div style="font-weight:600;">
-            User LED ${i}
-            <span id="state-led${i}" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;float:right;"></span>
-          </div>
-          <label>Mode:
-            <select id="mode-led${i}" style="width:100%;padding:6px;border-radius:4px;">${modeOpts}</select>
-          </label><br>
-          <label>Source:
-            <select id="source-led${i}" style="width:100%;padding:6px;border-radius:4px;">${srcOpts}</select>
-          </label>
-        </div>`;
+    for (var i = 1; i <= 4; i++) {
+      var modeOpts = LED_MODE.map(function(a){return '<option value="'+a.value+'">'+a.label+'</option>';}).join('');
+      var srcOpts  = LED_SOURCE.map(function(a){return '<option value="'+a.value+'">'+a.label+'</option>';}).join('');
+      var card = document.createElement('div');
+      card.innerHTML =
+        '<div style="border:1px solid #ccc;border-radius:6px;background:#f3f5d0;padding:1rem;">'
+      + '  <div style="font-weight:600;">'
+      + '    User LED ' + i
+      + '    <span id="state-led' + i + '" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;float:right;"></span>'
+      + '  </div>'
+      + '  <label>Mode:'
+      + '    <select id="mode-led' + i + '" style="width:100%;padding:6px;border-radius:4px;">' + modeOpts + '</select>'
+      + '  </label><br>'
+      + '  <label>Source:'
+      + '    <select id="source-led' + i + '" style="width:100%;padding:6px;border-radius:4px;">' + srcOpts + '</select>'
+      + '  </label>'
+      + '</div>';
       container.appendChild(card);
     }
   }
@@ -254,152 +271,163 @@
   buildLEDs();
 
   // ---------- Web Serial Setup ----------
-  const connection = SimpleWebSerial.setupSerialConnection({
+  var connection = SimpleWebSerial.setupSerialConnection({
     requestAccessOnPageLoad: false,
     requestElement: 'connect-button'
   });
 
   function onPortStateChange() {
-    const open = isPortOpen();
-    setEnabled(['reset-button','apply-ads','ledtest-button','savecfg-button'], open);
+    var open = isPortOpen();
+    setEnabled(['apply-meter','apply-scale'], open);
   }
   connection.on('open',  onPortStateChange);
   connection.on('close', onPortStateChange);
 
-  // Live status
-  connection.on('status', (modbus) => {
-    $('live-address').textContent = (modbus && 'address' in modbus) ? modbus.address : '--';
-    $('live-baud').textContent    = (modbus && 'baud' in modbus)    ? modbus.baud    : '--';
-    if (modbus && modbus.address) $('modbus-address').value = modbus.address;
-    if (modbus && modbus.baud)    $('modbus-baud').value    = String(modbus.baud);
+  // Live status (from firmware)
+  connection.on('status', function(modbus){
+    $('live-address').textContent = (modbus && typeof modbus.address !== 'undefined') ? modbus.address : '--';
+    $('live-baud').textContent    = (modbus && typeof modbus.baud    !== 'undefined') ? modbus.baud    : '--';
+    if (modbus && typeof modbus.address !== 'undefined') $('modbus-address').value = modbus.address;
+    if (modbus && typeof modbus.baud    !== 'undefined') $('modbus-baud').value    = String(modbus.baud);
     onPortStateChange();
   });
 
-  // ADS config echo
-  let currentGain = 0;
-  connection.on('ADS', (cfg) => {
-    if (!cfg) return;
-    if (typeof cfg.gainIndex     !== 'undefined') { $('ads-gain').value     = String(cfg.gainIndex);     currentGain = cfg.gainIndex|0; }
-    if (typeof cfg.dataRateIndex !== 'undefined') { $('ads-drate').value    = String(cfg.dataRateIndex); }
-    if (typeof cfg.sample_ms     !== 'undefined') { $('ads-samplems').value = String(cfg.sample_ms); }
-    updateFSLabels(currentGain);
+  // Meter options echo
+  connection.on('MeterOptions', function(opts){
+    if (!opts) return;
+    if (typeof opts.lineHz   !== 'undefined') $('opt-lineHz').value    = String(opts.lineHz);
+    if (typeof opts.sumAbs   !== 'undefined') $('opt-sumAbs').value    = String(opts.sumAbs);
+    if (typeof opts.ucal     !== 'undefined') $('opt-ucal').value      = String(opts.ucal);
+    if (typeof opts.sample_ms!== 'undefined') $('opt-samplems').value  = String(opts.sample_ms);
+    if (typeof opts.p_mW_per_lsb          !== 'undefined') $('sc-p').value  = String(opts.p_mW_per_lsb);
+    if (typeof opts.q_mvar_x1k_per_lsb    !== 'undefined') $('sc-q').value  = String(opts.q_mvar_x1k_per_lsb);
+    if (typeof opts.s_mva_x1k_per_lsb     !== 'undefined') $('sc-s').value  = String(opts.s_mva_x1k_per_lsb);
+    if (typeof opts.e_ap_kWh_x1e5         !== 'undefined') $('sc-eap').value= String(opts.e_ap_kWh_x1e5);
+    if (typeof opts.e_an_kWh_x1e5         !== 'undefined') $('sc-ean').value= String(opts.e_an_kWh_x1e5);
+    if (typeof opts.e_rp_kvarh_x1e5       !== 'undefined') $('sc-erp').value= String(opts.e_rp_kvarh_x1e5);
+    if (typeof opts.e_rn_kvarh_x1e5       !== 'undefined') $('sc-ern').value= String(opts.e_rn_kvarh_x1e5);
+    if (typeof opts.e_s_kVAh_x1e5         !== 'undefined') $('sc-es').value = String(opts.e_s_kVAh_x1e5);
   });
 
   // Serial log passthrough
-  connection.on('message', (msg) => appendLog("AIO-422-R1", msg));
+  connection.on('message', function(msg){ appendLog("ENM-223-R1", msg); });
 
-  // Live samples
-  connection.on('AIO_Samples', (obj) => {
+  // Live meter data
+  connection.on('ENM_Meter', function(m){
     try {
-      const raw = Array.isArray(obj?.raw) ? obj.raw : [];
-      const mv  = Array.isArray(obj?.mv)  ? obj.mv  : [];
-      for (let ch = 0; ch < 4; ch++) paintChannel(ch, mv[ch], raw[ch], currentGain);
+      var Urms = (m && m.Urms) ? m.Urms : [];
+      var Irms = (m && m.Irms) ? m.Irms : [];
+      var Praw = (m && m.Praw) ? m.Praw : [];
+      var Qraw = (m && m.Qraw) ? m.Qraw : [];
+      var Sraw = (m && m.Sraw) ? m.Sraw : [];
+      var PF   = (m && m.PFraw)? m.PFraw: [];
+      var Ang  = (m && m.Ang0p1deg)? m.Ang0p1deg: [];
+
+      for (var i=0;i<3;i++){
+        var uEl=$('u'+i), iEl=$('i'+i), pEl=$('p'+i), qEl=$('q'+i), sEl=$('s'+i), pfEl=$('pf'+i), aEl=$('ang'+i);
+        if (uEl) uEl.textContent  = (typeof Urms[i] === 'number') ? Urms[i].toFixed(2) : '--';
+        if (iEl) iEl.textContent  = (typeof Irms[i] === 'number') ? Irms[i].toFixed(3) : '--';
+        if (pEl) pEl.textContent  = (typeof Praw[i] !== 'undefined') ? Praw[i] : '--';
+        if (qEl) qEl.textContent  = (typeof Qraw[i] !== 'undefined') ? Qraw[i] : '--';
+        if (sEl) sEl.textContent  = (typeof Sraw[i] !== 'undefined') ? Sraw[i] : '--';
+        if (pfEl)pfEl.textContent = (typeof PF[i]   !== 'undefined') ? PF[i]   : '--';
+        if (aEl) aEl.textContent  = (typeof Ang[i]  !== 'undefined') ? Ang[i]  : '--';
+      }
+      var pt=$('p3'), qt=$('q3'), st=$('s3'), pft=$('pft'), fEl=$('f'), tEl=$('t');
+      if (pt)  pt.textContent  = (typeof m.Ptot_raw !== 'undefined') ? m.Ptot_raw : '--';
+      if (qt)  qt.textContent  = (typeof m.Qtot_raw !== 'undefined') ? m.Qtot_raw : '--';
+      if (st)  st.textContent  = (typeof m.Stot_raw !== 'undefined') ? m.Stot_raw : '--';
+      if (pft) pft.textContent = (typeof m.PFtot_raw!== 'undefined') ? m.PFtot_raw: '--';
+      if (fEl) fEl.textContent = (typeof m.FreqHz   === 'number') ? m.FreqHz.toFixed(2) : (m && m.FreqHz ? m.FreqHz : '--');
+      if (tEl) tEl.textContent = (typeof m.TempC    !== 'undefined') ? m.TempC : '--';
     } catch(e) {}
   });
 
   // Buttons receive/echo
-  connection.on('ButtonConfigList', (list) => (list || []).forEach((v, i) => {
-    const el = $('action-button' + (i + 1)); if (el) el.value = String(v || 0);
-  }));
-  connection.on('ButtonStateList', (list) => (list || []).forEach((v, i) => {
-    const dot = $('state-button' + (i + 1)); if (dot) dot.style.background = v ? '#4caf50' : '#ccc';
-  }));
+  connection.on('ButtonConfigList', function(list){
+    if (!list || typeof list.length === 'undefined') return;
+    for (var i=0;i<list.length && i<4;i++){
+      var el = $('action-button' + (i + 1));
+      if (el) el.value = String(list[i] || 0);
+    }
+  });
+  connection.on('ButtonStateList', function(list){
+    if (!list || typeof list.length === 'undefined') return;
+    for (var i=0;i<list.length && i<4;i++){
+      var dot = $('state-button' + (i + 1));
+      if (dot) dot.style.background = list[i] ? '#4caf50' : '#ccc';
+    }
+  });
 
   // LEDs receive/echo
-  connection.on('LedConfigList', (list) => (list || []).forEach((obj, i) => {
-    const modeEl = $('mode-led' + (i + 1));
-    const srcEl  = $('source-led' + (i + 1));
-    if (modeEl && obj && typeof obj.mode   !== 'undefined') modeEl.value = String(obj.mode);
-    if (srcEl  && obj && typeof obj.source !== 'undefined') srcEl.value  = String(obj.source);
-  }));
-  connection.on('LedStateList', (list) => (list || []).forEach((v, i) => {
-    const dot = $('state-led' + (i + 1)); if (dot) dot.style.background = v ? '#ffb300' : '#ccc';
-  }));
+  connection.on('LedConfigList', function(list){
+    if (!list || typeof list.length === 'undefined') return;
+    for (var i=0;i<list.length && i<4;i++){
+      var obj = list[i] || {};
+      var modeEl = $('mode-led' + (i + 1));
+      var srcEl  = $('source-led' + (i + 1));
+      if (modeEl && typeof obj.mode   !== 'undefined') modeEl.value = String(obj.mode);
+      if (srcEl  && typeof obj.source !== 'undefined') srcEl.value  = String(obj.source);
+    }
+  });
+  connection.on('LedStateList', function(list){
+    if (!list || typeof list.length === 'undefined') return;
+    for (var i=0;i<list.length && i<4;i++){
+      var dot = $('state-led' + (i + 1));
+      if (dot) dot.style.background = list[i] ? '#ffb300' : '#ccc';
+    }
+  });
 
   // ---------- Controls ----------
   // Modbus config push
   $('modbus-address').addEventListener('input', pushModbus);
   $('modbus-baud').addEventListener('input',    pushModbus);
-  async function pushModbus() {
-    const mb_address = parseInt($('modbus-address').value || "3", 10);
-    const mb_baud    = parseInt($('modbus-baud').value    || "19200", 10);
-    await connection.send("values", { mb_address, mb_baud });
-    appendLog("values", { mb_address, mb_baud });
+  function pushModbus() {
+    var mb_address = parseInt($('modbus-address').value || "3", 10);
+    var mb_baud    = parseInt($('modbus-baud').value    || "19200", 10);
+    connection.send("values", { mb_address: mb_address, mb_baud: mb_baud });
+    appendLog("values", { mb_address: mb_address, mb_baud: mb_baud });
   }
 
-  // ADS apply
-  $('apply-ads').addEventListener('click', async () => {
-    const gainIndex     = parseInt($('ads-gain').value  || "0", 10);
-    const dataRateIndex = parseInt($('ads-drate').value || "4", 10);
-    const sample_ms     = parseInt($('ads-samplems').value || "50", 10);
-    await connection.send("Config", { t:"ads", cfg:{ gainIndex, dataRateIndex, sample_ms }});
-    appendLog("Config.ads", { gainIndex, dataRateIndex, sample_ms });
+  // Apply meter options
+  $('apply-meter').addEventListener('click', function(){
+    var cfg = {
+      lineHz:    parseInt($('opt-lineHz').value   || "50", 10),
+      sumAbs:    parseInt($('opt-sumAbs').value   || "1", 10),
+      ucal:      parseInt($('opt-ucal').value     || "25256", 10),
+      sample_ms: parseInt($('opt-samplems').value || "200", 10),
+      p_mW_per_lsb:        parseInt($('sc-p').value   || "1", 10),
+      q_mvar_x1k_per_lsb:  parseInt($('sc-q').value   || "1", 10),
+      s_mva_x1k_per_lsb:   parseInt($('sc-s').value   || "1", 10),
+      e_ap_kWh_x1e5:       parseInt($('sc-eap').value || "1", 10),
+      e_an_kWh_x1e5:       parseInt($('sc-ean').value || "1", 10),
+      e_rp_kvarh_x1e5:     parseInt($('sc-erp').value || "1", 10),
+      e_rn_kvarh_x1e5:     parseInt($('sc-ern').value || "1", 10),
+      e_s_kVAh_x1e5:       parseInt($('sc-es').value  || "1", 10)
+    };
+    connection.send("Config", { t:"meter", cfg: cfg });
+    appendLog("Config.meter", cfg);
   });
 
-  // Buttons config push
-  for (let i = 1; i <= 4; i++) {
-    $('action-button' + i).addEventListener('change', sendButtonConfig);
-  }
-  async function sendButtonConfig() {
-    const list = [];
-    for (let i = 1; i <= 4; i++) list.push({ action: parseInt($('action-button' + i).value || "0", 10) });
-    await connection.send("Config", { t: "buttons", list });
-    appendLog("Config.buttons", list);
-  }
-
-  // LEDs config push
-  for (let i = 1; i <= 4; i++) {
-    $('mode-led' + i).addEventListener('change',   sendLedConfig);
-    $('source-led' + i).addEventListener('change', sendLedConfig);
-  }
-  async function sendLedConfig() {
-    const list = [];
-    for (let i = 1; i <= 4; i++) {
-      list.push({
-        mode:   parseInt($('mode-led' + i).value   || "0", 10),
-        source: parseInt($('source-led' + i).value || "0", 10)
-      });
-    }
-    await connection.send("Config", { t: "leds", list });
-    appendLog("Config.leds", list);
-  }
-
-  // LED test
-  $('ledtest-button').addEventListener('click', async () => {
-    await connection.send("command", { action: "ledtest" });
-    appendLog("command", "ledtest");
+  // Apply scales only
+  $('apply-scale').addEventListener('click', function(){
+    var cfg = {
+      lineHz:    parseInt($('opt-lineHz').value   || "50", 10),
+      sumAbs:    parseInt($('opt-sumAbs').value   || "1", 10),
+      ucal:      parseInt($('opt-ucal').value     || "25256", 10),
+      sample_ms: parseInt($('opt-samplems').value || "200", 10),
+      p_mW_per_lsb:        parseInt($('sc-p').value   || "1", 10),
+      q_mvar_x1k_per_lsb:  parseInt($('sc-q').value   || "1", 10),
+      s_mva_x1k_per_lsb:   parseInt($('sc-s').value   || "1", 10),
+      e_ap_kWh_x1e5:       parseInt($('sc-eap').value || "1", 10),
+      e_an_kWh_x1e5:       parseInt($('sc-ean').value || "1", 10),
+      e_rp_kvarh_x1e5:     parseInt($('sc-erp').value || "1", 10),
+      e_rn_kWh_x1e5:       parseInt($('sc-ern').value || "1", 10),
+      e_s_kVAh_x1e5:       parseInt($('sc-es').value  || "1", 10)
+    };
+    connection.send("Config", { t:"meter", cfg: cfg });
+    appendLog("Config.scale", cfg);
   });
-
-  // Save to flash
-  $('savecfg-button').addEventListener('click', async () => {
-    await connection.send("command", { action: "save" });
-    appendLog("command", "save");
-  });
-
-  // Reset (dialog)
-  const resetBtn   = $('reset-button');
-  const dlg        = $('reset-dialog');
-  const dlgCancel  = $('dlg-cancel');
-  const dlgConfirm = $('dlg-confirm');
-
-  resetBtn.addEventListener('click', () => {
-    if (!isPortOpen()) return;
-    if (dlg && typeof dlg.showModal === 'function') dlg.showModal();
-    else doReset();
-  });
-  dlgCancel.addEventListener('click', (e) => { e.preventDefault(); dlg.close('cancel'); });
-  dlgConfirm.addEventListener('click', async (e) => { e.preventDefault(); dlg.close('confirm'); await doReset(); });
-
-  async function doReset() {
-    try {
-      await connection.send("command", { action: "reset" });
-      appendLog("command", "reset");
-      setEnabled(['reset-button','apply-ads','ledtest-button','savecfg-button'], false);
-      setTimeout(onPortStateChange, 3000);
-    } catch (err) {
-      appendLog("Error", String(err && err.message || err));
-    }
-  }
 
   // Enable buttons on connect
   onPortStateChange();
