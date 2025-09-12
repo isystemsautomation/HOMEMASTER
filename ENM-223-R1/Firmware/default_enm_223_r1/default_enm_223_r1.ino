@@ -14,7 +14,6 @@ struct PersistConfig;
 #include <Arduino_JSON.h>
 #include <LittleFS.h>
 #include <utility>
-#include "hardware/watchdog.h"
 #include <math.h>
 
 // ================== Hardware pins ==================
@@ -92,22 +91,13 @@ uint16_t atm_lineFreqHz = 50;    // 50 or 60
 uint8_t  atm_sumModeAbs = 1;     // affects MMode0
 uint16_t atm_ucal       = 25256; // voltage calibration (used by vSag calc)
 
-// Measurement scaling (persisted) —— tune to your calibration:
-// We publish RAW 32-bit powers (from chip). To also publish "engineering" numbers,
-// we apply these scales in firmware (holdings are RW to tweak at runtime).
-// Units per LSB (fixed-point):
-//  - p_scale_mW_per_lsb: milliwatts per raw LSB for P registers (Pmean*)
-//  - q_scale_mvar_per_lsb_x1000: (var) -> mvar *1000 per LSB   (keep same base as P if desired)
-//  - s_scale_mva_per_lsb_x1000:   (VA)  -> mVA  *1000 per LSB
-// Start with a safe default = 1 LSB == 1 mW (so W ≈ raw/1000).
-uint32_t p_scale_mW_per_lsb            = 1;    // default: 1 mW / LSB
-uint32_t q_scale_mvar_per_lsb_x1000    = 1;    // default: 1 mvar*1000 / LSB  (so var ≈ raw)
-uint32_t s_scale_mva_per_lsb_x1000     = 1;    // default: 1 mVA*1000  / LSB
+// Measurement scaling (persisted)
+uint32_t p_scale_mW_per_lsb            = 1;
+uint32_t q_scale_mvar_per_lsb_x1000    = 1;
+uint32_t s_scale_mva_per_lsb_x1000     = 1;
 
-// Energy scales (persisted) —— register count to real energy
-//  - e_ap_kWh_per_cnt_x1e5 : kWh per count, scaled ×1e5 to fit 16-bit tuning
-// Same idea for AN (export), RP/RN (reactive), S (apparent).
-uint32_t e_ap_kWh_per_cnt_x1e5 = 1;   // default tiny; set after calibration
+// Energy scales (persisted)
+uint32_t e_ap_kWh_per_cnt_x1e5 = 1;
 uint32_t e_an_kWh_per_cnt_x1e5 = 1;
 uint32_t e_rp_kvarh_per_cnt_x1e5 = 1;
 uint32_t e_rn_kvarh_per_cnt_x1e5 = 1;
@@ -449,12 +439,9 @@ static inline void     atm90_write16(uint16_t reg, uint16_t val) { atm90_transfe
 
 static inline int32_t read_power32(uint16_t regH, uint16_t regLSB)
 {
-  // High word: full 16-bit signed. LSB register uses high byte as extra 8 bits.
-  // Compose 24 bits then sign-extend to 32. (Chip docs show 24-bit effective resolution.)
   int16_t h = (int16_t)atm90_read16(regH);
   uint16_t l = atm90_read16(regLSB);
   int32_t val24 = ((int32_t)h << 8) | ((l >> 8) & 0xFF);
-  // sign extend 24->32:
   if (val24 & 0x00800000) val24 |= 0xFF000000;
   return val24;
 }
@@ -494,14 +481,12 @@ static void atm90_init()
   atm90_write16(EMMIntState1, 0x0001);
   atm90_write16(ZXConfig, 0xD654);
 
-  // MMode0 config: line freq, sum mode, etc.
   uint16_t m0 = 0x019D;
   if (atm_lineFreqHz == 60) m0 |= (1u<<12); else m0 &= ~(1u<<12);
   m0 &= ~(0b11u<<3);
   m0 |= ((atm_sumModeAbs ? 0b11u : 0b00u) << 3);
-  m0 &= ~0b111u; m0 |= 0b101u; // PGA defaults etc.
+  m0 &= ~0b111u; m0 |= 0b101u;
 
-  // Current gains for A/B/C (we keep 2x default)
   uint8_t gIA=2,gIB=2,gIC=2;
   uint8_t m1=0; m1|=(gainCode(gIA)<<0); m1|=(gainCode(gIB)<<2); m1|=(gainCode(gIC)<<4);
 
@@ -531,7 +516,6 @@ enum : uint16_t {
   IREG_IRMS_BASE    = 110,  // 110..112: Irms L1..L3 in 0.001 A (u16)
 
   // -------- Powers (RAW 24/32-bit composed) --------
-  // Each is 2 regs (HI then LO), signed 32, RAW LSBs (see scales in Holding)
   IREG_P_BASE       = 200,  // 200/201 L1, 202/203 L2, 204/205 L3 — P RAW
   IREG_Q_BASE       = 210,  // 210/211 L1, 212/213 L2, 214/215 L3 — Q RAW
   IREG_S_BASE       = 220,  // 220/221 L1, 222/223 L2, 224/225 L3 — S RAW
@@ -556,7 +540,7 @@ enum : uint16_t {
   IREG_E_S_RAW      = 304,  // 304: SAenergyT (apparent)
 
   // -------- Energies (engineered, ×1e3 for kWh/kvarh/kVAh milli-units) --------
-  IREG_E_AP_MILLI   = 310,  // 310/311: kWh*1000 (u32) = raw * e_ap_kWh_per_cnt_x1e5 / 1e2
+  IREG_E_AP_MILLI   = 310,  // 310/311: kWh*1000 (u32)
   IREG_E_AN_MILLI   = 312,  // 312/313
   IREG_E_RP_MILLI   = 314,  // 314/315
   IREG_E_RN_MILLI   = 316,  // 316/317
@@ -576,11 +560,11 @@ enum : uint16_t {
   HREG_SUMMODE      = 402,  // 0/1
   HREG_UCAL         = 403,  // ucal
 
-  HREG_P_SCALE_mW_L = 404,  // p_scale_mW_per_lsb (u32 split)
+  HREG_P_SCALE_mW_L = 404,  // u32 split (low/high)
   HREG_P_SCALE_mW_H = 405,
-  HREG_Q_SCALE_X1k_L= 406,  // q_scale_mvar_per_lsb_x1000
+  HREG_Q_SCALE_X1k_L= 406,
   HREG_Q_SCALE_X1k_H= 407,
-  HREG_S_SCALE_X1k_L= 408,  // s_scale_mva_per_lsb_x1000
+  HREG_S_SCALE_X1k_L= 408,
   HREG_S_SCALE_X1k_H= 409,
 
   HREG_E_AP_kWh_x1e5_L = 410, HREG_E_AP_kWh_x1e5_H = 411,
@@ -595,9 +579,7 @@ enum : uint16_t {
   ISTS_RLY_BASE    = 540,  // 540..541
 
   COIL_RLY1        = 600,
-  COIL_RLY2        = 601,
-  COIL_SAVE_CFG    = 610,
-  COIL_REBOOT      = 611
+  COIL_RLY2        = 601
 };
 
 // ================== Helpers ==================
@@ -629,13 +611,6 @@ void applyModbusSettings(uint8_t addr, uint32_t baud) {
   g_mb_address = addr; g_mb_baud = baud;
   modbusStatus["address"] = g_mb_address;
   modbusStatus["baud"]    = g_mb_baud;
-}
-
-void performReset() {
-  if (Serial) Serial.flush();
-  delay(50);
-  watchdog_reboot(0, 0, 0);
-  while (true) { __asm__("wfi"); }
 }
 
 // ---- WebSerial echo helpers ----
@@ -693,11 +668,7 @@ void sendMeterEcho(double urms[3], double irms[3],
 
   m["Eraw"]["AP"]=e_ap_raw; m["Eraw"]["AN"]=e_an_raw; m["Eraw"]["RP"]=e_rp_raw; m["Eraw"]["RN"]=e_rn_raw; m["Eraw"]["S"]=e_s_raw;
 
-  // quick engineered previews (uses current holding scales)
-  auto u32from = [](uint16_t lo, uint16_t hi)->uint32_t{ return ((uint32_t)hi<<16)|lo; };
-  // energy example: milli‑kWh = raw * (kWh_per_cnt * 1e5) / 1e2
   auto e_milli = [](uint16_t raw, uint32_t k_per_cnt_x1e5)->uint32_t{
-    // (raw * k_per_cnt_x1e5) / 100 -> milli‑kWh
     return (uint32_t)(( (uint64_t)raw * (uint64_t)k_per_cnt_x1e5 ) / 100ULL);
   };
   m["E"]["AP_mkWh"]= e_milli(e_ap_raw, e_ap_kWh_per_cnt_x1e5);
@@ -736,7 +707,6 @@ void handleUnifiedConfig(JSONVar obj) {
     if (uc != atm_ucal)       { atm_ucal       = uc; reinit = true; }
     int smp = (int)c["sample_ms"]; sample_ms = (uint16_t)constrain(smp, 10, 5000);
 
-    // scales (optional in payload)
     uint32_t v;
     if ((v=(uint32_t)c["p_mW_per_lsb"]))         p_scale_mW_per_lsb = v;
     if ((v=(uint32_t)c["q_mvar_x1k_per_lsb"]))   q_scale_mvar_per_lsb_x1000 = v;
@@ -765,7 +735,10 @@ void handleUnifiedConfig(JSONVar obj) {
   else if (type == "buttons") {
     JSONVar list = obj["list"];
     for (int i=0;i<4 && i<list.length();i++) {
-      buttonCfg[i].action = (uint8_t)constrain((int)list[i]["action"], 0, 8);
+      // remove actions for Save/Reset by clamping to 0..6
+      int a = (int)list[i]["action"];
+      if (a < 0) a = 0; if (a > 6) a = 6;
+      buttonCfg[i].action = (uint8_t)a;
     }
     WebSerial.send("message", "Buttons configuration updated");
     JSONVar btnCfg; for(int i=0;i<4;i++) btnCfg[i]=buttonCfg[i].action;
@@ -786,33 +759,6 @@ void handleUnifiedConfig(JSONVar obj) {
   }
 
   if (changed) { cfgDirty = true; lastCfgTouchMs = millis(); }
-}
-
-// Commands: { action:"reset" | "save" | "load" | "factory" | "rlytest" }
-void handleCommand(JSONVar obj) {
-  const char* actC = (const char*)obj["action"];
-  if (!actC) { WebSerial.send("message", "command: missing 'action'"); return; }
-  String act = String(actC); act.toLowerCase();
-
-  if (act == "reset" || act == "reboot") {
-    saveConfigFS(); WebSerial.send("message", "Rebooting…"); delay(120); performReset();
-  } else if (act == "save") {
-    if (saveConfigFS()) WebSerial.send("message", "Configuration saved");
-    else                WebSerial.send("message", "ERROR: Save failed");
-  } else if (act == "load") {
-    if (loadConfigFS()) { WebSerial.send("message", "Configuration loaded"); applyModbusSettings(g_mb_address, g_mb_baud); sendAllEchoesOnce(); }
-    else WebSerial.send("message", "ERROR: Load failed/invalid");
-  } else if (act == "factory") {
-    setDefaults();
-    if (saveConfigFS()) { WebSerial.send("message", "Factory defaults restored & saved"); applyModbusSettings(g_mb_address, g_mb_baud); sendAllEchoesOnce(); }
-    else WebSerial.send("message", "ERROR: Save after factory reset failed");
-  } else if (act == "rlytest") {
-    for (int k=0;k<2;k++) { setRelayPhys(0, true); setRelayPhys(1, true); delay(150);
-                            setRelayPhys(0, false); setRelayPhys(1, false); delay(150); }
-    WebSerial.send("message", "Relay test completed");
-  } else {
-    WebSerial.send("message", String("Unknown command: ") + actC);
-  }
 }
 
 // ================== Setup ==================
@@ -860,7 +806,7 @@ void setup() {
   for (uint16_t i=0;i<3;i++) mb.addIreg(IREG_URMS_BASE + i);
   for (uint16_t i=0;i<3;i++) mb.addIreg(IREG_IRMS_BASE + i);
 
-  for (uint16_t i=0;i<6;i++) mb.addIreg(IREG_P_BASE + i);  // P L1..L3 (2 regs ea)
+  for (uint16_t i=0;i<6;i++) mb.addIreg(IREG_P_BASE + i);
   for (uint16_t i=0;i<6;i++) mb.addIreg(IREG_Q_BASE + i);
   for (uint16_t i=0;i<6;i++) mb.addIreg(IREG_S_BASE + i);
   for (uint16_t i=0;i<2;i++) mb.addIreg(IREG_PTOT + i);
@@ -874,8 +820,8 @@ void setup() {
   mb.addIreg(IREG_FREQ_X100);
   mb.addIreg(IREG_TEMP_C);
 
-  for (uint16_t i=0;i<5;i++) mb.addIreg(IREG_E_AP_RAW + i);  // raw energy words
-  for (uint16_t i=0;i<10;i++) mb.addIreg(IREG_E_AP_MILLI + i); // engineered u32 energies
+  for (uint16_t i=0;i<5;i++) mb.addIreg(IREG_E_AP_RAW + i);
+  for (uint16_t i=0;i<10;i++) mb.addIreg(IREG_E_AP_MILLI + i);
 
   mb.addIreg(IREG_EMM0); mb.addIreg(IREG_EMM1); mb.addIreg(IREG_INT0); mb.addIreg(IREG_INT1);
   mb.addIreg(IREG_CRCERR); mb.addIreg(IREG_LASTSPI);
@@ -887,15 +833,14 @@ void setup() {
   mb.addHreg(HREG_UCAL);     mb.Hreg(HREG_UCAL,     atm_ucal);
 
   auto setU32 = [&](uint16_t regL, uint32_t v){ mb.addHreg(regL); mb.addHreg(regL+1); mb.Hreg(regL, (uint16_t)(v & 0xFFFF)); mb.Hreg(regL+1, (uint16_t)(v>>16)); };
-  setU32(HREG_P_SCALE_mW_L, p_scale_mW_per_lsb);
-  setU32(HREG_Q_SCALE_X1k_L, q_scale_mvar_per_lsb_x1000);
-  setU32(HREG_S_SCALE_X1k_L, s_scale_mva_per_lsb_x1000);
-
+  setU32(HREG_P_SCALE_mW_L,    p_scale_mW_per_lsb);
+  setU32(HREG_Q_SCALE_X1k_L,   q_scale_mvar_per_lsb_x1000);
+  setU32(HREG_S_SCALE_X1k_L,   s_scale_mva_per_lsb_x1000);
   setU32(HREG_E_AP_kWh_x1e5_L, e_ap_kWh_per_cnt_x1e5);
   setU32(HREG_E_AN_kWh_x1e5_L, e_an_kWh_per_cnt_x1e5);
   setU32(HREG_E_RP_kvarh_x1e5_L, e_rp_kvarh_per_cnt_x1e5);
   setU32(HREG_E_RN_kvarh_x1e5_L, e_rn_kvarh_per_cnt_x1e5);
-  setU32(HREG_E_S_kVAh_x1e5_L, e_s_kVAh_per_cnt_x1e5);
+  setU32(HREG_E_S_kVAh_x1e5_L,  e_s_kVAh_per_cnt_x1e5);
 
   // ---- Discrete & Coils ----
   for (uint16_t i=0;i<4;i++) mb.addIsts(ISTS_LED_BASE + i);
@@ -904,13 +849,10 @@ void setup() {
 
   mb.addCoil(COIL_RLY1); mb.Coil(COIL_RLY1, relayState[0]);
   mb.addCoil(COIL_RLY2); mb.Coil(COIL_RLY2, relayState[1]);
-  mb.addCoil(COIL_SAVE_CFG);
-  mb.addCoil(COIL_REBOOT);
 
-  // WebSerial handlers
+  // WebSerial handlers (no "command" endpoint)
   WebSerial.on("values",  handleValues);
   WebSerial.on("Config",  handleUnifiedConfig);
-  WebSerial.on("command", handleCommand);
 
   // Initial echoes
   sendAllEchoesOnce();
@@ -947,7 +889,7 @@ void serviceHregWrites() {
 }
 
 // ================== Button actions ==================
-// Actions: 0 None | 1 Toggle Relay1 | 2 Toggle Relay2 | 3..6 Toggle LED0..3 | 7 Save | 8 Reset
+// Actions: 0 None | 1 Toggle Relay1 | 2 Toggle Relay2 | 3..6 Toggle LED0..3
 void doButtonAction(uint8_t idx) {
   uint8_t act = buttonCfg[idx].action;
   switch (act) {
@@ -955,8 +897,7 @@ void doButtonAction(uint8_t idx) {
     case 1: setRelayPhys(0, !relayState[0]); break;
     case 2: setRelayPhys(1, !relayState[1]); break;
     case 3: case 4: case 5: case 6: { uint8_t led = act - 3; ledManual[led] = !ledManual[led]; break; }
-    case 7: { if (saveConfigFS()) WebSerial.send("message","Configuration saved"); else WebSerial.send("message","ERROR: Save failed"); break; }
-    case 8: { WebSerial.send("message","Rebooting…"); delay(120); performReset(); break; }
+    default: break; // ignore any higher codes (7/8 removed)
   }
 }
 
@@ -994,9 +935,6 @@ void loop() {
   if (mb.Coil(COIL_RLY1) != relayState[0]) setRelayPhys(0, mb.Coil(COIL_RLY1));
   if (mb.Coil(COIL_RLY2) != relayState[1]) setRelayPhys(1, mb.Coil(COIL_RLY2));
 
-  if (mb.Coil(COIL_SAVE_CFG)) { if (saveConfigFS()) WebSerial.send("message","Configuration saved"); else WebSerial.send("message","ERROR: Save failed"); mb.Coil(COIL_SAVE_CFG,false); }
-  if (mb.Coil(COIL_REBOOT))   { WebSerial.send("message","Rebooting…"); delay(120); performReset(); }
-
   // Buttons
   for (int i = 0; i < 4; i++) {
     bool pressed = readPressed(i);
@@ -1028,7 +966,7 @@ void loop() {
     for (int i=0;i<3;i++) mb.Ireg(IREG_URMS_BASE + i, clampU(urms[i]));
     for (int i=0;i<3;i++) mb.Ireg(IREG_IRMS_BASE + i, clampI(irms[i]));
 
-    // ---- Powers RAW (compose 24-bit signed -> publish as s32 split) ----
+    // ---- Powers RAW ----
     int32_t p_raw[4], q_raw[4], s_raw[4];
     p_raw[0]=read_power32(PmeanA, PmeanALSB); p_raw[1]=read_power32(PmeanB, PmeanBLSB); p_raw[2]=read_power32(PmeanC, PmeanCLSB);
     q_raw[0]=read_power32(QmeanA, QmeanALSB); q_raw[1]=read_power32(QmeanB, QmeanBLSB); q_raw[2]=read_power32(QmeanC, QmeanCLSB);
@@ -1067,7 +1005,7 @@ void loop() {
     mb.Ireg(IREG_FREQ_X100, fraw);
     mb.Ireg(IREG_TEMP_C, (uint16_t)tC);
 
-    // ---- Energies ---- (raw)
+    // ---- Energies ----
     uint16_t e_ap = atm90_read16(APenergyT);
     uint16_t e_an = atm90_read16(ANenergyT);
     uint16_t e_rp = atm90_read16(RPenergyT);
@@ -1079,7 +1017,6 @@ void loop() {
     mb.Ireg(IREG_E_RN_RAW, e_rn);
     mb.Ireg(IREG_E_S_RAW,  e_s);
 
-    // Engineered energies (u32 milli‑units): mkWh = raw * (kWh_per_cnt_x1e5)/100
     auto e_milli = [](uint16_t raw, uint32_t k_per_cnt_x1e5)->uint32_t{
       return (uint32_t)(( (uint64_t)raw * (uint64_t)k_per_cnt_x1e5 ) / 100ULL);
     };
