@@ -1,0 +1,1132 @@
+// ==== ENM-223-R1 (RP2350/RP2040) ====
+// ATM90E32 via SPI1 (NO external library) + 2x Relays on GPIO0/1
+// WebSerial UI, Modbus RTU, LittleFS persistence
+// Buttons: GPIO22..25, LEDs: GPIO18..21
+// ============================================================================
+
+// ---- FIX for Arduino auto-prototype: make PersistConfig visible to auto-prototypes
+struct PersistConfig;
+
+#include <Arduino.h>
+#include <SPI.h>
+#include <ModbusSerial.h>
+#include <SimpleWebSerial.h>
+#include <Arduino_JSON.h>
+#include <LittleFS.h>
+#include <utility>
+#include "hardware/watchdog.h"
+#include <math.h>
+
+// ================== Hardware pins ==================
+#define LED_ACTIVE_LOW       0   // 1 if LEDs are active-LOW
+#define BUTTON_USES_PULLUP   0   // 1 uses INPUT_PULLUP (pressed=LOW)
+#define RELAY_ACTIVE_LOW     0   // 1 if relays are active-LOW
+
+const uint8_t LED_PINS[4]    = {18,19,20,21};
+const uint8_t BUTTON_PINS[4] = {22,23,24,25};
+const uint8_t RELAY_PINS[2]  = {0,1};
+
+// ===== ATM90E32 on SPI1 (NO LIB) =====
+#define MCM_SPI SPI1
+static const uint8_t PIN_SPI_SCK  = 10;
+static const uint8_t PIN_SPI_MOSI = 11;
+static const uint8_t PIN_SPI_MISO = 12;
+static const uint8_t PIN_ATM_CS   = 13;
+
+static const uint8_t PIN_PM1 = 2;
+static const uint8_t PIN_PM0 = 3;
+
+#define CS_ACTIVE_HIGH 0
+#define ATM_SPI_MODE   SPI_MODE0
+#define SPI_HZ         200000     // conservative during init + reads
+
+inline void csAssert()  { digitalWrite(PIN_ATM_CS, CS_ACTIVE_HIGH ? HIGH : LOW); }
+inline void csRelease() { digitalWrite(PIN_ATM_CS, CS_ACTIVE_HIGH ? LOW  : HIGH); }
+
+// ================== Modbus / RS-485 ==================
+#define TX2 4
+#define RX2 5
+const int TxenPin = -1;     // -1 if not using TXEN
+int SlaveId = 1;
+ModbusSerial mb(Serial2, SlaveId, TxenPin);
+
+// ================== Buttons & LEDs config ==================
+struct LedCfg   { uint8_t mode;   uint8_t source; }; // mode: 0 steady, 1 blink; source: see evalLedSource()
+struct ButtonCfg{ uint8_t action; };                 // actions below
+
+LedCfg    ledCfg[4];
+ButtonCfg buttonCfg[4];
+
+bool      ledManual[4] = {false,false,false,false};   // manual toggles
+bool      ledPhys[4]   = {false,false,false,false};   // physical pin state tracking
+
+// Button runtime
+constexpr unsigned long BTN_DEBOUNCE_MS = 30;
+bool buttonState[4]      = {false,false,false,false};
+bool buttonPrev[4]       = {false,false,false,false};
+unsigned long btnChangeAt[4] = {0,0,0,0};
+
+// Relays
+bool relayState[2] = {false,false}; // logical state
+
+// ================== Web Serial ==================
+SimpleWebSerial WebSerial;
+JSONVar modbusStatus;
+
+// ================== Timing ==================
+unsigned long lastSend = 0;
+const unsigned long sendInterval = 500;
+unsigned long lastBlinkToggle = 0;
+const unsigned long blinkPeriodMs = 500;
+bool blinkPhase = false;
+unsigned long lastSample = 0;
+bool samplingTick = false;
+
+// ================== Persisted settings ==================
+uint8_t  g_mb_address = 3;
+uint32_t g_mb_baud    = 19200;
+uint16_t sample_ms    = 200;     // meter poll period
+
+// ATM90E32 options (persisted)
+uint16_t atm_lineFreqHz = 50;    // 50 or 60
+uint8_t  atm_sumModeAbs = 1;     // affects MMode0
+uint16_t atm_ucal       = 25256; // voltage calibration (used by vSag calc)
+
+// Measurement scaling (persisted) —— tune to your calibration:
+// We publish RAW 32-bit powers (from chip). To also publish "engineering" numbers,
+// we apply these scales in firmware (holdings are RW to tweak at runtime).
+// Units per LSB (fixed-point):
+//  - p_scale_mW_per_lsb: milliwatts per raw LSB for P registers (Pmean*)
+//  - q_scale_mvar_per_lsb_x1000: (var) -> mvar *1000 per LSB   (keep same base as P if desired)
+//  - s_scale_mva_per_lsb_x1000:   (VA)  -> mVA  *1000 per LSB
+// Start with a safe default = 1 LSB == 1 mW (so W ≈ raw/1000).
+uint32_t p_scale_mW_per_lsb            = 1;    // default: 1 mW / LSB
+uint32_t q_scale_mvar_per_lsb_x1000    = 1;    // default: 1 mvar*1000 / LSB  (so var ≈ raw)
+uint32_t s_scale_mva_per_lsb_x1000     = 1;    // default: 1 mVA*1000  / LSB
+
+// Energy scales (persisted) —— register count to real energy
+//  - e_ap_kWh_per_cnt_x1e5 : kWh per count, scaled ×1e5 to fit 16-bit tuning
+// Same idea for AN (export), RP/RN (reactive), S (apparent).
+uint32_t e_ap_kWh_per_cnt_x1e5 = 1;   // default tiny; set after calibration
+uint32_t e_an_kWh_per_cnt_x1e5 = 1;
+uint32_t e_rp_kvarh_per_cnt_x1e5 = 1;
+uint32_t e_rn_kvarh_per_cnt_x1e5 = 1;
+uint32_t e_s_kVAh_per_cnt_x1e5 = 1;
+
+// Persisted relay polarity & defaults
+uint8_t  relay_active_low = RELAY_ACTIVE_LOW;
+bool     relay_default[2] = {false,false};
+
+// ================== Persistence blob ==================
+struct PersistConfig {
+  uint32_t magic;       // 'ENM2'
+  uint16_t version;
+  uint16_t size;
+
+  // Modbus
+  uint8_t  mb_address;
+  uint32_t mb_baud;
+
+  // App timing
+  uint16_t sample_ms;
+
+  // LEDs & Buttons
+  LedCfg   ledCfg[4];
+  ButtonCfg buttonCfg[4];
+
+  // Relays
+  uint8_t  relay_active_low;
+  uint8_t  relay_default0;
+  uint8_t  relay_default1;
+
+  // ATM90E32 options
+  uint16_t atm_lineFreqHz;
+  uint8_t  atm_sumModeAbs;
+  uint16_t atm_ucal;
+
+  // Scales
+  uint32_t p_scale_mW_per_lsb;
+  uint32_t q_scale_mvar_per_lsb_x1000;
+  uint32_t s_scale_mva_per_lsb_x1000;
+
+  uint32_t e_ap_kWh_per_cnt_x1e5;
+  uint32_t e_an_kWh_per_cnt_x1e5;
+  uint32_t e_rp_kvarh_per_cnt_x1e5;
+  uint32_t e_rn_kvarh_per_cnt_x1e5;
+  uint32_t e_s_kVAh_per_cnt_x1e5;
+
+  uint32_t crc32;
+} __attribute__((packed));
+
+static const uint32_t CFG_MAGIC   = 0x324D4E45UL; // 'ENM2'
+static const uint16_t CFG_VERSION = 0x0004;
+static const char*    CFG_PATH    = "/enm223.bin";
+
+volatile bool   cfgDirty        = false;
+uint32_t        lastCfgTouchMs  = 0;
+const uint32_t  CFG_AUTOSAVE_MS = 1200;
+
+// ================== CRC32 ==================
+uint32_t crc32_update(uint32_t crc, const uint8_t* data, size_t len) {
+  crc = ~crc;
+  while (len--) {
+    crc ^= *data++;
+    for (uint8_t k = 0; k < 8; k++)
+      crc = (crc >> 1) ^ (0xEDB88320UL & (-(int32_t)(crc & 1)));
+  }
+  return ~crc;
+}
+
+inline bool readPressed(int i){
+#if BUTTON_USES_PULLUP
+  return digitalRead(BUTTON_PINS[i]) == LOW;   // pressed = LOW
+#else
+  return digitalRead(BUTTON_PINS[i]) == HIGH;  // pressed = HIGH
+#endif
+}
+
+// ================== Defaults ==================
+void setDefaults() {
+  g_mb_address   = 3;
+  g_mb_baud      = 19200;
+  sample_ms      = 200;
+
+  for (int i=0;i<4;i++) {
+    ledCfg[i].mode = 0;      // steady
+    ledCfg[i].source = (i==0) ? 1 : 0; // LED0 shows heartbeat by default
+    buttonCfg[i].action = 0; // None
+    ledManual[i] = false;
+  }
+
+  relay_active_low = RELAY_ACTIVE_LOW;
+  relay_default[0] = false;
+  relay_default[1] = false;
+
+  atm_lineFreqHz = 50;
+  atm_sumModeAbs = 1;
+  atm_ucal       = 25256;
+
+  p_scale_mW_per_lsb         = 1;
+  q_scale_mvar_per_lsb_x1000 = 1;
+  s_scale_mva_per_lsb_x1000  = 1;
+
+  e_ap_kWh_per_cnt_x1e5  = 1;
+  e_an_kWh_per_cnt_x1e5  = 1;
+  e_rp_kvarh_per_cnt_x1e5= 1;
+  e_rn_kvarh_per_cnt_x1e5= 1;
+  e_s_kVAh_per_cnt_x1e5  = 1;
+}
+
+void captureToPersist(PersistConfig &pc) {
+  pc.magic   = CFG_MAGIC;
+  pc.version = CFG_VERSION;
+  pc.size    = sizeof(PersistConfig);
+
+  pc.mb_address   = g_mb_address;
+  pc.mb_baud      = g_mb_baud;
+  pc.sample_ms    = sample_ms;
+
+  memcpy(pc.ledCfg,   ledCfg,   sizeof(ledCfg));
+  memcpy(pc.buttonCfg,buttonCfg,sizeof(buttonCfg));
+
+  pc.relay_active_low = relay_active_low;
+  pc.relay_default0   = relay_default[0];
+  pc.relay_default1   = relay_default[1];
+
+  pc.atm_lineFreqHz = atm_lineFreqHz;
+  pc.atm_sumModeAbs = atm_sumModeAbs;
+  pc.atm_ucal       = atm_ucal;
+
+  pc.p_scale_mW_per_lsb         = p_scale_mW_per_lsb;
+  pc.q_scale_mvar_per_lsb_x1000 = q_scale_mvar_per_lsb_x1000;
+  pc.s_scale_mva_per_lsb_x1000  = s_scale_mva_per_lsb_x1000;
+
+  pc.e_ap_kWh_per_cnt_x1e5   = e_ap_kWh_per_cnt_x1e5;
+  pc.e_an_kWh_per_cnt_x1e5   = e_an_kWh_per_cnt_x1e5;
+  pc.e_rp_kvarh_per_cnt_x1e5 = e_rp_kvarh_per_cnt_x1e5;
+  pc.e_rn_kvarh_per_cnt_x1e5 = e_rn_kvarh_per_cnt_x1e5;
+  pc.e_s_kVAh_per_cnt_x1e5   = e_s_kVAh_per_cnt_x1e5;
+
+  pc.crc32 = 0;
+  pc.crc32 = crc32_update(0, reinterpret_cast<const uint8_t*>(&pc), sizeof(PersistConfig));
+}
+
+bool applyFromPersist(const PersistConfig &pc) {
+  if (pc.magic != CFG_MAGIC) return false;
+  if (pc.version != CFG_VERSION) return false;
+  if (pc.size != sizeof(PersistConfig)) return false;
+  PersistConfig tmp = pc; uint32_t crc = tmp.crc32; tmp.crc32 = 0;
+  if (crc32_update(0, reinterpret_cast<const uint8_t*>(&tmp), sizeof(PersistConfig)) != crc)
+    return false;
+
+  g_mb_address   = pc.mb_address;
+  g_mb_baud      = pc.mb_baud;
+  sample_ms      = pc.sample_ms;
+
+  memcpy(ledCfg,    pc.ledCfg,    sizeof(ledCfg));
+  memcpy(buttonCfg, pc.buttonCfg, sizeof(buttonCfg));
+
+  relay_active_low = pc.relay_active_low;
+  relay_default[0] = pc.relay_default0;
+  relay_default[1] = pc.relay_default1;
+
+  atm_lineFreqHz = pc.atm_lineFreqHz;
+  atm_sumModeAbs = pc.atm_sumModeAbs;
+  atm_ucal       = pc.atm_ucal;
+
+  p_scale_mW_per_lsb         = pc.p_scale_mW_per_lsb;
+  q_scale_mvar_per_lsb_x1000 = pc.q_scale_mvar_per_lsb_x1000;
+  s_scale_mva_per_lsb_x1000  = pc.s_scale_mva_per_lsb_x1000;
+
+  e_ap_kWh_per_cnt_x1e5   = pc.e_ap_kWh_per_cnt_x1e5;
+  e_an_kWh_per_cnt_x1e5   = pc.e_an_kWh_per_cnt_x1e5;
+  e_rp_kvarh_per_cnt_x1e5 = pc.e_rp_kvarh_per_cnt_x1e5;
+  e_rn_kvarh_per_cnt_x1e5 = pc.e_rn_kvarh_per_cnt_x1e5;
+  e_s_kVAh_per_cnt_x1e5   = pc.e_s_kVAh_per_cnt_x1e5;
+
+  for (int i=0;i<4;i++) ledManual[i] = false;
+  return true;
+}
+
+bool saveConfigFS() {
+  PersistConfig pc{}; captureToPersist(pc);
+  File f = LittleFS.open(CFG_PATH, "w"); if (!f) return false;
+  size_t n = f.write(reinterpret_cast<const uint8_t*>(&pc), sizeof(pc)); f.close();
+  return n == sizeof(pc);
+}
+bool loadConfigFS() {
+  File f = LittleFS.open(CFG_PATH, "r"); if (!f) return false;
+  if (f.size() != sizeof(PersistConfig)) { f.close(); return false; }
+  PersistConfig pc{}; size_t n = f.read(reinterpret_cast<uint8_t*>(&pc), sizeof(pc)); f.close();
+  if (n != sizeof(pc)) return false;
+  return applyFromPersist(pc);
+}
+
+// ================== ATM90E32 REG MAP (subset we use) ==================
+#define WRITE 0
+#define READ  1
+// Status & ctrl
+#define MeterEn       0x00
+#define SagPeakDetCfg 0x05
+#define ZXConfig      0x07
+#define SagTh         0x08
+#define FreqLoTh      0x0C
+#define FreqHiTh      0x0D
+#define SoftReset     0x70
+#define EMMState0     0x71
+#define EMMState1     0x72
+#define EMMIntState0  0x73
+#define EMMIntState1  0x74
+#define EMMIntEn0     0x75
+#define EMMIntEn1     0x76
+#define LastSPIData   0x78
+#define CRCErrStatus  0x79
+#define CfgRegAccEn   0x7F
+
+// Config & calibration
+#define PLconstH 0x31
+#define PLconstL 0x32
+#define MMode0   0x33
+#define MMode1   0x34
+#define PStartTh 0x35
+#define QStartTh 0x36
+#define SStartTh 0x37
+#define PPhaseTh 0x38
+#define QPhaseTh 0x39
+#define SPhaseTh 0x3A
+
+// Adjust (gains/offsets)
+#define UgainA   0x61
+#define IgainA   0x62
+#define UoffsetA 0x63
+#define IoffsetA 0x64
+#define UgainB   0x65
+#define IgainB   0x66
+#define UoffsetB 0x67
+#define IoffsetB 0x68
+#define UgainC   0x69
+#define IgainC   0x6A
+#define UoffsetC 0x6B
+#define IoffsetC 0x6C
+
+// Energy registers (16-bit counters)
+#define APenergyT 0x80
+#define ANenergyT 0x84
+#define RPenergyT 0x88
+#define RNenergyT 0x8C
+#define SAenergyT 0x90
+
+// Powers & PF
+#define PmeanT  0xB0
+#define PmeanA  0xB1
+#define PmeanB  0xB2
+#define PmeanC  0xB3
+#define QmeanT  0xB4
+#define QmeanA  0xB5
+#define QmeanB  0xB6
+#define QmeanC  0xB7
+#define SmeanT  0xB8
+#define SmeanA  0xB9
+#define SmeanB  0xBA
+#define SmeanC  0xBB
+#define PFmeanT 0xBC
+#define PFmeanA 0xBD
+#define PFmeanB 0xBE
+#define PFmeanC 0xBF
+
+// Power LSBs (lower words)
+#define PmeanTLSB 0xC0
+#define PmeanALSB 0xC1
+#define PmeanBLSB 0xC2
+#define PmeanCLSB 0xC3
+#define QmeanTLSB 0xC4
+#define QmeanALSB 0xC5
+#define QmeanBLSB 0xC6
+#define QmeanCLSB 0xC7
+#define SAmeanTLSB 0xC8
+#define SmeanALSB  0xC9
+#define SmeanBLSB  0xCA
+#define SmeanCLSB  0xCB
+
+// RMS, angles, freq, temp
+#define UrmsA     0xD9
+#define UrmsB     0xDA
+#define UrmsC     0xDB
+#define IrmsA     0xDD
+#define IrmsB     0xDE
+#define IrmsC     0xDF
+#define UrmsALSB  0xE9
+#define UrmsBLSB  0xEA
+#define UrmsCLSB  0xEB
+#define IrmsALSB  0xED
+#define IrmsBLSB  0xEE
+#define IrmsCLSB  0xEF
+#define Freq      0xF8
+#define PAngleA   0xF9
+#define PAngleB   0xFA
+#define PAngleC   0xFB
+#define Temp      0xFC
+
+// ================== Low-level SPI ==================
+static uint16_t atm90_transfer(uint8_t rw, uint16_t reg, uint16_t val)
+{
+  uint16_t data_swapped = (uint16_t)((val >> 8) | (val << 8));
+  uint16_t addr = reg | (rw ? 0x8000 : 0x0000);
+  uint16_t addr_swapped = (uint16_t)((addr >> 8) | (addr << 8));
+
+  SPISettings settings(SPI_HZ, MSBFIRST, ATM_SPI_MODE);
+
+  MCM_SPI.beginTransaction(settings);
+  csAssert();
+  delayMicroseconds(10);
+
+  uint8_t *pa = reinterpret_cast<uint8_t*>(&addr_swapped);
+  MCM_SPI.transfer(pa[0]);
+  MCM_SPI.transfer(pa[1]);
+
+  delayMicroseconds(4);
+
+  uint16_t out = 0;
+  if (rw) {
+    uint8_t b0 = MCM_SPI.transfer(0x00);
+    uint8_t b1 = MCM_SPI.transfer(0x00);
+    uint16_t raw = (uint16_t)((uint16_t)b0 | ((uint16_t)b1 << 8));
+    out = (uint16_t)((raw >> 8) | (raw << 8));
+  } else {
+    uint8_t *pd = reinterpret_cast<uint8_t*>(&data_swapped);
+    MCM_SPI.transfer(pd[0]);
+    MCM_SPI.transfer(pd[1]);
+    out = val;
+  }
+
+  csRelease();
+  delayMicroseconds(10);
+  MCM_SPI.endTransaction();
+  return out;
+}
+static inline uint16_t atm90_read16(uint16_t reg) { return atm90_transfer(READ, reg, 0xFFFF); }
+static inline void     atm90_write16(uint16_t reg, uint16_t val) { atm90_transfer(WRITE, reg, val); }
+
+static inline int32_t read_power32(uint16_t regH, uint16_t regLSB)
+{
+  // High word: full 16-bit signed. LSB register uses high byte as extra 8 bits.
+  // Compose 24 bits then sign-extend to 32. (Chip docs show 24-bit effective resolution.)
+  int16_t h = (int16_t)atm90_read16(regH);
+  uint16_t l = atm90_read16(regLSB);
+  int32_t val24 = ((int32_t)h << 8) | ((l >> 8) & 0xFF);
+  // sign extend 24->32:
+  if (val24 & 0x00800000) val24 |= 0xFF000000;
+  return val24;
+}
+
+static inline double read_rms_like(uint16_t regH, uint16_t regLSB, double sH, double sLb)
+{
+  uint16_t h = atm90_read16(regH);
+  uint16_t l = atm90_read16(regLSB);
+  return (h * sH) + (((l >> 8) & 0xFF) * sLb);
+}
+
+// ===== Simple init of the chip =====
+static inline uint8_t gainCode(uint8_t g){ if(g==1)return 0; if(g==2)return 1; if(g==4)return 2; return 1; }
+static void atm90_init()
+{
+  pinMode(PIN_PM1, OUTPUT); pinMode(PIN_PM0, OUTPUT);
+  digitalWrite(PIN_PM1, HIGH); digitalWrite(PIN_PM0, HIGH);
+  delay(5);
+
+  atm90_write16(SoftReset, 0x789A);
+  delay(5);
+  atm90_write16(CfgRegAccEn, 0x55AA);
+  atm90_write16(MeterEn, 0x0001);
+
+  uint16_t sagV, FreqHiThresh, FreqLoThresh;
+  if (atm_lineFreqHz == 60){ sagV=90;  FreqHiThresh=6100; FreqLoThresh=5900; }
+  else                     { sagV=190; FreqHiThresh=5100; FreqLoThresh=4900; }
+  uint16_t vSagTh = (uint16_t)((sagV * 100.0 * sqrt(2.0)) / (2.0 * (atm_ucal / 32768.0)));
+
+  atm90_write16(SagPeakDetCfg, 0x143F);
+  atm90_write16(SagTh,        vSagTh);
+  atm90_write16(FreqHiTh,     FreqHiThresh);
+  atm90_write16(FreqLoTh,     FreqLoThresh);
+  atm90_write16(EMMIntEn0, 0xB76F);
+  atm90_write16(EMMIntEn1, 0xDDFD);
+  atm90_write16(EMMIntState0, 0x0001);
+  atm90_write16(EMMIntState1, 0x0001);
+  atm90_write16(ZXConfig, 0xD654);
+
+  // MMode0 config: line freq, sum mode, etc.
+  uint16_t m0 = 0x019D;
+  if (atm_lineFreqHz == 60) m0 |= (1u<<12); else m0 &= ~(1u<<12);
+  m0 &= ~(0b11u<<3);
+  m0 |= ((atm_sumModeAbs ? 0b11u : 0b00u) << 3);
+  m0 &= ~0b111u; m0 |= 0b101u; // PGA defaults etc.
+
+  // Current gains for A/B/C (we keep 2x default)
+  uint8_t gIA=2,gIB=2,gIC=2;
+  uint8_t m1=0; m1|=(gainCode(gIA)<<0); m1|=(gainCode(gIB)<<2); m1|=(gainCode(gIC)<<4);
+
+  atm90_write16(PLconstH, 0x0861);
+  atm90_write16(PLconstL, 0xC468);
+  atm90_write16(MMode0, m0);
+  atm90_write16(MMode1, m1);
+  atm90_write16(PStartTh, 0x1D4C);
+  atm90_write16(QStartTh, 0x1D4C);
+  atm90_write16(SStartTh, 0x1D4C);
+  atm90_write16(PPhaseTh, 0x02EE);
+  atm90_write16(QPhaseTh, 0x02EE);
+  atm90_write16(SPhaseTh, 0x02EE);
+
+  atm90_write16(UgainA, atm_ucal); atm90_write16(UgainB, atm_ucal); atm90_write16(UgainC, atm_ucal);
+  atm90_write16(IgainA, 0);        atm90_write16(IgainB, 0);        atm90_write16(IgainC, 0);
+  atm90_write16(UoffsetA, 0);      atm90_write16(UoffsetB, 0);      atm90_write16(UoffsetC, 0);
+  atm90_write16(IoffsetA, 0);      atm90_write16(IoffsetB, 0);      atm90_write16(IoffsetC, 0);
+
+  atm90_write16(CfgRegAccEn, 0x0000);
+}
+
+// ================== Modbus map ==================
+enum : uint16_t {
+  // -------- RMS (scaled) --------
+  IREG_URMS_BASE    = 100,  // 100..102: Urms L1..L3 in 0.01 V (u16)
+  IREG_IRMS_BASE    = 110,  // 110..112: Irms L1..L3 in 0.001 A (u16)
+
+  // -------- Powers (RAW 24/32-bit composed) --------
+  // Each is 2 regs (HI then LO), signed 32, RAW LSBs (see scales in Holding)
+  IREG_P_BASE       = 200,  // 200/201 L1, 202/203 L2, 204/205 L3 — P RAW
+  IREG_Q_BASE       = 210,  // 210/211 L1, 212/213 L2, 214/215 L3 — Q RAW
+  IREG_S_BASE       = 220,  // 220/221 L1, 222/223 L2, 224/225 L3 — S RAW
+  IREG_PTOT         = 230,  // 230/231 P_total RAW
+  IREG_QTOT         = 232,  // 232/233 Q_total RAW
+  IREG_STOT         = 234,  // 234/235 S_total RAW
+
+  // -------- PF & Angles --------
+  IREG_PF_BASE      = 240,  // 240..242 PF L1..L3 raw s16 (chip units)
+  IREG_PF_TOT       = 243,  // 243 PF total raw s16
+  IREG_ANGLE_BASE   = 244,  // 244..246 Phase angle L1..L3, 0.1° s16
+
+  // -------- Frequency / Temp --------
+  IREG_FREQ_X100    = 250,  // 250: Hz ×100 (u16)
+  IREG_TEMP_C       = 251,  // 251: °C (s16)
+
+  // -------- Energies (raw counters, 16-bit) --------
+  IREG_E_AP_RAW     = 300,  // 300: APenergyT (import active)
+  IREG_E_AN_RAW     = 301,  // 301: ANenergyT (export active)
+  IREG_E_RP_RAW     = 302,  // 302: RPenergyT (import reactive)
+  IREG_E_RN_RAW     = 303,  // 303: RNenergyT (export reactive)
+  IREG_E_S_RAW      = 304,  // 304: SAenergyT (apparent)
+
+  // -------- Energies (engineered, ×1e3 for kWh/kvarh/kVAh milli-units) --------
+  IREG_E_AP_MILLI   = 310,  // 310/311: kWh*1000 (u32) = raw * e_ap_kWh_per_cnt_x1e5 / 1e2
+  IREG_E_AN_MILLI   = 312,  // 312/313
+  IREG_E_RP_MILLI   = 314,  // 314/315
+  IREG_E_RN_MILLI   = 316,  // 316/317
+  IREG_E_S_MILLI    = 318,  // 318/319
+
+  // -------- Diagnostics --------
+  IREG_EMM0         = 360,
+  IREG_EMM1         = 361,
+  IREG_INT0         = 362,
+  IREG_INT1         = 363,
+  IREG_CRCERR       = 364,
+  IREG_LASTSPI      = 365,
+
+  // -------- Holding (RW scales + opts) --------
+  HREG_SMPLL_MS     = 400,  // sampling period ms (10..5000)
+  HREG_LFREQ_HZ     = 401,  // 50/60
+  HREG_SUMMODE      = 402,  // 0/1
+  HREG_UCAL         = 403,  // ucal
+
+  HREG_P_SCALE_mW_L = 404,  // p_scale_mW_per_lsb (u32 split)
+  HREG_P_SCALE_mW_H = 405,
+  HREG_Q_SCALE_X1k_L= 406,  // q_scale_mvar_per_lsb_x1000
+  HREG_Q_SCALE_X1k_H= 407,
+  HREG_S_SCALE_X1k_L= 408,  // s_scale_mva_per_lsb_x1000
+  HREG_S_SCALE_X1k_H= 409,
+
+  HREG_E_AP_kWh_x1e5_L = 410, HREG_E_AP_kWh_x1e5_H = 411,
+  HREG_E_AN_kWh_x1e5_L = 412, HREG_E_AN_kWh_x1e5_H = 413,
+  HREG_E_RP_kvarh_x1e5_L = 414, HREG_E_RP_kvarh_x1e5_H = 415,
+  HREG_E_RN_kvarh_x1e5_L = 416, HREG_E_RN_kvarh_x1e5_H = 417,
+  HREG_E_S_kVAh_x1e5_L = 418, HREG_E_S_kVAh_x1e5_H = 419,
+
+  // -------- Discrete & Coils --------
+  ISTS_LED_BASE    = 500,  // 500..503
+  ISTS_BTN_BASE    = 520,  // 520..523
+  ISTS_RLY_BASE    = 540,  // 540..541
+
+  COIL_RLY1        = 600,
+  COIL_RLY2        = 601,
+  COIL_SAVE_CFG    = 610,
+  COIL_REBOOT      = 611
+};
+
+// ================== Helpers ==================
+void setLedPhys(uint8_t idx, bool on){
+#if LED_ACTIVE_LOW
+  digitalWrite(LED_PINS[idx], on ? LOW : HIGH);
+#else
+  digitalWrite(LED_PINS[idx], on ? HIGH : LOW);
+#endif
+  ledPhys[idx] = on;
+  mb.setIsts(ISTS_LED_BASE + idx, on);
+}
+void setRelayPhys(uint8_t idx, bool on){
+  bool drive = on ^ (relay_active_low != 0);
+  digitalWrite(RELAY_PINS[idx], drive ? HIGH : LOW);
+  relayState[idx] = on;
+  mb.setIsts(ISTS_RLY_BASE + idx, on);
+}
+template <class M>
+inline auto setSlaveIdIfAvailable(M& m, uint8_t id)
+  -> decltype(std::declval<M&>().setSlaveId(uint8_t{}), void()) { m.setSlaveId(id); }
+inline void setSlaveIdIfAvailable(...) {}
+
+void applyModbusSettings(uint8_t addr, uint32_t baud) {
+  if ((uint32_t)modbusStatus["baud"] != baud) {
+    Serial2.end(); Serial2.begin(baud); mb.config(baud);
+  }
+  setSlaveIdIfAvailable(mb, addr);
+  g_mb_address = addr; g_mb_baud = baud;
+  modbusStatus["address"] = g_mb_address;
+  modbusStatus["baud"]    = g_mb_baud;
+}
+
+void performReset() {
+  if (Serial) Serial.flush();
+  delay(50);
+  watchdog_reboot(0, 0, 0);
+  while (true) { __asm__("wfi"); }
+}
+
+// ---- WebSerial echo helpers ----
+void sendStatusEcho() {
+  modbusStatus["address"] = g_mb_address;
+  modbusStatus["baud"]    = g_mb_baud;
+  WebSerial.send("status", modbusStatus);
+}
+JSONVar LedConfigListFromCfg() {
+  JSONVar arr;
+  for (int i = 0; i < 4; i++) { JSONVar o; o["mode"]=ledCfg[i].mode; o["source"]=ledCfg[i].source; arr[i]=o; }
+  return arr;
+}
+void sendAllEchoesOnce() {
+  sendStatusEcho();
+
+  JSONVar btnCfg; for(int i=0;i<4;i++) btnCfg[i]=buttonCfg[i].action;
+  WebSerial.send("ButtonConfigList", btnCfg);
+
+  WebSerial.send("LedConfigList", LedConfigListFromCfg());
+
+  JSONVar rly; rly[0]=relayState[0]; rly[1]=relayState[1];
+  WebSerial.send("RelayState", rly);
+
+  JSONVar opts;
+  opts["lineHz"]=atm_lineFreqHz; opts["sumAbs"]=atm_sumModeAbs; opts["ucal"]=atm_ucal;
+  opts["sample_ms"]=sample_ms;
+  opts["p_mW_per_lsb"]=p_scale_mW_per_lsb;
+  opts["q_mvar_x1k_per_lsb"]=q_scale_mvar_per_lsb_x1000;
+  opts["s_mva_x1k_per_lsb"]=s_scale_mva_per_lsb_x1000;
+  opts["e_ap_kWh_x1e5"]=e_ap_kWh_per_cnt_x1e5;
+  opts["e_an_kWh_x1e5"]=e_an_kWh_per_cnt_x1e5;
+  opts["e_rp_kvarh_x1e5"]=e_rp_kvarh_per_cnt_x1e5;
+  opts["e_rn_kvarh_x1e5"]=e_rn_kvarh_per_cnt_x1e5;
+  opts["e_s_kVAh_x1e5"]=e_s_kVAh_per_cnt_x1e5;
+  WebSerial.send("MeterOptions", opts);
+}
+
+void sendMeterEcho(double urms[3], double irms[3],
+                   int32_t p_raw[4], int32_t q_raw[4], int32_t s_raw[4],
+                   int16_t pf_raw[4], int16_t ang_raw[3],
+                   uint16_t f_x100, int16_t tC,
+                   uint16_t e_ap_raw, uint16_t e_an_raw, uint16_t e_rp_raw, uint16_t e_rn_raw, uint16_t e_s_raw)
+{
+  JSONVar m;
+  for (int i=0;i<3;i++){ m["Urms"][i]=urms[i]; m["Irms"][i]=irms[i]; }
+
+  for (int i=0;i<3;i++){ m["Praw"][i]=p_raw[i]; m["Qraw"][i]=q_raw[i]; m["Sraw"][i]=s_raw[i]; }
+  m["Ptot_raw"]=p_raw[3]; m["Qtot_raw"]=q_raw[3]; m["Stot_raw"]=s_raw[3];
+
+  for (int i=0;i<3;i++){ m["PFraw"][i]=pf_raw[i]; m["Ang0p1deg"][i]=ang_raw[i]; }
+  m["PFtot_raw"]=pf_raw[3];
+
+  m["FreqHz"]=f_x100/100.0; m["TempC"]=tC;
+
+  m["Eraw"]["AP"]=e_ap_raw; m["Eraw"]["AN"]=e_an_raw; m["Eraw"]["RP"]=e_rp_raw; m["Eraw"]["RN"]=e_rn_raw; m["Eraw"]["S"]=e_s_raw;
+
+  // quick engineered previews (uses current holding scales)
+  auto u32from = [](uint16_t lo, uint16_t hi)->uint32_t{ return ((uint32_t)hi<<16)|lo; };
+  // energy example: milli‑kWh = raw * (kWh_per_cnt * 1e5) / 1e2
+  auto e_milli = [](uint16_t raw, uint32_t k_per_cnt_x1e5)->uint32_t{
+    // (raw * k_per_cnt_x1e5) / 100 -> milli‑kWh
+    return (uint32_t)(( (uint64_t)raw * (uint64_t)k_per_cnt_x1e5 ) / 100ULL);
+  };
+  m["E"]["AP_mkWh"]= e_milli(e_ap_raw, e_ap_kWh_per_cnt_x1e5);
+  m["E"]["AN_mkWh"]= e_milli(e_an_raw, e_an_kWh_per_cnt_x1e5);
+  m["E"]["RP_mkvarh"]= e_milli(e_rp_raw, e_rp_kvarh_per_cnt_x1e5);
+  m["E"]["RN_mkvarh"]= e_milli(e_rn_raw, e_rn_kvarh_per_cnt_x1e5);
+  m["E"]["S_mkVAh"]= e_milli(e_s_raw, e_s_kVAh_per_cnt_x1e5);
+
+  WebSerial.send("ENM_Meter", m);
+}
+
+// ---- WebSerial handlers ----
+void handleValues(JSONVar values) {
+  int addr = (int)values["mb_address"];
+  int baud = (int)values["mb_baud"];
+  addr = constrain(addr, 1, 255);
+  baud = constrain(baud, 9600, 115200);
+  applyModbusSettings((uint8_t)addr, (uint32_t)baud);
+  WebSerial.send("message", "Modbus configuration updated");
+  cfgDirty = true; lastCfgTouchMs = millis();
+}
+
+void handleUnifiedConfig(JSONVar obj) {
+  const char* t = (const char*)obj["t"];
+  if (!t) { WebSerial.send("message", "Config: missing 't'"); return; }
+  String type = String(t);
+  bool changed = false, reinit = false;
+
+  if (type == "meter") {
+    JSONVar c = obj["cfg"];
+    uint16_t lf = (uint16_t)constrain((int)c["lineHz"], 50, 60);
+    uint8_t  sm = (uint8_t)constrain((int)c["sumAbs"], 0, 1);
+    uint16_t uc = (uint16_t)constrain((int)c["ucal"], 1, 65535);
+    if (lf != atm_lineFreqHz) { atm_lineFreqHz = lf; reinit = true; }
+    if (sm != atm_sumModeAbs) { atm_sumModeAbs = sm; reinit = true; }
+    if (uc != atm_ucal)       { atm_ucal       = uc; reinit = true; }
+    int smp = (int)c["sample_ms"]; sample_ms = (uint16_t)constrain(smp, 10, 5000);
+
+    // scales (optional in payload)
+    uint32_t v;
+    if ((v=(uint32_t)c["p_mW_per_lsb"]))         p_scale_mW_per_lsb = v;
+    if ((v=(uint32_t)c["q_mvar_x1k_per_lsb"]))   q_scale_mvar_per_lsb_x1000 = v;
+    if ((v=(uint32_t)c["s_mva_x1k_per_lsb"]))    s_scale_mva_per_lsb_x1000  = v;
+
+    if ((v=(uint32_t)c["e_ap_kWh_x1e5"]))  e_ap_kWh_per_cnt_x1e5 = v;
+    if ((v=(uint32_t)c["e_an_kWh_x1e5"]))  e_an_kWh_per_cnt_x1e5 = v;
+    if ((v=(uint32_t)c["e_rp_kvarh_x1e5"]))e_rp_kvarh_per_cnt_x1e5 = v;
+    if ((v=(uint32_t)c["e_rn_kvarh_x1e5"]))e_rn_kvarh_per_cnt_x1e5 = v;
+    if ((v=(uint32_t)c["e_s_kVAh_x1e5"]))  e_s_kVAh_per_cnt_x1e5 = v;
+
+    changed = true;
+    if (reinit) atm90_init();
+    WebSerial.send("message", "Meter options updated");
+  }
+  else if (type == "leds") {
+    JSONVar list = obj["list"];
+    for (int i=0;i<4 && i<list.length();i++) {
+      ledCfg[i].mode   = (uint8_t)constrain((int)list[i]["mode"],   0, 1);
+      ledCfg[i].source = (uint8_t)constrain((int)list[i]["source"], 0, 7);
+    }
+    WebSerial.send("message", "LEDs configuration updated");
+    WebSerial.send("LedConfigList", LedConfigListFromCfg());
+    changed = true;
+  }
+  else if (type == "buttons") {
+    JSONVar list = obj["list"];
+    for (int i=0;i<4 && i<list.length();i++) {
+      buttonCfg[i].action = (uint8_t)constrain((int)list[i]["action"], 0, 8);
+    }
+    WebSerial.send("message", "Buttons configuration updated");
+    JSONVar btnCfg; for(int i=0;i<4;i++) btnCfg[i]=buttonCfg[i].action;
+    WebSerial.send("ButtonConfigList", btnCfg);
+    changed = true;
+  }
+  else if (type == "relays") {
+    JSONVar rcfg = obj["cfg"];
+    relay_active_low = (uint8_t)constrain((int)rcfg["active_low"], 0, 1);
+    relay_default[0] = (bool)rcfg["def0"];
+    relay_default[1] = (bool)rcfg["def1"];
+    setRelayPhys(0, relayState[0]); setRelayPhys(1, relayState[1]);
+    WebSerial.send("message", "Relay configuration updated");
+    changed = true;
+  }
+  else {
+    WebSerial.send("message", String("Unknown Config type: ") + t);
+  }
+
+  if (changed) { cfgDirty = true; lastCfgTouchMs = millis(); }
+}
+
+// Commands: { action:"reset" | "save" | "load" | "factory" | "rlytest" }
+void handleCommand(JSONVar obj) {
+  const char* actC = (const char*)obj["action"];
+  if (!actC) { WebSerial.send("message", "command: missing 'action'"); return; }
+  String act = String(actC); act.toLowerCase();
+
+  if (act == "reset" || act == "reboot") {
+    saveConfigFS(); WebSerial.send("message", "Rebooting…"); delay(120); performReset();
+  } else if (act == "save") {
+    if (saveConfigFS()) WebSerial.send("message", "Configuration saved");
+    else                WebSerial.send("message", "ERROR: Save failed");
+  } else if (act == "load") {
+    if (loadConfigFS()) { WebSerial.send("message", "Configuration loaded"); applyModbusSettings(g_mb_address, g_mb_baud); sendAllEchoesOnce(); }
+    else WebSerial.send("message", "ERROR: Load failed/invalid");
+  } else if (act == "factory") {
+    setDefaults();
+    if (saveConfigFS()) { WebSerial.send("message", "Factory defaults restored & saved"); applyModbusSettings(g_mb_address, g_mb_baud); sendAllEchoesOnce(); }
+    else WebSerial.send("message", "ERROR: Save after factory reset failed");
+  } else if (act == "rlytest") {
+    for (int k=0;k<2;k++) { setRelayPhys(0, true); setRelayPhys(1, true); delay(150);
+                            setRelayPhys(0, false); setRelayPhys(1, false); delay(150); }
+    WebSerial.send("message", "Relay test completed");
+  } else {
+    WebSerial.send("message", String("Unknown command: ") + actC);
+  }
+}
+
+// ================== Setup ==================
+void setup() {
+  Serial.begin(115200);
+
+  for (uint8_t i=0;i<4;i++) { pinMode(LED_PINS[i], OUTPUT); setLedPhys(i, false); }
+  for (uint8_t i=0;i<4;i++) {
+#if BUTTON_USES_PULLUP
+    pinMode(BUTTON_PINS[i], INPUT_PULLUP);
+#else
+    pinMode(BUTTON_PINS[i], INPUT);
+#endif
+  }
+  for (uint8_t i=0;i<2;i++) { pinMode(RELAY_PINS[i], OUTPUT); }
+
+  setDefaults();
+
+  // LittleFS
+  if (!LittleFS.begin()) { WebSerial.send("message", "LittleFS mount failed. Formatting…"); LittleFS.format(); LittleFS.begin(); }
+  if (loadConfigFS()) WebSerial.send("message", "Config loaded from flash");
+  else { WebSerial.send("message", "No valid config. Using defaults."); saveConfigFS(); }
+
+  // Apply relay defaults
+  setRelayPhys(0, relay_default[0]);
+  setRelayPhys(1, relay_default[1]);
+
+  // SPI1 + CS
+  pinMode(PIN_ATM_CS, OUTPUT); csRelease();
+  MCM_SPI.setSCK(PIN_SPI_SCK);
+  MCM_SPI.setTX(PIN_SPI_MOSI);
+  MCM_SPI.setRX(PIN_SPI_MISO);
+  MCM_SPI.begin();
+
+  // Meter init
+  atm90_init();
+
+  // Modbus RTU
+  Serial2.setTX(TX2); Serial2.setRX(RX2);
+  Serial2.begin(g_mb_baud);
+  mb.config(g_mb_baud);
+  setSlaveIdIfAvailable(mb, g_mb_address);
+
+  // ---- Register telemetry ----
+  for (uint16_t i=0;i<3;i++) mb.addIreg(IREG_URMS_BASE + i);
+  for (uint16_t i=0;i<3;i++) mb.addIreg(IREG_IRMS_BASE + i);
+
+  for (uint16_t i=0;i<6;i++) mb.addIreg(IREG_P_BASE + i);  // P L1..L3 (2 regs ea)
+  for (uint16_t i=0;i<6;i++) mb.addIreg(IREG_Q_BASE + i);
+  for (uint16_t i=0;i<6;i++) mb.addIreg(IREG_S_BASE + i);
+  for (uint16_t i=0;i<2;i++) mb.addIreg(IREG_PTOT + i);
+  for (uint16_t i=0;i<2;i++) mb.addIreg(IREG_QTOT + i);
+  for (uint16_t i=0;i<2;i++) mb.addIreg(IREG_STOT + i);
+
+  for (uint16_t i=0;i<3;i++) mb.addIreg(IREG_PF_BASE + i);
+  mb.addIreg(IREG_PF_TOT);
+  for (uint16_t i=0;i<3;i++) mb.addIreg(IREG_ANGLE_BASE + i);
+
+  mb.addIreg(IREG_FREQ_X100);
+  mb.addIreg(IREG_TEMP_C);
+
+  for (uint16_t i=0;i<5;i++) mb.addIreg(IREG_E_AP_RAW + i);  // raw energy words
+  for (uint16_t i=0;i<10;i++) mb.addIreg(IREG_E_AP_MILLI + i); // engineered u32 energies
+
+  mb.addIreg(IREG_EMM0); mb.addIreg(IREG_EMM1); mb.addIreg(IREG_INT0); mb.addIreg(IREG_INT1);
+  mb.addIreg(IREG_CRCERR); mb.addIreg(IREG_LASTSPI);
+
+  // ---- Holding (RW) ----
+  mb.addHreg(HREG_SMPLL_MS); mb.Hreg(HREG_SMPLL_MS, sample_ms);
+  mb.addHreg(HREG_LFREQ_HZ); mb.Hreg(HREG_LFREQ_HZ, atm_lineFreqHz);
+  mb.addHreg(HREG_SUMMODE);  mb.Hreg(HREG_SUMMODE,  atm_sumModeAbs);
+  mb.addHreg(HREG_UCAL);     mb.Hreg(HREG_UCAL,     atm_ucal);
+
+  auto setU32 = [&](uint16_t regL, uint32_t v){ mb.addHreg(regL); mb.addHreg(regL+1); mb.Hreg(regL, (uint16_t)(v & 0xFFFF)); mb.Hreg(regL+1, (uint16_t)(v>>16)); };
+  setU32(HREG_P_SCALE_mW_L, p_scale_mW_per_lsb);
+  setU32(HREG_Q_SCALE_X1k_L, q_scale_mvar_per_lsb_x1000);
+  setU32(HREG_S_SCALE_X1k_L, s_scale_mva_per_lsb_x1000);
+
+  setU32(HREG_E_AP_kWh_x1e5_L, e_ap_kWh_per_cnt_x1e5);
+  setU32(HREG_E_AN_kWh_x1e5_L, e_an_kWh_per_cnt_x1e5);
+  setU32(HREG_E_RP_kvarh_x1e5_L, e_rp_kvarh_per_cnt_x1e5);
+  setU32(HREG_E_RN_kvarh_x1e5_L, e_rn_kvarh_per_cnt_x1e5);
+  setU32(HREG_E_S_kVAh_x1e5_L, e_s_kVAh_per_cnt_x1e5);
+
+  // ---- Discrete & Coils ----
+  for (uint16_t i=0;i<4;i++) mb.addIsts(ISTS_LED_BASE + i);
+  for (uint16_t i=0;i<4;i++) mb.addIsts(ISTS_BTN_BASE + i);
+  for (uint16_t i=0;i<2;i++) mb.addIsts(ISTS_RLY_BASE + i);
+
+  mb.addCoil(COIL_RLY1); mb.Coil(COIL_RLY1, relayState[0]);
+  mb.addCoil(COIL_RLY2); mb.Coil(COIL_RLY2, relayState[1]);
+  mb.addCoil(COIL_SAVE_CFG);
+  mb.addCoil(COIL_REBOOT);
+
+  // WebSerial handlers
+  WebSerial.on("values",  handleValues);
+  WebSerial.on("Config",  handleUnifiedConfig);
+  WebSerial.on("command", handleCommand);
+
+  // Initial echoes
+  sendAllEchoesOnce();
+  WebSerial.send("message", "Boot OK (ENM-223-R1, ATM90E32 on SPI1 + 2x Relays, NO library)");
+}
+
+// ================== HREG write watcher ==================
+static uint32_t readU32H(uint16_t regL){ return ((uint32_t)mb.Hreg(regL+1)<<16) | mb.Hreg(regL); }
+
+void serviceHregWrites() {
+  static uint16_t prevSm = 0xFFFF, prevLf = 0xFFFF, prevSu = 0xFFFF, prevUc = 0xFFFF;
+  uint16_t sm = mb.Hreg(HREG_SMPLL_MS);
+  uint16_t lf = mb.Hreg(HREG_LFREQ_HZ);
+  uint16_t su = mb.Hreg(HREG_SUMMODE);
+  uint16_t uc = mb.Hreg(HREG_UCAL);
+
+  bool reinit=false;
+  if (sm != prevSm) { prevSm=sm; sample_ms = constrain((int)sm, 10, 5000); cfgDirty=true; lastCfgTouchMs=millis(); }
+  if (lf != prevLf) { prevLf=lf; atm_lineFreqHz = (uint16_t)((lf==60)?60:50); reinit=true; }
+  if (su != prevSu) { prevSu=su; atm_sumModeAbs = (uint8_t)((su)?1:0); reinit=true; }
+  if (uc != prevUc) { prevUc=uc; atm_ucal = uc; reinit=true; }
+
+  // U32 scales
+  p_scale_mW_per_lsb            = readU32H(HREG_P_SCALE_mW_L);
+  q_scale_mvar_per_lsb_x1000    = readU32H(HREG_Q_SCALE_X1k_L);
+  s_scale_mva_per_lsb_x1000     = readU32H(HREG_S_SCALE_X1k_L);
+  e_ap_kWh_per_cnt_x1e5         = readU32H(HREG_E_AP_kWh_x1e5_L);
+  e_an_kWh_per_cnt_x1e5         = readU32H(HREG_E_AN_kWh_x1e5_L);
+  e_rp_kvarh_per_cnt_x1e5       = readU32H(HREG_E_RP_kvarh_x1e5_L);
+  e_rn_kvarh_per_cnt_x1e5       = readU32H(HREG_E_RN_kvarh_x1e5_L);
+  e_s_kVAh_per_cnt_x1e5         = readU32H(HREG_E_S_kVAh_x1e5_L);
+
+  if (reinit) { atm90_init(); cfgDirty=true; lastCfgTouchMs=millis(); }
+}
+
+// ================== Button actions ==================
+// Actions: 0 None | 1 Toggle Relay1 | 2 Toggle Relay2 | 3..6 Toggle LED0..3 | 7 Save | 8 Reset
+void doButtonAction(uint8_t idx) {
+  uint8_t act = buttonCfg[idx].action;
+  switch (act) {
+    case 0: break;
+    case 1: setRelayPhys(0, !relayState[0]); break;
+    case 2: setRelayPhys(1, !relayState[1]); break;
+    case 3: case 4: case 5: case 6: { uint8_t led = act - 3; ledManual[led] = !ledManual[led]; break; }
+    case 7: { if (saveConfigFS()) WebSerial.send("message","Configuration saved"); else WebSerial.send("message","ERROR: Save failed"); break; }
+    case 8: { WebSerial.send("message","Rebooting…"); delay(120); performReset(); break; }
+  }
+}
+
+// ================== LED source evaluation ==================
+bool evalLedSource(uint8_t src) {
+  switch (src) {
+    case 0: return false;                         // None
+    case 1: return blinkPhase;                    // Heartbeat signal
+    case 2: return buttonState[0];
+    case 3: return buttonState[1];
+    case 4: return buttonState[2];
+    case 5: return buttonState[3];
+    case 6: return buttonState[0]||buttonState[1]||buttonState[2]||buttonState[3];
+    case 7: return samplingTick;                  // true on each poll
+    default: return false;
+  }
+}
+
+// ================== Main loop ==================
+void loop() {
+  unsigned long now = millis();
+
+  if (now - lastBlinkToggle >= blinkPeriodMs) { lastBlinkToggle = now; blinkPhase = !blinkPhase; }
+
+  if (cfgDirty && (now - lastCfgTouchMs >= CFG_AUTOSAVE_MS)) {
+    if (saveConfigFS()) WebSerial.send("message", "Configuration saved");
+    else                WebSerial.send("message", "ERROR: Save failed");
+    cfgDirty = false;
+  }
+
+  mb.task();
+  serviceHregWrites();
+
+  // Coils
+  if (mb.Coil(COIL_RLY1) != relayState[0]) setRelayPhys(0, mb.Coil(COIL_RLY1));
+  if (mb.Coil(COIL_RLY2) != relayState[1]) setRelayPhys(1, mb.Coil(COIL_RLY2));
+
+  if (mb.Coil(COIL_SAVE_CFG)) { if (saveConfigFS()) WebSerial.send("message","Configuration saved"); else WebSerial.send("message","ERROR: Save failed"); mb.Coil(COIL_SAVE_CFG,false); }
+  if (mb.Coil(COIL_REBOOT))   { WebSerial.send("message","Rebooting…"); delay(120); performReset(); }
+
+  // Buttons
+  for (int i = 0; i < 4; i++) {
+    bool pressed = readPressed(i);
+    if (pressed != buttonState[i] && (now - btnChangeAt[i] >= BTN_DEBOUNCE_MS)) {
+      btnChangeAt[i] = now; buttonPrev[i]  = buttonState[i]; buttonState[i] = pressed;
+      if (buttonPrev[i] && !buttonState[i]) { doButtonAction(i); }
+    }
+    mb.setIsts(ISTS_BTN_BASE + i, buttonState[i]);
+  }
+
+  // ===== Sampling =====
+  samplingTick = false;
+  if (now - lastSample >= sample_ms) {
+    lastSample = now; samplingTick = true;
+
+    // ---- RMS ----
+    double urms[3];
+    urms[0] = read_rms_like(UrmsA, UrmsALSB, 0.01, 0.01/256.0);
+    urms[1] = read_rms_like(UrmsB, UrmsBLSB, 0.01, 0.01/256.0);
+    urms[2] = read_rms_like(UrmsC, UrmsCLSB, 0.01, 0.01/256.0);
+
+    double irms[3];
+    irms[0] = read_rms_like(IrmsA, IrmsALSB, 0.001, 0.001/256.0);
+    irms[1] = read_rms_like(IrmsB, IrmsBLSB, 0.001, 0.001/256.0);
+    irms[2] = read_rms_like(IrmsC, IrmsCLSB, 0.001, 0.001/256.0);
+
+    auto clampU = [](double v){ long x = lroundf(v*100.0f); if(x<0)x=0; if(x>65535)x=65535; return (uint16_t)x; };
+    auto clampI = [](double a){ long x = lroundf(a*1000.0f); if(x<0)x=0; if(x>65535)x=65535; return (uint16_t)x; };
+    for (int i=0;i<3;i++) mb.Ireg(IREG_URMS_BASE + i, clampU(urms[i]));
+    for (int i=0;i<3;i++) mb.Ireg(IREG_IRMS_BASE + i, clampI(irms[i]));
+
+    // ---- Powers RAW (compose 24-bit signed -> publish as s32 split) ----
+    int32_t p_raw[4], q_raw[4], s_raw[4];
+    p_raw[0]=read_power32(PmeanA, PmeanALSB); p_raw[1]=read_power32(PmeanB, PmeanBLSB); p_raw[2]=read_power32(PmeanC, PmeanCLSB);
+    q_raw[0]=read_power32(QmeanA, QmeanALSB); q_raw[1]=read_power32(QmeanB, QmeanBLSB); q_raw[2]=read_power32(QmeanC, QmeanCLSB);
+    s_raw[0]=read_power32(SmeanA, SmeanALSB); s_raw[1]=read_power32(SmeanB, SmeanBLSB); s_raw[2]=read_power32(SmeanC, SmeanCLSB);
+    p_raw[3]=read_power32(PmeanT, PmeanTLSB);
+    q_raw[3]=read_power32(QmeanT, QmeanTLSB);
+    s_raw[3]=read_power32(SmeanT, SAmeanTLSB);
+
+    auto put_s32 = [&](uint16_t base, int32_t v){
+      mb.Ireg(base+0, (uint16_t)((v>>16)&0xFFFF));
+      mb.Ireg(base+1, (uint16_t)(v & 0xFFFF));
+    };
+    put_s32(IREG_P_BASE+0, p_raw[0]); put_s32(IREG_P_BASE+2, p_raw[1]); put_s32(IREG_P_BASE+4, p_raw[2]);
+    put_s32(IREG_Q_BASE+0, q_raw[0]); put_s32(IREG_Q_BASE+2, q_raw[1]); put_s32(IREG_Q_BASE+4, q_raw[2]);
+    put_s32(IREG_S_BASE+0, s_raw[0]); put_s32(IREG_S_BASE+2, s_raw[1]); put_s32(IREG_S_BASE+4, s_raw[2]);
+    put_s32(IREG_PTOT, p_raw[3]); put_s32(IREG_QTOT, q_raw[3]); put_s32(IREG_STOT, s_raw[3]);
+
+    // ---- PF & Angles ----
+    int16_t pf_raw[4];
+    pf_raw[0]=(int16_t)atm90_read16(PFmeanA);
+    pf_raw[1]=(int16_t)atm90_read16(PFmeanB);
+    pf_raw[2]=(int16_t)atm90_read16(PFmeanC);
+    pf_raw[3]=(int16_t)atm90_read16(PFmeanT);
+    for (int i=0;i<3;i++) mb.Ireg(IREG_PF_BASE + i, (uint16_t)pf_raw[i]);
+    mb.Ireg(IREG_PF_TOT, (uint16_t)pf_raw[3]);
+
+    int16_t ang_raw[3];
+    ang_raw[0]=(int16_t)atm90_read16(PAngleA);
+    ang_raw[1]=(int16_t)atm90_read16(PAngleB);
+    ang_raw[2]=(int16_t)atm90_read16(PAngleC);
+    for (int i=0;i<3;i++) mb.Ireg(IREG_ANGLE_BASE + i, (uint16_t)ang_raw[i]);
+
+    // ---- Freq/Temp ----
+    uint16_t fraw = atm90_read16(Freq);
+    int16_t  tC   = (int16_t)atm90_read16(Temp);
+    mb.Ireg(IREG_FREQ_X100, fraw);
+    mb.Ireg(IREG_TEMP_C, (uint16_t)tC);
+
+    // ---- Energies ---- (raw)
+    uint16_t e_ap = atm90_read16(APenergyT);
+    uint16_t e_an = atm90_read16(ANenergyT);
+    uint16_t e_rp = atm90_read16(RPenergyT);
+    uint16_t e_rn = atm90_read16(RNenergyT);
+    uint16_t e_s  = atm90_read16(SAenergyT);
+    mb.Ireg(IREG_E_AP_RAW, e_ap);
+    mb.Ireg(IREG_E_AN_RAW, e_an);
+    mb.Ireg(IREG_E_RP_RAW, e_rp);
+    mb.Ireg(IREG_E_RN_RAW, e_rn);
+    mb.Ireg(IREG_E_S_RAW,  e_s);
+
+    // Engineered energies (u32 milli‑units): mkWh = raw * (kWh_per_cnt_x1e5)/100
+    auto e_milli = [](uint16_t raw, uint32_t k_per_cnt_x1e5)->uint32_t{
+      return (uint32_t)(( (uint64_t)raw * (uint64_t)k_per_cnt_x1e5 ) / 100ULL);
+    };
+    auto put_u32 = [&](uint16_t base, uint32_t v){
+      mb.Ireg(base+0, (uint16_t)((v>>16)&0xFFFF));
+      mb.Ireg(base+1, (uint16_t)(v & 0xFFFF));
+    };
+    put_u32(IREG_E_AP_MILLI, e_milli(e_ap, e_ap_kWh_per_cnt_x1e5));
+    put_u32(IREG_E_AN_MILLI, e_milli(e_an, e_an_kWh_per_cnt_x1e5));
+    put_u32(IREG_E_RP_MILLI, e_milli(e_rp, e_rp_kvarh_per_cnt_x1e5));
+    put_u32(IREG_E_RN_MILLI, e_milli(e_rn, e_rn_kvarh_per_cnt_x1e5));
+    put_u32(IREG_E_S_MILLI,  e_milli(e_s,  e_s_kVAh_per_cnt_x1e5));
+
+    // ---- Diagnostics ----
+    uint16_t s0   = atm90_read16(EMMIntState0);
+    uint16_t s1   = atm90_read16(EMMIntState1);
+    uint16_t st0  = atm90_read16(EMMState0);
+    uint16_t st1  = atm90_read16(EMMState1);
+    uint16_t lspi = atm90_read16(LastSPIData);
+    uint16_t crcE = atm90_read16(CRCErrStatus);
+    mb.Ireg(IREG_INT0, s0); mb.Ireg(IREG_INT1, s1);
+    mb.Ireg(IREG_EMM0, st0); mb.Ireg(IREG_EMM1, st1);
+    mb.Ireg(IREG_LASTSPI, lspi); mb.Ireg(IREG_CRCERR, crcE);
+
+    // ---- WebSerial live echo ----
+    sendMeterEcho(urms, irms, p_raw, q_raw, s_raw, pf_raw, ang_raw, fraw, tC, e_ap,e_an,e_rp,e_rn,e_s);
+  }
+
+  // LEDs
+  JSONVar ledStateList;
+  for (int i=0;i<4;i++) {
+    bool activeFromSource = evalLedSource(ledCfg[i].source);
+    bool active = (activeFromSource || ledManual[i]);
+    bool phys = (ledCfg[i].mode == 0) ? active : (active && blinkPhase);
+    setLedPhys(i, phys);
+    ledStateList[i] = phys;
+  }
+
+  // Periodic status echo
+  if (now - lastSend >= sendInterval) {
+    lastSend = now;
+    WebSerial.check();
+    sendStatusEcho();
+    JSONVar btnState; for(int i=0;i<4;i++) btnState[i]=buttonState[i];
+    WebSerial.send("ButtonStateList", btnState);
+    WebSerial.send("LedStateList", ledStateList);
+    JSONVar rly; rly[0]=relayState[0]; rly[1]=relayState[1];
+    WebSerial.send("RelayState", rly);
+  }
+}
