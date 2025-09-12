@@ -12,13 +12,18 @@
     .al-row .min,.al-row .max{flex:1 1 160px;min-width:140px}
     .al-hint{color:#666;font-size:.85rem;margin-top:-.15rem}
     #relays-config{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
+    .rly-card{border:1px solid #ccc;border-radius:8px;background:#f8f9fa;padding:1rem}
+    .rly-row{display:flex;gap:.5rem;align-items:center;margin:.35rem 0;flex-wrap:wrap}
+    .rly-row label{margin-right:.35rem}
+    .rly-alarm{border:1px dashed #ccc;border-radius:6px;padding:.5rem .75rem;background:#fff}
+    .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:.75rem;background:#e9ecef}
     @media (max-width:900px){.al-grid,#relays-config{grid-template-columns:1fr}}
     @media (max-width:560px){.al-row .lbl{flex:1 1 100%;order:-1}}
   </style>
 
   <div style="text-align:center;margin-bottom:2rem;">
     <h2 style="margin:.5rem 0 0;">ENM-223-R1 Module Configuration</h2>
-    <p style="margin:.25rem 0 0;color:#333;">Per‑channel alarm saves (small packets) + Buttons & User LEDs are back.</p>
+    <p style="margin:.25rem 0 0;color:#333;">Relays now support <b>None</b>, <b>Modbus</b>, and <b>Alarm</b> modes with selectable alarm source.</p>
   </div>
 
   <div style="background:#f1f1f1;padding:1rem 1.5rem;margin-bottom:2rem;border-radius:6px;border-left:4px solid #007bff;">
@@ -104,14 +109,14 @@
     <div id="buttons-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
   </section>
 
-  <!-- User LEDs -->
+  <!-- LEDs -->
   <section style="margin-bottom:1.5rem;">
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">User LEDs (4)</h2>
     <div id="leds-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
   </section>
 </section>
 
-<script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
+<script data-cfasync="false" src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
 <script>
 (function(){
   /* ---------- helpers ---------- */
@@ -138,7 +143,7 @@
     switch(+m){case 0:return'Urms (0.01 V)';case 1:return'Irms (0.001 A)';case 2:return'Active Power P (W)';
       case 3:return'Reactive Power Q (var)';case 4:return'Apparent Power S (VA)';case 5:return'Frequency (0.01 Hz)';default:return'';}
   }
-  function badge(color,text){return '<span style="display:inline-block;padding:2px 6px;border-radius:10px;font-size:.75rem;background:'+color+';color:#fff;">'+text+'</span>'; }
+  function badge(color,text){return '<span class="pill" style="background:'+color+';color:#fff">'+text+'</span>'; }
 
   /* ---------- live tiles ---------- */
   function buildChannelCards(){
@@ -169,7 +174,10 @@
   /* ---------- alarms UI ---------- */
   var AK_LABELS=['Alarm','Warning','Event'];
   var CH_LABELS=['L1','L2','L3','Totals'];
-  var METRICS=[{v:0,l:'Voltage (Urms)'},{v:1,l:'Current (Irms)'},{v:2,l:'Active power P'},{v:3,l:'Reactive power Q'},{v:4,l:'Total/Apparent power S'},{v:5,l:'Frequency'}];
+  var METRICS=[
+    {v:0,l:'Voltage (Urms)'},{v:1,l:'Current (Irms)'},{v:2,l:'Active power P'},
+    {v:3,l:'Reactive power Q'},{v:4,l:'Total/Apparent power S'},{v:5,l:'Frequency'}
+  ];
   function metricOptionsHTML(sel){ return METRICS.map(m=>'<option value="'+m.v+'" '+(String(sel)==String(m.v)?'selected':'')+'>'+m.l+'</option>').join(''); }
 
   function buildAlarmsUI(){
@@ -259,35 +267,92 @@
     }
   }
 
-  /* ---------- relays ---------- */
+  /* ---------- relays (NEW: modes + alarm source) ---------- */
   function buildRelays(){
     var container=$('relays-config'); if(!container) return; container.innerHTML='';
-    for(var i=1;i<=2;i++){
-      var card=document.createElement('div');
-      card.innerHTML =
-        '<div style="border:1px solid #ccc;border-radius:6px;background:#f1f1f1;padding:1rem;">'
-      + '  <div style="font-weight:600;">Relay '+i+''
-      + '    <span style="float:right;"><input type="checkbox" id="state-relay'+i+'" disabled></span>'
-      + '  </div>'
-      + '  <label><input type="checkbox" id="enable-relay'+i+'"> Enabled (power-on)</label><br>'
-      + '  <label><input type="checkbox" id="invert-relay'+i+'"> Inverted (active-low)</label><br>'
-      + '  <label>Mode:<select id="mode-relay'+i+'" class="enm-input"><option value="4" selected>Modbus Controlled</option><option value="0">None</option></select></label>'
-      + '  <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:.5rem;">'
-      + '    <button type="button" id="toggle-relay'+i+'" style="padding:6px 10px;background:#0d6efd;border:none;border-radius:6px;color:#fff;">Toggle</button>'
-      + '  </div>'
-      + '  <small style="color:#666;">Use coils or this toggle to switch. “Enabled” & “Inverted” are persisted.</small>'
-      + '</div>';
-      container.appendChild(card);
+    var MODE_OPTS = [
+      {v:0,l:'None'},
+      {v:1,l:'Modbus Controlled'},
+      {v:2,l:'Alarm Controlled'}
+    ];
+    var CH_OPTS = [
+      {v:0,l:'L1'}, {v:1,l:'L2'}, {v:2,l:'L3'}, {v:3,l:'Totals'}
+    ];
+    function selectHTML(opts, val){
+      return '<select class="enm-input rly-mode">'+opts.map(o=>'<option value="'+o.v+'"'+(String(val)==String(o.v)?' selected':'')+'>'+o.l+'</option>').join('')+'</select>';
     }
-    ['1','2'].forEach(function(i){
-      var sendCfg=function(){
-        var cfg={ active_low:(($('invert-relay1').checked||$('invert-relay2').checked)?1:0),
-                 def0:$('enable-relay1').checked, def1:$('enable-relay2').checked };
-        connection.send("RelaysCfg", cfg); appendLog("RelaysCfg", cfg);
-      };
-      ['enable-relay'+i,'invert-relay'+i,'mode-relay'+i].forEach(function(id){ var el=$(id); if(el) el.addEventListener('change', sendCfg); });
-      var t=$('toggle-relay'+i); if(t) t.addEventListener('click', function(){ connection.send("RelaysSet",{idx:(+i-1),toggle:true}); appendLog("RelaysSet",{idx:(+i-1),toggle:true}); });
-    });
+    function chanHTML(val){
+      return '<select class="enm-input rly-ch">'+CH_OPTS.map(o=>'<option value="'+o.v+'"'+(String(val)==String(o.v)?' selected':'')+'>'+o.l+'</option>').join('')+'</select>';
+    }
+    for(var i=1;i<=2;i++){
+      var card=document.createElement('div'); card.className='rly-card';
+      card.innerHTML =
+        '<div style="display:flex;justify-content:space-between;align-items:center">'
+      + '  <div style="font-weight:600">Relay '+i+'</div>'
+      + '  <label style="display:flex;align-items:center;gap:.4rem;"><span>State</span><input type="checkbox" id="state-relay'+i+'" disabled></label>'
+      + '</div>'
+      + '<div class="rly-row"><label><input type="checkbox" id="enable-relay'+i+'"> Enabled at power-on</label></div>'
+      + '<div class="rly-row"><label><input type="checkbox" id="invert-relay'+i+'"> Inverted (active-low)</label> <span class="pill">applies to both relays</span></div>'
+      + '<div class="rly-row"><label style="min-width:80px">Mode:</label>'+selectHTML(MODE_OPTS,1)+'</div>'
+      + '<div class="rly-row rly-alarm" id="alarm-box-'+i+'" style="display:none">'
+      + '  <div class="rly-row" style="margin:0"><label style="min-width:80px">Channel:</label>'+chanHTML(3)+'</div>'
+      + '  <div class="rly-row" style="margin:.35rem 0 0 0"><label>Kinds:</label>'
+      + '    <label><input type="checkbox" class="rly-kind-al" checked> Alarm</label>'
+      + '    <label><input type="checkbox" class="rly-kind-wa"> Warning</label>'
+      + '    <label><input type="checkbox" class="rly-kind-ev"> Event</label>'
+      + '  </div>'
+      + '</div>'
+      + '<div class="rly-row" style="justify-content:flex-end;margin-top:.5rem;">'
+      + '  <button type="button" id="toggle-relay'+i+'" style="padding:6px 10px;background:#0d6efd;border:none;border-radius:6px;color:#fff;">Toggle</button>'
+      + '</div>'
+      + '<small style="color:#666;">In <b>Alarm</b> mode the relay follows selected alarm(s). Direct writes are blocked by firmware.</small>';
+      container.appendChild(card);
+
+      // wire up behavior
+      (function(idx){
+        var root = card;
+        function q(sel){ return root.querySelector(sel); }
+        var modeSel = root.querySelector('.rly-mode');
+        var alarmBox = $('alarm-box-'+idx);
+        function updateVis(){ if(modeSel.value==='2') alarmBox.style.display='block'; else alarmBox.style.display='none'; }
+        modeSel.addEventListener('change', function(){ sendCfg(); updateVis(); });
+        updateVis();
+        ['enable-relay'+idx,'invert-relay'+idx].forEach(function(id){ var el=$(id); if(el) el.addEventListener('change', sendCfg); });
+        ['.rly-ch','.rly-kind-al','.rly-kind-wa','.rly-kind-ev'].forEach(function(sel){
+          var el = q(sel); if(el) el.addEventListener('change', sendCfg);
+        });
+        var t=$('toggle-relay'+idx);
+        if(t) t.addEventListener('click', function(){ connection.send("RelaysSet",{idx:(idx-1),toggle:true}); appendLog("RelaysSet",{idx:(idx-1),toggle:true}); });
+
+        function maskFromUI(){
+          var al=q('.rly-kind-al').checked?1:0;
+          var wa=q('.rly-kind-wa').checked?2:0;
+          var ev=q('.rly-kind-ev').checked?4:0;
+          return (al|wa|ev);
+        }
+        function sendCfg(){
+          // polarity is shared -> read both toggles to set one bit
+          var active_low = (($('invert-relay1').checked||$('invert-relay2').checked)?1:0);
+          var cfg={
+            active_low:active_low,
+            def0:$('enable-relay1').checked,
+            def1:$('enable-relay2').checked,
+            mode:[ document.querySelectorAll('.rly-mode')[0].value|0, document.querySelectorAll('.rly-mode')[1].value|0 ],
+            alarm:[
+              { ch: (document.querySelectorAll('.rly-ch')[0]||{value:3}).value|0,
+                mask: ((document.querySelectorAll('.rly-kind-al')[0]?.checked?1:0)
+                      |(document.querySelectorAll('.rly-kind-wa')[0]?.checked?2:0)
+                      |(document.querySelectorAll('.rly-kind-ev')[0]?.checked?4:0)) },
+              { ch: (document.querySelectorAll('.rly-ch')[1]||{value:3}).value|0,
+                mask: ((document.querySelectorAll('.rly-kind-al')[1]?.checked?1:0)
+                      |(document.querySelectorAll('.rly-kind-wa')[1]?.checked?2:0)
+                      |(document.querySelectorAll('.rly-kind-ev')[1]?.checked?4:0)) }
+            ]
+          };
+          connection.send("RelaysCfg", cfg); appendLog("RelaysCfg", cfg);
+        }
+      })(i);
+    }
   }
   function asBoolArray(x){ if(Array.isArray(x)) return x; if(x && typeof x==='object' && ('0' in x || '1' in x)) return [!!x[0], !!x[1]]; return []; }
 
@@ -378,16 +443,14 @@
 
       if(typeof opts.p_mW_per_lsb!=='undefined') $('sc-p').value=String(opts.p_mW_per_lsb);
       if(typeof opts.q_mvar_x1k_per_lsb!=='undefined') $('sc-q').value=String(opts.q_mvar_x1k_per_lsb);
-      // accept either key for S (firmware may use s_mva_per_lsb_x1000 or s_mva_x1k_per_lsb)
       var sKey=(typeof opts.s_mva_per_lsb_x1000!=='undefined')?'s_mva_per_lsb_x1000':'s_mva_x1k_per_lsb';
       if(typeof opts[sKey]!=='undefined') $('sc-s').value=String(opts[sKey]);
 
       if(typeof opts.e_ap_kWh_x1e5!=='undefined') $('sc-eap').value=String(opts.e_ap_kWh_x1e5);
       if(typeof opts.e_an_kWh_x1e5!=='undefined') $('sc-ean').value=String(opts.e_an_kWh_x1e5);
       if(typeof opts.e_rp_kvarh_per_cnt_x1e5!=='undefined') $('sc-erp').value=String(opts.e_rp_kvarh_per_cnt_x1e5);
-      // rn may arrive as e_rn_kWh_x1e5 (legacy typo) or e_rn_kvarh_per_cnt_x1e5
       if(typeof opts.e_rn_kvarh_per_cnt_x1e5!=='undefined') $('sc-ern').value=String(opts.e_rn_kvarh_per_cnt_x1e5);
-      else if(typeof opts.e_rn_kWh_x1e5!=='undefined') $('sc-ern').value=String(opts.e_rn_kWh_x1e5);
+      else if(typeof opts.e_rn_kWh_x1e5!=='undefined') $('sc-ern').value=String(opts.e_rn_kWh_x1e5); // legacy UI compat
       if(typeof opts.e_s_kVAh_per_cnt_x1e5!=='undefined') $('sc-es').value=String(opts.e_s_kVAh_per_cnt_x1e5);
     }catch(e){}
   });
@@ -425,7 +488,6 @@
     if(!list||typeof list.length==='undefined') return;
     for(var i=0;i<list.length&&i<4;i++){
       var el=$('action-button'+(i+1));
-      // firmware sends just the action (number) or {action:n}; support both
       var v = (typeof list[i]==='object' && list[i]!==null && 'action' in list[i]) ? list[i].action : list[i];
       if(el && typeof v!=='undefined') el.value=String(v||0);
     }
@@ -485,7 +547,7 @@
   $('modbus-address').addEventListener('input', pushModbus);
   $('modbus-baud').addEventListener('input',    pushModbus);
 
-  // Apply meter options (lineHz, sumAbs, ucal, sample_ms + scales in one go)
+  // Apply meter options (and scaling)
   $('apply-meter').addEventListener('click', function(){
     var cfg={
       lineHz:+$('opt-lineHz').value, sumAbs:+$('opt-sumAbs').value, ucal:+$('opt-ucal').value, sample_ms:+$('opt-samplems').value,
@@ -497,7 +559,6 @@
     connection.send("Config",{t:"meter",cfg}); appendLog("Config.meter",cfg);
   });
 
-  // Apply scaling only (same payload path, convenient button)
   $('apply-scale').addEventListener('click', function(){
     var cfg={
       lineHz:+$('opt-lineHz').value, sumAbs:+$('opt-sumAbs').value, ucal:+$('opt-ucal').value, sample_ms:+$('opt-samplems').value,

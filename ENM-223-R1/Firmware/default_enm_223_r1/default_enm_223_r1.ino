@@ -144,6 +144,17 @@ struct ChannelAlarmCfg {
 ChannelAlarmCfg g_alarmCfg[CH_COUNT];
 AlarmRuntime    g_alarmRt [CH_COUNT][AK_COUNT];
 
+// ====== Relay mode / source ======
+enum : uint8_t { RM_NONE=0, RM_MODBUS=1, RM_ALARM=2 };
+
+struct RelayAlarmSrc {
+  uint8_t ch;         // 0..3 (L1,L2,L3,TOT)
+  uint8_t kindsMask;  // bit0=Alarm, bit1=Warning, bit2=Event
+};
+
+uint8_t       relay_mode[2]      = { RM_MODBUS, RM_MODBUS }; // default legacy behavior
+RelayAlarmSrc relay_alarm_src[2] = { {CH_TOT, 0b001}, {CH_TOT, 0b001} }; // default: ALARM only on TOT
+
 // ================== Persistence blob ==================
 struct PersistConfig {
   uint32_t magic;       // 'ENM2'
@@ -186,11 +197,19 @@ struct PersistConfig {
   uint8_t  alarm_ack_required[CH_COUNT];
   struct PackedRule { uint8_t enabled; int32_t min; int32_t max; uint8_t metric; } alarm_rules[CH_COUNT][AK_COUNT];
 
+  // Relays — new fields (modes + alarm sources)
+  uint8_t  relay_mode0;          // RM_*
+  uint8_t  relay_mode1;
+  uint8_t  relay_alarm_ch0;      // 0..3
+  uint8_t  relay_alarm_ch1;
+  uint8_t  relay_alarm_mask0;    // bits: Alarm/Warning/Event
+  uint8_t  relay_alarm_mask1;
+
   uint32_t crc32;
 } __attribute__((packed));
 
 static const uint32_t CFG_MAGIC   = 0x324D4E45UL; // 'ENM2'
-static const uint16_t CFG_VERSION = 0x0006;       // version with metric support
+static const uint16_t CFG_VERSION = 0x0007;       // +relay modes/alarm source
 static const char*    CFG_PATH    = "/enm223.bin";
 
 volatile bool   cfgDirty        = false;
@@ -245,6 +264,11 @@ void setDefaults() {
   relay_active_low = RELAY_ACTIVE_LOW;
   relay_default[0] = false;
   relay_default[1] = false;
+
+  // New relay control defaults
+  relay_mode[0] = RM_MODBUS; relay_mode[1] = RM_MODBUS;
+  relay_alarm_src[0] = { CH_TOT, 0b001 }; // Alarm only
+  relay_alarm_src[1] = { CH_TOT, 0b001 };
 
   atm_lineFreqHz = 50;
   atm_sumModeAbs = 1;
@@ -303,6 +327,14 @@ void captureToPersist(PersistConfig &pc) {
     }
   }
 
+  // New relay fields
+  pc.relay_mode0       = relay_mode[0];
+  pc.relay_mode1       = relay_mode[1];
+  pc.relay_alarm_ch0   = relay_alarm_src[0].ch;
+  pc.relay_alarm_ch1   = relay_alarm_src[1].ch;
+  pc.relay_alarm_mask0 = relay_alarm_src[0].kindsMask;
+  pc.relay_alarm_mask1 = relay_alarm_src[1].kindsMask;
+
   pc.crc32 = 0;
   pc.crc32 = crc32_update(0, reinterpret_cast<const uint8_t*>(&pc), sizeof(PersistConfig));
 }
@@ -351,6 +383,15 @@ bool applyFromPersist(const PersistConfig &pc) {
       g_alarmRt[ch][k] = {false,false,false};
     }
   }
+
+  // New relay fields
+  relay_mode[0] = (pc.relay_mode0 <= RM_ALARM) ? pc.relay_mode0 : RM_MODBUS;
+  relay_mode[1] = (pc.relay_mode1 <= RM_ALARM) ? pc.relay_mode1 : RM_MODBUS;
+
+  relay_alarm_src[0].ch        = (pc.relay_alarm_ch0 < CH_COUNT) ? pc.relay_alarm_ch0 : CH_TOT;
+  relay_alarm_src[1].ch        = (pc.relay_alarm_ch1 < CH_COUNT) ? pc.relay_alarm_ch1 : CH_TOT;
+  relay_alarm_src[0].kindsMask = pc.relay_alarm_mask0 & 0b111;
+  relay_alarm_src[1].kindsMask = pc.relay_alarm_mask1 & 0b111;
 
   for (int i=0;i<4;i++) ledManual[i] = false;
   return true;
@@ -912,7 +953,6 @@ void sendAllEchoesOnce() {
   opts["e_ap_kWh_x1e5"]=e_ap_kWh_per_cnt_x1e5;
   opts["e_an_kWh_x1e5"]=e_an_kWh_per_cnt_x1e5;
   opts["e_rp_kvarh_x1e5"]=e_rp_kvarh_per_cnt_x1e5;
-  opts["e_rn_kWh_x1e5"]=e_rn_kvarh_per_cnt_x1e5;
   opts["e_rn_kvarh_x1e5"]=e_rn_kvarh_per_cnt_x1e5;
   opts["e_s_kVAh_x1e5"]=e_s_kVAh_per_cnt_x1e5;
   WebSerial.send("MeterOptions", opts);
@@ -998,8 +1038,7 @@ void handleUnifiedConfig(JSONVar obj) {
     if ((v=(uint32_t)c["e_ap_kWh_x1e5"]))            e_ap_kWh_per_cnt_x1e5 = v;
     if ((v=(uint32_t)c["e_an_kWh_x1e5"]))            e_an_kWh_per_cnt_x1e5 = v;
     if ((v=(uint32_t)c["e_rp_kvarh_x1e5"]))          e_rp_kvarh_per_cnt_x1e5 = v;
-    if ((v=(uint32_t)c["e_rn_kWh_x1e5"]))            e_rn_kvarh_per_cnt_x1e5 = v;
-    else if ((v=(uint32_t)c["e_rn_kvarh_x1e5"]))     e_rn_kvarh_per_cnt_x1e5 = v;
+    if ((v=(uint32_t)c["e_rn_kvarh_x1e5"]))          e_rn_kvarh_per_cnt_x1e5 = v;
     if ((v=(uint32_t)c["e_s_kVAh_x1e5"]))            e_s_kVAh_per_cnt_x1e5 = v;
 
     changed = true;
@@ -1048,17 +1087,22 @@ void handleUnifiedConfig(JSONVar obj) {
 void handleRelaysSet(JSONVar v){
   bool changed=false;
 
+  // In ALARM mode, ignore external direct writes for that relay
+  auto canWrite = [&](int idx)->bool{ return relay_mode[idx] != RM_ALARM; };
+
   if (v.hasOwnProperty("list") && v["list"].length() >= 2) {
     bool r0 = (bool)v["list"][0];
     bool r1 = (bool)v["list"][1];
-    if (relayState[0] != r0) { setRelayPhys(0, r0); changed=true; }
-    if (relayState[1] != r1) { setRelayPhys(1, r1); changed=true; }
+    if (canWrite(0) && relayState[0] != r0) { setRelayPhys(0, r0); changed=true; }
+    if (canWrite(1) && relayState[1] != r1) { setRelayPhys(1, r1); changed=true; }
   } else if (v.hasOwnProperty("r1") || v.hasOwnProperty("r2")) {
-    if (v.hasOwnProperty("r1")) { bool r0=(bool)v["r1"]; if (relayState[0]!=r0){ setRelayPhys(0,r0); changed=true; } }
-    if (v.hasOwnProperty("r2")) { bool r1=(bool)v["r2"]; if (relayState[1]!=r1){ setRelayPhys(1,r1); changed=true; } }
+    if (v.hasOwnProperty("r1")) { bool r0=(bool)v["r1"]; if (canWrite(0) && relayState[0]!=r0){ setRelayPhys(0,r0); changed=true; } }
+    if (v.hasOwnProperty("r2")) { bool r1=(bool)v["r2"]; if (canWrite(1) && relayState[1]!=r1){ setRelayPhys(1,r1); changed=true; } }
   } else if (v.hasOwnProperty("idx")) {
     int idx = constrain((int)v["idx"], 0, 1);
-    if (v.hasOwnProperty("toggle") && (bool)v["toggle"]) {
+    if (!canWrite(idx)) {
+      WebSerial.send("message","RelaysSet: blocked (ALARM mode)");
+    } else if (v.hasOwnProperty("toggle") && (bool)v["toggle"]) {
       setRelayPhys(idx, !relayState[idx]); changed=true;
     } else if (v.hasOwnProperty("on")) {
       bool on = (bool)v["on"];
@@ -1076,18 +1120,57 @@ void handleRelaysSet(JSONVar v){
   }
 }
 
-// Configure relay polarity & power-on defaults (persisted)
+// Configure relay polarity & power-on defaults (persisted) + NEW modes/alarm sources
 void handleRelaysCfg(JSONVar v){
+  bool touched=false;
+
   if (v.hasOwnProperty("active_low")) {
     relay_active_low = (uint8_t)constrain((int)v["active_low"],0,1);
+    touched=true;
   }
-  if (v.hasOwnProperty("def0")) relay_default[0] = (bool)v["def0"];
-  if (v.hasOwnProperty("def1")) relay_default[1] = (bool)v["def1"];
+  if (v.hasOwnProperty("def0")) { relay_default[0] = (bool)v["def0"]; touched=true; }
+  if (v.hasOwnProperty("def1")) { relay_default[1] = (bool)v["def1"]; touched=true; }
 
+  // New: modes
+  if (v.hasOwnProperty("mode") && v["mode"].length() >= 2) {
+    for (int i=0;i<2;i++){
+      int m = (int)v["mode"][i];
+      if (m<RM_NONE) m=RM_NONE; if (m>RM_ALARM) m=RM_ALARM;
+      relay_mode[i] = (uint8_t)m;
+    }
+    touched=true;
+  }
+
+  // New: alarm source
+  if (v.hasOwnProperty("alarm") && v["alarm"].length() >= 2) {
+    for (int i=0;i<2;i++){
+      JSONVar a = v["alarm"][i];
+      if (a.hasOwnProperty("ch")) {
+        int ch = (int)a["ch"]; ch = constrain(ch, 0, CH_COUNT-1);
+        relay_alarm_src[i].ch = (uint8_t)ch;
+      }
+      if (a.hasOwnProperty("mask")) {
+        int mk = (int)a["mask"]; mk &= 0b111;
+        relay_alarm_src[i].kindsMask = (uint8_t)mk;
+      } else {
+        // also accept array form: kinds:[true,false,true]
+        if (a.hasOwnProperty("kinds") && a["kinds"].length()>=3){
+          uint8_t mk = ((bool)a["kinds"][0]?1:0)
+                     | ((bool)a["kinds"][1]?2:0)
+                     | ((bool)a["kinds"][2]?4:0);
+          relay_alarm_src[i].kindsMask = mk;
+        }
+      }
+    }
+    touched=true;
+  }
+
+  // Re-apply drive polarity
   setRelayPhys(0, relayState[0]);
   setRelayPhys(1, relayState[1]);
 
-  cfgDirty = true; lastCfgTouchMs = millis();
+  if (touched) { cfgDirty = true; lastCfgTouchMs = millis(); }
+
   WebSerial.send("message","RelaysCfg updated (persist)");
   echoRelayState();
 }
@@ -1270,9 +1353,17 @@ void loop() {
   mb.task();
   serviceHregWrites();
 
-  // Modbus coils mirror to physical relays
-  if (mb.Coil(COIL_RLY1) != relayState[0]) setRelayPhys(0, mb.Coil(COIL_RLY1));
-  if (mb.Coil(COIL_RLY2) != relayState[1]) setRelayPhys(1, mb.Coil(COIL_RLY2));
+  // Modbus coils control only in Modbus mode (mirror otherwise)
+  if (relay_mode[0] == RM_MODBUS) {
+    if (mb.Coil(COIL_RLY1) != relayState[0]) setRelayPhys(0, mb.Coil(COIL_RLY1));
+  } else {
+    if (mb.Coil(COIL_RLY1) != relayState[0]) mb.Coil(COIL_RLY1, relayState[0]);
+  }
+  if (relay_mode[1] == RM_MODBUS) {
+    if (mb.Coil(COIL_RLY2) != relayState[1]) setRelayPhys(1, mb.Coil(COIL_RLY2));
+  } else {
+    if (mb.Coil(COIL_RLY2) != relayState[1]) mb.Coil(COIL_RLY2, relayState[1]);
+  }
 
   // Alarm ACK coils (edge)
   for (uint16_t ch=0; ch<CH_COUNT; ++ch) {
@@ -1390,6 +1481,24 @@ void loop() {
 
     // ---- Alarm evaluation ----
     eval_alarms_with_metrics(ms);
+
+    // ---- Relay Alarm-mode evaluation ----
+    auto alarm_any_selected = [&](uint8_t ch, uint8_t mask)->bool{
+      bool any = false;
+      if (mask & 0b001) any |= g_alarmRt[ch][AK_ALARM].active;
+      if (mask & 0b010) any |= g_alarmRt[ch][AK_WARNING].active;
+      if (mask & 0b100) any |= g_alarmRt[ch][AK_EVENT].active;
+      return any;
+    };
+
+    if (relay_mode[0] == RM_ALARM) {
+      bool on0 = alarm_any_selected(relay_alarm_src[0].ch, relay_alarm_src[0].kindsMask);
+      if (relayState[0] != on0) setRelayPhys(0, on0);
+    }
+    if (relay_mode[1] == RM_ALARM) {
+      bool on1 = alarm_any_selected(relay_alarm_src[1].ch, relay_alarm_src[1].kindsMask);
+      if (relayState[1] != on1) setRelayPhys(1, on1);
+    }
 
     // ---- WebSerial live echo ----
     sendMeterEcho(urms, irms, p_raw, q_raw, s_raw, pf_raw, ang_raw, fraw, tC, e_ap,e_an,e_rp,e_rn,e_s);
