@@ -2,7 +2,7 @@
   <div style="text-align:center;margin-bottom:2rem;">
     <img src="https://www.home-master.eu/web/image/product.product/719/image_1024/ALM-173-R1%20Module%20for%20Alarm%20Systems?unique=f079b61" alt="ENM-223-R1" style="max-width:300px;border-radius:8px;opacity:.9;" loading="lazy">
     <h2 style="margin:.5rem 0 0;">ENM-223-R1 Module Configuration</h2>
-    <p style="margin:.25rem 0 0;color:#333;">Configure Modbus, meter/scaling options, alarms (L1/L2/L3/Totals) and view live data via WebSerial.</p>
+    <p style="margin:.25rem 0 0;color:#333;">Configure Modbus, meter/scaling options, alarms (L1/L2/L3/Totals) with selectable metrics, and view live data via WebSerial.</p>
   </div>
 
   <div style="background:#f1f1f1;padding:1rem 1.5rem;margin-bottom:2rem;border-radius:6px;border-left:4px solid #007bff;">
@@ -19,7 +19,7 @@
     <div>
       <label for="modbus-baud"><strong>Baud Rate</strong></label>
       <select id="modbus-baud" style="width:100%;padding:10px;border-radius:4px;">
-        <option>9600</option><option selected="">19200</option><option>38400</option><option>57600</option><option>115200</option>
+        <option>9600</option><option selected>19200</option><option>38400</option><option>57600</option><option>115200</option>
       </select>
     </div>
     <div style="grid-column:span 2;display:flex;justify-content:flex-end;">
@@ -32,14 +32,13 @@
     <pre id="log-content" style="white-space:pre-wrap;font-family:monospace;line-height:1.25em;margin:0;margin-top:.5rem;height:calc(1.25em * 6);overflow-y:auto;background:#fff;border:1px solid #e5e5e5;border-radius:4px;padding:.5rem;"></pre>
   </div>
 
-  
   <section style="margin-bottom:1.75rem;">
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Meter Options</h2>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem;">
       <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;">
         <label for="opt-lineHz"><strong>Line Frequency (Hz)</strong></label>
         <select id="opt-lineHz" style="width:100%;padding:10px;border-radius:4px;">
-          <option value="50" selected="">50</option>
+          <option value="50" selected>50</option>
           <option value="60">60</option>
         </select>
       </div>
@@ -47,7 +46,7 @@
         <label for="opt-sumAbs"><strong>Sum Mode</strong> <small style="color:#666;">(0=algebraic, 1=abs)</small></label>
         <select id="opt-sumAbs" style="width:100%;padding:10px;border-radius:4px;">
           <option value="0">0</option>
-          <option value="1" selected="">1</option>
+          <option value="1" selected>1</option>
         </select>
       </div>
       <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;">
@@ -60,11 +59,10 @@
       </div>
     </div>
     <div style="text-align:right;margin-top:.75rem;">
-      <button id="apply-meter" type="button" style="padding:10px 16px;background:#0d6efd;color:#fff;border:none;border-radius:6px;" disabled="">Apply Meter Options</button>
+      <button id="apply-meter" type="button" style="padding:10px 16px;background:#0d6efd;color:#fff;border:none;border-radius:6px;" disabled>Apply Meter Options</button>
     </div>
   </section>
 
-  
   <section style="margin-bottom:1.75rem;">
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Scaling (Engineering Units)</h2>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem;">
@@ -74,11 +72,11 @@
       </div>
       <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;">
         <label><strong>Q scale</strong> <small style="color:#666;">mvar×1000 per LSB</small></label>
-        <input id="sc-q" type="number" min="0" step="1" value="1" style="width:100%;padding:10px;border-radius:4px;border:1px solid #ccc%;">
+        <input id="sc-q" type="number" min="0" step="1" value="1" style="width:100%;padding:10px;border-radius:4px;border:1px solid #ccc;">
       </div>
       <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;">
         <label><strong>S scale</strong> <small style="color:#666;">mVA×1000 per LSB</small></label>
-        <input id="sc-s" type="number" min="0" step="1" value="1" style="width:100%;padding:10px;border-radius:4px;border:1px solid #ccc%;">
+        <input id="sc-s" type="number" min="0" step="1" value="1" style="width:100%;padding:10px;border-radius:4px;border:1px solid #ccc;">
       </div>
       <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;">
         <label><strong>AP energy</strong> <small style="color:#666;">kWh×1e5 per CNT</small></label>
@@ -102,50 +100,46 @@
       </div>
     </div>
     <div style="text-align:right;margin-top:.75rem;">
-      <button id="apply-scale" type="button" style="padding:10px 16px;background:#0d6efd;color:#fff;border:none;border-radius:6px;" disabled="">Apply Scales</button>
+      <button id="apply-scale" type="button" style="padding:10px 16px;background:#0d6efd;color:#fff;border:none;border-radius:6px;" disabled>Apply Scales</button>
     </div>
   </section>
 
-  
   <section style="margin-bottom:1.75rem;">
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Alarms (L1, L2, L3, Totals)</h2>
     <div style="color:#555;margin-bottom:.5rem;">
-      <small>Each channel has three types: <strong>Alarm</strong>, <strong>Warning</strong>, <strong>Event</strong>. Configure min/max limits (inclusive) and enable/disable. Toggle “Ack required” to latch until acknowledged.</small>
+      <small>Each channel has <strong>Alarm</strong>, <strong>Warning</strong>, and <strong>Event</strong>. Choose the <em>metric</em>, set <em>min/max</em> (inclusive), and enable/disable. “Ack required” latches until acknowledged.</small>
     </div>
-    <div id="alarms-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;"></div>
+    <div id="alarms-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem;"></div>
     <div style="display:flex;gap:.5rem;flex-wrap:wrap;justify-content:flex-end;margin-top:.75rem;">
-      <button id="apply-alarms" type="button" style="padding:8px 14px;background:#0d6efd;color:#fff;border:none;border-radius:6px;" disabled="">Apply Alarms</button>
-      <button id="ack-all" type="button" style="padding:8px 14px;background:#198754;color:#fff;border:none;border-radius:6px;" disabled="">Ack All</button>
+      <button id="apply-alarms" type="button" style="padding:8px 14px;background:#0d6efd;color:#fff;border:none;border-radius:6px;" disabled>Apply Alarms</button>
+      <button id="ack-all" type="button" style="padding:8px 14px;background:#198754;color:#fff;border:none;border-radius:6px;" disabled>Ack All</button>
     </div>
   </section>
 
-  
   <section style="margin-bottom:1.5rem;">
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Relays (2)</h2>
     <div id="relays-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
   </section>
 
-  
   <section style="margin-bottom:1.5rem;">
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Live Meter</h2>
     <div id="chan-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:1rem;"></div>
     <small style="color:#666;">Firmware emits <code>ENM_Meter</code>: Urms/Irms/P/Q/S/PF/Angles/Freq/Temp/Energies + AlarmsState.</small>
   </section>
 
-  
   <section style="margin-bottom:1.5rem;">
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Buttons (4)</h2>
     <div id="buttons-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
   </section>
 
-  
   <section style="margin-bottom:1.5rem;">
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">User LEDs (4)</h2>
     <div id="leds-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
   </section>
 </section>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
+<script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
 <script>
 (function(){
   // ---------- Helpers ----------
@@ -169,6 +163,29 @@
   function setEnabled(ids, en){ ids.forEach(function(id){ var el=$(id); if(el) el.disabled=!en; }); }
   function badge(color, text){
     return '<span style="display:inline-block;padding:2px 6px;border-radius:10px;font-size:.75rem;background:'+color+';color:#fff;">'+text+'</span>';
+  }
+  function unitForMetric(m){
+    // 0 V, 1 A, 2 W, 3 var, 4 VA, 5 Hz
+    switch(Number(m)){
+      case 0: return 'V';
+      case 1: return 'A';
+      case 2: return 'W';
+      case 3: return 'var';
+      case 4: return 'VA';
+      case 5: return 'Hz';
+      default: return '';
+    }
+  }
+  function hintForMetric(m){
+    switch(Number(m)){
+      case 0: return 'Urms (0.01 V)';     // UI just shows units; backend uses integers
+      case 1: return 'Irms (0.001 A)';
+      case 2: return 'Active Power P (W)';
+      case 3: return 'Reactive Power Q (var)';
+      case 4: return 'Apparent Power S (VA)';
+      case 5: return 'Frequency (0.01 Hz)';
+      default: return '';
+    }
   }
 
   // ---------- Build UI blocks ----------
@@ -200,19 +217,33 @@
   // Alarms UI
   var AK_LABELS=['Alarm','Warning','Event'];
   var CH_LABELS=['L1','L2','L3','Totals'];
+  var METRICS = [
+    {v:0,l:'Voltage (Urms)'},        // 0
+    {v:1,l:'Current (Irms)'},        // 1
+    {v:2,l:'Active power P'},        // 2
+    {v:3,l:'Reactive power Q'},      // 3
+    {v:4,l:'Total/Apparent power S'},// 4
+    {v:5,l:'Frequency'}              // 5
+  ];
+  function metricOptionsHTML(sel){
+    return METRICS.map(m => '<option value="'+m.v+'" '+(String(sel)==String(m.v)?'selected':'')+'>'+m.l+'</option>').join('');
+  }
   function buildAlarmsUI(){
     var grid=$('alarms-grid'); if(!grid) return; grid.innerHTML='';
     for(var ch=0; ch<4; ch++){
       var card=document.createElement('div');
       card.style="border:1px solid #ddd;border-radius:8px;padding:1rem;background:#fff;";
       var rows = AK_LABELS.map(function(lbl, ak){
+        var metricSelId='al-met-'+ch+'-'+ak;
         return ''+
-        '<div style="display:grid;grid-template-columns:80px 1fr 1fr 1fr;gap:.4rem;align-items:center;margin:.25rem 0;">'
+        '<div style="display:grid;grid-template-columns:88px 1fr 1fr 1fr 1fr;gap:.4rem;align-items:center;margin:.25rem 0;">'
         + ' <div><strong>'+lbl+'</strong></div>'
         + ' <label style="display:flex;align-items:center;gap:.4rem;"><input type="checkbox" id="al-en-'+ch+'-'+ak+'"> <span>Enabled</span></label>'
-        + ' <input id="al-min-'+ch+'-'+ak+'" type="number" step="1" placeholder="min VA" style="padding:6px;border:1px solid #ccc;border-radius:4px;">'
-        + ' <input id="al-max-'+ch+'-'+ak+'" type="number" step="1" placeholder="max VA" style="padding:6px;border:1px solid #ccc;border-radius:4px;">'
-        + '</div>';
+        + ' <select id="'+metricSelId+'" style="padding:6px;border:1px solid #ccc;border-radius:4px;">'+metricOptionsHTML(4)+'</select>'
+        + ' <input id="al-min-'+ch+'-'+ak+'" type="number" step="1" placeholder="min" style="padding:6px;border:1px solid #ccc;border-radius:4px;">'
+        + ' <input id="al-max-'+ch+'-'+ak+'" type="number" step="1" placeholder="max" style="padding:6px;border:1px solid #ccc;border-radius:4px;">'
+        + '</div>'
+        + '<div id="al-hint-'+ch+'-'+ak+'" style="grid-column:1/-1;color:#666;font-size:.85rem;margin-top:-.25rem;margin-bottom:.35rem;"></div>';
       }).join('');
       card.innerHTML =
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;">'
@@ -225,12 +256,28 @@
         + '</div>'
         + '<label style="display:flex;align-items:center;gap:.4rem;margin-bottom:.5rem;"><input type="checkbox" id="al-ackreq-'+ch+'"> <span> Ack required</span></label>'
         + '<div style="border-top:1px dashed #ddd;margin:.5rem 0;"></div>'
-        + '<div style="font-size:.9rem;color:#666;margin-bottom:.25rem;">Limits are inclusive. Units: VA (on apparent power S).</div>'
         + rows
         + '<div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:.6rem;">'
         + '  <button type="button" id="al-ack-'+ch+'" style="padding:6px 10px;background:#198754;border:none;border-radius:6px;color:#fff;">Ack '+CH_LABELS[ch]+'</button>'
         + '</div>';
       grid.appendChild(card);
+    }
+    // attach metric hint updaters
+    for(var ch=0; ch<4; ch++){
+      for(var ak=0; ak<3; ak++){
+        (function(ch,ak){
+          var s = $('al-met-'+ch+'-'+ak);
+          function upd(){
+            var m = s ? s.value : 4; // default S (VA)
+            var unit = unitForMetric(m), hint = hintForMetric(m);
+            var mn = $('al-min-'+ch+'-'+ak), mx = $('al-max-'+ch+'-'+ak), h=$('al-hint-'+ch+'-'+ak);
+            if(mn) mn.placeholder = 'min '+unit;
+            if(mx) mx.placeholder = 'max '+unit;
+            if(h)  h.textContent = 'Metric: '+METRICS.filter(x=>String(x.v)==String(m))[0].l+' — '+hint+'.';
+          }
+          if(s){ s.addEventListener('change', upd); upd(); }
+        })(ch,ak);
+      }
     }
   }
 
@@ -246,16 +293,13 @@
       + '  </div>'
       + '  <label><input type="checkbox" id="enable-relay'+i+'"> Enabled</label><br>'
       + '  <label><input type="checkbox" id="invert-relay'+i+'"> Inverted</label><br>'
-      + '  <label>Alarm Group:'
+      + '  <label>Mode:'
       + '    <select id="group-relay'+i+'" style="width:100%;padding:6px;border-radius:4px;">'
       + '      <option value="0">None</option>'
-      + '      <option value="1">Group 1</option>'
-      + '      <option value="2">Group 2</option>'
-      + '      <option value="3">Group 3</option>'
-      + '      <option value="4">Modbus Controlled</option>'
+      + '      <option value="4" selected>Modbus Controlled</option>'
       + '    </select>'
       + '  </label>'
-      + '  <small style="color:#666;">Value 4 = controlled by Modbus/master; 1–3 = follow A Group 1–3; 0 = no follow.</small>'
+      + '  <small style="color:#666;">Modbus master can also toggle via coils.</small>'
       + '</div>';
       container.appendChild(card);
     }
@@ -263,7 +307,7 @@
 
   function buildButtons(){
     var container=$('buttons-config'); if(!container) return; container.innerHTML='';
-    var ACTIONS=[ // 0..6 only (firmware clamps)
+    var ACTIONS=[
       {value:0,label:'None'},
       {value:1,label:'Toggle Relay 1'},
       {value:2,label:'Toggle Relay 2'},
@@ -351,7 +395,6 @@
       if(fEl) fEl.textContent = (typeof m.FreqHz==='number')?m.FreqHz.toFixed(2):((m&&m.FreqHz)?m.FreqHz:'--');
       if(tEl) tEl.textContent = (typeof m.TempC!=='undefined')?m.TempC:'--';
 
-      // Also carry AlarmsState snapshot if present
       if(m && m.AlarmsState) updateAlarmsState(m.AlarmsState);
     }catch(e){}
   });
@@ -399,6 +442,17 @@
   connection.on('AlarmsCfg', function(cfg){ try{ populateAlarmsCfg(cfg); }catch(e){} });
   connection.on('AlarmsState', function(state){ try{ updateAlarmsState(state); }catch(e){} });
 
+  function setMetricHintsFromSelect(ch, ak){
+    var s = $('al-met-'+ch+'-'+ak);
+    if(!s) return;
+    var m = s.value;
+    var unit = unitForMetric(m), hint = hintForMetric(m);
+    var mn = $('al-min-'+ch+'-'+ak), mx = $('al-max-'+ch+'-'+ak), h=$('al-hint-'+ch+'-'+ak);
+    if(mn) mn.placeholder = 'min '+unit;
+    if(mx) mx.placeholder = 'max '+unit;
+    if(h)  h.textContent  = 'Metric: '+METRICS.filter(x=>String(x.v)==String(m))[0].l+' — '+hint+'.';
+  }
+
   function populateAlarmsCfg(cfgArr){
     if(!cfgArr || typeof cfgArr.length==='undefined') return;
     for(var ch=0; ch<cfgArr.length && ch<4; ch++){
@@ -406,13 +460,22 @@
       var ackEl = $('al-ackreq-'+ch); if(ackEl) ackEl.checked = !!c.ack;
       for(var ak=0; ak<3; ak++){
         var r = c[ak] || {};
-        var en=$('al-en-'+ch+'-'+ak), mn=$('al-min-'+ch+'-'+ak), mx=$('al-max-'+ch+'-'+ak);
+        var en=$('al-en-'+ch+'-'+ak),
+            mn=$('al-min-'+ch+'-'+ak),
+            mx=$('al-max-'+ch+'-'+ak),
+            met=$('al-met-'+ch+'-'+ak);
         if(en && typeof r.enabled!=='undefined') en.checked = !!r.enabled;
-        if(mn && typeof r.min_va!=='undefined')  mn.value   = r.min_va;
-        if(mx && typeof r.max_va!=='undefined')  mx.value   = r.max_va;
+        // Back-compat: accept min_va/max_va or min/max coming from device
+        var rmin = (typeof r.min!=='undefined') ? r.min : r.min_va;
+        var rmax = (typeof r.max!=='undefined') ? r.max : r.max_va;
+        if(mn && typeof rmin!=='undefined')  mn.value   = rmin;
+        if(mx && typeof rmax!=='undefined')  mx.value   = rmax;
+        if(met && typeof r.metric!=='undefined') met.value = String(r.metric);
+        setMetricHintsFromSelect(ch, ak);
       }
     }
   }
+
   function updateAlarmsState(state){
     for(var ch=0; ch<4; ch++){
       for(var ak=0; ak<3; ak++){
@@ -448,7 +511,7 @@
       e_ap_kWh_x1e5:parseInt($('sc-eap').value||"1",10),
       e_an_kWh_x1e5:parseInt($('sc-ean').value||"1",10),
       e_rp_kvarh_x1e5:parseInt($('sc-erp').value||"1",10),
-      e_rn_kvarh_x1e5:parseInt($('sc-ern').value||"1",10),   // <- RN kvarh (firmware also accepts e_rn_kWh_x1e5)
+      e_rn_kvarh_x1e5:parseInt($('sc-ern').value||"1",10),
       e_s_kVAh_x1e5:parseInt($('sc-es').value||"1",10)
     };
     connection.send("Config", { t:"meter", cfg:cfg });
@@ -475,16 +538,18 @@
     appendLog("Config.scale", cfg);
   });
 
-  // Alarms apply
+  // Alarms apply (NEW: sends min/max/metric per rule)
   $('apply-alarms').addEventListener('click', function(){
     var cfgArr=[];
     for(var ch=0; ch<4; ch++){
       var chO={ ack: $('al-ackreq-'+ch).checked };
       for(var ak=0; ak<3; ak++){
+        var metric = parseInt(($('al-met-'+ch+'-'+ak).value||'4'),10);
         chO[ak] = {
           enabled: $('al-en-'+ch+'-'+ak).checked,
-          min_va:  parseInt($('al-min-'+ch+'-'+ak).value || "0",10),
-          max_va:  parseInt($('al-max-'+ch+'-'+ak).value || "0",10)
+          min:     parseInt($('al-min-'+ch+'-'+ak).value || "0",10),
+          max:     parseInt($('al-max-'+ch+'-'+ak).value || "0",10),
+          metric:  metric
         };
       }
       cfgArr.push(chO);
@@ -509,29 +574,28 @@
     appendLog("AlarmsAck", { list:[true,true,true,true] });
   });
 
-  // Relay config sender (placeholder – legacy firmware expects different payload; keep for compatibility)
+  // Relay config sender (compat – firmware’s "relays" handler keeps polarity/defaults)
   for(let i=1;i<=2;i++){
-    $('enable-relay'+i).addEventListener('change', sendRelayConfig);
-    $('invert-relay'+i).addEventListener('change', sendRelayConfig);
-    $('group-relay'+i).addEventListener('change',  sendRelayConfig);
+    var er=$('enable-relay'+i), ir=$('invert-relay'+i), gr=$('group-relay'+i);
+    if(er) er.addEventListener('change', sendRelayConfig);
+    if(ir) ir.addEventListener('change', sendRelayConfig);
+    if(gr) gr.addEventListener('change',  sendRelayConfig);
   }
   function sendRelayConfig(){
-    var list=[];
-    for(var i=1;i<=2;i++){
-      list.push({
-        enabled:  $('enable-relay'+i).checked,
-        inverted: $('invert-relay'+i).checked,
-        group:    parseInt($('group-relay'+i).value||"0",10)
-      });
-    }
-    connection.send("Config", { t:"relays", list:list });
-    appendLog("Config.relays", list);
+    // Map to legacy keys: active_low/def0/def1 just for persistence demo
+    var cfg={
+      active_low: ($('invert-relay1').checked || $('invert-relay2').checked) ? 1 : 0,
+      def0: $('enable-relay1').checked,
+      def1: $('enable-relay2').checked
+    };
+    connection.send("RelaysCfg", cfg);
+    appendLog("RelaysCfg", cfg);
   }
 
   // Buttons -> device
-  for(var i=1;i<=4;i++){ $('action-button'+i).addEventListener('change', sendButtonConfig); }
+  for(var i=1;i<=4;i++){ var el=$('action-button'+i); if(el) el.addEventListener('change', sendButtonConfig); }
   function sendButtonConfig(){
-    var list=[]; for(var i=1;i<=4;i++) list.push({ action: parseInt($('action-button'+i).value||"0",10) });
+    var list=[]; for(var i=1;i<=4;i++) list.push({ action: parseInt(($('action-button'+i).value||"0"),10) });
     connection.send("Config", { t:"buttons", list:list });
     appendLog("Config.buttons", list);
   }

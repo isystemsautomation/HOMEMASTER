@@ -4,9 +4,10 @@
 // Buttons: GPIO22..25, LEDs: GPIO18..21
 // ============================================================================
 
-// ---- FIX for Arduino auto-prototype: make PersistConfig visible to auto-prototypes
+// ---- FIX for Arduino auto-prototype: make types visible to auto-prototypes
 struct PersistConfig;
 struct AlarmRule;
+struct MetricsSnapshot;   // <-- forward declare to satisfy auto-prototypes
 
 #include <Arduino.h>
 #include <SPI.h>
@@ -790,6 +791,10 @@ struct MetricsSnapshot {
   int32_t S_VA[4];      // VA (L1..L3, total)
   int32_t Freq_cHz;     // 0.01 Hz
 };
+
+// ---- Explicit prototypes to defeat auto-prototype confusion ----
+static int32_t pick_metric_value(uint8_t ch, uint8_t metric, const MetricsSnapshot& m);
+static void    eval_alarms_with_metrics(const MetricsSnapshot& snap);
 
 // ---- Alarm evaluation (call each sample) ----
 static int32_t pick_metric_value(uint8_t ch, uint8_t metric, const MetricsSnapshot& m) {
