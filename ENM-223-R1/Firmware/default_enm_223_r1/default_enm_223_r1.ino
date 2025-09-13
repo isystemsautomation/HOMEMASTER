@@ -262,12 +262,13 @@ void setDefaults() {
   g_mb_baud      = 19200;
   sample_ms      = 200;
 
-  for (int i=0;i<4;i++) {
-    ledCfg[i].mode = 0;      // steady
-    ledCfg[i].source = (i==0) ? 1 : 0; // LED0 heartbeat
-    buttonCfg[i].action = 0; // None
-    ledManual[i] = false;
-  }
+for (int i=0;i<4;i++) {
+  ledCfg[i].mode = 0;      // steady
+  ledCfg[i].source = 0;    // None (no heartbeat or button presets)
+  buttonCfg[i].action = 0; // None
+  ledManual[i] = false;
+}
+
 
   relay_active_low = RELAY_ACTIVE_LOW;
   relay_default[0] = false;
@@ -1062,8 +1063,13 @@ void handleUnifiedConfig(JSONVar obj) {
   else if (type == "leds") {
     JSONVar list = obj["list"];
     for (int i=0;i<4 && i<list.length();i++) {
-      ledCfg[i].mode   = (uint8_t)constrain((int)list[i]["mode"],   0, 1);
-      ledCfg[i].source = (uint8_t)constrain((int)list[i]["source"], 0, 9); // extended up to 9 for override LEDs
+ledCfg[i].mode   = (uint8_t)constrain((int)list[i]["mode"],   0, 1);
+// New LED sources:
+// 0 None, 8 Override R1, 9 Override R2,
+// 10..13 Alarm L1..L3,Tot, 14..17 Warning L1..L3,Tot,
+// 18..21 Event L1..L3,Tot, 22..25 Any(A|W|E) L1..L3,Tot
+ledCfg[i].source = (uint8_t)constrain((int)list[i]["source"], 0, 25);
+
     }
     WebSerial.send("message", "LEDs configuration updated");
     WebSerial.send("LedConfigList", LedConfigListFromCfg());
@@ -1343,21 +1349,56 @@ void doButtonAction(uint8_t idx) {
 
 // ================== LED source evaluation ==================
 bool evalLedSource(uint8_t src) {
+  // Helper lambdas to keep cases clean
+  auto anyKinds = [&](uint8_t ch)->bool {
+    if (ch >= CH_COUNT) return false;
+    return g_alarmRt[ch][AK_ALARM].active
+        || g_alarmRt[ch][AK_WARNING].active
+        || g_alarmRt[ch][AK_EVENT].active;
+  };
+  auto alarmKind = [&](uint8_t ch, uint8_t kind)->bool {
+    if (ch >= CH_COUNT) return false;
+    if (kind >= AK_COUNT) return false;
+    return g_alarmRt[ch][kind].active;
+  };
+
   switch (src) {
-    case 0: return false;                         // None
-    case 1: return blinkPhase;                    // Heartbeat
-    case 2: return buttonState[0];
-    case 3: return buttonState[1];
-    case 4: return buttonState[2];
-    case 5: return buttonState[3];
-    case 6: return buttonState[0]||buttonState[1]||buttonState[2]||buttonState[3];
-    case 7: return samplingTick;                  // pulse on each poll
-    // NEW: Override indicators
-    case 8: return buttonOverrideMode[0];         // Override active for R1
-    case 9: return buttonOverrideMode[1];         // Override active for R2
+    // 0: None
+    case 0:  return false;
+
+    // 8..9: Override indicators (unchanged)
+    case 8:  return buttonOverrideMode[0];  // Override active for R1
+    case 9:  return buttonOverrideMode[1];  // Override active for R2
+
+    // 10..13: Alarm (AK_ALARM) for L1..L3,Tot
+    case 10: return alarmKind(CH_L1, AK_ALARM);
+    case 11: return alarmKind(CH_L2, AK_ALARM);
+    case 12: return alarmKind(CH_L3, AK_ALARM);
+    case 13: return alarmKind(CH_TOT,AK_ALARM);
+
+    // 14..17: Warning (AK_WARNING) for L1..L3,Tot
+    case 14: return alarmKind(CH_L1, AK_WARNING);
+    case 15: return alarmKind(CH_L2, AK_WARNING);
+    case 16: return alarmKind(CH_L3, AK_WARNING);
+    case 17: return alarmKind(CH_TOT,AK_WARNING);
+
+    // 18..21: Event (AK_EVENT) for L1..L3,Tot
+    case 18: return alarmKind(CH_L1, AK_EVENT);
+    case 19: return alarmKind(CH_L2, AK_EVENT);
+    case 20: return alarmKind(CH_L3, AK_EVENT);
+    case 21: return alarmKind(CH_TOT,AK_EVENT);
+
+    // 22..25: Any (Alarm OR Warning OR Event) for L1..L3,Tot
+    case 22: return anyKinds(CH_L1);
+    case 23: return anyKinds(CH_L2);
+    case 24: return anyKinds(CH_L3);
+    case 25: return anyKinds(CH_TOT);
+
     default: return false;
   }
 }
+
+
 
 // ================== Main loop ==================
 void loop() {

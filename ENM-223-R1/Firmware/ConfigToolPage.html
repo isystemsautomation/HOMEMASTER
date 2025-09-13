@@ -23,7 +23,7 @@
 
   <div style="text-align:center;margin-bottom:2rem;">
     <h2 style="margin:.5rem 0 0;">ENM-223-R1 Module Configuration</h2>
-    <p style="margin:.25rem 0 0;color:#333;">Relays now support <b>None</b>, <b>Modbus</b>, and <b>Alarm</b> modes with selectable alarm source.</p>
+    <p style="margin:.25rem 0 0;color:#333;">Relays support <b>None</b>, <b>Modbus</b>, and <b>Alarm</b> modes with selectable alarm source. Button override LEDs available.</p>
   </div>
 
   <div style="background:#f1f1f1;padding:1rem 1.5rem;margin-bottom:2rem;border-radius:6px;border-left:4px solid #007bff;">
@@ -113,6 +113,9 @@
   <section style="margin-bottom:1.5rem;">
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">User LEDs (4)</h2>
     <div id="leds-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
+    <div style="color:#666;margin-top:.5rem;font-size:.9rem;">
+      Tip: set a LED source to <b>Override R1</b> or <b>Override R2</b> to light when a relay is in button override mode.
+    </div>
   </section>
 </section>
 
@@ -234,13 +237,25 @@
       if(ackBtn){  ackBtn.addEventListener('click', function(){ connection.send("AlarmsAck",{ch:ch}); appendLog("AlarmsAck",{ch:ch}); }); }
     }
   }
+
+  // FIXED function (no stray quotes; null-safe)
   function collectChannelCfg(ch){
     var chO={ ack: $('al-ackreq-'+ch).checked };
     for(var ak=0; ak<3; ak++){
-      chO[ak]={ enabled:$('al-en-'+ch+'-'+ak).checked, min:+($('al-min-'+ch+'-'+ak).value||0), max:+($('al-max-'+ch+'-'+ak).value||0), metric:+$('al-met-'+ch+'-'+ak).value };
+      var enEl = $('al-en-'+ch+'-'+ak);
+      var mnEl = $('al-min-'+ch+'-'+ak);
+      var mxEl = $('al-max-'+ch+'-'+ak);
+      var mtEl = $('al-met-'+ch+'-'+ak);
+      chO[ak] = {
+        enabled: enEl ? !!enEl.checked : false,
+        min:     mnEl ? +mnEl.value : 0,
+        max:     mxEl ? +mxEl.value : 0,
+        metric:  mtEl ? +mtEl.value : 4
+      };
     }
     return chO;
   }
+
   function applyChannelCfg(ch, obj){
     if(typeof obj!=='object') return;
     var ackEl=$('al-ackreq-'+ch); if(ackEl && obj.hasOwnProperty('ack')) ackEl.checked=!!obj.ack;
@@ -267,7 +282,7 @@
     }
   }
 
-  /* ---------- relays (NEW: modes + alarm source) ---------- */
+  /* ---------- relays (modes + alarm source) ---------- */
   function buildRelays(){
     var container=$('relays-config'); if(!container) return; container.innerHTML='';
     var MODE_OPTS = [
@@ -308,7 +323,6 @@
       + '<small style="color:#666;">In <b>Alarm</b> mode the relay follows selected alarm(s). Direct writes are blocked by firmware.</small>';
       container.appendChild(card);
 
-      // wire up behavior
       (function(idx){
         var root = card;
         function q(sel){ return root.querySelector(sel); }
@@ -324,14 +338,7 @@
         var t=$('toggle-relay'+idx);
         if(t) t.addEventListener('click', function(){ connection.send("RelaysSet",{idx:(idx-1),toggle:true}); appendLog("RelaysSet",{idx:(idx-1),toggle:true}); });
 
-        function maskFromUI(){
-          var al=q('.rly-kind-al').checked?1:0;
-          var wa=q('.rly-kind-wa').checked?2:0;
-          var ev=q('.rly-kind-ev').checked?4:0;
-          return (al|wa|ev);
-        }
         function sendCfg(){
-          // polarity is shared -> read both toggles to set one bit
           var active_low = (($('invert-relay1').checked||$('invert-relay2').checked)?1:0);
           var cfg={
             active_low:active_low,
@@ -359,7 +366,17 @@
   /* ---------- buttons ---------- */
   function buildButtons(){
     var container=$('buttons-config'); if(!container) return; container.innerHTML='';
-    var ACTIONS=[{value:0,label:'None'},{value:1,label:'Toggle Relay 1'},{value:2,label:'Toggle Relay 2'},{value:3,label:'Toggle LED1'},{value:4,label:'Toggle LED2'},{value:5,label:'Toggle LED3'},{value:6,label:'Toggle LED4'}];
+    var ACTIONS=[
+      {value:0,label:'None'},
+      {value:1,label:'Toggle Relay 1'},
+      {value:2,label:'Toggle Relay 2'},
+      {value:3,label:'Toggle LED1'},
+      {value:4,label:'Toggle LED2'},
+      {value:5,label:'Toggle LED3'},
+      {value:6,label:'Toggle LED4'},
+      {value:7,label:'Override Relay 1 (hold 3s)'},
+      {value:8,label:'Override Relay 2 (hold 3s)'}
+    ];
     for(var i=1;i<=4;i++){
       var options=ACTIONS.map(a=>'<option value="'+a.value+'">'+a.label+'</option>').join('');
       var card=document.createElement('div');
@@ -370,7 +387,6 @@
       + '</div>';
       container.appendChild(card);
     }
-    // send on change
     for(var i=1;i<=4;i++){ var el=$('action-button'+i); if(el) el.addEventListener('change', sendButtonCfg); }
   }
   function sendButtonCfg(){
@@ -382,7 +398,41 @@
   function buildLEDs(){
     var container=$('leds-config'); if(!container) return; container.innerHTML='';
     var LED_MODE=[{value:0,label:'Steady (when active)'},{value:1,label:'Blink (when active)'}];
-    var LED_SOURCE=[{value:0,label:'None'},{value:1,label:'Heartbeat'},{value:2,label:'Button 1 pressed'},{value:3,label:'Button 2 pressed'},{value:4,label:'Button 3 pressed'},{value:5,label:'Button 4 pressed'},{value:6,label:'Any button pressed'},{value:7,label:'Sampling tick'}];
+
+    // UPDATED: include override LEDs (values 8 and 9)
+var LED_SOURCE = [
+  { value: 0,  label: 'None' },
+
+  // Override indicators (kept)
+  { value: 8,  label: 'Override R1' },
+  { value: 9,  label: 'Override R2' },
+
+  // Alarm (active)
+  { value: 10, label: 'Alarm L1' },
+  { value: 11, label: 'Alarm L2' },
+  { value: 12, label: 'Alarm L3' },
+  { value: 13, label: 'Alarm Totals' },
+
+  // Warning (active)
+  { value: 14, label: 'Warning L1' },
+  { value: 15, label: 'Warning L2' },
+  { value: 16, label: 'Warning L3' },
+  { value: 17, label: 'Warning Totals' },
+
+  // Event (active)
+  { value: 18, label: 'Event L1' },
+  { value: 19, label: 'Event L2' },
+  { value: 20, label: 'Event L3' },
+  { value: 21, label: 'Event Totals' },
+
+  // Any of Alarm/Warning/Event (logical OR)
+  { value: 22, label: 'Any (A|W|E) L1' },
+  { value: 23, label: 'Any (A|W|E) L2' },
+  { value: 24, label: 'Any (A|W|E) L3' },
+  { value: 25, label: 'Any (A|W|E) Totals' }
+];
+
+
     for(var i=1;i<=4;i++){
       var modeOpts=LED_MODE.map(a=>'<option value="'+a.value+'">'+a.label+'</option>').join('');
       var srcOpts =LED_SOURCE.map(a=>'<option value="'+a.value+'">'+a.label+'</option>').join('');
@@ -554,7 +604,7 @@
       p_mW_per_lsb:+$('sc-p').value, q_mvar_x1k_per_lsb:+$('sc-q').value,
       s_mva_per_lsb_x1000:+$('sc-s').value,
       e_ap_kWh_x1e5:+$('sc-eap').value, e_an_kWh_x1e5:+$('sc-ean').value,
-      e_rp_kvarh_x1e5:+$('sc-erp').value, e_rn_kvarh_x1e5:+$('sc-ern').value, e_s_kVAh_x1e5:+$('sc-es').value
+      e_rp_kvarh_per_cnt_x1e5:+$('sc-erp').value, e_rn_kvarh_per_cnt_x1e5:+$('sc-ern').value, e_s_kVAh_per_cnt_x1e5:+$('sc-es').value
     };
     connection.send("Config",{t:"meter",cfg}); appendLog("Config.meter",cfg);
   });
@@ -565,7 +615,7 @@
       p_mW_per_lsb:+$('sc-p').value, q_mvar_x1k_per_lsb:+$('sc-q').value,
       s_mva_per_lsb_x1000:+$('sc-s').value,
       e_ap_kWh_x1e5:+$('sc-eap').value, e_an_kWh_x1e5:+$('sc-ean').value,
-      e_rp_kvarh_x1e5:+$('sc-erp').value, e_rn_kvarh_x1e5:+$('sc-ern').value, e_s_kVAh_x1e5:+$('sc-es').value
+      e_rp_kvarh_per_cnt_x1e5:+$('sc-erp').value, e_rn_kvarh_per_cnt_x1e5:+$('sc-ern').value, e_s_kVAh_per_cnt_x1e5:+$('sc-es').value
     };
     connection.send("Config",{t:"meter",cfg}); appendLog("Config.scale",cfg);
   });
