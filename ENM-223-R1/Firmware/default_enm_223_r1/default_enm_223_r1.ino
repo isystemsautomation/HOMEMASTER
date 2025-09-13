@@ -2,6 +2,7 @@
 // ATM90E32 via SPI1 (NO external library) + 2x Relays on GPIO0/1
 // WebSerial UI, Modbus RTU, LittleFS persistence
 // Buttons: GPIO22..25, LEDs: GPIO18..21
+// Includes: Per‑relay Button Override (R1/R2), LED sources for Override mode
 // ============================================================================
 
 // ---- FIX for Arduino auto-prototype: make types visible to auto-prototypes
@@ -64,9 +65,16 @@ bool      ledPhys[4]   = {false,false,false,false};   // physical pin state trac
 
 // Button runtime
 constexpr unsigned long BTN_DEBOUNCE_MS = 30;
+constexpr unsigned long BTN_LONG_MS     = 3000;        // 3s for long-press
 bool buttonState[4]      = {false,false,false,false};
 bool buttonPrev[4]       = {false,false,false,false};
 unsigned long btnChangeAt[4] = {0,0,0,0};
+unsigned long btnPressAt[4]  = {0,0,0,0};
+bool btnLongDone[4]      = {false,false,false,false};
+
+// ---- NEW: Button override (per‑relay) ----
+bool buttonOverrideMode[2]  = {false,false}; // true => relay is under button control
+bool buttonOverrideState[2] = {false,false}; // logical ON/OFF while in override
 
 // Relays (logical state; true = ON before polarity)
 bool relayState[2] = {false,false}; 
@@ -285,6 +293,10 @@ void setDefaults() {
   e_s_kVAh_per_cnt_x1e5   = 1;
 
   setAlarmDefaults();
+
+  // Clear overrides on defaults
+  buttonOverrideMode[0] = buttonOverrideMode[1] = false;
+  buttonOverrideState[0] = buttonOverrideState[1] = false;
 }
 
 void captureToPersist(PersistConfig &pc) {
@@ -394,6 +406,11 @@ bool applyFromPersist(const PersistConfig &pc) {
   relay_alarm_src[1].kindsMask = pc.relay_alarm_mask1 & 0b111;
 
   for (int i=0;i<4;i++) ledManual[i] = false;
+
+  // Clear runtime overrides after loading
+  buttonOverrideMode[0] = buttonOverrideMode[1] = false;
+  buttonOverrideState[0] = buttonOverrideState[1] = false;
+
   return true;
 }
 
@@ -835,7 +852,6 @@ static void eval_alarms_with_metrics(const MetricsSnapshot& snap){
 }
 
 // ---- WebSerial alarm handlers ----
-// 1) Full-array handler. If a per-channel object lands here, forward to AlarmsCfgCh.
 void handleAlarmsCfg(JSONVar cfgArr){
   // Accept wrong-shape (per-channel) sent to "AlarmsCfg"
   if (cfgArr.hasOwnProperty("ch") || cfgArr.hasOwnProperty("cfg")) {
@@ -872,9 +888,7 @@ void handleAlarmsCfg(JSONVar cfgArr){
   }
 }
 
-// 2) Per-channel handler. Accepts both shapes:
-//    A) { ch:0, ack:bool, "0":{...},"1":{...},"2":{...} }
-//    B) { ch:0, cfg:{ ack:bool, "0":{...},"1":{...},"2":{...} } }
+// 2) Per-channel handler
 void handleAlarmsCfgCh(JSONVar v){
   if (!v.hasOwnProperty("ch")) { WebSerial.send("message","AlarmsCfgCh: missing ch"); return; }
   int ch = constrain((int)v["ch"], 0, CH_COUNT-1);
@@ -1049,7 +1063,7 @@ void handleUnifiedConfig(JSONVar obj) {
     JSONVar list = obj["list"];
     for (int i=0;i<4 && i<list.length();i++) {
       ledCfg[i].mode   = (uint8_t)constrain((int)list[i]["mode"],   0, 1);
-      ledCfg[i].source = (uint8_t)constrain((int)list[i]["source"], 0, 7);
+      ledCfg[i].source = (uint8_t)constrain((int)list[i]["source"], 0, 9); // extended up to 9 for override LEDs
     }
     WebSerial.send("message", "LEDs configuration updated");
     WebSerial.send("LedConfigList", LedConfigListFromCfg());
@@ -1059,7 +1073,7 @@ void handleUnifiedConfig(JSONVar obj) {
     JSONVar list = obj["list"];
     for (int i=0;i<4 && i<list.length();i++) {
       int a = (int)list[i]["action"];
-      if (a < 0) a = 0; if (a > 6) a = 6;
+      if (a < 0) a = 0; if (a > 8) a = 8;  // allow 7/8 for override
       buttonCfg[i].action = (uint8_t)a;
     }
     WebSerial.send("message", "Buttons configuration updated");
@@ -1088,7 +1102,10 @@ void handleRelaysSet(JSONVar v){
   bool changed=false;
 
   // In ALARM mode, ignore external direct writes for that relay
-  auto canWrite = [&](int idx)->bool{ return relay_mode[idx] != RM_ALARM; };
+  auto canWrite = [&](int idx)->bool{
+    // also block writes when in button override
+    return (relay_mode[idx] != RM_ALARM) && !buttonOverrideMode[idx];
+  };
 
   if (v.hasOwnProperty("list") && v["list"].length() >= 2) {
     bool r0 = (bool)v["list"][0];
@@ -1101,7 +1118,7 @@ void handleRelaysSet(JSONVar v){
   } else if (v.hasOwnProperty("idx")) {
     int idx = constrain((int)v["idx"], 0, 1);
     if (!canWrite(idx)) {
-      WebSerial.send("message","RelaysSet: blocked (ALARM mode)");
+      WebSerial.send("message","RelaysSet: blocked (ALARM mode or Button Override)");
     } else if (v.hasOwnProperty("toggle") && (bool)v["toggle"]) {
       setRelayPhys(idx, !relayState[idx]); changed=true;
     } else if (v.hasOwnProperty("on")) {
@@ -1279,7 +1296,7 @@ void setup() {
 
   // Initial echoes
   sendAllEchoesOnce();
-  WebSerial.send("message", "Boot OK (ENM-223-R1 — alarms accept array & per‑channel payloads; persist on Apply)");
+  WebSerial.send("message", "Boot OK (ENM-223-R1 + ButtonOverride)");
 }
 
 // ================== HREG write watcher ==================
@@ -1312,6 +1329,7 @@ void serviceHregWrites() {
 
 // ================== Button actions ==================
 // Actions: 0 None | 1 Toggle Relay1 | 2 Toggle Relay2 | 3..6 Toggle LED0..3
+// NEW (handled in loop): 7=Override R1 (long=enter/exit, short=toggle), 8=Override R2
 void doButtonAction(uint8_t idx) {
   uint8_t act = buttonCfg[idx].action;
   switch (act) {
@@ -1334,6 +1352,9 @@ bool evalLedSource(uint8_t src) {
     case 5: return buttonState[3];
     case 6: return buttonState[0]||buttonState[1]||buttonState[2]||buttonState[3];
     case 7: return samplingTick;                  // pulse on each poll
+    // NEW: Override indicators
+    case 8: return buttonOverrideMode[0];         // Override active for R1
+    case 9: return buttonOverrideMode[1];         // Override active for R2
     default: return false;
   }
 }
@@ -1353,13 +1374,73 @@ void loop() {
   mb.task();
   serviceHregWrites();
 
-  // Modbus coils control only in Modbus mode (mirror otherwise)
-  if (relay_mode[0] == RM_MODBUS) {
+  // ===== Buttons (debounce + long/short + override logic) =====
+  for (int i = 0; i < 4; i++) {
+    bool pressed = readPressed(i);
+    if (pressed != buttonState[i] && (now - btnChangeAt[i] >= BTN_DEBOUNCE_MS)) {
+      btnChangeAt[i] = now; buttonPrev[i]  = buttonState[i]; buttonState[i] = pressed;
+      uint8_t act = buttonCfg[i].action;
+
+      // Edge: press
+      if (!buttonPrev[i] && buttonState[i]) {
+        btnPressAt[i] = now;
+        btnLongDone[i] = false;
+      }
+
+      // Edge: release => potential short-press
+      if (buttonPrev[i] && !buttonState[i]) {
+        if (!btnLongDone[i]) {
+          if (act == 7 || act == 8) {
+            int r = (act == 7) ? 0 : 1;
+            if (buttonOverrideMode[r]) {
+              // toggle while in override
+              buttonOverrideState[r] = !buttonOverrideState[r];
+            } else {
+              // not in override -> ignore short press to avoid accidental toggles
+            }
+          } else {
+            // legacy short actions
+            doButtonAction(i);
+            echoRelayState();
+          }
+        }
+      }
+    }
+
+    // Long hold detection
+    if (buttonState[i] && !btnLongDone[i] && (now - btnPressAt[i] >= BTN_LONG_MS)) {
+      uint8_t act = buttonCfg[i].action;
+      if (act == 7 || act == 8) {
+        int r = (act == 7) ? 0 : 1;
+        if (!buttonOverrideMode[r]) {
+          // ENTER override: seed from current logical state (smooth handover)
+          buttonOverrideMode[r]  = true;
+          buttonOverrideState[r] = relayState[r];
+        } else {
+          // EXIT override: return to normal control; mirror coil so SCADA reflects current
+          buttonOverrideMode[r]  = false;
+          if (r == 0) mb.Coil(COIL_RLY1, relayState[0]);
+          else        mb.Coil(COIL_RLY2, relayState[1]);
+        }
+      }
+      btnLongDone[i] = true; // latch until release
+    }
+
+    mb.setIsts(ISTS_BTN_BASE + i, buttonState[i]);
+  }
+
+  // ===== Modbus coils control =====
+  auto canExternalWrite = [&](int idx)->bool{
+    // Allow external (Modbus coil) writes only if in MODBUS mode and NOT in override
+    return (relay_mode[idx] == RM_MODBUS) && !buttonOverrideMode[idx];
+  };
+
+  if (canExternalWrite(0)) {
     if (mb.Coil(COIL_RLY1) != relayState[0]) setRelayPhys(0, mb.Coil(COIL_RLY1));
   } else {
     if (mb.Coil(COIL_RLY1) != relayState[0]) mb.Coil(COIL_RLY1, relayState[0]);
   }
-  if (relay_mode[1] == RM_MODBUS) {
+  if (canExternalWrite(1)) {
     if (mb.Coil(COIL_RLY2) != relayState[1]) setRelayPhys(1, mb.Coil(COIL_RLY2));
   } else {
     if (mb.Coil(COIL_RLY2) != relayState[1]) mb.Coil(COIL_RLY2, relayState[1]);
@@ -1369,16 +1450,6 @@ void loop() {
   for (uint16_t ch=0; ch<CH_COUNT; ++ch) {
     uint16_t coil = COIL_ALARM_ACK_BASE + ch;
     if (mb.Coil(coil)) { alarms_ack_channel((uint8_t)ch); mb.Coil(coil, 0); }
-  }
-
-  // Buttons
-  for (int i = 0; i < 4; i++) {
-    bool pressed = readPressed(i);
-    if (pressed != buttonState[i] && (now - btnChangeAt[i] >= BTN_DEBOUNCE_MS)) {
-      btnChangeAt[i] = now; buttonPrev[i]  = buttonState[i]; buttonState[i] = pressed;
-      if (buttonPrev[i] && !buttonState[i]) { doButtonAction(i); echoRelayState(); } // on release
-    }
-    mb.setIsts(ISTS_BTN_BASE + i, buttonState[i]);
   }
 
   // ===== Sampling =====
@@ -1491,13 +1562,22 @@ void loop() {
       return any;
     };
 
-    if (relay_mode[0] == RM_ALARM) {
+    if (relay_mode[0] == RM_ALARM && !buttonOverrideMode[0]) {
       bool on0 = alarm_any_selected(relay_alarm_src[0].ch, relay_alarm_src[0].kindsMask);
       if (relayState[0] != on0) setRelayPhys(0, on0);
     }
-    if (relay_mode[1] == RM_ALARM) {
+    if (relay_mode[1] == RM_ALARM && !buttonOverrideMode[1]) {
       bool on1 = alarm_any_selected(relay_alarm_src[1].ch, relay_alarm_src[1].kindsMask);
       if (relayState[1] != on1) setRelayPhys(1, on1);
+    }
+
+    // ---- Button override enforcement (highest priority) ----
+    for (int r=0; r<2; ++r) {
+      if (buttonOverrideMode[r]) {
+        if (relayState[r] != buttonOverrideState[r]) {
+          setRelayPhys(r, buttonOverrideState[r]);
+        }
+      }
     }
 
     // ---- WebSerial live echo ----

@@ -35,7 +35,7 @@
   <form id="modbus-config" style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:.75rem;">
     <div><label><strong>Modbus Address</strong></label><select id="modbus-address" class="enm-input"></select></div>
     <div><label><strong>Baud Rate</strong></label>
-      <select id="modbus-baud" class="enm-input"><option>9600</option><option selected>19200</option><option>38400</option><option>57600</option><option>115200</option></select>
+      <select id="modbus-baud" class="enm-input"><option>9600</option><option selected="">19200</option><option>38400</option><option>57600</option><option>115200</option></select>
     </div>
     <div style="grid-column:span 2;display:flex;justify-content:flex-end;">
       <button id="connect-button" type="button" style="padding:10px 20px;background:#007bff;color:#fff;border:none;border-radius:4px;">Connect to device</button>
@@ -47,21 +47,21 @@
     <pre id="log-content" style="white-space:pre-wrap;font-family:monospace;line-height:1.25em;margin:0;margin-top:.5rem;height:calc(1.25em * 6);overflow-y:auto;background:#fff;border:1px solid #e5e5e5;border-radius:4px;padding:.5rem;"></pre>
   </div>
 
-  <!-- Meter Options -->
+  
   <section style="margin-bottom:1.75rem;">
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Meter Options</h2>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem;">
-      <div><label><strong>Line Frequency (Hz)</strong></label><select id="opt-lineHz" class="enm-input"><option value="50" selected>50</option><option value="60">60</option></select></div>
-      <div><label><strong>Sum Mode</strong> <small style="color:#666;">(0=alg, 1=abs)</small></label><select id="opt-sumAbs" class="enm-input"><option value="0">0</option><option value="1" selected>1</option></select></div>
+      <div><label><strong>Line Frequency (Hz)</strong></label><select id="opt-lineHz" class="enm-input"><option value="50" selected="">50</option><option value="60">60</option></select></div>
+      <div><label><strong>Sum Mode</strong> <small style="color:#666;">(0=alg, 1=abs)</small></label><select id="opt-sumAbs" class="enm-input"><option value="0">0</option><option value="1" selected="">1</option></select></div>
       <div><label><strong>Ucal</strong> <small style="color:#666;">(gain)</small></label><input id="opt-ucal" type="number" min="1" max="65535" step="1" value="25256" class="enm-input"></div>
       <div><label><strong>Sample Interval (ms)</strong></label><input id="opt-samplems" type="number" min="10" max="5000" step="10" value="200" class="enm-input"></div>
     </div>
     <div style="text-align:right;margin-top:.75rem;">
-      <button id="apply-meter" type="button" style="padding:10px 16px;background:#0d6efd;color:#fff;border:none;border-radius:6px;" disabled>Apply Meter Options</button>
+      <button id="apply-meter" type="button" style="padding:10px 16px;background:#0d6efd;color:#fff;border:none;border-radius:6px;" disabled="">Apply Meter Options</button>
     </div>
   </section>
 
-  <!-- Scaling -->
+  
   <section style="margin-bottom:1.75rem;">
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Scaling (Engineering Units)</h2>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem;">
@@ -75,11 +75,11 @@
       <div><label><strong>S energy</strong> <small style="color:#666;">kVAh×1e5/CNT</small></label><input id="sc-es" type="number" min="0" step="1" value="1" class="enm-input"></div>
     </div>
     <div style="text-align:right;margin-top:.75rem;">
-      <button id="apply-scale" type="button" style="padding:10px 16px;background:#0d6efd;color:#fff;border:none;border-radius:6px;" disabled>Apply Scales</button>
+      <button id="apply-scale" type="button" style="padding:10px 16px;background:#0d6efd;color:#fff;border:none;border-radius:6px;" disabled="">Apply Scales</button>
     </div>
   </section>
 
-  <!-- Alarms -->
+  
   <section style="margin-bottom:1.75rem;">
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Alarms (L1, L2, L3, Totals)</h2>
     <div style="color:#555;margin-bottom:.5rem;">
@@ -87,36 +87,36 @@
     </div>
     <div id="alarms-grid" class="al-grid"></div>
     <div style="display:flex;gap:.5rem;flex-wrap:wrap;justify-content:flex-end;margin-top:.75rem;">
-      <button id="ack-all" type="button" style="padding:8px 14px;background:#198754;color:#fff;border:none;border-radius:6px;" disabled>Ack All</button>
+      <button id="ack-all" type="button" style="padding:8px 14px;background:#198754;color:#fff;border:none;border-radius:6px;" disabled="">Ack All</button>
     </div>
   </section>
 
-  <!-- Relays -->
+  
   <section style="margin-bottom:1.5rem;">
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Relays (2)</h2>
     <div id="relays-config"></div>
   </section>
 
-  <!-- Live Meter -->
+  
   <section style="margin-bottom:1.5rem;">
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Live Meter</h2>
     <div id="chan-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:1rem;"></div>
   </section>
 
-  <!-- Buttons -->
+  
   <section style="margin-bottom:1.5rem;">
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Buttons (4)</h2>
     <div id="buttons-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
   </section>
 
-  <!-- LEDs -->
+  
   <section style="margin-bottom:1.5rem;">
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">User LEDs (4)</h2>
     <div id="leds-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
   </section>
 </section>
 
-<script data-cfasync="false" src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
 <script>
 (function(){
   /* ---------- helpers ---------- */

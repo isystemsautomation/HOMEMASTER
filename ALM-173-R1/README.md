@@ -171,6 +171,57 @@ The ALM-173-R1 firmware continuously:
   - Ack Group 1/2/3  
   - Relay 1/2/3 Override  
 
+
+
+---
+
+## 🧲 Relay Override via Buttons — Detailed Behavior
+
+This firmware supports **per‑relay manual override** controlled from the on‑device buttons, with clear operator ergonomics and deterministic priority against Modbus and alarm-group logic.
+
+### Button→Relay Mapping
+Set each button’s `action` in the Web Config Tool:
+- **5 = Override R1**, **6 = Override R2**, **7 = Override R3**  
+(Other actions: 1=Ack All, 2/3/4=Ack G1/G2/G3, 0=None.)
+
+> **Hardware note:** Buttons are wired **inverted** per schematic (pressed = **HIGH**). Debounce = **30 ms**; Long‑press threshold = **3 s**.
+
+### Enter / Use / Exit Override
+1. **Enter** — Long‑press the mapped button for **3 s**.  
+   The relay enters **override mode** and the starting override state is seeded from the **current physical output**, so there’s no “glitch” when taking control.
+2. **Operate** — While in override, **short‑press** toggles that relay **ON/OFF** instantly.
+3. **Exit** — Long‑press again for **3 s** to leave override.  
+   On exit, the firmware **returns control to the configured Alarm Group** and **clears any Modbus manual latch** for that relay.
+
+### Who Wins (Priority)
+For each relay on every scan, effective drive is resolved in this order:  
+**Button‑Override ➜ Modbus Manual ➜ Assigned Alarm Group** (then **Enable** and **Invert** are applied).
+
+- If **override is ON**, Modbus coils **400..402 / 420..422** are ignored.
+- If **override is OFF**, a previously set **Modbus manual** state takes precedence over group follow until cleared (either by exiting override or writing a new manual command).
+
+### LED Indicators
+Assign LED sources **5/6/7** to show **Override Active** for **R1/R2/R3** respectively.  
+This indicates the **mode** (override engaged), not the relay’s ON/OFF.
+
+### PLC Group Pulses
+PLC coils **510..512** inject a **one‑scan pulse** into Group **G1..G3**.  
+Relays currently in **override** continue to ignore group activity until override is exited.
+
+### Persistence
+Button‑override and Modbus‑manual states are **runtime only**: they are not saved to flash and are cleared on **boot**, **factory reset**, or **config load**.
+
+### Implementation Notes (for developers)
+- Long/short‑press handling uses **30 ms debounce** and **3 s** long‑press window.
+- Entering override seeds the override state from the **current physical output**, then subsequent drive applies **Enable/Inversion** exactly once, ensuring a smooth handover.
+- Manual Modbus writes that arrive **during** button‑override are safely ignored for that relay and will not disturb the operator.
+
+```text
+Priority per relay:  ButtonOverride > ModbusManual > GroupFollow  -> Enable -> Invert
+```
+
+> Tip: Use the Web Config Tool to set LED1 to “Any Alarm (Blink)”, and LED2–LED4 to “Override R1/2/3” for clear field diagnostics.
+
 ---
 
 ## User LEDs
