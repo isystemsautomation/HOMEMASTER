@@ -3,6 +3,10 @@
 // WebSerial UI, Modbus RTU, LittleFS persistence
 // Buttons: GPIO22..25, LEDs: GPIO18..21
 // Includes: Per‑relay Button Override (R1/R2), LED sources for Override mode
+//
+// NEW BEHAVIOR (2025-09):
+// - Periodic UI push (every 1 s): LED config, Relay config, Button config, Live Meter data
+// - Handshake: UI sends "hello" -> module replies ONCE with Meter Options, Scaling (Engineering Units), and Alarms (L1,L2,L3, Totals) — and nothing else
 // ============================================================================
 
 // ---- FIX for Arduino auto-prototype: make types visible to auto-prototypes
@@ -72,7 +76,7 @@ unsigned long btnChangeAt[4] = {0,0,0,0};
 unsigned long btnPressAt[4]  = {0,0,0,0};
 bool btnLongDone[4]      = {false,false,false,false};
 
-// ---- NEW: Button override (per‑relay) ----
+// ---- Button override (per‑relay) ----
 bool buttonOverrideMode[2]  = {false,false}; // true => relay is under button control
 bool buttonOverrideState[2] = {false,false}; // logical ON/OFF while in override
 
@@ -85,12 +89,14 @@ JSONVar modbusStatus;
 
 // ================== Timing ==================
 unsigned long lastSend = 0;
-const unsigned long sendInterval = 500;
+const unsigned long sendInterval = 1000;  // <<-- 1 Hz UI push (configs + live meter)
 unsigned long lastBlinkToggle = 0;
 const unsigned long blinkPeriodMs = 500;
 bool blinkPhase = false;
 unsigned long lastSample = 0;
-bool samplingTick = false;
+
+// ================== HELLO control ==================
+bool g_helloRepliedOnce = false;   // reply with hello-bundle only once after boot
 
 // ================== Persisted settings ==================
 uint8_t  g_mb_address = 3;
@@ -160,7 +166,7 @@ struct RelayAlarmSrc {
   uint8_t kindsMask;  // bit0=Alarm, bit1=Warning, bit2=Event
 };
 
-uint8_t       relay_mode[2]      = { RM_MODBUS, RM_MODBUS }; // default legacy behavior
+uint8_t       relay_mode[2]      = { RM_MODBUS, RM_MODBUS };
 RelayAlarmSrc relay_alarm_src[2] = { {CH_TOT, 0b001}, {CH_TOT, 0b001} }; // default: ALARM only on TOT
 
 // ================== Persistence blob ==================
@@ -198,14 +204,14 @@ struct PersistConfig {
   uint32_t e_ap_kWh_per_cnt_x1e5;
   uint32_t e_an_kWh_per_cnt_x1e5;
   uint32_t e_rp_kvarh_per_cnt_x1e5;
-  uint32_t e_rn_kvarh_per_cnt_x1e5;   // NOTE: kvarh
+  uint32_t e_rn_kvarh_per_cnt_x1e5;
   uint32_t e_s_kVAh_per_cnt_x1e5;
 
   // ===== Alarms (persisted) =====
   uint8_t  alarm_ack_required[CH_COUNT];
   struct PackedRule { uint8_t enabled; int32_t min; int32_t max; uint8_t metric; } alarm_rules[CH_COUNT][AK_COUNT];
 
-  // Relays — new fields (modes + alarm sources)
+  // Relays — modes + alarm sources
   uint8_t  relay_mode0;          // RM_*
   uint8_t  relay_mode1;
   uint8_t  relay_alarm_ch0;      // 0..3
@@ -262,19 +268,18 @@ void setDefaults() {
   g_mb_baud      = 19200;
   sample_ms      = 200;
 
-for (int i=0;i<4;i++) {
-  ledCfg[i].mode = 0;      // steady
-  ledCfg[i].source = 0;    // None (no heartbeat or button presets)
-  buttonCfg[i].action = 0; // None
-  ledManual[i] = false;
-}
-
+  for (int i=0;i<4;i++) {
+    ledCfg[i].mode = 0;      // steady
+    ledCfg[i].source = 0;    // None
+    buttonCfg[i].action = 0; // None
+    ledManual[i] = false;
+  }
 
   relay_active_low = RELAY_ACTIVE_LOW;
   relay_default[0] = false;
   relay_default[1] = false;
 
-  // New relay control defaults
+  // Relay control defaults
   relay_mode[0] = RM_MODBUS; relay_mode[1] = RM_MODBUS;
   relay_alarm_src[0] = { CH_TOT, 0b001 }; // Alarm only
   relay_alarm_src[1] = { CH_TOT, 0b001 };
@@ -340,7 +345,7 @@ void captureToPersist(PersistConfig &pc) {
     }
   }
 
-  // New relay fields
+  // Relay fields
   pc.relay_mode0       = relay_mode[0];
   pc.relay_mode1       = relay_mode[1];
   pc.relay_alarm_ch0   = relay_alarm_src[0].ch;
@@ -397,7 +402,7 @@ bool applyFromPersist(const PersistConfig &pc) {
     }
   }
 
-  // New relay fields
+  // Relay fields
   relay_mode[0] = (pc.relay_mode0 <= RM_ALARM) ? pc.relay_mode0 : RM_MODBUS;
   relay_mode[1] = (pc.relay_mode1 <= RM_ALARM) ? pc.relay_mode1 : RM_MODBUS;
 
@@ -736,6 +741,23 @@ JSONVar LedConfigListFromCfg() {
   for (int i = 0; i < 4; i++) { JSONVar o; o["mode"]=ledCfg[i].mode; o["source"]=ledCfg[i].source; arr[i]=o; }
   return arr;
 }
+JSONVar ButtonConfigListFromCfg() {
+  JSONVar arr;
+  for (int i=0;i<4;i++) arr[i] = buttonCfg[i].action;
+  return arr;
+}
+JSONVar RelayConfigFromCfg() {
+  JSONVar r;
+  r["active_low"] = relay_active_low;
+  r["def0"] = relay_default[0];
+  r["def1"] = relay_default[1];
+  JSONVar modes; modes[0]=relay_mode[0]; modes[1]=relay_mode[1];
+  r["mode"] = modes;
+  JSONVar alarms;
+  for (int i=0;i<2;i++){ JSONVar a; a["ch"]=relay_alarm_src[i].ch; a["mask"]=relay_alarm_src[i].kindsMask; alarms[i]=a; }
+  r["alarm"] = alarms;
+  return r;
+}
 void echoRelayState() {
   JSONVar rly; rly[0]=relayState[0]; rly[1]=relayState[1];
   WebSerial.send("RelayState", rly);
@@ -852,173 +874,50 @@ static void eval_alarms_with_metrics(const MetricsSnapshot& snap){
   }
 }
 
-// ---- WebSerial alarm handlers ----
-void handleAlarmsCfg(JSONVar cfgArr){
-  // Accept wrong-shape (per-channel) sent to "AlarmsCfg"
-  if (cfgArr.hasOwnProperty("ch") || cfgArr.hasOwnProperty("cfg")) {
-    handleAlarmsCfgCh(cfgArr);
-    return;
-  }
+// ================== HELLO BUNDLE (respond once) ==================
+JSONVar buildHelloBundle() {
+  JSONVar all;
 
-  bool changed=false;
-  for (int ch=0; ch<CH_COUNT && ch<cfgArr.length(); ++ch) {
-    JSONVar c = cfgArr[ch];
-    if (c.hasOwnProperty("ack")) {
-      g_alarmCfg[ch].ackRequired = (bool)c["ack"];
-      changed = true;
-    }
-    for (int k=0; k<AK_COUNT; ++k) {
-      if (!c.hasOwnProperty(String(k))) continue;
-      JSONVar r = c[String(k)];
-      if (r.hasOwnProperty("enabled")) { g_alarmCfg[ch].rule[k].enabled = (bool)r["enabled"]; changed=true; }
-      if (r.hasOwnProperty("min"))     { g_alarmCfg[ch].rule[k].min     = (int32_t)r["min"]; changed=true; }
-      if (r.hasOwnProperty("max"))     { g_alarmCfg[ch].rule[k].max     = (int32_t)r["max"]; changed=true; }
-      if (r.hasOwnProperty("metric"))  {
-        int m = (int)r["metric"]; if (m < 0) m = 0; if (m > 5) m = 5;
-        g_alarmCfg[ch].rule[k].metric = (uint8_t)m; changed=true;
-      }
-    }
-  }
+  // Meter options (basic)
+  JSONVar mo;
+  mo["lineHz"] = atm_lineFreqHz;
+  mo["sumAbs"] = atm_sumModeAbs;
+  mo["ucal"]   = atm_ucal;
+  all["meterOptions"] = mo;
 
-  alarms_publish_cfg();
-  if (changed) {
-    if (saveConfigFS()) WebSerial.send("message","AlarmsCfg saved");
-    else                WebSerial.send("message","ERROR: saving AlarmsCfg failed");
-  } else {
-    WebSerial.send("message","AlarmsCfg: no changes");
-  }
-}
+  // Scaling / engineering units
+  JSONVar sc;
+  sc["p_mW_per_lsb"]        = p_scale_mW_per_lsb;
+  sc["q_mvar_x1k_per_lsb"]  = q_scale_mvar_per_lsb_x1000;
+  sc["s_mva_per_lsb_x1000"] = s_scale_mva_per_lsb_x1000;
+  sc["e_ap_kWh_x1e5"]       = e_ap_kWh_per_cnt_x1e5;
+  sc["e_an_kWh_x1e5"]       = e_an_kWh_per_cnt_x1e5;
+  sc["e_rp_kvarh_x1e5"]     = e_rp_kvarh_per_cnt_x1e5;
+  sc["e_rn_kvarh_x1e5"]     = e_rn_kvarh_per_cnt_x1e5;
+  sc["e_s_kVAh_x1e5"]       = e_s_kVAh_per_cnt_x1e5;
+  all["scaling"] = sc;
 
-// 2) Per-channel handler
-void handleAlarmsCfgCh(JSONVar v){
-  if (!v.hasOwnProperty("ch")) { WebSerial.send("message","AlarmsCfgCh: missing ch"); return; }
-  int ch = constrain((int)v["ch"], 0, CH_COUNT-1);
-
-  JSONVar payload = v;
-  if (v.hasOwnProperty("cfg")) payload = v["cfg"];  // unwrap nested
-
-  bool changed=false;
-  if (payload.hasOwnProperty("ack")) { g_alarmCfg[ch].ackRequired = (bool)payload["ack"]; changed = true; }
-  for (int k=0;k<AK_COUNT;++k){
-    String key = String(k); if (!payload.hasOwnProperty(key)) continue;
-    JSONVar r = payload[key];
-    if (r.hasOwnProperty("enabled")) { g_alarmCfg[ch].rule[k].enabled = (bool)r["enabled"]; changed=true; }
-    if (r.hasOwnProperty("min"))     { g_alarmCfg[ch].rule[k].min     = (int32_t)r["min"]; changed=true; }
-    if (r.hasOwnProperty("max"))     { g_alarmCfg[ch].rule[k].max     = (int32_t)r["max"]; changed=true; }
-    if (r.hasOwnProperty("metric"))  {
-      int m=(int)r["metric"]; if(m<0)m=0; if(m>5)m=5;
-      g_alarmCfg[ch].rule[k].metric=(uint8_t)m; changed=true;
-    }
-  }
-
-  // Echo back only this channel
-  JSONVar chO; chO["ack"]=g_alarmCfg[ch].ackRequired;
-  for (int k=0;k<AK_COUNT;++k){
-    JSONVar rr; rr["enabled"]=g_alarmCfg[ch].rule[k].enabled;
-    rr["min"]=g_alarmCfg[ch].rule[k].min; rr["max"]=g_alarmCfg[ch].rule[k].max;
-    rr["metric"]=g_alarmCfg[ch].rule[k].metric; chO[k]=rr;
-  }
-  JSONVar one; one[ch]=chO; WebSerial.send("AlarmsCfg", one);
-  alarms_publish_state();
-
-  if (changed) {
-    if (saveConfigFS()) WebSerial.send("message","AlarmsCfgCh saved");
-    else                WebSerial.send("message","ERROR: saving AlarmsCfgCh failed");
-  } else {
-    WebSerial.send("message","AlarmsCfgCh: no changes");
-  }
-}
-
-// 3) Acknowledge alarms
-void handleAlarmsAck(JSONVar v){
-  bool any = false;
-
-  if (v.hasOwnProperty("ch")) {
-    int _ch = constrain((int)v["ch"], 0, CH_COUNT-1);
-    alarms_ack_channel((uint8_t)_ch);
-    any = true;
-  }
-  if (v.hasOwnProperty("list") && v["list"].length() >= CH_COUNT) {
-    for (int ch = 0; ch < CH_COUNT; ++ch) {
-      if ((bool)v["list"][ch]) { alarms_ack_channel((uint8_t)ch); any = true; }
-    }
-  }
-
-  if (any) { WebSerial.send("message","Alarms acknowledged"); alarms_publish_state(); }
-  else     { WebSerial.send("message","AlarmsAck: no-op"); }
-}
-
-// ================== WebSerial combined echo ==================
-void sendAllEchoesOnce() {
-  sendStatusEcho();
-
-  JSONVar btnCfg; for(int i=0;i<4;i++) btnCfg[i]=buttonCfg[i].action;
-  WebSerial.send("ButtonConfigList", btnCfg);
-
-  WebSerial.send("LedConfigList", LedConfigListFromCfg());
-
-  echoRelayState();
-
-  JSONVar opts;
-  opts["lineHz"]=atm_lineFreqHz; opts["sumAbs"]=atm_sumModeAbs; opts["ucal"]=atm_ucal;
-  opts["sample_ms"]=sample_ms;
-  opts["p_mW_per_lsb"]=p_scale_mW_per_lsb;
-  opts["q_mvar_x1k_per_lsb"]=q_scale_mvar_per_lsb_x1000;
-  opts["s_mva_per_lsb_x1000"]=s_scale_mva_per_lsb_x1000;
-  opts["e_ap_kWh_x1e5"]=e_ap_kWh_per_cnt_x1e5;
-  opts["e_an_kWh_x1e5"]=e_an_kWh_per_cnt_x1e5;
-  opts["e_rp_kvarh_x1e5"]=e_rp_kvarh_per_cnt_x1e5;
-  opts["e_rn_kvarh_x1e5"]=e_rn_kvarh_per_cnt_x1e5;
-  opts["e_s_kVAh_x1e5"]=e_s_kVAh_per_cnt_x1e5;
-  WebSerial.send("MeterOptions", opts);
-
-  alarms_publish_cfg();
-  alarms_publish_state();
-}
-
-void sendMeterEcho(double urms[3], double irms[3],
-                   int32_t p_raw[4], int32_t q_raw[4], int32_t s_raw[4],
-                   int16_t pf_raw[4], int16_t ang_raw[3],
-                   uint16_t f_x100, int16_t tC,
-                   uint16_t e_ap_raw, uint16_t e_an_raw, uint16_t e_rp_raw, uint16_t e_rn_raw, uint16_t e_s_raw)
-{
-  JSONVar m;
-  for (int i=0;i<3;i++){ m["Urms"][i]=urms[i]; m["Irms"][i]=irms[i]; }
-
-  for (int i=0;i<3;i++){ m["Praw"][i]=p_raw[i]; m["Qraw"][i]=q_raw[i]; m["Sraw"][i]=s_raw[i]; }
-  m["Ptot_raw"]=p_raw[3]; m["Qtot_raw"]=q_raw[3]; m["Stot_raw"]=s_raw[3];
-
-  for (int i=0;i<3;i++){ m["PFraw"][i]=pf_raw[i]; m["Ang0p1deg"][i]=ang_raw[i]; }
-  m["PFtot_raw"]=pf_raw[3];
-
-  m["FreqHz"]=f_x100/100.0; m["TempC"]=tC;
-
-  m["Eraw"]["AP"]=e_ap_raw; m["Eraw"]["AN"]=e_an_raw; m["Eraw"]["RP"]=e_rp_raw; m["Eraw"]["RN"]=e_rn_raw; m["Eraw"]["S"]=e_s_raw;
-
-  auto e_milli = [](uint16_t raw, uint32_t k_per_cnt_x1e5)->uint32_t{
-    return (uint32_t)(( (uint64_t)raw * (uint64_t)k_per_cnt_x1e5 ) / 100ULL);
-  };
-  m["E"]["AP_mkWh"]= e_milli(e_ap_raw, e_ap_kWh_per_cnt_x1e5);
-  m["E"]["AN_mkWh"]= e_milli(e_an_raw, e_an_kWh_per_cnt_x1e5);
-  m["E"]["RP_mkvarh"]= e_milli(e_rp_raw, e_rp_kvarh_per_cnt_x1e5);
-  m["E"]["RN_mkvarh"]= e_milli(e_rn_raw, e_rn_kvarh_per_cnt_x1e5);
-  m["E"]["S_mkVAh"]= e_milli(e_s_raw, e_s_kVAh_per_cnt_x1e5);
-
-  JSONVar st;
+  // Alarms Config (L1, L2, L3, Totals)
+  JSONVar alCfg;
   for (int ch=0; ch<CH_COUNT; ++ch) {
     JSONVar chO;
+    chO["ack"]= g_alarmCfg[ch].ackRequired;
     for (int k=0;k<AK_COUNT;++k) {
-      JSONVar r; r["cond"]=g_alarmRt[ch][k].conditionNow; r["active"]=g_alarmRt[ch][k].active; r["latched"]=g_alarmRt[ch][k].latched;
-      chO[k]=r;
+      JSONVar rr;
+      rr["enabled"]= g_alarmCfg[ch].rule[k].enabled;
+      rr["min"]    = (int32_t)g_alarmCfg[ch].rule[k].min;
+      rr["max"]    = (int32_t)g_alarmCfg[ch].rule[k].max;
+      rr["metric"] = (uint8_t)g_alarmCfg[ch].rule[k].metric;
+      chO[k]=rr;
     }
-    st[ch]=chO;
+    alCfg[ch]=chO;
   }
-  m["AlarmsState"]=st;
+  all["alarmsCfg"] = alCfg;
 
-  WebSerial.send("ENM_Meter", m);
+  return all;
 }
 
-// ---- WebSerial generic handlers ----
+// ---- WebSerial CONFIG handlers ----
 void handleValues(JSONVar values) {
   int addr = (int)values["mb_address"];
   int baud = (int)values["mb_baud"];
@@ -1052,9 +951,9 @@ void handleUnifiedConfig(JSONVar obj) {
     else if ((v=(uint32_t)c["s_mva_x1k_per_lsb"]))    s_scale_mva_per_lsb_x1000  = v;
     if ((v=(uint32_t)c["e_ap_kWh_x1e5"]))            e_ap_kWh_per_cnt_x1e5 = v;
     if ((v=(uint32_t)c["e_an_kWh_x1e5"]))            e_an_kWh_per_cnt_x1e5 = v;
-    if ((v=(uint32_t)c["e_rp_kvarh_x1e5"]))          e_rp_kvarh_per_cnt_x1e5 = v;
-    if ((v=(uint32_t)c["e_rn_kvarh_x1e5"]))          e_rn_kvarh_per_cnt_x1e5 = v;
-    if ((v=(uint32_t)c["e_s_kVAh_x1e5"]))            e_s_kVAh_per_cnt_x1e5 = v;
+    if ((v=(uint32_t)c["e_rp_kvarh_per_cnt_x1e5"]))  e_rp_kvarh_per_cnt_x1e5 = v;
+    if ((v=(uint32_t)c["e_rn_kvarh_per_cnt_x1e5"]))  e_rn_kvarh_per_cnt_x1e5 = v;
+    if ((v=(uint32_t)c["e_s_kVAh_per_cnt_x1e5"]))    e_s_kVAh_per_cnt_x1e5 = v;
 
     changed = true;
     if (reinit) atm90_init();
@@ -1063,13 +962,12 @@ void handleUnifiedConfig(JSONVar obj) {
   else if (type == "leds") {
     JSONVar list = obj["list"];
     for (int i=0;i<4 && i<list.length();i++) {
-ledCfg[i].mode   = (uint8_t)constrain((int)list[i]["mode"],   0, 1);
-// New LED sources:
-// 0 None, 8 Override R1, 9 Override R2,
-// 10..13 Alarm L1..L3,Tot, 14..17 Warning L1..L3,Tot,
-// 18..21 Event L1..L3,Tot, 22..25 Any(A|W|E) L1..L3,Tot
-ledCfg[i].source = (uint8_t)constrain((int)list[i]["source"], 0, 25);
-
+      ledCfg[i].mode   = (uint8_t)constrain((int)list[i]["mode"],   0, 1);
+      // LED sources:
+      // 0 None, 8 Override R1, 9 Override R2,
+      // 10..13 Alarm L1..L3,Tot, 14..17 Warning L1..L3,Tot,
+      // 18..21 Event L1..L3,Tot, 22..25 Any(A|W|E) L1..L3,Tot
+      ledCfg[i].source = (uint8_t)constrain((int)list[i]["source"], 0, 25);
     }
     WebSerial.send("message", "LEDs configuration updated");
     WebSerial.send("LedConfigList", LedConfigListFromCfg());
@@ -1079,21 +977,11 @@ ledCfg[i].source = (uint8_t)constrain((int)list[i]["source"], 0, 25);
     JSONVar list = obj["list"];
     for (int i=0;i<4 && i<list.length();i++) {
       int a = (int)list[i]["action"];
-      if (a < 0) a = 0; if (a > 8) a = 8;  // allow 7/8 for override
+      if (a < 0) a = 0; if (a > 8) a = 8;  // 7/8 for override
       buttonCfg[i].action = (uint8_t)a;
     }
     WebSerial.send("message", "Buttons configuration updated");
-    JSONVar btnCfg; for(int i=0;i<4;i++) btnCfg[i]=buttonCfg[i].action;
-    WebSerial.send("ButtonConfigList", btnCfg);
-    changed = true;
-  }
-  else if (type == "relays") { // legacy path
-    JSONVar rcfg = obj["cfg"];
-    relay_active_low = (uint8_t)constrain((int)rcfg["active_low"], 0, 1);
-    relay_default[0] = (bool)rcfg["def0"];
-    relay_default[1] = (bool)rcfg["def1"];
-    setRelayPhys(0, relayState[0]); setRelayPhys(1, relayState[1]);
-    WebSerial.send("message", "Relay configuration updated");
+    WebSerial.send("ButtonConfigList", ButtonConfigListFromCfg());
     changed = true;
   }
   else {
@@ -1143,7 +1031,7 @@ void handleRelaysSet(JSONVar v){
   }
 }
 
-// Configure relay polarity & power-on defaults (persisted) + NEW modes/alarm sources
+// Configure relay polarity & power-on defaults (persisted) + modes/alarm sources
 void handleRelaysCfg(JSONVar v){
   bool touched=false;
 
@@ -1154,7 +1042,7 @@ void handleRelaysCfg(JSONVar v){
   if (v.hasOwnProperty("def0")) { relay_default[0] = (bool)v["def0"]; touched=true; }
   if (v.hasOwnProperty("def1")) { relay_default[1] = (bool)v["def1"]; touched=true; }
 
-  // New: modes
+  // Modes
   if (v.hasOwnProperty("mode") && v["mode"].length() >= 2) {
     for (int i=0;i<2;i++){
       int m = (int)v["mode"][i];
@@ -1164,7 +1052,7 @@ void handleRelaysCfg(JSONVar v){
     touched=true;
   }
 
-  // New: alarm source
+  // Alarm source
   if (v.hasOwnProperty("alarm") && v["alarm"].length() >= 2) {
     for (int i=0;i<2;i++){
       JSONVar a = v["alarm"][i];
@@ -1175,14 +1063,11 @@ void handleRelaysCfg(JSONVar v){
       if (a.hasOwnProperty("mask")) {
         int mk = (int)a["mask"]; mk &= 0b111;
         relay_alarm_src[i].kindsMask = (uint8_t)mk;
-      } else {
-        // also accept array form: kinds:[true,false,true]
-        if (a.hasOwnProperty("kinds") && a["kinds"].length()>=3){
-          uint8_t mk = ((bool)a["kinds"][0]?1:0)
-                     | ((bool)a["kinds"][1]?2:0)
-                     | ((bool)a["kinds"][2]?4:0);
-          relay_alarm_src[i].kindsMask = mk;
-        }
+      } else if (a.hasOwnProperty("kinds") && a["kinds"].length()>=3){
+        uint8_t mk = ((bool)a["kinds"][0]?1:0)
+                   | ((bool)a["kinds"][1]?2:0)
+                   | ((bool)a["kinds"][2]?4:0);
+        relay_alarm_src[i].kindsMask = mk;
       }
     }
     touched=true;
@@ -1197,6 +1082,166 @@ void handleRelaysCfg(JSONVar v){
   WebSerial.send("message","RelaysCfg updated (persist)");
   echoRelayState();
 }
+
+// ================ Alarms cfg/ack (WebSerial) ================
+void handleAlarmsCfg(JSONVar cfgArr){
+  // Accept wrong-shape (per-channel) sent to "AlarmsCfg"
+  if (cfgArr.hasOwnProperty("ch") || cfgArr.hasOwnProperty("cfg")) {
+    handleAlarmsCfgCh(cfgArr);
+    return;
+  }
+
+  bool changed=false;
+  for (int ch=0; ch<CH_COUNT && ch<cfgArr.length(); ++ch) {
+    JSONVar c = cfgArr[ch];
+    if (c.hasOwnProperty("ack")) {
+      g_alarmCfg[ch].ackRequired = (bool)c["ack"];
+      changed = true;
+    }
+    for (int k=0; k<AK_COUNT; ++k) {
+      if (!c.hasOwnProperty(String(k))) continue;
+      JSONVar r = c[String(k)];
+      if (r.hasOwnProperty("enabled")) { g_alarmCfg[ch].rule[k].enabled = (bool)r["enabled"]; changed=true; }
+      if (r.hasOwnProperty("min"))     { g_alarmCfg[ch].rule[k].min     = (int32_t)r["min"]; changed=true; }
+      if (r.hasOwnProperty("max"))     { g_alarmCfg[ch].rule[k].max     = (int32_t)r["max"]; changed=true; }
+      if (r.hasOwnProperty("metric"))  {
+        int m = (int)r["metric"]; if (m < 0) m = 0; if (m > 5) m = 5;
+        g_alarmCfg[ch].rule[k].metric = (uint8_t)m; changed=true;
+      }
+    }
+  }
+
+  alarms_publish_cfg();
+  if (changed) {
+    if (saveConfigFS()) WebSerial.send("message","AlarmsCfg saved");
+    else                WebSerial.send("message","ERROR: saving AlarmsCfg failed");
+  } else {
+    WebSerial.send("message","AlarmsCfg: no changes");
+  }
+}
+
+void handleAlarmsCfgCh(JSONVar v){
+  if (!v.hasOwnProperty("ch")) { WebSerial.send("message","AlarmsCfgCh: missing ch"); return; }
+  int ch = constrain((int)v["ch"], 0, CH_COUNT-1);
+
+  JSONVar payload = v;
+  if (v.hasOwnProperty("cfg")) payload = v["cfg"];  // unwrap nested
+
+  bool changed=false;
+  if (payload.hasOwnProperty("ack")) { g_alarmCfg[ch].ackRequired = (bool)payload["ack"]; changed = true; }
+  for (int k=0;k<AK_COUNT;++k){
+    String key = String(k); if (!payload.hasOwnProperty(key)) continue;
+    JSONVar r = payload[key];
+    if (r.hasOwnProperty("enabled")) { g_alarmCfg[ch].rule[k].enabled = (bool)r["enabled"]; changed=true; }
+    if (r.hasOwnProperty("min"))     { g_alarmCfg[ch].rule[k].min     = (int32_t)r["min"]; changed=true; }
+    if (r.hasOwnProperty("max"))     { g_alarmCfg[ch].rule[k].max     = (int32_t)r["max"]; changed=true; }
+    if (r.hasOwnProperty("metric"))  {
+      int m=(int)r["metric"]; if(m<0)m=0; if(m>5)m=5;
+      g_alarmCfg[ch].rule[k].metric=(uint8_t)m; changed=true;
+    }
+  }
+
+  // Echo back only this channel
+  JSONVar chO; chO["ack"]=g_alarmCfg[ch].ackRequired;
+  for (int k=0;k<AK_COUNT;++k){
+    JSONVar rr; rr["enabled"]=g_alarmCfg[ch].rule[k].enabled;
+    rr["min"]=g_alarmCfg[ch].rule[k].min; rr["max"]=g_alarmCfg[ch].rule[k].max;
+    rr["metric"]=g_alarmCfg[ch].rule[k].metric; chO[k]=rr;
+  }
+  JSONVar one; one[ch]=chO; WebSerial.send("AlarmsCfg", one);
+  alarms_publish_state();
+
+  if (changed) {
+    if (saveConfigFS()) WebSerial.send("message","AlarmsCfgCh saved");
+    else                WebSerial.send("message","ERROR: saving AlarmsCfgCh failed");
+  } else {
+    WebSerial.send("message","AlarmsCfgCh: no changes");
+  }
+}
+
+void handleAlarmsAck(JSONVar v){
+  bool any = false;
+
+  if (v.hasOwnProperty("ch")) {
+    int _ch = constrain((int)v["ch"], 0, CH_COUNT-1);
+    alarms_ack_channel((uint8_t)_ch);
+    any = true;
+  }
+  if (v.hasOwnProperty("list") && v["list"].length() >= CH_COUNT) {
+    for (int ch = 0; ch < CH_COUNT; ++ch) {
+      if ((bool)v["list"][ch]) { alarms_ack_channel((uint8_t)ch); any = true; }
+    }
+  }
+
+  if (any) { WebSerial.send("message","Alarms acknowledged"); alarms_publish_state(); }
+  else     { WebSerial.send("message","AlarmsAck: no-op"); }
+}
+
+// ================== Cached last meter read (for 1 Hz UI echo) ==================
+static double   g_urms[3] = {0,0,0};
+static double   g_irms[3] = {0,0,0};
+static int32_t  g_p_raw[4] = {0,0,0,0};
+static int32_t  g_q_raw[4] = {0,0,0,0};
+static int32_t  g_s_raw[4] = {0,0,0,0};
+static int16_t  g_pf_raw[4] = {0,0,0,0};
+static int16_t  g_ang_raw[3] = {0,0,0};
+static uint16_t g_f_x100 = 0;
+static int16_t  g_tempC = 0;
+static uint16_t g_e_ap = 0, g_e_an = 0, g_e_rp = 0, g_e_rn = 0, g_e_s = 0;
+static bool     g_haveMeter = false;
+
+// ================== Meter echo ==================
+void sendMeterEcho(double urms[3], double irms[3],
+                   int32_t p_raw[4], int32_t q_raw[4], int32_t s_raw[4],
+                   int16_t pf_raw[4], int16_t ang_raw[3],
+                   uint16_t f_x100, int16_t tC,
+                   uint16_t e_ap_raw, uint16_t e_an_raw, uint16_t e_rp_raw, uint16_t e_rn_raw, uint16_t e_s_raw)
+{
+  JSONVar m;
+  for (int i=0;i<3;i++){ m["Urms"][i]=urms[i]; m["Irms"][i]=irms[i]; }
+
+  for (int i=0;i<3;i++){ m["Praw"][i]=p_raw[i]; m["Qraw"][i]=q_raw[i]; m["Sraw"][i]=s_raw[i]; }
+  m["Ptot_raw"]=p_raw[3]; m["Qtot_raw"]=q_raw[3]; m["Stot_raw"]=s_raw[3];
+
+  for (int i=0;i<3;i++){ m["PFraw"][i]=pf_raw[i]; m["Ang0p1deg"][i]=ang_raw[i]; }
+  m["PFtot_raw"]=pf_raw[3];
+
+  m["FreqHz"]=f_x100/100.0; m["TempC"]=tC;
+
+  m["Eraw"]["AP"]=e_ap_raw; m["Eraw"]["AN"]=e_an_raw; m["Eraw"]["RP"]=e_rp_raw; m["Eraw"]["RN"]=e_rn_raw; m["Eraw"]["S"]=e_s_raw;
+
+  auto e_milli = [](uint16_t raw, uint32_t k_per_cnt_x1e5)->uint32_t{
+    return (uint32_t)(( (uint64_t)raw * (uint64_t)k_per_cnt_x1e5 ) / 100ULL);
+  };
+  m["E"]["AP_mkWh"]= e_milli(e_ap_raw, e_ap_kWh_per_cnt_x1e5);
+  m["E"]["AN_mkWh"]= e_milli(e_an_raw, e_an_kWh_per_cnt_x1e5);
+  m["E"]["RP_mkvarh"]= e_milli(e_rp_raw, e_rp_kvarh_per_cnt_x1e5);
+  m["E"]["RN_mkvarh"]= e_milli(e_rn_raw, e_rn_kvarh_per_cnt_x1e5);
+  m["E"]["S_mkVAh"]= e_milli(e_s_raw, e_s_kVAh_per_cnt_x1e5);
+
+  JSONVar st;
+  for (int ch=0; ch<CH_COUNT; ++ch) {
+    JSONVar chO;
+    for (int k=0;k<AK_COUNT;++k) {
+      JSONVar r; r["cond"]=g_alarmRt[ch][k].conditionNow; r["active"]=g_alarmRt[ch][k].active; r["latched"]=g_alarmRt[ch][k].latched;
+      chO[k]=r;
+    }
+    st[ch]=chO;
+  }
+  m["AlarmsState"]=st;
+
+  WebSerial.send("ENM_Meter", m);
+}
+
+// ================== HELLO handler ==================
+// ================== HELLO handler ==================
+void handleHello(JSONVar payload) {
+  (void)payload;
+  // Always answer hello with the full config bundle
+  WebSerial.send("message","hello -> sending MeterOptions + Scaling + Alarms");
+  WebSerial.send("AllConfig", buildHelloBundle()); // event name preserved for UI compatibility
+}
+
 
 // ================== Setup ==================
 void setup() {
@@ -1291,7 +1336,7 @@ void setup() {
 
   for (uint16_t i=0;i<CH_COUNT;i++){ mb.addCoil(COIL_ALARM_ACK_BASE + i); mb.Coil(COIL_ALARM_ACK_BASE + i, 0); }
 
-  // WebSerial handlers
+  // WebSerial handlers (config/control)
   WebSerial.on("values",     handleValues);
   WebSerial.on("Config",     handleUnifiedConfig);
   WebSerial.on("RelaysSet",  handleRelaysSet);
@@ -1300,9 +1345,10 @@ void setup() {
   WebSerial.on("AlarmsCfgCh",handleAlarmsCfgCh);    // per‑channel
   WebSerial.on("AlarmsAck",  handleAlarmsAck);      // ACK
 
-  // Initial echoes
-  sendAllEchoesOnce();
-  WebSerial.send("message", "Boot OK (ENM-223-R1 + ButtonOverride)");
+  // Handshake: only lowercase "hello"
+  WebSerial.on("hello", handleHello);
+
+  WebSerial.send("message", "Boot OK (ENM-223-R1, 1 Hz UI config+meter echo, reply-once hello bundle)");
 }
 
 // ================== HREG write watcher ==================
@@ -1366,7 +1412,7 @@ bool evalLedSource(uint8_t src) {
     // 0: None
     case 0:  return false;
 
-    // 8..9: Override indicators (unchanged)
+    // 8..9: Override indicators
     case 8:  return buttonOverrideMode[0];  // Override active for R1
     case 9:  return buttonOverrideMode[1];  // Override active for R2
 
@@ -1398,8 +1444,6 @@ bool evalLedSource(uint8_t src) {
   }
 }
 
-
-
 // ================== Main loop ==================
 void loop() {
   unsigned long now = millis();
@@ -1419,7 +1463,8 @@ void loop() {
   for (int i = 0; i < 4; i++) {
     bool pressed = readPressed(i);
     if (pressed != buttonState[i] && (now - btnChangeAt[i] >= BTN_DEBOUNCE_MS)) {
-      btnChangeAt[i] = now; buttonPrev[i]  = buttonState[i]; buttonState[i] = pressed;
+      btnChangeAt[i] = now; buttonPrev[4>i?i:0]  = buttonState[i]; buttonState[i] = pressed;  // keep prior
+
       uint8_t act = buttonCfg[i].action;
 
       // Edge: press
@@ -1494,9 +1539,8 @@ void loop() {
   }
 
   // ===== Sampling =====
-  samplingTick = false;
   if (now - lastSample >= sample_ms) {
-    lastSample = now; samplingTick = true;
+    lastSample = now;
 
     // ---- RMS ----
     double urms[3];
@@ -1621,11 +1665,15 @@ void loop() {
       }
     }
 
-    // ---- WebSerial live echo ----
-    sendMeterEcho(urms, irms, p_raw, q_raw, s_raw, pf_raw, ang_raw, fraw, tC, e_ap,e_an,e_rp,e_rn,e_s);
+    // Cache latest meter for 1 Hz echo
+    for (int i=0;i<3;i++){ g_urms[i]=urms[i]; g_irms[i]=irms[i]; g_ang_raw[i]=ang_raw[i]; }
+    for (int i=0;i<4;i++){ g_p_raw[i]=p_raw[i]; g_q_raw[i]=q_raw[i]; g_s_raw[i]=s_raw[i]; g_pf_raw[i]=pf_raw[i]; }
+    g_f_x100 = fraw; g_tempC = tC;
+    g_e_ap=e_ap; g_e_an=e_an; g_e_rp=e_rp; g_e_rn=e_rn; g_e_s=e_s;
+    g_haveMeter = true;
   }
 
-  // LEDs
+  // LEDs (driven continuously)
   JSONVar ledStateList;
   for (int i=0;i<4;i++) {
     bool activeFromSource = evalLedSource(ledCfg[i].source);
@@ -1635,11 +1683,31 @@ void loop() {
     ledStateList[i] = phys;
   }
 
-  // Periodic status echo
+  // ===== 1 Hz UI push =====
   if (now - lastSend >= sendInterval) {
     lastSend = now;
+
     WebSerial.check();
+
+    // Status (address/baud) kept for convenience
     sendStatusEcho();
+
+    // 1) LED config
+    WebSerial.send("LedConfigList", LedConfigListFromCfg());
+
+    // 2) Button config
+    WebSerial.send("ButtonConfigList", ButtonConfigListFromCfg());
+
+    // 3) Relay config
+    WebSerial.send("RelaysCfg", RelayConfigFromCfg());
+
+    // 4) Live meter (latest cached sample)
+    if (g_haveMeter) {
+      sendMeterEcho(g_urms, g_irms, g_p_raw, g_q_raw, g_s_raw, g_pf_raw, g_ang_raw,
+                    g_f_x100, g_tempC, g_e_ap, g_e_an, g_e_rp, g_e_rn, g_e_s);
+    }
+
+    // (Optional extras: live states)
     JSONVar btnState; for(int i=0;i<4;i++) btnState[i]=buttonState[i];
     WebSerial.send("ButtonStateList", btnState);
     WebSerial.send("LedStateList", ledStateList);
