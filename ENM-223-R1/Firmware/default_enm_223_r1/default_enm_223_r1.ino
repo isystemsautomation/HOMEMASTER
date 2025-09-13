@@ -5,14 +5,14 @@
 // Includes: Per‑relay Button Override (R1/R2), LED sources for Override mode
 //
 // NEW BEHAVIOR (2025-09):
-// - Periodic UI push (every 1 s): LED config, Relay config, Button config, Live Meter data
-// - Handshake: UI sends "hello" -> module replies ONCE with Meter Options, Scaling (Engineering Units), and Alarms (L1,L2,L3, Totals) — and nothing else
+// - Periodic UI push (every 1 s): LED config, Relay config, Button config, Meter Options,
+//   Scaling (Engineering Units), Alarms (L1,L2,L3,Totals), and Live Meter data
 // ============================================================================
 
-// ---- FIX for Arduino auto-prototype: make types visible to auto-prototypes
+// ---- Arduino auto-prototype fix for forward types
 struct PersistConfig;
 struct AlarmRule;
-struct MetricsSnapshot;   // <-- forward declare to satisfy auto-prototypes
+struct MetricsSnapshot;
 
 #include <Arduino.h>
 #include <SPI.h>
@@ -20,56 +20,54 @@ struct MetricsSnapshot;   // <-- forward declare to satisfy auto-prototypes
 #include <SimpleWebSerial.h>
 #include <Arduino_JSON.h>
 #include <LittleFS.h>
-#include <utility>
 #include <math.h>
 #include <limits>
 
-// ================== Hardware pins ==================
-#define LED_ACTIVE_LOW       0   // 1 if LEDs are active-LOW
-#define BUTTON_USES_PULLUP   0   // 1 uses INPUT_PULLUP (pressed=LOW)
-#define RELAY_ACTIVE_LOW     0   // 1 if relays are active-LOW
+// ================== Hardware pins / behavior ==================
+constexpr uint8_t LED_PINS[4]    = {18,19,20,21};
+constexpr uint8_t BUTTON_PINS[4] = {22,23,24,25};
+constexpr uint8_t RELAY_PINS[2]  = {0,1};
 
-const uint8_t LED_PINS[4]    = {18,19,20,21};
-const uint8_t BUTTON_PINS[4] = {22,23,24,25};
-const uint8_t RELAY_PINS[2]  = {0,1};
+constexpr bool LED_ACTIVE_LOW     = false;
+constexpr bool BUTTON_USES_PULLUP = false; // pressed == HIGH if false
+constexpr bool RELAY_ACTIVE_LOW_DFLT = false;
 
 // ===== ATM90E32 on SPI1 (NO LIB) =====
 #define MCM_SPI SPI1
-static const uint8_t PIN_SPI_SCK  = 10;
-static const uint8_t PIN_SPI_MOSI = 11;
-static const uint8_t PIN_SPI_MISO = 12;
-static const uint8_t PIN_ATM_CS   = 13;
+constexpr uint8_t PIN_SPI_SCK  = 10;
+constexpr uint8_t PIN_SPI_MOSI = 11;
+constexpr uint8_t PIN_SPI_MISO = 12;
+constexpr uint8_t PIN_ATM_CS   = 13;
+constexpr uint8_t PIN_PM1 = 2;
+constexpr uint8_t PIN_PM0 = 3;
 
-static const uint8_t PIN_PM1 = 2;
-static const uint8_t PIN_PM0 = 3;
-
-#define CS_ACTIVE_HIGH 0
-#define ATM_SPI_MODE   SPI_MODE0
-#define SPI_HZ         200000     // conservative during init + reads
+constexpr bool     CS_ACTIVE_HIGH = false;
+constexpr uint8_t  ATM_SPI_MODE   = SPI_MODE0;
+constexpr uint32_t SPI_HZ         = 200000;
 
 inline void csAssert()  { digitalWrite(PIN_ATM_CS, CS_ACTIVE_HIGH ? HIGH : LOW); }
 inline void csRelease() { digitalWrite(PIN_ATM_CS, CS_ACTIVE_HIGH ? LOW  : HIGH); }
 
 // ================== Modbus / RS-485 ==================
-#define TX2 4
-#define RX2 5
-const int TxenPin = -1;     // -1 if not using TXEN
+constexpr int TX2 = 4;
+constexpr int RX2 = 5;
+constexpr int TxenPin = -1;     // not used
 int SlaveId = 1;
 ModbusSerial mb(Serial2, SlaveId, TxenPin);
 
 // ================== Buttons & LEDs config ==================
-struct LedCfg   { uint8_t mode;   uint8_t source; }; // mode: 0 steady, 1 blink; source: see evalLedSource()
-struct ButtonCfg{ uint8_t action; };                 // actions below
+struct LedCfg   { uint8_t mode; uint8_t source; }; // mode: 0 steady, 1 blink
+struct ButtonCfg{ uint8_t action; };               // see doButtonAction / override
 
 LedCfg    ledCfg[4];
 ButtonCfg buttonCfg[4];
 
-bool      ledManual[4] = {false,false,false,false};   // manual toggles
-bool      ledPhys[4]   = {false,false,false,false};   // physical pin state tracking
+bool      ledManual[4] = {false,false,false,false}; // user toggles
+bool      ledPhys[4]   = {false,false,false,false};
 
 // Button runtime
 constexpr unsigned long BTN_DEBOUNCE_MS = 30;
-constexpr unsigned long BTN_LONG_MS     = 3000;        // 3s for long-press
+constexpr unsigned long BTN_LONG_MS     = 3000; // 3s
 bool buttonState[4]      = {false,false,false,false};
 bool buttonPrev[4]       = {false,false,false,false};
 unsigned long btnChangeAt[4] = {0,0,0,0};
@@ -78,10 +76,10 @@ bool btnLongDone[4]      = {false,false,false,false};
 
 // ---- Button override (per‑relay) ----
 bool buttonOverrideMode[2]  = {false,false}; // true => relay is under button control
-bool buttonOverrideState[2] = {false,false}; // logical ON/OFF while in override
+bool buttonOverrideState[2] = {false,false}; // desired ON/OFF while in override
 
 // Relays (logical state; true = ON before polarity)
-bool relayState[2] = {false,false}; 
+bool relayState[2] = {false,false};
 
 // ================== Web Serial ==================
 SimpleWebSerial WebSerial;
@@ -89,23 +87,20 @@ JSONVar modbusStatus;
 
 // ================== Timing ==================
 unsigned long lastSend = 0;
-const unsigned long sendInterval = 1000;  // <<-- 1 Hz UI push (configs + live meter)
+constexpr unsigned long sendInterval   = 1000; // 1 Hz UI push
 unsigned long lastBlinkToggle = 0;
-const unsigned long blinkPeriodMs = 500;
+constexpr unsigned long blinkPeriodMs  = 500;
 bool blinkPhase = false;
 unsigned long lastSample = 0;
-
-// ================== HELLO control ==================
-bool g_helloRepliedOnce = false;   // reply with hello-bundle only once after boot
 
 // ================== Persisted settings ==================
 uint8_t  g_mb_address = 3;
 uint32_t g_mb_baud    = 19200;
-uint16_t sample_ms    = 200;     // meter poll period
+uint16_t sample_ms    = 200;   // meter poll period
 
 // ATM90E32 options (persisted)
-uint16_t atm_lineFreqHz = 50;    // 50 or 60
-uint8_t  atm_sumModeAbs = 1;     // affects MMode0
+uint16_t atm_lineFreqHz = 50;  // 50/60
+uint8_t  atm_sumModeAbs = 1;   // affects MMode0
 uint16_t atm_ucal       = 25256; // voltage calibration (used by vSag calc)
 
 // Measurement scaling (persisted)
@@ -117,57 +112,38 @@ uint32_t s_scale_mva_per_lsb_x1000     = 1;
 uint32_t e_ap_kWh_per_cnt_x1e5   = 1;
 uint32_t e_an_kWh_per_cnt_x1e5   = 1;
 uint32_t e_rp_kvarh_per_cnt_x1e5 = 1;
-uint32_t e_rn_kvarh_per_cnt_x1e5 = 1;  // NOTE: kvarh
+uint32_t e_rn_kvarh_per_cnt_x1e5 = 1;
 uint32_t e_s_kVAh_per_cnt_x1e5   = 1;
 
 // Persisted relay polarity & defaults
-uint8_t  relay_active_low = RELAY_ACTIVE_LOW;
+uint8_t  relay_active_low = RELAY_ACTIVE_LOW_DFLT;
 bool     relay_default[2] = {false,false};
 
 // ================== ALARMS (config + runtime) ==================
-enum : uint8_t { CH_L1=0, CH_L2=1, CH_L3=2, CH_TOT=3, CH_COUNT=4 };
-enum : uint8_t { AK_ALARM=0, AK_WARNING=1, AK_EVENT=2, AK_COUNT=3 };
+enum : uint8_t { CH_L1=0, CH_L2, CH_L3, CH_TOT, CH_COUNT };
+enum : uint8_t { AK_ALARM=0, AK_WARNING, AK_EVENT, AK_COUNT };
 
 enum AlarmMetric : uint8_t {
-  AM_VOLTAGE   = 0,  // Urms   (centivolts, 0.01 V)
-  AM_CURRENT   = 1,  // Irms   (milliamps, 0.001 A)
-  AM_P_ACTIVE  = 2,  // P      (W)
-  AM_Q_REACTIVE= 3,  // Q      (var)
-  AM_S_APPARENT= 4,  // S (VA)
-  AM_FREQ      = 5   // Freq   (centi-Hz, 0.01 Hz), channel ignored
+  AM_VOLTAGE=0,   // Urms (0.01 V)
+  AM_CURRENT,     // Irms (0.001 A)
+  AM_P_ACTIVE,    // W
+  AM_Q_REACTIVE,  // var
+  AM_S_APPARENT,  // VA
+  AM_FREQ         // (0.01 Hz) ch ignored
 };
 
-struct AlarmRule {
-  bool     enabled;
-  int32_t  min;      // inclusive
-  int32_t  max;      // inclusive
-  uint8_t  metric;   // AlarmMetric
-};
-
-struct AlarmRuntime {
-  bool conditionNow;
-  bool active;
-  bool latched;
-};
-
-struct ChannelAlarmCfg {
-  bool ackRequired;
-  AlarmRule rule[AK_COUNT];     // 0 Alarm, 1 Warning, 2 Event
-};
+struct AlarmRule { bool enabled; int32_t min; int32_t max; uint8_t metric; };
+struct AlarmRuntime { bool conditionNow; bool active; bool latched; };
+struct ChannelAlarmCfg { bool ackRequired; AlarmRule rule[AK_COUNT]; };
 
 ChannelAlarmCfg g_alarmCfg[CH_COUNT];
 AlarmRuntime    g_alarmRt [CH_COUNT][AK_COUNT];
 
 // ====== Relay mode / source ======
 enum : uint8_t { RM_NONE=0, RM_MODBUS=1, RM_ALARM=2 };
-
-struct RelayAlarmSrc {
-  uint8_t ch;         // 0..3 (L1,L2,L3,TOT)
-  uint8_t kindsMask;  // bit0=Alarm, bit1=Warning, bit2=Event
-};
-
+struct RelayAlarmSrc { uint8_t ch; uint8_t kindsMask; }; // bit0=Alarm,1=Warn,2=Event
 uint8_t       relay_mode[2]      = { RM_MODBUS, RM_MODBUS };
-RelayAlarmSrc relay_alarm_src[2] = { {CH_TOT, 0b001}, {CH_TOT, 0b001} }; // default: ALARM only on TOT
+RelayAlarmSrc relay_alarm_src[2] = { {CH_TOT, 0b001}, {CH_TOT, 0b001} };
 
 // ================== Persistence blob ==================
 struct PersistConfig {
@@ -222,13 +198,13 @@ struct PersistConfig {
   uint32_t crc32;
 } __attribute__((packed));
 
-static const uint32_t CFG_MAGIC   = 0x324D4E45UL; // 'ENM2'
-static const uint16_t CFG_VERSION = 0x0007;       // +relay modes/alarm source
-static const char*    CFG_PATH    = "/enm223.bin";
+constexpr uint32_t CFG_MAGIC   = 0x324D4E45UL; // 'ENM2'
+constexpr uint16_t CFG_VERSION = 0x0007;       // +relay modes/alarm source
+static const char* CFG_PATH    = "/enm223.bin";
 
 volatile bool   cfgDirty        = false;
 uint32_t        lastCfgTouchMs  = 0;
-const uint32_t  CFG_AUTOSAVE_MS = 1200;
+constexpr uint32_t  CFG_AUTOSAVE_MS = 1200;
 
 // ================== CRC32 ==================
 uint32_t crc32_update(uint32_t crc, const uint8_t* data, size_t len) {
@@ -251,9 +227,9 @@ inline bool readPressed(int i){
 
 // ================== Defaults ==================
 static inline void setAlarmDefaults() {
-  const AlarmRule defAlarm   = {true,   0, 100000, (uint8_t)AM_S_APPARENT};
-  const AlarmRule defWarn    = {true,   0, 120000, (uint8_t)AM_S_APPARENT};
-  const AlarmRule defEvent   = {true,   std::numeric_limits<int32_t>::min(), std::numeric_limits<int32_t>::max(), (uint8_t)AM_S_APPARENT};
+  const AlarmRule defAlarm = {true, 0, 100000, (uint8_t)AM_S_APPARENT};
+  const AlarmRule defWarn  = {true, 0, 120000, (uint8_t)AM_S_APPARENT};
+  const AlarmRule defEvent = {true, std::numeric_limits<int32_t>::min(), std::numeric_limits<int32_t>::max(), (uint8_t)AM_S_APPARENT};
   for (int ch=0; ch<CH_COUNT; ++ch) {
     g_alarmCfg[ch].ackRequired = false;
     g_alarmCfg[ch].rule[AK_ALARM]   = defAlarm;
@@ -269,13 +245,12 @@ void setDefaults() {
   sample_ms      = 200;
 
   for (int i=0;i<4;i++) {
-    ledCfg[i].mode = 0;      // steady
-    ledCfg[i].source = 0;    // None
-    buttonCfg[i].action = 0; // None
+    ledCfg[i] = {0,0};
+    buttonCfg[i].action = 0;
     ledManual[i] = false;
   }
 
-  relay_active_low = RELAY_ACTIVE_LOW;
+  relay_active_low = RELAY_ACTIVE_LOW_DFLT;
   relay_default[0] = false;
   relay_default[1] = false;
 
@@ -306,6 +281,7 @@ void setDefaults() {
 }
 
 void captureToPersist(PersistConfig &pc) {
+  pc = {}; // zero
   pc.magic   = CFG_MAGIC;
   pc.version = CFG_VERSION;
   pc.size    = sizeof(PersistConfig);
@@ -358,12 +334,9 @@ void captureToPersist(PersistConfig &pc) {
 }
 
 bool applyFromPersist(const PersistConfig &pc) {
-  if (pc.magic != CFG_MAGIC) return false;
-  if (pc.version != CFG_VERSION) return false;
-  if (pc.size != sizeof(PersistConfig)) return false;
+  if (pc.magic != CFG_MAGIC || pc.version != CFG_VERSION || pc.size != sizeof(PersistConfig)) return false;
   PersistConfig tmp = pc; uint32_t crc = tmp.crc32; tmp.crc32 = 0;
-  if (crc32_update(0, reinterpret_cast<const uint8_t*>(&tmp), sizeof(PersistConfig)) != crc)
-    return false;
+  if (crc32_update(0, reinterpret_cast<const uint8_t*>(&tmp), sizeof(PersistConfig)) != crc) return false;
 
   g_mb_address   = pc.mb_address;
   g_mb_baud      = pc.mb_baud;
@@ -402,18 +375,14 @@ bool applyFromPersist(const PersistConfig &pc) {
     }
   }
 
-  // Relay fields
   relay_mode[0] = (pc.relay_mode0 <= RM_ALARM) ? pc.relay_mode0 : RM_MODBUS;
   relay_mode[1] = (pc.relay_mode1 <= RM_ALARM) ? pc.relay_mode1 : RM_MODBUS;
-
   relay_alarm_src[0].ch        = (pc.relay_alarm_ch0 < CH_COUNT) ? pc.relay_alarm_ch0 : CH_TOT;
   relay_alarm_src[1].ch        = (pc.relay_alarm_ch1 < CH_COUNT) ? pc.relay_alarm_ch1 : CH_TOT;
   relay_alarm_src[0].kindsMask = pc.relay_alarm_mask0 & 0b111;
   relay_alarm_src[1].kindsMask = pc.relay_alarm_mask1 & 0b111;
 
   for (int i=0;i<4;i++) ledManual[i] = false;
-
-  // Clear runtime overrides after loading
   buttonOverrideMode[0] = buttonOverrideMode[1] = false;
   buttonOverrideState[0] = buttonOverrideState[1] = false;
 
@@ -529,9 +498,9 @@ bool loadConfigFS() {
 // ================== Low-level SPI ==================
 static uint16_t atm90_transfer(uint8_t rw, uint16_t reg, uint16_t val)
 {
-  uint16_t data_swapped = (uint16_t)((val >> 8) | (val << 8));
-  uint16_t addr = reg | (rw ? 0x8000 : 0x0000);
-  uint16_t addr_swapped = (uint16_t)((addr >> 8) | (addr << 8));
+  const uint16_t data_swapped = (uint16_t)((val >> 8) | (val << 8));
+  const uint16_t addr = reg | (rw ? 0x8000 : 0x0000);
+  const uint16_t addr_swapped = (uint16_t)((addr >> 8) | (addr << 8));
 
   SPISettings settings(SPI_HZ, MSBFIRST, ATM_SPI_MODE);
 
@@ -539,7 +508,7 @@ static uint16_t atm90_transfer(uint8_t rw, uint16_t reg, uint16_t val)
   csAssert();
   delayMicroseconds(10);
 
-  uint8_t *pa = reinterpret_cast<uint8_t*>(&addr_swapped);
+  const uint8_t *pa = reinterpret_cast<const uint8_t*>(&addr_swapped);
   MCM_SPI.transfer(pa[0]);
   MCM_SPI.transfer(pa[1]);
 
@@ -549,10 +518,10 @@ static uint16_t atm90_transfer(uint8_t rw, uint16_t reg, uint16_t val)
   if (rw) {
     uint8_t b0 = MCM_SPI.transfer(0x00);
     uint8_t b1 = MCM_SPI.transfer(0x00);
-    uint16_t raw = (uint16_t)((uint16_t)b0 | ((uint16_t)b1 << 8));
+    const uint16_t raw = (uint16_t)((uint16_t)b0 | ((uint16_t)b1 << 8));
     out = (uint16_t)((raw >> 8) | (raw << 8));
   } else {
-    uint8_t *pd = reinterpret_cast<uint8_t*>(&data_swapped);
+    const uint8_t *pd = reinterpret_cast<const uint8_t*>(&data_swapped);
     MCM_SPI.transfer(pd[0]);
     MCM_SPI.transfer(pd[1]);
     out = val;
@@ -568,7 +537,7 @@ static inline void     atm90_write16(uint16_t reg, uint16_t val) { atm90_transfe
 
 static inline int32_t read_power32(uint16_t regH, uint16_t regLSB)
 {
-  int16_t h = (int16_t)atm90_read16(regH);
+  int16_t  h = (int16_t)atm90_read16(regH);
   uint16_t l = atm90_read16(regLSB);
   int32_t val24 = ((int32_t)h << 8) | ((l >> 8) & 0xFF);
   if (val24 & 0x00800000) val24 |= 0xFF000000;
@@ -577,8 +546,8 @@ static inline int32_t read_power32(uint16_t regH, uint16_t regLSB)
 
 static inline double read_rms_like(uint16_t regH, uint16_t regLSB, double sH, double sLb)
 {
-  uint16_t h = atm90_read16(regH);
-  uint16_t l = atm90_read16(regLSB);
+  const uint16_t h = atm90_read16(regH);
+  const uint16_t l = atm90_read16(regLSB);
   return (h * sH) + (((l >> 8) & 0xFF) * sLb);
 }
 
@@ -598,7 +567,7 @@ static void atm90_init()
   uint16_t sagV, FreqHiThresh, FreqLoThresh;
   if (atm_lineFreqHz == 60){ sagV=90;  FreqHiThresh=6100; FreqLoThresh=5900; }
   else                     { sagV=190; FreqHiThresh=5100; FreqLoThresh=4900; }
-  uint16_t vSagTh = (uint16_t)((sagV * 100.0 * sqrt(2.0)) / (2.0 * (atm_ucal / 32768.0)));
+  const uint16_t vSagTh = (uint16_t)((sagV * 100.0 * sqrt(2.0)) / (2.0 * (atm_ucal / 32768.0)));
 
   atm90_write16(SagPeakDetCfg, 0x143F);
   atm90_write16(SagTh,        vSagTh);
@@ -616,7 +585,7 @@ static void atm90_init()
   m0 |= ((atm_sumModeAbs ? 0b11u : 0b00u) << 3);
   m0 &= ~0b111u; m0 |= 0b101u;
 
-  uint8_t gIA=2,gIB=2,gIC=2;
+  const uint8_t gIA=2,gIB=2,gIC=2;
   uint8_t m1=0; m1|=(gainCode(gIA)<<0); m1|=(gainCode(gIB)<<2); m1|=(gainCode(gIC)<<4);
 
   atm90_write16(PLconstH, 0x0861);
@@ -779,9 +748,7 @@ static inline int32_t s_raw_to_VA(int32_t s_raw){
 
 static inline bool out_of_band(int32_t v, const AlarmRule& r){
   if (!r.enabled) return false;
-  if (v < r.min) return true;
-  if (v > r.max) return true;
-  return false;
+  return (v < r.min) || (v > r.max);
 }
 
 static void alarms_ack_channel(uint8_t ch){
@@ -859,8 +826,8 @@ static void eval_alarms_with_metrics(const MetricsSnapshot& snap){
   for (int ch=0; ch<CH_COUNT; ++ch) {
     for (int k=0; k<AK_COUNT; ++k) {
       const AlarmRule& rule = g_alarmCfg[ch].rule[k];
-      int32_t v = pick_metric_value(ch, rule.metric, snap);
-      bool cond = out_of_band(v, rule);
+      const int32_t v = pick_metric_value(ch, rule.metric, snap);
+      const bool cond = out_of_band(v, rule);
       g_alarmRt[ch][k].conditionNow = cond;
       if (g_alarmCfg[ch].ackRequired) {
         if (cond) { g_alarmRt[ch][k].latched = true; g_alarmRt[ch][k].active = true; }
@@ -874,18 +841,16 @@ static void eval_alarms_with_metrics(const MetricsSnapshot& snap){
   }
 }
 
-// ================== HELLO BUNDLE (respond once) ==================
-JSONVar buildHelloBundle() {
-  JSONVar all;
-
-  // Meter options (basic)
+// ================== UI config JSON builders (periodic push) ==================
+static JSONVar MeterOptionsJSON() {
   JSONVar mo;
   mo["lineHz"] = atm_lineFreqHz;
   mo["sumAbs"] = atm_sumModeAbs;
   mo["ucal"]   = atm_ucal;
-  all["meterOptions"] = mo;
-
-  // Scaling / engineering units
+  mo["sample_ms"] = sample_ms;
+  return mo;
+}
+static JSONVar ScalingJSON() {
   JSONVar sc;
   sc["p_mW_per_lsb"]        = p_scale_mW_per_lsb;
   sc["q_mvar_x1k_per_lsb"]  = q_scale_mvar_per_lsb_x1000;
@@ -895,26 +860,7 @@ JSONVar buildHelloBundle() {
   sc["e_rp_kvarh_x1e5"]     = e_rp_kvarh_per_cnt_x1e5;
   sc["e_rn_kvarh_x1e5"]     = e_rn_kvarh_per_cnt_x1e5;
   sc["e_s_kVAh_x1e5"]       = e_s_kVAh_per_cnt_x1e5;
-  all["scaling"] = sc;
-
-  // Alarms Config (L1, L2, L3, Totals)
-  JSONVar alCfg;
-  for (int ch=0; ch<CH_COUNT; ++ch) {
-    JSONVar chO;
-    chO["ack"]= g_alarmCfg[ch].ackRequired;
-    for (int k=0;k<AK_COUNT;++k) {
-      JSONVar rr;
-      rr["enabled"]= g_alarmCfg[ch].rule[k].enabled;
-      rr["min"]    = (int32_t)g_alarmCfg[ch].rule[k].min;
-      rr["max"]    = (int32_t)g_alarmCfg[ch].rule[k].max;
-      rr["metric"] = (uint8_t)g_alarmCfg[ch].rule[k].metric;
-      chO[k]=rr;
-    }
-    alCfg[ch]=chO;
-  }
-  all["alarmsCfg"] = alCfg;
-
-  return all;
+  return sc;
 }
 
 // ---- WebSerial CONFIG handlers ----
@@ -1087,7 +1033,41 @@ void handleRelaysCfg(JSONVar v){
 void handleAlarmsCfg(JSONVar cfgArr){
   // Accept wrong-shape (per-channel) sent to "AlarmsCfg"
   if (cfgArr.hasOwnProperty("ch") || cfgArr.hasOwnProperty("cfg")) {
-    handleAlarmsCfgCh(cfgArr);
+    // forward to per-channel handler
+    JSONVar v = cfgArr;
+    if (!v.hasOwnProperty("ch")) return;
+    int ch = constrain((int)v["ch"], 0, CH_COUNT-1);
+    JSONVar payload = v.hasOwnProperty("cfg") ? v["cfg"] : v;
+
+    bool changed=false;
+    if (payload.hasOwnProperty("ack")) { g_alarmCfg[ch].ackRequired = (bool)payload["ack"]; changed = true; }
+    for (int k=0;k<AK_COUNT;++k){
+      String key = String(k); if (!payload.hasOwnProperty(key)) continue;
+      JSONVar r = payload[key];
+      if (r.hasOwnProperty("enabled")) { g_alarmCfg[ch].rule[k].enabled = (bool)r["enabled"]; changed=true; }
+      if (r.hasOwnProperty("min"))     { g_alarmCfg[ch].rule[k].min     = (int32_t)r["min"]; changed=true; }
+      if (r.hasOwnProperty("max"))     { g_alarmCfg[ch].rule[k].max     = (int32_t)r["max"]; changed=true; }
+      if (r.hasOwnProperty("metric"))  {
+        int m=(int)r["metric"]; if(m<0)m=0; if(m>5)m=5;
+        g_alarmCfg[ch].rule[k].metric=(uint8_t)m; changed=true;
+      }
+    }
+    // Echo back only this channel
+    JSONVar chO; chO["ack"]=g_alarmCfg[ch].ackRequired;
+    for (int k=0;k<AK_COUNT;++k){
+      JSONVar rr; rr["enabled"]=g_alarmCfg[ch].rule[k].enabled;
+      rr["min"]=g_alarmCfg[ch].rule[k].min; rr["max"]=g_alarmCfg[ch].rule[k].max;
+      rr["metric"]=g_alarmCfg[ch].rule[k].metric; chO[k]=rr;
+    }
+    JSONVar one; one[ch]=chO; WebSerial.send("AlarmsCfg", one);
+    alarms_publish_state();
+
+    if (changed) {
+      if (saveConfigFS()) WebSerial.send("message","AlarmsCfgCh saved");
+      else                WebSerial.send("message","ERROR: saving AlarmsCfgCh failed");
+    } else {
+      WebSerial.send("message","AlarmsCfgCh: no changes");
+    }
     return;
   }
 
@@ -1117,45 +1097,6 @@ void handleAlarmsCfg(JSONVar cfgArr){
     else                WebSerial.send("message","ERROR: saving AlarmsCfg failed");
   } else {
     WebSerial.send("message","AlarmsCfg: no changes");
-  }
-}
-
-void handleAlarmsCfgCh(JSONVar v){
-  if (!v.hasOwnProperty("ch")) { WebSerial.send("message","AlarmsCfgCh: missing ch"); return; }
-  int ch = constrain((int)v["ch"], 0, CH_COUNT-1);
-
-  JSONVar payload = v;
-  if (v.hasOwnProperty("cfg")) payload = v["cfg"];  // unwrap nested
-
-  bool changed=false;
-  if (payload.hasOwnProperty("ack")) { g_alarmCfg[ch].ackRequired = (bool)payload["ack"]; changed = true; }
-  for (int k=0;k<AK_COUNT;++k){
-    String key = String(k); if (!payload.hasOwnProperty(key)) continue;
-    JSONVar r = payload[key];
-    if (r.hasOwnProperty("enabled")) { g_alarmCfg[ch].rule[k].enabled = (bool)r["enabled"]; changed=true; }
-    if (r.hasOwnProperty("min"))     { g_alarmCfg[ch].rule[k].min     = (int32_t)r["min"]; changed=true; }
-    if (r.hasOwnProperty("max"))     { g_alarmCfg[ch].rule[k].max     = (int32_t)r["max"]; changed=true; }
-    if (r.hasOwnProperty("metric"))  {
-      int m=(int)r["metric"]; if(m<0)m=0; if(m>5)m=5;
-      g_alarmCfg[ch].rule[k].metric=(uint8_t)m; changed=true;
-    }
-  }
-
-  // Echo back only this channel
-  JSONVar chO; chO["ack"]=g_alarmCfg[ch].ackRequired;
-  for (int k=0;k<AK_COUNT;++k){
-    JSONVar rr; rr["enabled"]=g_alarmCfg[ch].rule[k].enabled;
-    rr["min"]=g_alarmCfg[ch].rule[k].min; rr["max"]=g_alarmCfg[ch].rule[k].max;
-    rr["metric"]=g_alarmCfg[ch].rule[k].metric; chO[k]=rr;
-  }
-  JSONVar one; one[ch]=chO; WebSerial.send("AlarmsCfg", one);
-  alarms_publish_state();
-
-  if (changed) {
-    if (saveConfigFS()) WebSerial.send("message","AlarmsCfgCh saved");
-    else                WebSerial.send("message","ERROR: saving AlarmsCfgCh failed");
-  } else {
-    WebSerial.send("message","AlarmsCfgCh: no changes");
   }
 }
 
@@ -1232,16 +1173,6 @@ void sendMeterEcho(double urms[3], double irms[3],
 
   WebSerial.send("ENM_Meter", m);
 }
-
-// ================== HELLO handler ==================
-// ================== HELLO handler ==================
-void handleHello(JSONVar payload) {
-  (void)payload;
-  // Always answer hello with the full config bundle
-  WebSerial.send("message","hello -> sending MeterOptions + Scaling + Alarms");
-  WebSerial.send("AllConfig", buildHelloBundle()); // event name preserved for UI compatibility
-}
-
 
 // ================== Setup ==================
 void setup() {
@@ -1341,14 +1272,10 @@ void setup() {
   WebSerial.on("Config",     handleUnifiedConfig);
   WebSerial.on("RelaysSet",  handleRelaysSet);
   WebSerial.on("RelaysCfg",  handleRelaysCfg);
-  WebSerial.on("AlarmsCfg",  handleAlarmsCfg);      // full array (also forwards per‑channel)
-  WebSerial.on("AlarmsCfgCh",handleAlarmsCfgCh);    // per‑channel
-  WebSerial.on("AlarmsAck",  handleAlarmsAck);      // ACK
+  WebSerial.on("AlarmsCfg",  handleAlarmsCfg);
+  WebSerial.on("AlarmsAck",  handleAlarmsAck);
 
-  // Handshake: only lowercase "hello"
-  WebSerial.on("hello", handleHello);
-
-  WebSerial.send("message", "Boot OK (ENM-223-R1, 1 Hz UI config+meter echo, reply-once hello bundle)");
+  WebSerial.send("message", "Boot OK (ENM-223-R1, 1 Hz UI config+meter echo)");
 }
 
 // ================== HREG write watcher ==================
@@ -1381,7 +1308,7 @@ void serviceHregWrites() {
 
 // ================== Button actions ==================
 // Actions: 0 None | 1 Toggle Relay1 | 2 Toggle Relay2 | 3..6 Toggle LED0..3
-// NEW (handled in loop): 7=Override R1 (long=enter/exit, short=toggle), 8=Override R2
+// NEW: 7=Override R1 (hold=enter/exit, short=toggle if in override), 8=Override R2
 void doButtonAction(uint8_t idx) {
   uint8_t act = buttonCfg[idx].action;
   switch (act) {
@@ -1395,7 +1322,6 @@ void doButtonAction(uint8_t idx) {
 
 // ================== LED source evaluation ==================
 bool evalLedSource(uint8_t src) {
-  // Helper lambdas to keep cases clean
   auto anyKinds = [&](uint8_t ch)->bool {
     if (ch >= CH_COUNT) return false;
     return g_alarmRt[ch][AK_ALARM].active
@@ -1403,38 +1329,30 @@ bool evalLedSource(uint8_t src) {
         || g_alarmRt[ch][AK_EVENT].active;
   };
   auto alarmKind = [&](uint8_t ch, uint8_t kind)->bool {
-    if (ch >= CH_COUNT) return false;
-    if (kind >= AK_COUNT) return false;
+    if (ch >= CH_COUNT || kind >= AK_COUNT) return false;
     return g_alarmRt[ch][kind].active;
   };
 
   switch (src) {
-    // 0: None
-    case 0:  return false;
+    case 0:  return false;                 // None
+    case 8:  return buttonOverrideMode[0]; // Override R1
+    case 9:  return buttonOverrideMode[1]; // Override R2
 
-    // 8..9: Override indicators
-    case 8:  return buttonOverrideMode[0];  // Override active for R1
-    case 9:  return buttonOverrideMode[1];  // Override active for R2
-
-    // 10..13: Alarm (AK_ALARM) for L1..L3,Tot
+    // Alarm/Warning/Event for L1..L3,Tot
     case 10: return alarmKind(CH_L1, AK_ALARM);
     case 11: return alarmKind(CH_L2, AK_ALARM);
     case 12: return alarmKind(CH_L3, AK_ALARM);
     case 13: return alarmKind(CH_TOT,AK_ALARM);
-
-    // 14..17: Warning (AK_WARNING) for L1..L3,Tot
     case 14: return alarmKind(CH_L1, AK_WARNING);
     case 15: return alarmKind(CH_L2, AK_WARNING);
     case 16: return alarmKind(CH_L3, AK_WARNING);
     case 17: return alarmKind(CH_TOT,AK_WARNING);
-
-    // 18..21: Event (AK_EVENT) for L1..L3,Tot
     case 18: return alarmKind(CH_L1, AK_EVENT);
     case 19: return alarmKind(CH_L2, AK_EVENT);
     case 20: return alarmKind(CH_L3, AK_EVENT);
     case 21: return alarmKind(CH_TOT,AK_EVENT);
 
-    // 22..25: Any (Alarm OR Warning OR Event) for L1..L3,Tot
+    // Any(A|W|E)
     case 22: return anyKinds(CH_L1);
     case 23: return anyKinds(CH_L2);
     case 24: return anyKinds(CH_L3);
@@ -1446,7 +1364,7 @@ bool evalLedSource(uint8_t src) {
 
 // ================== Main loop ==================
 void loop() {
-  unsigned long now = millis();
+  const unsigned long now = millis();
 
   if (now - lastBlinkToggle >= blinkPeriodMs) { lastBlinkToggle = now; blinkPhase = !blinkPhase; }
 
@@ -1461,11 +1379,11 @@ void loop() {
 
   // ===== Buttons (debounce + long/short + override logic) =====
   for (int i = 0; i < 4; i++) {
-    bool pressed = readPressed(i);
+    const bool pressed = readPressed(i);
     if (pressed != buttonState[i] && (now - btnChangeAt[i] >= BTN_DEBOUNCE_MS)) {
-      btnChangeAt[i] = now; buttonPrev[4>i?i:0]  = buttonState[i]; buttonState[i] = pressed;  // keep prior
+      btnChangeAt[i] = now; buttonPrev[i]  = buttonState[i]; buttonState[i] = pressed;
 
-      uint8_t act = buttonCfg[i].action;
+      const uint8_t act = buttonCfg[i].action;
 
       // Edge: press
       if (!buttonPrev[i] && buttonState[i]) {
@@ -1477,15 +1395,14 @@ void loop() {
       if (buttonPrev[i] && !buttonState[i]) {
         if (!btnLongDone[i]) {
           if (act == 7 || act == 8) {
-            int r = (act == 7) ? 0 : 1;
+            const int r = (act == 7) ? 0 : 1;
             if (buttonOverrideMode[r]) {
               // toggle while in override
               buttonOverrideState[r] = !buttonOverrideState[r];
             } else {
-              // not in override -> ignore short press to avoid accidental toggles
+              // not in override -> ignore short press
             }
           } else {
-            // legacy short actions
             doButtonAction(i);
             echoRelayState();
           }
@@ -1495,11 +1412,11 @@ void loop() {
 
     // Long hold detection
     if (buttonState[i] && !btnLongDone[i] && (now - btnPressAt[i] >= BTN_LONG_MS)) {
-      uint8_t act = buttonCfg[i].action;
+      const uint8_t act = buttonCfg[i].action;
       if (act == 7 || act == 8) {
-        int r = (act == 7) ? 0 : 1;
+        const int r = (act == 7) ? 0 : 1;
         if (!buttonOverrideMode[r]) {
-          // ENTER override: seed from current logical state (smooth handover)
+          // ENTER override: seed from current logical state
           buttonOverrideMode[r]  = true;
           buttonOverrideState[r] = relayState[r];
         } else {
@@ -1689,7 +1606,7 @@ void loop() {
 
     WebSerial.check();
 
-    // Status (address/baud) kept for convenience
+    // Status (address/baud)
     sendStatusEcho();
 
     // 1) LED config
@@ -1701,7 +1618,16 @@ void loop() {
     // 3) Relay config
     WebSerial.send("RelaysCfg", RelayConfigFromCfg());
 
-    // 4) Live meter (latest cached sample)
+    // 4) Meter Options (basic)
+    WebSerial.send("MeterOptions", MeterOptionsJSON());
+
+    // 5) Scaling (engineering units)
+    WebSerial.send("Scaling", ScalingJSON());
+
+    // 6) Alarms configuration (L1, L2, L3, Totals)
+    alarms_publish_cfg();
+
+    // 7) Live meter (latest cached sample)
     if (g_haveMeter) {
       sendMeterEcho(g_urms, g_irms, g_p_raw, g_q_raw, g_s_raw, g_pf_raw, g_ang_raw,
                     g_f_x100, g_tempC, g_e_ap, g_e_an, g_e_rp, g_e_rn, g_e_s);
