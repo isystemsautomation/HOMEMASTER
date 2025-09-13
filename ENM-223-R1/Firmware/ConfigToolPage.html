@@ -19,14 +19,16 @@
     .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:.75rem;background:#e9ecef}
     @media (max-width:900px){.al-grid,#relays-config{grid-template-columns:1fr}}
     @media (max-width:560px){.al-row .lbl{flex:1 1 100%;order:-1}}
+    .lock-badge{font-size:.75rem;color:#0d6efd;margin-left:.35rem;display:none}
+    .locked+.lock-badge{display:inline}
   </style>
 
   <div style="text-align:center;margin-bottom:2rem;">
     <h2 style="margin:.5rem 0 0;">ENM-223-R1 Module Configuration</h2>
-    <p style="margin:.25rem 0 0;color:#333;">Relays support <b>None</b>, <b>Modbus</b>, and <b>Alarm</b> modes with selectable alarm source. Button override LEDs available.</p>
+    <p style="margin:.25rem 0 0;color:#333;">Live config every 1s from device. Edit a field and press <b>Enter</b> to send. While editing, that field won’t auto-update.</p>
   </div>
 
-  <div style="background:#f1f1f1;padding:1rem 1.5rem;margin-bottom:2rem;border-radius:6px;border-left:4px solid #007bff;">
+  <div style="background:#f1f1f1;padding:1rem 1.5rem;margin-bottom:1.25rem;border-radius:6px;border-left:4px solid #007bff;">
     <strong>Active Modbus Configuration</strong><br>
     Address: <span id="live-address" style="font-weight:600;">--</span> |
     Baud Rate: <span id="live-baud" style="font-weight:600;">--</span>
@@ -34,83 +36,88 @@
 
   <form id="modbus-config" style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:.75rem;">
     <div><label><strong>Modbus Address</strong></label><select id="modbus-address" class="enm-input"></select></div>
-    <div><label><strong>Baud Rate</strong></label>
-      <select id="modbus-baud" class="enm-input"><option>9600</option><option selected="">19200</option><option>38400</option><option>57600</option><option>115200</option></select>
+    <div>
+      <label><strong>Baud Rate</strong></label>
+      <select id="modbus-baud" class="enm-input">
+        <option>9600</option><option selected="">19200</option><option>38400</option><option>57600</option><option>115200</option>
+      </select>
     </div>
     <div style="grid-column:span 2;display:flex;justify-content:flex-end;">
-      <button id="connect-button" type="button" style="padding:10px 20px;background:#007bff;color:#fff;border:none;border-radius:4px;">Connect to device</button>
+      <button id="connect-button" type="button" style="padding:10px 20px;background:#007bff;color:#fff;border:none;border-radius:4px;">Connect</button>
     </div>
   </form>
 
-  <div id="log-line" style="margin-bottom:1.5rem;padding:1rem;background:#f9f9f9;border:1px solid #ccc;border-radius:6px;font-size:0.9rem;color:#333;">
+  <div id="log-line" style="margin-bottom:1.25rem;padding:1rem;background:#f9f9f9;border:1px solid #ccc;border-radius:6px;font-size:0.9rem;color:#333;">
     <strong>Serial Log:</strong>
     <pre id="log-content" style="white-space:pre-wrap;font-family:monospace;line-height:1.25em;margin:0;margin-top:.5rem;height:calc(1.25em * 6);overflow-y:auto;background:#fff;border:1px solid #e5e5e5;border-radius:4px;padding:.5rem;"></pre>
   </div>
 
-  
-  <section style="margin-bottom:1.75rem;">
+  <section style="margin-bottom:1.25rem;">
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Meter Options</h2>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem;">
-      <div><label><strong>Line Frequency (Hz)</strong></label><select id="opt-lineHz" class="enm-input"><option value="50" selected="">50</option><option value="60">60</option></select></div>
-      <div><label><strong>Sum Mode</strong> <small style="color:#666;">(0=alg, 1=abs)</small></label><select id="opt-sumAbs" class="enm-input"><option value="0">0</option><option value="1" selected="">1</option></select></div>
-      <div><label><strong>Ucal</strong> <small style="color:#666;">(gain)</small></label><input id="opt-ucal" type="number" min="1" max="65535" step="1" value="25256" class="enm-input"></div>
-      <div><label><strong>Sample Interval (ms)</strong></label><input id="opt-samplems" type="number" min="10" max="5000" step="10" value="200" class="enm-input"></div>
-    </div>
-    <div style="text-align:right;margin-top:.75rem;">
-      <button id="apply-meter" type="button" style="padding:10px 16px;background:#0d6efd;color:#fff;border:none;border-radius:6px;" disabled="">Apply Meter Options</button>
+      <div>
+        <label><strong>Line Frequency (Hz)</strong></label>
+        <select id="opt-lineHz" class="enm-input">
+          <option value="50" selected="">50</option><option value="60">60</option>
+        </select>
+      </div>
+      <div>
+        <label><strong>Sum Mode</strong> <small style="color:#666;">(0=alg, 1=abs)</small></label>
+        <select id="opt-sumAbs" class="enm-input">
+          <option value="0">0</option><option value="1" selected="">1</option>
+        </select>
+      </div>
+      <div>
+        <label><strong>Ucal</strong> <small style="color:#666;">(gain)</small></label>
+        <input id="opt-ucal" type="number" min="1" max="65535" step="1" value="25256" class="enm-input">
+        <small class="lock-badge">editing… press Enter to send</small>
+      </div>
+      <div>
+        <label><strong>Sample Interval (ms)</strong></label>
+        <input id="opt-samplems" type="number" min="10" max="5000" step="10" value="200" class="enm-input">
+        <small class="lock-badge">editing… press Enter to send</small>
+      </div>
     </div>
   </section>
 
-  
-  <section style="margin-bottom:1.75rem;">
+  <section style="margin-bottom:1.25rem;">
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Scaling (Engineering Units)</h2>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem;">
-      <div><label><strong>P scale</strong> <small style="color:#666;">mW/LSB</small></label><input id="sc-p" type="number" min="0" step="1" value="1" class="enm-input"></div>
-      <div><label><strong>Q scale</strong> <small style="color:#666;">mvar×1000/LSB</small></label><input id="sc-q" type="number" min="0" step="1" value="1" class="enm-input"></div>
-      <div><label><strong>S scale</strong> <small style="color:#666;">mVA×1000/LSB</small></label><input id="sc-s" type="number" min="0" step="1" value="1" class="enm-input"></div>
-      <div><label><strong>AP energy</strong> <small style="color:#666;">kWh×1e5/CNT</small></label><input id="sc-eap" type="number" min="0" step="1" value="1" class="enm-input"></div>
-      <div><label><strong>AN energy</strong> <small style="color:#666;">kWh×1e5/CNT</small></label><input id="sc-ean" type="number" min="0" step="1" value="1" class="enm-input"></div>
-      <div><label><strong>RP energy</strong> <small style="color:#666;">kvarh×1e5/CNT</small></label><input id="sc-erp" type="number" min="0" step="1" value="1" class="enm-input"></div>
-      <div><label><strong>RN energy</strong> <small style="color:#666;">kvarh×1e5/CNT</small></label><input id="sc-ern" type="number" min="0" step="1" value="1" class="enm-input"></div>
-      <div><label><strong>S energy</strong> <small style="color:#666;">kVAh×1e5/CNT</small></label><input id="sc-es" type="number" min="0" step="1" value="1" class="enm-input"></div>
-    </div>
-    <div style="text-align:right;margin-top:.75rem;">
-      <button id="apply-scale" type="button" style="padding:10px 16px;background:#0d6efd;color:#fff;border:none;border-radius:6px;" disabled="">Apply Scales</button>
+      <div><label><strong>P scale</strong> <small style="color:#666;">mW/LSB</small></label><input id="sc-p" type="number" min="0" step="1" value="1" class="enm-input"><small class="lock-badge">editing… press Enter</small></div>
+      <div><label><strong>Q scale</strong> <small style="color:#666;">mvar×1000/LSB</small></label><input id="sc-q" type="number" min="0" step="1" value="1" class="enm-input"><small class="lock-badge">editing… press Enter</small></div>
+      <div><label><strong>S scale</strong> <small style="color:#666;">mVA×1000/LSB</small></label><input id="sc-s" type="number" min="0" step="1" value="1" class="enm-input"><small class="lock-badge">editing… press Enter</small></div>
+      <div><label><strong>AP energy</strong> <small style="color:#666;">kWh×1e5/CNT</small></label><input id="sc-eap" type="number" min="0" step="1" value="1" class="enm-input"><small class="lock-badge">editing… press Enter</small></div>
+      <div><label><strong>AN energy</strong> <small style="color:#666;">kWh×1e5/CNT</small></label><input id="sc-ean" type="number" min="0" step="1" value="1" class="enm-input"><small class="lock-badge">editing… press Enter</small></div>
+      <div><label><strong>RP energy</strong> <small style="color:#666;">kvarh×1e5/CNT</small></label><input id="sc-erp" type="number" min="0" step="1" value="1" class="enm-input"><small class="lock-badge">editing… press Enter</small></div>
+      <div><label><strong>RN energy</strong> <small style="color:#666;">kvarh×1e5/CNT</small></label><input id="sc-ern" type="number" min="0" step="1" value="1" class="enm-input"><small class="lock-badge">editing… press Enter</small></div>
+      <div><label><strong>S energy</strong> <small style="color:#666;">kVAh×1e5/CNT</small></label><input id="sc-es" type="number" min="0" step="1" value="1" class="enm-input"><small class="lock-badge">editing… press Enter</small></div>
     </div>
   </section>
 
-  
-  <section style="margin-bottom:1.75rem;">
+  <section style="margin-bottom:1.25rem;">
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Alarms (L1, L2, L3, Totals)</h2>
-    <div style="color:#555;margin-bottom:.5rem;">
-      <small>Pick metric, set min/max, then click <b>Save</b> on that card. Sends only that channel.</small>
-    </div>
     <div id="alarms-grid" class="al-grid"></div>
-    <div style="display:flex;gap:.5rem;flex-wrap:wrap;justify-content:flex-end;margin-top:.75rem;">
-      <button id="ack-all" type="button" style="padding:8px 14px;background:#198754;color:#fff;border:none;border-radius:6px;" disabled="">Ack All</button>
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap;justify-content:flex-end;margin-top:.5rem;">
+      <button id="ack-all" type="button" style="padding:8px 14px;background:#198754;color:#fff;border:none;border-radius:6px;">Ack All</button>
     </div>
   </section>
 
-  
-  <section style="margin-bottom:1.5rem;">
+  <section style="margin-bottom:1.25rem;">
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Relays (2)</h2>
     <div id="relays-config"></div>
   </section>
 
-  
-  <section style="margin-bottom:1.5rem;">
+  <section style="margin-bottom:1.25rem;">
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Live Meter</h2>
     <div id="chan-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:1rem;"></div>
   </section>
 
-  
-  <section style="margin-bottom:1.5rem;">
+  <section style="margin-bottom:1.25rem;">
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Buttons (4)</h2>
     <div id="buttons-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
   </section>
 
-  
-  <section style="margin-bottom:1.5rem;">
+  <section style="margin-bottom:1.25rem;">
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">User LEDs (4)</h2>
     <div id="leds-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
     <div style="color:#666;margin-top:.5rem;font-size:.9rem;">
@@ -119,45 +126,78 @@
   </section>
 </section>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
 <script>
 (function(){
-  /* ---------- helpers ---------- */
-  var LOG_MAX=300, logBuffer=[];
-  function $(id){ return document.getElementById(id); }
+  /* ===== Helpers ===== */
+  const $ = id => document.getElementById(id);
+  const inRange = (n, a, b) => (typeof n === 'number') && n >= a && n <= b;
+
+  const LOG_MAX=300, logBuffer=[];
   function appendLog(label,data){
-    var el=$("log-content"); if(!el) return;
-    var time=new Date().toLocaleTimeString();
-    var body=(typeof data==='string')?data:JSON.stringify(data);
+    const el=$("log-content"); if(!el) return;
+    const time=new Date().toLocaleTimeString();
+    let body=(typeof data==='string')?data:JSON.stringify(data);
     body=String(body).replace(/\r\n?|\n/g,'\n').replace(/\\r\\n|\\r|\\n/g,'\n');
-    logBuffer.push("["+time+"] "+label+": "+body);
+    logBuffer.push(`[${time}] ${label}: ${body}`);
     if(logBuffer.length>LOG_MAX) logBuffer.shift();
     el.textContent=logBuffer.join('\n'); el.scrollTop=el.scrollHeight;
   }
-  function populateAddresses(){
-    var sel=$('modbus-address'); if(!sel) return; sel.innerHTML='';
-    for(var i=1;i<=255;i++){ var o=document.createElement('option'); o.value=i; o.textContent=i; sel.appendChild(o); }
-    sel.value='3';
-  }
-  function isPortOpen(){ try{ return (typeof connection.isOpen==='function')?connection.isOpen():!!connection.port; }catch(e){return false;} }
-  function setEnabled(ids, en){ ids.forEach(function(id){ var el=$(id); if(el) el.disabled=!en; }); }
-  function unitForMetric(m){ switch(+m){case 0:return'V';case 1:return'A';case 2:return'W';case 3:return'var';case 4:return'VA';case 5:return'Hz';default:return'';} }
-  function hintForMetric(m){
-    switch(+m){case 0:return'Urms (0.01 V)';case 1:return'Irms (0.001 A)';case 2:return'Active Power P (W)';
-      case 3:return'Reactive Power Q (var)';case 4:return'Apparent Power S (VA)';case 5:return'Frequency (0.01 Hz)';default:return'';}
-  }
-  function badge(color,text){return '<span class="pill" style="background:'+color+';color:#fff">'+text+'</span>'; }
+  const unitForMetric=m=>({0:'V',1:'A',2:'W',3:'var',4:'VA',5:'Hz'}[+m]||'');
+  const hintForMetric=m=>({
+    0:'Urms (0.01 V)',1:'Irms (0.001 A)',2:'Active Power P (W)',
+    3:'Reactive Power Q (var)',4:'Apparent Power S (VA)',5:'Frequency (0.01 Hz)'
+  }[+m]||'');
 
-  /* ---------- live tiles ---------- */
-  function buildChannelCards(){
-    var grid=$('chan-grid'); if(!grid) return; grid.innerHTML='';
-    var labels=['L1','L2','L3','Totals'];
-    for(var ch=0;ch<4;ch++){
-      var card=document.createElement('div');
+  /* ===== Serial connection ===== */
+  const connection = SimpleWebSerial.setupSerialConnection({
+    requestAccessOnPageLoad:false,
+    requestElement:'connect-button'
+  });
+  connection.on('open', ()=>appendLog('port','open'));
+  connection.on('close', ()=>appendLog('port','close'));
+  connection.on('message', (m)=>appendLog('log', m));
+
+  /* ===== Field lock system (prevents overwrite while editing) ===== */
+  const locked = new Set();
+  function attachLockHandlers(input, key, sendFn){
+    if(!input) return;
+    input.setAttribute('data-lock-key', key);
+    const hint = input.nextElementSibling && input.nextElementSibling.classList.contains('lock-badge') ? input.nextElementSibling : null;
+    const lock=()=>{ locked.add(key); input.classList.add('locked'); if(hint) hint.style.display='inline'; };
+    const unlock=()=>{ locked.delete(key); input.classList.remove('locked'); if(hint) hint.style.display='none'; };
+
+    input.addEventListener('focus', lock);
+    input.addEventListener('input', lock);
+    input.addEventListener('keydown', (ev)=>{
+      if(ev.key==='Enter'){
+        ev.preventDefault();
+        if(typeof sendFn==='function') sendFn();
+        unlock();
+      } else if(ev.key==='Escape'){
+        ev.preventDefault(); unlock();
+      }
+    });
+  }
+  const canApply = (key)=>!locked.has(key);
+
+  /* ===== Populate static selects ===== */
+  (function populateAddresses(){
+    const sel=$('modbus-address'); if(!sel) return; sel.innerHTML='';
+    for(let i=1;i<=255;i++){ const o=document.createElement('option'); o.value=i; o.textContent=i; sel.appendChild(o); }
+    sel.value='3';
+  })();
+
+  /* ===== Live meter cards ===== */
+  (function buildChannelCards(){
+    const grid=$('chan-grid'); if(!grid) return; grid.innerHTML='';
+    const labels=['L1','L2','L3','Totals'];
+    for(let ch=0; ch<4; ch++){
+      const card=document.createElement('div');
       card.style="border:1px solid #ddd;border-radius:8px;padding:1rem;background:#fff;";
       card.innerHTML =
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;"><strong>'+labels[ch]+'</strong>'
-      + (ch===3?'<span>'+badge("#6c757d","totals")+'</span>':'' ) + '</div>'
+      + (ch===3?'<span class="pill">totals</span>':'' ) + '</div>'
       + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.35rem .75rem;font-size:.95rem;">'
       + '  <div>U (V):</div><div id="u'+ch+'" style="text-align:right">--</div>'
       + '  <div>I (A):</div><div id="i'+ch+'" style="text-align:right">--</div>'
@@ -172,30 +212,30 @@
       + '</div>';
       grid.appendChild(card);
     }
-  }
+  })();
 
-  /* ---------- alarms UI ---------- */
-  var AK_LABELS=['Alarm','Warning','Event'];
-  var CH_LABELS=['L1','L2','L3','Totals'];
-  var METRICS=[
+  /* ===== Alarms UI ===== */
+  const AK_LABELS=['Alarm','Warning','Event'];
+  const CH_LABELS=['L1','L2','L3','Totals'];
+  const METRICS=[
     {v:0,l:'Voltage (Urms)'},{v:1,l:'Current (Irms)'},{v:2,l:'Active power P'},
     {v:3,l:'Reactive power Q'},{v:4,l:'Total/Apparent power S'},{v:5,l:'Frequency'}
   ];
-  function metricOptionsHTML(sel){ return METRICS.map(m=>'<option value="'+m.v+'" '+(String(sel)==String(m.v)?'selected':'')+'>'+m.l+'</option>').join(''); }
+  const metricOptionsHTML=(sel)=>METRICS.map(m=>'<option value="'+m.v+'" '+(String(sel)==String(m.v)?'selected':'')+'>'+m.l+'</option>').join('');
 
   function buildAlarmsUI(){
-    var grid=$('alarms-grid'); if(!grid) return; grid.innerHTML='';
+    const grid=$('alarms-grid'); if(!grid) return; grid.innerHTML='';
     for(let ch=0; ch<4; ch++){
-      var card=document.createElement('div'); card.className='al-card';
-      var rows = AK_LABELS.map(function(lbl, ak){
-        var metricSelId='al-met-'+ch+'-'+ak;
+      const card=document.createElement('div'); card.className='al-card';
+      const rows = AK_LABELS.map((lbl, ak)=>{
+        const metricSelId='al-met-'+ch+'-'+ak;
         return ''+
           '<div class="al-row">'
         + '  <div class="lbl">'+lbl+'</div>'
         + '  <label class="en"><input type="checkbox" id="al-en-'+ch+'-'+ak+'"> <span>Enabled</span></label>'
         + '  <div class="metric"><select id="'+metricSelId+'" class="enm-input">'+metricOptionsHTML(4)+'</select></div>'
-        + '  <div class="min"><input id="al-min-'+ch+'-'+ak+'" type="number" step="1" placeholder="min" class="enm-input"></div>'
-        + '  <div class="max"><input id="al-max-'+ch+'-'+ak+'" type="number" step="1" placeholder="max" class="enm-input"></div>'
+        + '  <div class="min"><input id="al-min-'+ch+'-'+ak+'" type="number" step="1" placeholder="min" class="enm-input"><small class="lock-badge">editing… Enter</small></div>'
+        + '  <div class="max"><input id="al-max-'+ch+'-'+ak+'" type="number" step="1" placeholder="max" class="enm-input"><small class="lock-badge">editing… Enter</small></div>'
         + '</div>'
         + '<div id="al-hint-'+ch+'-'+ak+'" class="al-hint"></div>';
       }).join('');
@@ -212,95 +252,91 @@
         + '<div style="border-top:1px dashed #ddd;margin:.5rem 0;"></div>'
         + rows
         + '<div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:.6rem;">'
-        + '  <button type="button" id="al-save-'+ch+'" style="padding:6px 10px;background:#0d6efd;border:none;border-radius:6px;color:#fff;">Save '+CH_LABELS[ch]+'</button>'
         + '  <button type="button" id="al-ack-'+ch+'" style="padding:6px 10px;background:#198754;border:none;border-radius:6px;color:#fff;">Ack '+CH_LABELS[ch]+'</button>'
         + '</div>';
       grid.appendChild(card);
     }
-    // hints + actions
+
+    // Wire behaviors
     for(let ch=0; ch<4; ch++){
       for(let ak=0; ak<3; ak++){
-        (function(ch,ak){
-          var s=$('al-met-'+ch+'-'+ak);
-          function upd(){
-            var m=s?s.value:4, unit=unitForMetric(m), hint=hintForMetric(m);
-            var mn=$('al-min-'+ch+'-'+ak), mx=$('al-max-'+ch+'-'+ak), h=$('al-hint-'+ch+'-'+ak);
-            if(mn) mn.placeholder='min '+unit;
-            if(mx) mx.placeholder='max '+unit;
-            if(h)  h.textContent='Metric: '+METRICS.filter(x=>String(x.v)==String(m))[0].l+' — '+hint+'.';
-          }
-          if(s){ s.addEventListener('change',upd); upd(); }
-        })(ch,ak);
+        const s=$('al-met-'+ch+'-'+ak);
+        const upd=()=>{
+          const m=s?s.value:4, unit=unitForMetric(m), hint=hintForMetric(m);
+          const mn=$('al-min-'+ch+'-'+ak), mx=$('al-max-'+ch+'-'+ak), h=$('al-hint-'+ch+'-'+ak);
+          if(mn) mn.placeholder='min '+unit;
+          if(mx) mx.placeholder='max '+unit;
+          if(h)  h.textContent='Metric: '+(METRICS.find(x=>String(x.v)==String(m))?.l||'')+' — '+hint+'.';
+        };
+        if(s){ s.addEventListener('change', ()=>{ sendChannelCfg(ch); }); upd(); }
+
+        const sendFn=()=>sendChannelCfg(ch);
+        attachLockHandlers($('al-min-'+ch+'-'+ak), `al-min-${ch}-${ak}`, sendFn);
+        attachLockHandlers($('al-max-'+ch+'-'+ak), `al-max-${ch}-${ak}`, sendFn);
+
+        const en=$('al-en-'+ch+'-'+ak); if(en){ en.addEventListener('change', ()=>sendChannelCfg(ch)); }
       }
-      var saveBtn=$('al-save-'+ch), ackBtn=$('al-ack-'+ch);
-      if(saveBtn){ saveBtn.addEventListener('click', function(){ var cfg=collectChannelCfg(ch); connection.send("AlarmsCfg",{ch:ch,cfg:cfg}); appendLog("AlarmsCfg[ch]",{ch:ch,cfg:cfg}); }); }
-      if(ackBtn){  ackBtn.addEventListener('click', function(){ connection.send("AlarmsAck",{ch:ch}); appendLog("AlarmsAck",{ch:ch}); }); }
+      const ackReq=$('al-ackreq-'+ch); if(ackReq){ ackReq.addEventListener('change', ()=>sendChannelCfg(ch)); }
+      const ackBtn=$('al-ack-'+ch);   if(ackBtn){ ackBtn.addEventListener('click', ()=>{ connection.send("AlarmsAck",{ch}); appendLog("AlarmsAck",{ch}); }); }
     }
   }
+  buildAlarmsUI();
 
-  // FIXED function (no stray quotes; null-safe)
   function collectChannelCfg(ch){
-    var chO={ ack: $('al-ackreq-'+ch).checked };
-    for(var ak=0; ak<3; ak++){
-      var enEl = $('al-en-'+ch+'-'+ak);
-      var mnEl = $('al-min-'+ch+'-'+ak);
-      var mxEl = $('al-max-'+ch+'-'+ak);
-      var mtEl = $('al-met-'+ch+'-'+ak);
-      chO[ak] = {
-        enabled: enEl ? !!enEl.checked : false,
-        min:     mnEl ? +mnEl.value : 0,
-        max:     mxEl ? +mxEl.value : 0,
-        metric:  mtEl ? +mtEl.value : 4
+    const chO={ ack: !!$('al-ackreq-'+ch)?.checked };
+    for(let ak=0; ak<3; ak++){
+      const enEl=$('al-en-'+ch+'-'+ak), mnEl=$('al-min-'+ch+'-'+ak), mxEl=$('al-max-'+ch+'-'+ak), mtEl=$('al-met-'+ch+'-'+ak);
+      chO[ak]={
+        enabled:!!(enEl?.checked),
+        min: +(mnEl?.value ?? 0),
+        max: +(mxEl?.value ?? 0),
+        metric:+(mtEl?.value ?? 4)
       };
     }
     return chO;
   }
-
+  function sendChannelCfg(ch){
+    const cfg=collectChannelCfg(ch);
+    connection.send("AlarmsCfg",{ch, cfg});
+    appendLog("AlarmsCfg[ch]",{ch,cfg});
+  }
   function applyChannelCfg(ch, obj){
     if(typeof obj!=='object') return;
-    var ackEl=$('al-ackreq-'+ch); if(ackEl && obj.hasOwnProperty('ack')) ackEl.checked=!!obj.ack;
-    for(var ak=0; ak<3; ak++){
-      var r=obj[ak]||{}; var en=$('al-en-'+ch+'-'+ak), mn=$('al-min-'+ch+'-'+ak), mx=$('al-max-'+ch+'-'+ak), met=$('al-met-'+ch+'-'+ak);
+    const ackEl=$('al-ackreq-'+ch); if(ackEl && obj.hasOwnProperty('ack')) ackEl.checked=!!obj.ack;
+    for(let ak=0; ak<3; ak++){
+      const r=obj[ak]||{};
+      const en=$('al-en-'+ch+'-'+ak), mn=$('al-min-'+ch+'-'+ak), mx=$('al-max-'+ch+'-'+ak), met=$('al-met-'+ch+'-'+ak);
       if(en && r.hasOwnProperty('enabled')) en.checked=!!r.enabled;
-      if(mn && r.hasOwnProperty('min'))     mn.value=r.min;
-      if(mx && r.hasOwnProperty('max'))     mx.value=r.max;
+      if(mn && r.hasOwnProperty('min') && canApply(`al-min-${ch}-${ak}`)) mn.value=r.min;
+      if(mx && r.hasOwnProperty('max') && canApply(`al-max-${ch}-${ak}`)) mx.value=r.max;
       if(met && r.hasOwnProperty('metric')) met.value=String(r.metric);
-      var s=$('al-met-'+ch+'-'+ak); if(s){ var unit=unitForMetric(s.value), hint=hintForMetric(s.value);
-        var h=$('al-hint-'+ch+'-'+ak); if(h) h.textContent='Metric: '+METRICS.filter(x=>String(x.v)==String(s.value))[0].l+' — '+hint+'.';
-        var mn2=$('al-min-'+ch+'-'+ak), mx2=$('al-max-'+ch+'-'+ak); if(mn2) mn2.placeholder='min '+unit; if(mx2) mx2.placeholder='max '+unit;
+      const s=$('al-met-'+ch+'-'+ak);
+      if(s){ const unit=unitForMetric(s.value), hint=hintForMetric(s.value);
+        const h=$('al-hint-'+ch+'-'+ak); if(h) h.textContent='Metric: '+(METRICS.find(x=>String(x.v)==String(s.value))?.l||'')+' — '+hint+'.';
+        if(mn) mn.placeholder='min '+unit; if(mx) mx.placeholder='max '+unit;
       }
     }
   }
   function updateAlarmsState(state){
-    for(var ch=0; ch<4; ch++){
-      for(var ak=0; ak<3; ak++){
-        var dot=$('al-led-'+ch+'-'+ak);
-        var e=state && state[ch] && state[ch][ak];
-        var on=e && !!e.active;
+    for(let ch=0; ch<4; ch++){
+      for(let ak=0; ak<3; ak++){
+        const dot=$('al-led-'+ch+'-'+ak);
+        const e=state && state[ch] && state[ch][ak];
+        const on=e && !!e.active;
         if(dot) dot.style.background = on ? (ak===0?'#dc3545':ak===1?'#fd7e14':'#0dcaf0') : '#ccc';
       }
     }
   }
 
-  /* ---------- relays (modes + alarm source) ---------- */
+  /* ===== Relays UI ===== */
   function buildRelays(){
-    var container=$('relays-config'); if(!container) return; container.innerHTML='';
-    var MODE_OPTS = [
-      {v:0,l:'None'},
-      {v:1,l:'Modbus Controlled'},
-      {v:2,l:'Alarm Controlled'}
-    ];
-    var CH_OPTS = [
-      {v:0,l:'L1'}, {v:1,l:'L2'}, {v:2,l:'L3'}, {v:3,l:'Totals'}
-    ];
-    function selectHTML(opts, val){
-      return '<select class="enm-input rly-mode">'+opts.map(o=>'<option value="'+o.v+'"'+(String(val)==String(o.v)?' selected':'')+'>'+o.l+'</option>').join('')+'</select>';
-    }
-    function chanHTML(val){
-      return '<select class="enm-input rly-ch">'+CH_OPTS.map(o=>'<option value="'+o.v+'"'+(String(val)==String(o.v)?' selected':'')+'>'+o.l+'</option>').join('')+'</select>';
-    }
-    for(var i=1;i<=2;i++){
-      var card=document.createElement('div'); card.className='rly-card';
+    const container=$('relays-config'); if(!container) return; container.innerHTML='';
+    const MODE_OPTS=[{v:0,l:'None'},{v:1,l:'Modbus Controlled'},{v:2,l:'Alarm Controlled'}];
+    const CH_OPTS=[{v:0,l:'L1'},{v:1,l:'L2'},{v:2,l:'L3'},{v:3,l:'Totals'}];
+    const selectHTML=(opts,val)=>'<select class="enm-input rly-mode">'+opts.map(o=>'<option value="'+o.v+'"'+(String(val)==String(o.v)?' selected':'')+'>'+o.l+'</option>').join('')+'</select>';
+    const chanHTML=(val)=>'<select class="enm-input rly-ch">'+CH_OPTS.map(o=>'<option value="'+o.v+'"'+(String(val)==String(o.v)?' selected':'')+'>'+o.l+'</option>').join('')+'</select>';
+    for(let i=1;i<=2;i++){
+      const card=document.createElement('div'); card.className='rly-card';
       card.innerHTML =
         '<div style="display:flex;justify-content:space-between;align-items:center">'
       + '  <div style="font-weight:600">Relay '+i+'</div>'
@@ -320,66 +356,50 @@
       + '<div class="rly-row" style="justify-content:flex-end;margin-top:.5rem;">'
       + '  <button type="button" id="toggle-relay'+i+'" style="padding:6px 10px;background:#0d6efd;border:none;border-radius:6px;color:#fff;">Toggle</button>'
       + '</div>'
-      + '<small style="color:#666;">In <b>Alarm</b> mode the relay follows selected alarm(s). Direct writes are blocked by firmware.</small>';
+      + '<small style="color:#666;">In <b>Alarm</b> mode the relay follows selected alarm(s). Direct writes may be blocked by firmware.</small>';
       container.appendChild(card);
 
-      (function(idx){
-        var root = card;
-        function q(sel){ return root.querySelector(sel); }
-        var modeSel = root.querySelector('.rly-mode');
-        var alarmBox = $('alarm-box-'+idx);
-        function updateVis(){ if(modeSel.value==='2') alarmBox.style.display='block'; else alarmBox.style.display='none'; }
-        modeSel.addEventListener('change', function(){ sendCfg(); updateVis(); });
-        updateVis();
-        ['enable-relay'+idx,'invert-relay'+idx].forEach(function(id){ var el=$(id); if(el) el.addEventListener('change', sendCfg); });
-        ['.rly-ch','.rly-kind-al','.rly-kind-wa','.rly-kind-ev'].forEach(function(sel){
-          var el = q(sel); if(el) el.addEventListener('change', sendCfg);
-        });
-        var t=$('toggle-relay'+idx);
-        if(t) t.addEventListener('click', function(){ connection.send("RelaysSet",{idx:(idx-1),toggle:true}); appendLog("RelaysSet",{idx:(idx-1),toggle:true}); });
-
-        function sendCfg(){
-          var active_low = (($('invert-relay1').checked||$('invert-relay2').checked)?1:0);
-          var cfg={
-            active_low:active_low,
-            def0:$('enable-relay1').checked,
-            def1:$('enable-relay2').checked,
-            mode:[ document.querySelectorAll('.rly-mode')[0].value|0, document.querySelectorAll('.rly-mode')[1].value|0 ],
-            alarm:[
-              { ch: (document.querySelectorAll('.rly-ch')[0]||{value:3}).value|0,
-                mask: ((document.querySelectorAll('.rly-kind-al')[0]?.checked?1:0)
-                      |(document.querySelectorAll('.rly-kind-wa')[0]?.checked?2:0)
-                      |(document.querySelectorAll('.rly-kind-ev')[0]?.checked?4:0)) },
-              { ch: (document.querySelectorAll('.rly-ch')[1]||{value:3}).value|0,
-                mask: ((document.querySelectorAll('.rly-kind-al')[1]?.checked?1:0)
-                      |(document.querySelectorAll('.rly-kind-wa')[1]?.checked?2:0)
-                      |(document.querySelectorAll('.rly-kind-ev')[1]?.checked?4:0)) }
-            ]
+      ((idx)=>{
+        const root=card; const modeSel=root.querySelector('.rly-mode'); const alarmBox=$('alarm-box-'+idx);
+        const updateVis=()=>{ if(modeSel.value==='2') alarmBox.style.display='block'; else alarmBox.style.display='none'; };
+        const sendCfg=()=>{
+          const active_low=(($('invert-relay1')?.checked||$('invert-relay2')?.checked)?1:0);
+          const modes=[...document.querySelectorAll('.rly-mode')].map(s=>s.value|0);
+          const chsel=[...document.querySelectorAll('.rly-ch')].map(s=>s.value|0);
+          const maskFor=(i)=>
+            ((document.querySelectorAll('.rly-kind-al')[i]?.checked?1:0)
+            |(document.querySelectorAll('.rly-kind-wa')[i]?.checked?2:0)
+            |(document.querySelectorAll('.rly-kind-ev')[i]?.checked?4:0));
+          const cfg={
+            active_low,
+            def0:!!$('enable-relay1')?.checked,
+            def1:!!$('enable-relay2')?.checked,
+            mode:[modes[0]|0, modes[1]|0],
+            alarm:[ {ch:(chsel[0]??3)|0, mask:maskFor(0)}, {ch:(chsel[1]??3)|0, mask:maskFor(1)} ]
           };
           connection.send("RelaysCfg", cfg); appendLog("RelaysCfg", cfg);
-        }
+        };
+        modeSel.addEventListener('change', ()=>{ sendCfg(); updateVis(); });
+        updateVis();
+        ['enable-relay'+idx,'invert-relay'+idx].forEach(id=>{ const el=$(id); if(el) el.addEventListener('change', sendCfg); });
+        ['.rly-ch','.rly-kind-al','.rly-kind-wa','.rly-kind-ev'].forEach(sel=>{ const el=root.querySelector(sel); if(el) el.addEventListener('change', sendCfg); });
+        $('toggle-relay'+idx)?.addEventListener('click', ()=>{ connection.send("RelaysSet",{idx:(idx-1),toggle:true}); appendLog("RelaysSet",{idx:(idx-1),toggle:true}); });
       })(i);
     }
   }
-  function asBoolArray(x){ if(Array.isArray(x)) return x; if(x && typeof x==='object' && ('0' in x || '1' in x)) return [!!x[0], !!x[1]]; return []; }
+  buildRelays();
 
-  /* ---------- buttons ---------- */
+  /* ===== Buttons UI ===== */
   function buildButtons(){
-    var container=$('buttons-config'); if(!container) return; container.innerHTML='';
-    var ACTIONS=[
-      {value:0,label:'None'},
-      {value:1,label:'Toggle Relay 1'},
-      {value:2,label:'Toggle Relay 2'},
-      {value:3,label:'Toggle LED1'},
-      {value:4,label:'Toggle LED2'},
-      {value:5,label:'Toggle LED3'},
-      {value:6,label:'Toggle LED4'},
-      {value:7,label:'Override Relay 1 (hold 3s)'},
-      {value:8,label:'Override Relay 2 (hold 3s)'}
+    const container=$('buttons-config'); if(!container) return; container.innerHTML='';
+    const ACTIONS=[
+      {value:0,label:'None'},{value:1,label:'Toggle Relay 1'},{value:2,label:'Toggle Relay 2'},
+      {value:3,label:'Toggle LED1'},{value:4,label:'Toggle LED2'},{value:5,label:'Toggle LED3'},{value:6,label:'Toggle LED4'},
+      {value:7,label:'Override Relay 1 (hold 3s)'},{value:8,label:'Override Relay 2 (hold 3s)'}
     ];
-    for(var i=1;i<=4;i++){
-      var options=ACTIONS.map(a=>'<option value="'+a.value+'">'+a.label+'</option>').join('');
-      var card=document.createElement('div');
+    const options=ACTIONS.map(a=>`<option value="${a.value}">${a.label}</option>`).join('');
+    for(let i=1;i<=4;i++){
+      const card=document.createElement('div');
       card.innerHTML =
         '<div style="border:1px solid #ccc;border-radius:6px;background:#cbdcf7;padding:1rem;">'
       + '  <div style="font-weight:600;">Button '+i+'<span id="state-button'+i+'" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;float:right;"></span></div>'
@@ -387,56 +407,37 @@
       + '</div>';
       container.appendChild(card);
     }
-    for(var i=1;i<=4;i++){ var el=$('action-button'+i); if(el) el.addEventListener('change', sendButtonCfg); }
+    // BUGFIX: loop uses 1..4 and reads ids 1..4 (no off-by-one)
+    function sendButtons(){
+      const list=[];
+      for(let j=1;j<=4;j++){
+        const el = $('action-button'+j);
+        list.push({ action: +(el?.value ?? 0) });
+      }
+      connection.send("Config",{t:"buttons",list});
+      appendLog("Config.buttons", list);
+    }
+    for(let i=1;i<=4;i++){
+      $('action-button'+i)?.addEventListener('change', sendButtons);
+    }
   }
-  function sendButtonCfg(){
-    var list=[]; for(var i=1;i<=4;i++){ list.push({action:+($('action-button'+i).value||0)}); }
-    connection.send("Config",{t:"buttons",list}); appendLog("Config.buttons", list);
-  }
+  buildButtons();
 
-  /* ---------- user LEDs ---------- */
+  /* ===== LEDs UI ===== */
   function buildLEDs(){
-    var container=$('leds-config'); if(!container) return; container.innerHTML='';
-    var LED_MODE=[{value:0,label:'Steady (when active)'},{value:1,label:'Blink (when active)'}];
-
-    // UPDATED: include override LEDs (values 8 and 9)
-var LED_SOURCE = [
-  { value: 0,  label: 'None' },
-
-  // Override indicators (kept)
-  { value: 8,  label: 'Override R1' },
-  { value: 9,  label: 'Override R2' },
-
-  // Alarm (active)
-  { value: 10, label: 'Alarm L1' },
-  { value: 11, label: 'Alarm L2' },
-  { value: 12, label: 'Alarm L3' },
-  { value: 13, label: 'Alarm Totals' },
-
-  // Warning (active)
-  { value: 14, label: 'Warning L1' },
-  { value: 15, label: 'Warning L2' },
-  { value: 16, label: 'Warning L3' },
-  { value: 17, label: 'Warning Totals' },
-
-  // Event (active)
-  { value: 18, label: 'Event L1' },
-  { value: 19, label: 'Event L2' },
-  { value: 20, label: 'Event L3' },
-  { value: 21, label: 'Event Totals' },
-
-  // Any of Alarm/Warning/Event (logical OR)
-  { value: 22, label: 'Any (A|W|E) L1' },
-  { value: 23, label: 'Any (A|W|E) L2' },
-  { value: 24, label: 'Any (A|W|E) L3' },
-  { value: 25, label: 'Any (A|W|E) Totals' }
-];
-
-
-    for(var i=1;i<=4;i++){
-      var modeOpts=LED_MODE.map(a=>'<option value="'+a.value+'">'+a.label+'</option>').join('');
-      var srcOpts =LED_SOURCE.map(a=>'<option value="'+a.value+'">'+a.label+'</option>').join('');
-      var card=document.createElement('div');
+    const container=$('leds-config'); if(!container) return; container.innerHTML='';
+    const LED_MODE=[{value:0,label:'Steady (when active)'},{value:1,label:'Blink (when active)'}];
+    const LED_SOURCE=[
+      {value:0,label:'None'},{value:8,label:'Override R1'},{value:9,label:'Override R2'},
+      {value:10,label:'Alarm L1'},{value:11,label:'Alarm L2'},{value:12,label:'Alarm L3'},{value:13,label:'Alarm Totals'},
+      {value:14,label:'Warning L1'},{value:15,label:'Warning L2'},{value:16,label:'Warning L3'},{value:17,label:'Warning Totals'},
+      {value:18,label:'Event L1'},{value:19,label:'Event L2'},{value:20,label:'Event L3'},{value:21,label:'Event Totals'},
+      {value:22,label:'Any (A|W|E) L1'},{value:23,label:'Any (A|W|E) L2'},{value:24,label:'Any (A|W|E) L3'},{value:25,label:'Any (A|W|E) Totals'}
+    ];
+    const modeOpts=LED_MODE.map(a=>`<option value="${a.value}">${a.label}</option>`).join('');
+    const srcOpts=LED_SOURCE.map(a=>`<option value="${a.value}">${a.label}</option>`).join('');
+    for(let i=1;i<=4;i++){
+      const card=document.createElement('div');
       card.innerHTML =
         '<div style="border:1px solid #ccc;border-radius:6px;background:#f3f5d0;padding:1rem;">'
       + '  <div style="font-weight:600;">User LED '+i+'<span id="state-led'+i+'" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;float:right;"></span></div>'
@@ -445,184 +446,174 @@ var LED_SOURCE = [
       + '</div>';
       container.appendChild(card);
     }
-    for(var i=1;i<=4;i++){
-      var m=$('mode-led'+i), s=$('source-led'+i);
-      if(m) m.addEventListener('change', sendLedCfg);
-      if(s) s.addEventListener('change', sendLedCfg);
+    // BUGFIX: loop uses 1..4 and reads ids 1..4 (no off-by-one)
+    const sendLEDs=()=>{
+      const list=[];
+      for(let j=1;j<=4;j++){
+        const m=$('mode-led'+j), s=$('source-led'+j);
+        list.push({ mode:+(m?.value ?? 0), source:+(s?.value ?? 0) });
+      }
+      connection.send("Config",{t:"leds",list});
+      appendLog("Config.leds", list);
+    };
+    for(let i=1;i<=4;i++){
+      $('mode-led'+i)?.addEventListener('change', sendLEDs);
+      $('source-led'+i)?.addEventListener('change', sendLEDs);
     }
   }
-  function sendLedCfg(){
-    var list=[];
-    for(var i=1;i<=4;i++){
-      list.push({ mode:+($('mode-led'+i).value||0), source:+($('source-led'+i).value||0) });
-    }
-    connection.send("Config",{t:"leds",list}); appendLog("Config.leds", list);
-  }
-
-  /* ---------- init UI ---------- */
-  populateAddresses();
-  buildChannelCards();
-  buildAlarmsUI();
-  buildRelays();
-  buildButtons();
   buildLEDs();
 
-  /* ---------- WebSerial ---------- */
-  var connection = SimpleWebSerial.setupSerialConnection({ requestAccessOnPageLoad:false, requestElement:'connect-button' });
-  function onPortStateChange(){ setEnabled(['ack-all','apply-meter','apply-scale'], isPortOpen()); }
-  connection.on('open', onPortStateChange);
-  connection.on('close', onPortStateChange);
+  /* ===== Meter & Scaling send (Enter-to-send with locks) ===== */
+  function sendMeterCfg(partial){
+    connection.send("Config",{t:"meter", cfg: partial});
+    appendLog("Config.meter", partial);
+  }
+  // Meter selects send immediately
+  $('opt-lineHz')?.addEventListener('change', ()=>sendMeterCfg({lineHz:+$('opt-lineHz').value}));
+  $('opt-sumAbs')?.addEventListener('change', ()=>sendMeterCfg({sumAbs:+$('opt-sumAbs').value}));
+  // Meter numeric with locks
+  attachLockHandlers($('opt-ucal'), 'opt-ucal', ()=>sendMeterCfg({ucal:+$('opt-ucal').value}));
+  attachLockHandlers($('opt-samplems'), 'opt-samplems', ()=>sendMeterCfg({sample_ms:+$('opt-samplems').value}));
+  // Scaling numeric with locks
+  attachLockHandlers($('sc-p'),   'sc-p',   ()=>sendMeterCfg({p_mW_per_lsb:+$('sc-p').value}));
+  attachLockHandlers($('sc-q'),   'sc-q',   ()=>sendMeterCfg({q_mvar_x1k_per_lsb:+$('sc-q').value}));
+  attachLockHandlers($('sc-s'),   'sc-s',   ()=>sendMeterCfg({s_mva_per_lsb_x1000:+$('sc-s').value}));
+  attachLockHandlers($('sc-eap'), 'sc-eap', ()=>sendMeterCfg({e_ap_kWh_x1e5:+$('sc-eap').value}));
+  attachLockHandlers($('sc-ean'), 'sc-ean', ()=>sendMeterCfg({e_an_kWh_x1e5:+$('sc-ean').value}));
+  attachLockHandlers($('sc-erp'), 'sc-erp', ()=>sendMeterCfg({e_rp_kvarh_per_cnt_x1e5:+$('sc-erp').value}));
+  attachLockHandlers($('sc-ern'), 'sc-ern', ()=>sendMeterCfg({e_rn_kvarh_per_cnt_x1e5:+$('sc-ern').value}));
+  attachLockHandlers($('sc-es'),  'sc-es',  ()=>sendMeterCfg({e_s_kVAh_per_cnt_x1e5:+$('sc-es').value}));
 
-  // Live device status (address/baud)
-  connection.on('status', function(modbus){
-    $('live-address').textContent=(modbus&&typeof modbus.address!=='undefined')?modbus.address:'--';
-    $('live-baud').textContent=(modbus&&typeof modbus.baud!=='undefined')?modbus.baud:'--';
-    if(modbus&&typeof modbus.address!=='undefined') $('modbus-address').value=modbus.address;
-    if(modbus&&typeof modbus.baud!=='undefined') $('modbus-baud').value=String(modbus.baud);
-    onPortStateChange();
+  /* ===== Modbus live send on change ===== */
+  function pushModbus(){
+    const mb_address=parseInt($('modbus-address')?.value||"3",10);
+    const mb_baud   =parseInt($('modbus-baud')?.value||"19200",10);
+    connection.send("values",{mb_address,mb_baud}); appendLog("values",{mb_address,mb_baud});
+  }
+  $('modbus-address')?.addEventListener('input', pushModbus);
+  $('modbus-baud')?.addEventListener('input', pushModbus);
+
+  /* ===== Incoming 1 Hz echoes ===== */
+  connection.on('status', function(st){
+    $('live-address').textContent=(st&&st.address!==undefined)?st.address:'--';
+    $('live-baud').textContent=(st&&st.baud!==undefined)?st.baud:'--';
   });
 
-  // Fill meter/scaling from firmware echo
-  connection.on('MeterOptions', function(opts){
+  connection.on('MeterOptions', function(mo){
+    if(!mo) return;
+    if(mo.lineHz!==undefined)     $('opt-lineHz').value=String(mo.lineHz);
+    if(mo.sumAbs!==undefined)     $('opt-sumAbs').value=String(mo.sumAbs);
+    if(mo.ucal!==undefined && canApply('opt-ucal'))           $('opt-ucal').value=String(mo.ucal);
+    if(mo.sample_ms!==undefined && canApply('opt-samplems'))  $('opt-samplems').value=String(mo.sample_ms);
+  });
+
+  connection.on('Scaling', function(sc){
+    if(!sc) return;
+    if(sc.p_mW_per_lsb!==undefined && canApply('sc-p')) $('sc-p').value=String(sc.p_mW_per_lsb);
+    if(sc.q_mvar_x1k_per_lsb!==undefined && canApply('sc-q')) $('sc-q').value=String(sc.q_mvar_x1k_per_lsb);
+    const sKey = (sc.s_mva_per_lsb_x1000!==undefined) ? 's_mva_per_lsb_x1000' : 's_mva_x1k_per_lsb';
+    if(sc[sKey]!==undefined && canApply('sc-s')) $('sc-s').value=String(sc[sKey]);
+    if(sc.e_ap_kWh_x1e5!==undefined && canApply('sc-eap')) $('sc-eap').value=String(sc.e_ap_kWh_x1e5);
+    if(sc.e_an_kWh_x1e5!==undefined && canApply('sc-ean')) $('sc-ean').value=String(sc.e_an_kWh_x1e5);
+    if(sc.e_rp_kvarh_per_cnt_x1e5!==undefined && canApply('sc-erp')) $('sc-erp').value=String(sc.e_rp_kvarh_per_cnt_x1e5);
+    if(sc.e_rn_kvarh_per_cnt_x1e5!==undefined && canApply('sc-ern')) $('sc-ern').value=String(sc.e_rn_kvarh_per_cnt_x1e5);
+    if(sc.e_s_kVAh_per_cnt_x1e5!==undefined && canApply('sc-es')) $('sc-es').value=String(sc.e_s_kVAh_per_cnt_x1e5);
+  });
+
+  function applyLedCfg(list){
+    if(!Array.isArray(list)) return;
+    for(let i=0;i<list.length&&i<4;i++){
+      const o=list[i]||{};
+      const mEl=$('mode-led'+(i+1)), sEl=$('source-led'+(i+1));
+      if(mEl && o.mode!==undefined)   mEl.value=String(o.mode);
+      if(sEl && o.source!==undefined) sEl.value=String(o.source);
+    }
+  }
+  function applyButtonCfg(list){
+    if(!list) return;
+    for(let j=0;j<4 && j<list.length;j++){
+      const v=(typeof list[j]==='object'&&list[j]!==null&&'action' in list[j])?list[j].action:list[j];
+      const el=$('action-button'+(j+1)); if(el && v!==undefined) el.value=String(v||0);
+    }
+  }
+  function applyRelaysCfg(rc){
+    if(!rc||typeof rc!=='object') return;
+    if(rc.active_low!==undefined){ $('invert-relay1').checked=!!rc.active_low; $('invert-relay2').checked=!!rc.active_low; }
+    if(rc.def0!==undefined) $('enable-relay1').checked=!!rc.def0;
+    if(rc.def1!==undefined) $('enable-relay2').checked=!!rc.def1;
+    if(rc.mode && rc.mode.length>=2){
+      const modes=document.querySelectorAll('.rly-mode');
+      if(modes[0]) modes[0].value=String(rc.mode[0]);
+      if(modes[1]) modes[1].value=String(rc.mode[1]);
+      for(let k=1;k<=2;k++){ const ab=$('alarm-box-'+k); if(ab) ab.style.display=(String(rc.mode[k-1])==='2')?'block':'none'; }
+    }
+    if(rc.alarm && rc.alarm.length>=2){
+      const chs=document.querySelectorAll('.rly-ch');
+      if(chs[0]) chs[0].value=String(rc.alarm[0].ch);
+      if(chs[1]) chs[1].value=String(rc.alarm[1].ch);
+      const setMask=(idx,mask)=>{ const al=document.querySelectorAll('.rly-kind-al')[idx],wa=document.querySelectorAll('.rly-kind-wa')[idx],ev=document.querySelectorAll('.rly-kind-ev')[idx]; if(al)al.checked=!!(mask&1); if(wa)wa.checked=!!(mask&2); if(ev)ev.checked=!!(mask&4); };
+      setMask(0, rc.alarm[0].kindsMask!==undefined?rc.alarm[0].kindsMask:(rc.alarm[0].mask|0));
+      setMask(1, rc.alarm[1].kindsMask!==undefined?rc.alarm[1].kindsMask:(rc.alarm[1].mask|0));
+    }
+    if(rc.relayState){
+      const arr=Array.isArray(rc.relayState)?rc.relayState:[rc.relayState[0],rc.relayState[1]];
+      for(let r=0;r<2;r++){ const el=$('state-relay'+(r+1)); if(el&&arr[r]!==undefined) el.checked=!!arr[r]; }
+    }
+  }
+
+  connection.on('LedConfigList',   (list)=>{ try{ applyLedCfg(list); }catch(e){} });
+  connection.on('ButtonConfigList',(list)=>{ try{ applyButtonCfg(list); }catch(e){} });
+  connection.on('RelaysCfg',       (obj)=>{  try{ applyRelaysCfg(obj); }catch(e){} });
+
+  connection.on('AlarmsCfg', function(payload){
     try{
-      if(!opts) return;
-      if(typeof opts.lineHz!=='undefined') $('opt-lineHz').value=String(opts.lineHz);
-      if(typeof opts.sumAbs!=='undefined') $('opt-sumAbs').value=String(opts.sumAbs);
-      if(typeof opts.ucal!=='undefined') $('opt-ucal').value=String(opts.ucal);
-      if(typeof opts.sample_ms!=='undefined') $('opt-samplems').value=String(opts.sample_ms);
-
-      if(typeof opts.p_mW_per_lsb!=='undefined') $('sc-p').value=String(opts.p_mW_per_lsb);
-      if(typeof opts.q_mvar_x1k_per_lsb!=='undefined') $('sc-q').value=String(opts.q_mvar_x1k_per_lsb);
-      var sKey=(typeof opts.s_mva_per_lsb_x1000!=='undefined')?'s_mva_per_lsb_x1000':'s_mva_x1k_per_lsb';
-      if(typeof opts[sKey]!=='undefined') $('sc-s').value=String(opts[sKey]);
-
-      if(typeof opts.e_ap_kWh_x1e5!=='undefined') $('sc-eap').value=String(opts.e_ap_kWh_x1e5);
-      if(typeof opts.e_an_kWh_x1e5!=='undefined') $('sc-ean').value=String(opts.e_an_kWh_x1e5);
-      if(typeof opts.e_rp_kvarh_per_cnt_x1e5!=='undefined') $('sc-erp').value=String(opts.e_rp_kvarh_per_cnt_x1e5);
-      if(typeof opts.e_rn_kvarh_per_cnt_x1e5!=='undefined') $('sc-ern').value=String(opts.e_rn_kvarh_per_cnt_x1e5);
-      else if(typeof opts.e_rn_kWh_x1e5!=='undefined') $('sc-ern').value=String(opts.e_rn_kWh_x1e5); // legacy UI compat
-      if(typeof opts.e_s_kVAh_per_cnt_x1e5!=='undefined') $('sc-es').value=String(opts.e_s_kVAh_per_cnt_x1e5);
+      if(Array.isArray(payload)){ for(let ch=0; ch<payload.length && ch<4; ch++) applyChannelCfg(ch, payload[ch]||{}); }
+      else if(payload && typeof payload==='object'){
+        if(payload.hasOwnProperty('ch') && payload.hasOwnProperty('cfg')) applyChannelCfg(+payload.ch, payload.cfg);
+        else { for (const k in payload){ const ch=parseInt(k,10); if(!isNaN(ch)) applyChannelCfg(ch, payload[k]); } }
+      }
     }catch(e){}
   });
+  connection.on('AlarmsState', (state)=>{ try{ updateAlarmsState(state); }catch(e){} });
 
-  connection.on('message', function(msg){ appendLog('ENM-223-R1', msg); });
+  $('ack-all')?.addEventListener('click', ()=>{ connection.send("AlarmsAck",{list:[true,true,true,true]}); appendLog("AlarmsAck","all"); });
 
-  /* ----- Live meter stream ----- */
   connection.on('ENM_Meter', function(m){
     try{
-      var Urms=(m&&m.Urms)||[], Irms=(m&&m.Irms)||[], Praw=(m&&m.Praw)||[], Qraw=(m&&m.Qraw)||[], Sraw=(m&&m.Sraw)||[];
-      var PF=(m&&m.PFraw)||[], Ang=(m&&m.Ang0p1deg)||[];
-      for(var i=0;i<3;i++){
-        var uEl=$('u'+i), iEl=$('i'+i), pEl=$('p'+i), qEl=$('q'+i), sEl=$('s'+i), pfEl=$('pf'+i), aEl=$('ang'+i);
+      const Urms=(m&&m.Urms)||[], Irms=(m&&m.Irms)||[], Praw=(m&&m.Praw)||[], Qraw=(m&&m.Qraw)||[], Sraw=(m&&m.Sraw)||[];
+      const PF=(m&&m.PFraw)||[], Ang=(m&&m.Ang0p1deg)||[];
+      for(let i=0;i<3;i++){
+        const uEl=$('u'+i), iEl=$('i'+i), pEl=$('p'+i), qEl=$('q'+i), sEl=$('s'+i), pfEl=$('pf'+i), aEl=$('ang'+i);
         if(uEl) uEl.textContent=(typeof Urms[i]==='number')?Urms[i].toFixed(2):'--';
         if(iEl) iEl.textContent=(typeof Irms[i]==='number')?Irms[i].toFixed(3):'--';
-        if(pEl) pEl.textContent=(typeof Praw[i]!=='undefined')?Praw[i]:'--';
-        if(qEl) qEl.textContent=(typeof Qraw[i]!=='undefined')?Qraw[i]:'--';
-        if(sEl) sEl.textContent=(typeof Sraw[i]!=='undefined')?Sraw[i]:'--';
-        if(pfEl)pfEl.textContent=(typeof PF[i]!=='undefined')?PF[i]:'--';
-        if(aEl) aEl.textContent=(typeof Ang[i]!=='undefined')?Ang[i]:'--';
+        if(pEl) pEl.textContent=(Praw[i]!==undefined)?Praw[i]:'--';
+        if(qEl) qEl.textContent=(Qraw[i]!==undefined)?Qraw[i]:'--';
+        if(sEl) sEl.textContent=(Sraw[i]!==undefined)?Sraw[i]:'--';
+        if(pfEl)pfEl.textContent=(PF[i]!==undefined)?PF[i]:'--';
+        if(aEl) aEl.textContent=(Ang[i]!==undefined)?Ang[i]:'--';
       }
-      var pt=$('p3'),qt=$('q3'),st=$('s3'),pft=$('pft'),fEl=$('f'),tEl=$('t');
-      if(pt)pt.textContent=(typeof m.Ptot_raw!=='undefined')?m.Ptot_raw:'--';
-      if(qt)qt.textContent=(typeof m.Qtot_raw!=='undefined')?m.Qtot_raw:'--';
-      if(st)st.textContent=(typeof m.Stot_raw!=='undefined')?m.Stot_raw:'--';
-      if(pft)pft.textContent=(typeof m.PFtot_raw!=='undefined')?m.PFtot_raw:'--';
+      const pt=$('p3'),qt=$('q3'),st=$('s3'),pft=$('pft'),fEl=$('f'),tEl=$('t');
+      if(pt)pt.textContent=(m.Ptot_raw!==undefined)?m.Ptot_raw:'--';
+      if(qt)qt.textContent=(m.Qtot_raw!==undefined)?m.Qtot_raw:'--';
+      if(st)st.textContent=(m.Stot_raw!==undefined)?m.Stot_raw:'--';
+      if(pft)pft.textContent=(m.PFtot_raw!==undefined)?m.PFtot_raw:'--';
       if(fEl)fEl.textContent=(typeof m.FreqHz==='number')?m.FreqHz.toFixed(2):((m&&m.FreqHz)?m.FreqHz:'--');
-      if(tEl)tEl.textContent=(typeof m.TempC!=='undefined')?m.TempC:'--';
+      if(tEl)tEl.textContent=(m.TempC!==undefined)?m.TempC:'--';
       if(m&&m.AlarmsState) updateAlarmsState(m.AlarmsState);
     }catch(e){}
   });
 
-  /* ----- Buttons/LEDs & Relays echo ----- */
-  connection.on('ButtonConfigList', function(list){
-    if(!list||typeof list.length==='undefined') return;
-    for(var i=0;i<list.length&&i<4;i++){
-      var el=$('action-button'+(i+1));
-      var v = (typeof list[i]==='object' && list[i]!==null && 'action' in list[i]) ? list[i].action : list[i];
-      if(el && typeof v!=='undefined') el.value=String(v||0);
-    }
-  });
   connection.on('ButtonStateList', function(list){
     if(!list||typeof list.length==='undefined') return;
-    for(var i=0;i<list.length&&i<4;i++){
-      var dot=$('state-button'+(i+1));
-      if(dot) dot.style.background=list[i]?'#4caf50':'#ccc';
-    }
-  });
-
-  connection.on('LedConfigList', function(list){
-    if(!list||typeof list.length==='undefined') return;
-    for(var i=0;i<list.length&&i<4;i++){
-      var o=list[i]||{}, m=$('mode-led'+(i+1)), s=$('source-led'+(i+1));
-      if(m && typeof o.mode!=='undefined')   m.value=String(o.mode);
-      if(s && typeof o.source!=='undefined') s.value=String(o.source);
-    }
+    for(let i=0;i<list.length&&i<4;i++){ const dot=$('state-button'+(i+1)); if(dot) dot.style.background=list[i]?'#4caf50':'#ccc'; }
   });
   connection.on('LedStateList', function(list){
     if(!list||typeof list.length==='undefined') return;
-    for(var i=0;i<list.length&&i<4;i++){
-      var d=$('state-led'+(i+1)); if(d) d.style.background=list[i]?'#ffb300':'#ccc';
-    }
-  });
-
-  connection.on('relayStateList', function(list){
-    var arr=asBoolArray(list); for(var i=0;i<2;i++){ var el=$('state-relay'+(i+1)); if(el&&typeof arr[i]!=='undefined') el.checked=!!arr[i]; }
+    for(let i=0;i<list.length&&i<4;i++){ const d=$('state-led'+(i+1)); if(d) d.style.background=list[i]?'#ffb300':'#ccc'; }
   });
   connection.on('RelayState', function(obj){
-    var arr=asBoolArray(obj); for(var i=0;i<2;i++){ var el=$('state-relay'+(i+1)); if(el&&typeof arr[i]!=='undefined') el.checked=!!arr[i]; }
+    const arr=(Array.isArray(obj)?obj:[obj[0],obj[1]]);
+    for(let i=0;i<2;i++){ const el=$('state-relay'+(i+1)); if(el&&arr&&arr[i]!==undefined) el.checked=!!arr[i]; }
   });
-
-  /* ----- Alarms echo ----- */
-  connection.on('AlarmsCfg', function(payload){
-    try{
-      if (Array.isArray(payload)){
-        for (var ch=0; ch<payload.length && ch<4; ch++) applyChannelCfg(ch, payload[ch]||{});
-      } else if (payload && typeof payload==='object'){
-        if (payload.hasOwnProperty('ch') && payload.hasOwnProperty('cfg')){
-          applyChannelCfg(+payload.ch, payload.cfg);
-        } else {
-          for (var k in payload){ if (!payload.hasOwnProperty(k)) continue; var ch=parseInt(k,10); if(!isNaN(ch)) applyChannelCfg(ch, payload[k]); }
-        }
-      }
-    }catch(e){}
-  });
-  connection.on('AlarmsState', function(state){ try{ updateAlarmsState(state); }catch(e){} });
-
-  /* ----- top-level controls ----- */
-  function pushModbus(){
-    var mb_address=parseInt($('modbus-address').value||"3",10);
-    var mb_baud   =parseInt($('modbus-baud').value||"19200",10);
-    connection.send("values",{mb_address,mb_baud}); appendLog("values",{mb_address,mb_baud});
-  }
-  $('modbus-address').addEventListener('input', pushModbus);
-  $('modbus-baud').addEventListener('input',    pushModbus);
-
-  // Apply meter options (and scaling)
-  $('apply-meter').addEventListener('click', function(){
-    var cfg={
-      lineHz:+$('opt-lineHz').value, sumAbs:+$('opt-sumAbs').value, ucal:+$('opt-ucal').value, sample_ms:+$('opt-samplems').value,
-      p_mW_per_lsb:+$('sc-p').value, q_mvar_x1k_per_lsb:+$('sc-q').value,
-      s_mva_per_lsb_x1000:+$('sc-s').value,
-      e_ap_kWh_x1e5:+$('sc-eap').value, e_an_kWh_x1e5:+$('sc-ean').value,
-      e_rp_kvarh_per_cnt_x1e5:+$('sc-erp').value, e_rn_kvarh_per_cnt_x1e5:+$('sc-ern').value, e_s_kVAh_per_cnt_x1e5:+$('sc-es').value
-    };
-    connection.send("Config",{t:"meter",cfg}); appendLog("Config.meter",cfg);
-  });
-
-  $('apply-scale').addEventListener('click', function(){
-    var cfg={
-      lineHz:+$('opt-lineHz').value, sumAbs:+$('opt-sumAbs').value, ucal:+$('opt-ucal').value, sample_ms:+$('opt-samplems').value,
-      p_mW_per_lsb:+$('sc-p').value, q_mvar_x1k_per_lsb:+$('sc-q').value,
-      s_mva_per_lsb_x1000:+$('sc-s').value,
-      e_ap_kWh_x1e5:+$('sc-eap').value, e_an_kWh_x1e5:+$('sc-ean').value,
-      e_rp_kvarh_per_cnt_x1e5:+$('sc-erp').value, e_rn_kvarh_per_cnt_x1e5:+$('sc-ern').value, e_s_kVAh_per_cnt_x1e5:+$('sc-es').value
-    };
-    connection.send("Config",{t:"meter",cfg}); appendLog("Config.scale",cfg);
-  });
-
-  $('ack-all').addEventListener('click', function(){ connection.send("AlarmsAck",{list:[true,true,true,true]}); appendLog("AlarmsAck",{list:[true,true,true,true]}); });
-
-  // start
-  onPortStateChange();
 })();
 </script>
