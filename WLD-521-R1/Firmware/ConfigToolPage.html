@@ -1,11 +1,11 @@
 <section style="font-family:'Segoe UI',sans-serif;padding:2rem;max-width:960px;margin:auto;">
   <div style="text-align:center;margin-bottom:2rem;">
     <img src="https://www.home-master.eu/web/image/product.image/14/image_1024/Untitled-2.webp?unique=1d6564f" alt="WLD-521-R1" style="max-width:300px;border-radius:8px;" loading="lazy">
-    <h2>WLD‑521‑R1 Module Configuration</h2>
+    <h2>WLD-521-R1 Module Configuration</h2>
     <p>
-      Configure Modbus address, baud rate, <strong>digital inputs (5)</strong>,
-      <strong>relays (2)</strong>, and monitor live state via Web Serial.
-      <em>1‑Wire (GPIO16) is initialized in firmware; add readings later if needed.</em>
+      Configure Modbus address, baud rate, <strong>digital inputs (5)</strong>, <strong>relays (2)</strong>,
+      and monitor live state via Web Serial.<br>
+      <em>DI types supported: Water, Humidity, Water Counter (with 32-bit pulse counter).</em>
     </p>
   </div>
 
@@ -48,9 +48,23 @@
     <div id="log-content" style="white-space:pre-wrap;"></div>
   </div>
 
+  
+  <section>
+    <h2 style="font-size:1.2rem;display:flex;align-items:center;gap:.5rem;">
+      1-Wire (GPIO16) Devices
+    </h2>
+    <div style="display:flex;align-items:center;gap:.5rem;margin:.5rem 0 1rem;">
+      <button id="scan-button" type="button" style="padding:8px 14px;background:#17a2b8;color:#fff;border:none;border-radius:4px;" disabled="">Scan 1-Wire</button>
+      <span id="scan-status" style="color:#555;">Not scanned yet.</span>
+    </div>
+    <div id="ow-list" style="border:1px solid #ccc;border-radius:6px;padding:.75rem;background:#fafafa;font-family:monospace;">
+      <em>Click “Scan 1-Wire” to list devices.</em>
+    </div>
+  </section>
+
   <section>
     <h2 style="font-size:1.2rem;">Digital Inputs (5)</h2>
-    <div id="inputs-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;"></div>
+    <div id="inputs-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem;"></div>
   </section>
 
   <section>
@@ -58,232 +72,320 @@
     <div id="relays-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;"></div>
   </section>
 
-  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
+  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
+  <script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
   <script>
-    (function () {
-      // ---------- Constants ----------
-      const LOG_MAX = 3;
-      const logBuffer = [];
-      const $ = (id) => document.getElementById(id);
-      const NUM_DI = 5, NUM_RLY = 2;
+  (function () {
+    // ---------- Constants ----------
+    var LOG_MAX = 3;
+    var logBuffer = [];
+    var NUM_DI = 5, NUM_RLY = 2;
+    function $(id){ return document.getElementById(id); }
 
-      // ---------- Helpers ----------
-      function appendLog(label, data) {
-        const logEl = $("log-content"); if (!logEl) return;
-        const time = new Date().toLocaleTimeString();
-        const str  = typeof data === 'string' ? data : JSON.stringify(data);
-        const line = `[${time}] ${label}: ${str}`;
-        logBuffer.unshift(line); if (logBuffer.length > LOG_MAX) logBuffer.pop();
-        logEl.innerText = logBuffer.join('\\n');
+    // ---------- Log helpers & global error hook ----------
+    function appendLog(label, data) {
+      var logEl = $("log-content"); if (!logEl) return;
+      var time = new Date().toLocaleTimeString();
+      var str  = (typeof data === 'string') ? data : JSON.stringify(data);
+      var line = "[" + time + "] " + label + ": " + str;
+      logBuffer.unshift(line); if (logBuffer.length > LOG_MAX) logBuffer.pop();
+      logEl.innerText = logBuffer.join("\\n");
+    }
+    window.addEventListener('error', function(e){ appendLog('JS Error', e.message || e); });
+
+    // ---------- Populate Modbus addresses ----------
+    (function populateAddresses() {
+      var addrSelect = $('modbus-address'); if (!addrSelect) return;
+      for (var i = 1; i <= 255; i++) {
+        var opt = document.createElement('option');
+        opt.value = i; opt.textContent = i;
+        addrSelect.appendChild(opt);
       }
+    })();
 
-      // Populate Modbus address dropdown 1..255
-      (function populateAddresses() {
-        const addrSelect = $('modbus-address'); if (!addrSelect) return;
-        for (let i = 1; i <= 255; i++) {
-          const opt = document.createElement('option');
-          opt.value = i; opt.textContent = i;
-          addrSelect.appendChild(opt);
-        }
-      })();
+    // ---------- Web Serial (guarded) ----------
+    var connection;
+    var hasSWS = !!(window.SimpleWebSerial && typeof SimpleWebSerial.setupSerialConnection === 'function');
 
-      // ---------- Web Serial ----------
-      const connection = SimpleWebSerial.setupSerialConnection({
-        requestAccessOnPageLoad: false,
-        requestElement: 'connect-button'
-      });
-
-      function isPortOpen() {
-        try { return typeof connection.isOpen === 'function' ? connection.isOpen() : !!connection.port; }
-        catch { return false; }
+    if (!hasSWS) {
+      appendLog('Error', 'SimpleWebSerial failed to load. UI will render, but Connect/Send are disabled.');
+      connection = { on: function(){}, isOpen: function(){ return false; }, send: function(){ return Promise.reject(new Error('SimpleWebSerial not loaded')); } };
+    } else {
+      try {
+        connection = SimpleWebSerial.setupSerialConnection({
+          requestAccessOnPageLoad: false,
+          requestElement: 'connect-button'
+        });
+      } catch (e) {
+        appendLog('Error', 'Failed to init SimpleWebSerial: ' + (e && e.message ? e.message : e));
+        connection = { on: function(){}, isOpen: function(){ return false; }, send: function(){ return Promise.resolve(); } };
       }
-      function updateResetEnabled() {
-        const btn = $('reset-button'); if (btn) btn.disabled = !isPortOpen();
-      }
+    }
 
-      connection.on('status', (modbus) => {
-        $('live-address').textContent = (modbus && 'address' in modbus) ? modbus.address : '--';
-        $('live-baud').textContent    = (modbus && 'baud' in modbus)    ? modbus.baud    : '--';
+    function isPortOpen() {
+      try { return (typeof connection.isOpen === 'function') ? connection.isOpen() : !!connection.port; }
+      catch (e) { return false; }
+    }
+    function updateButtonsEnabled() {
+      var en = isPortOpen();
+      var rb = $('reset-button');
+      var sb = $('scan-button');
+      if (rb) rb.disabled = !en;
+      if (sb) sb.disabled = !en;
+    }
+
+    if (connection.on) {
+      connection.on('status', function(modbus){
+        $('live-address').textContent = (modbus && ('address' in modbus)) ? modbus.address : '--';
+        $('live-baud').textContent    = (modbus && ('baud' in modbus))    ? modbus.baud    : '--';
         if (modbus && modbus.address) $('modbus-address').value = modbus.address;
         if (modbus && modbus.baud)    $('modbus-baud').value    = String(modbus.baud);
-        updateResetEnabled();
+        updateButtonsEnabled();
       });
-      connection.on('open',  updateResetEnabled);
-      connection.on('close', updateResetEnabled);
-      connection.on('message', (msg) => appendLog("WLD-521-R1", msg));
+      connection.on('open',  updateButtonsEnabled);
+      connection.on('close', updateButtonsEnabled);
+      connection.on('message', function(msg){ appendLog("WLD-521-R1", msg); });
+    }
 
-      // ---------- Modbus value changes ----------
-      $('modbus-address').addEventListener('input', updateModbus);
-      $('modbus-baud').addEventListener('input', updateModbus);
-      async function updateModbus() {
-        const mb_address = parseInt($('modbus-address').value || "1", 10);
-        const mb_baud = parseInt($('modbus-baud').value || "19200", 10);
-        try { await connection.send("values", { mb_address, mb_baud }); }
-        catch (e) { appendLog("Error", "Failed to send Modbus values"); }
+    // ---------- Modbus value changes ----------
+    $('modbus-address').addEventListener('input', updateModbus);
+    $('modbus-baud').addEventListener('input', updateModbus);
+    function updateModbus() {
+      var mb_address = parseInt($('modbus-address').value || "1", 10);
+      var mb_baud = parseInt($('modbus-baud').value || "19200", 10);
+      connection.send("values", { mb_address: mb_address, mb_baud: mb_baud })
+        .catch(function(){ appendLog("Error", "Failed to send Modbus values"); });
+    }
+
+    // ---------- Reset Dialog ----------
+    var resetBtn   = $('reset-button');
+    var dlg        = $('reset-dialog');
+    var dlgCancel  = $('dlg-cancel');
+    var dlgConfirm = $('dlg-confirm');
+    updateButtonsEnabled();
+
+    resetBtn.addEventListener('click', function(){
+      updateButtonsEnabled();
+      if (resetBtn.disabled) { appendLog("System", "Connect to the device before resetting."); return; }
+      if (dlg && typeof dlg.showModal === 'function') { if (!dlg.open) dlg.showModal(); }
+      else if (confirm("Are you sure you want to reset the module?")) { doReset(); }
+    });
+
+    if (dlgCancel) dlgCancel.addEventListener('click', function(e){ e.preventDefault(); if (dlg.open) dlg.close('cancel'); });
+    if (dlgConfirm) dlgConfirm.addEventListener('click', function(e){ e.preventDefault(); if (dlg.open) dlg.close('confirm'); doReset(); });
+
+    if (dlg) dlg.addEventListener('click', function(ev){
+      var r = dlg.getBoundingClientRect();
+      var inside = ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom;
+      if (!inside && dlg.open) dlg.close('backdrop');
+    });
+
+    function doReset() {
+      connection.send("command", { action: "reset" })
+        .then(function(){ appendLog("System", "Reset command sent"); resetBtn.disabled = true; setTimeout(updateButtonsEnabled, 3000); })
+        .catch(function(err){ appendLog("Error", "Failed to send reset: " + (err && err.message ? err.message : err)); });
+    }
+
+    // ---------- 1-Wire Scan ----------
+    var scanBtn = $('scan-button');
+    var scanStatus = $('scan-status');
+    var owListBox = $('ow-list');
+
+    function renderOneWireList(list) {
+      if (!owListBox) return;
+      if (!list || !list.length) {
+        owListBox.innerHTML = '<em>No devices found.</em>';
+        return;
       }
-
-      // ---------- Reset Dialog ----------
-      const resetBtn   = $('reset-button');
-      const dlg        = $('reset-dialog');
-      const dlgCancel  = $('dlg-cancel');
-      const dlgConfirm = $('dlg-confirm');
-      updateResetEnabled();
-
-      resetBtn.addEventListener('click', () => {
-        updateResetEnabled();
-        if (resetBtn.disabled) { appendLog("System", "Connect to the device before resetting."); return; }
-        if (dlg && typeof dlg.showModal === 'function') { if (!dlg.open) dlg.showModal(); }
-        else if (confirm("Are you sure you want to reset the module?")) { doReset(); }
-      });
-
-      dlgCancel && dlgCancel.addEventListener('click', (e) => { e.preventDefault(); if (dlg.open) dlg.close('cancel'); });
-      dlgConfirm && dlgConfirm.addEventListener('click', async (e) => {
-        e.preventDefault(); if (dlg.open) dlg.close('confirm'); await doReset();
-      });
-
-      dlg && dlg.addEventListener('click', (ev) => {
-        const r = dlg.getBoundingClientRect();
-        const inside = ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom;
-        if (!inside && dlg.open) dlg.close('backdrop');
-      });
-
-      async function doReset() {
-        try { await connection.send("command", { action: "reset" }); appendLog("System", "Reset command sent"); resetBtn.disabled = true; setTimeout(updateResetEnabled, 3000); }
-        catch (err) { appendLog("Error", `Failed to send reset: ${err && err.message ? err.message : err}`); }
+      var html = '<ol style="margin:0;padding-left:1.25rem;">';
+      for (var i=0;i<list.length;i++) {
+        var rom = String(list[i] || '');
+        var isTest = (rom === '0x0000000000000001' || rom === '0x0000000000000002');
+        html += '<li><span style="font-family:monospace;">' + rom + '</span>' +
+                (isTest ? ' <span style="color:#888;">(test)</span>' : '') +
+                '</li>';
       }
+      html += '</ol>';
+      owListBox.innerHTML = html;
 
-      // ---------- Build dynamic UI (Inputs / Relays) ----------
-      // Inputs (5) with Action (None/Toggle/Pulse) and Control Target (None/All/R1/R2)
-      (function buildInputs() {
-        const container = $('inputs-config'); if (!container) return;
-        const ACTIONS = [
-          { value: 0, label: 'None'   },
-          { value: 1, label: 'Toggle' },
-          { value: 2, label: 'Pulse'  },
-        ];
-        const TARGETS = [
-          { value: 4, label: 'None' },
-          { value: 0, label: 'Control all' },
-          { value: 1, label: 'Control relay 1' },
-          { value: 2, label: 'Control relay 2' },
-        ];
-        for (let i = 1; i <= NUM_DI; i++) {
-          const actionOptions = ACTIONS.map(a => `<option value="${a.value}">${a.label}</option>`).join('');
-          const targetOptions = TARGETS.map(t => `<option value="${t.value}">${t.label}</option>`).join('');
-          const card = document.createElement('div');
-          card.innerHTML = `
-            <div style="border:1px solid #ccc;border-radius:6px;background:#e6f7e8;padding:1rem;">
-              <div style="display:flex;justify-content:space-between;font-weight:600;">
-                IN${i}
-                <span id="state-in${i}" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;"></span>
-              </div>
-              <label><input type="checkbox" id="enable-in${i}"> Enabled</label><br>
-              <label><input type="checkbox" id="invert-in${i}"> Inverted</label><br>
-              <label>Action:
-                <select id="action-in${i}" style="width:100%;padding:6px;border-radius:4px;">
-                  ${actionOptions}
-                </select>
-              </label><br>
-              <label>Control target:
-                <select id="target-in${i}" style="width:100%;padding:6px;border-radius:4px;">
-                  ${targetOptions}
-                </select>
-              </label>
-            </div>`;
-          container.appendChild(card);
-        }
-      })();
+      // Status line
+      var testCount = 0;
+      for (var j=0;j<list.length;j++){
+        if (list[j] === '0x0000000000000001' || list[j] === '0x0000000000000002') testCount++;
+      }
+      if (scanStatus) {
+        scanStatus.textContent = 'Found ' + list.length + ' device(s)' + (testCount ? (' — ' + testCount + ' test') : '');
+      }
+    }
 
-      // Relays (2)
-      (function buildRelays() {
-        const container = $('relays-config'); if (!container) return;
-        for (let i = 1; i <= NUM_RLY; i++) {
-          const card = document.createElement('div');
-          card.innerHTML = `
-            <div style="border:1px solid #ccc;border-radius:6px;background:#f1f1f1;padding:1rem;">
-              <div style="font-weight:600;">
-                Relay ${i}
-                <span style="float:right;">
-                  <input type="checkbox" id="state-relay${i}" disabled>
-                </span>
-              </div>
-              <label><input type="checkbox" id="enable-relay${i}"> Enabled</label><br>
-              <label><input type="checkbox" id="invert-relay${i}"> Inverted</label>
-            </div>`;
-          container.appendChild(card);
-        }
-      })();
+    if (connection.on) {
+      connection.on('onewireScan', function(list){
+        renderOneWireList(list);
+        if (scanBtn) scanBtn.disabled = !isPortOpen();
+      });
+    }
 
-      // ---------- RECEIVE: update UI from device ----------
-      // Inputs
-      connection.on('inputs', (list) => {
-        (list || []).forEach((v, i) => {
-          const dot = $('state-in' + (i + 1));
+    if (scanBtn) {
+      scanBtn.addEventListener('click', function(){
+        if (!isPortOpen()) { appendLog('System','Connect to the device first.'); return; }
+        if (scanStatus) scanStatus.textContent = 'Scanning...';
+        scanBtn.disabled = true;
+        connection.send('command', { action: 'scan' })
+          .catch(function(err){
+            appendLog('Error','Failed to start scan: ' + (err && err.message ? err.message : err));
+            if (scanStatus) scanStatus.textContent = 'Scan failed.';
+            scanBtn.disabled = !isPortOpen();
+          });
+      });
+    }
+
+    // ---------- Build Inputs ----------
+    (function buildInputs(){
+      var container = $('inputs-config'); if (!container) return;
+      var ACTIONS = [
+        { value: 0, label: 'None' }, { value: 1, label: 'Toggle' }, { value: 2, label: 'Pulse' }
+      ];
+      var TARGETS = [
+        { value: 4, label: 'None' }, { value: 0, label: 'Control all' }, { value: 1, label: 'Control relay 1' }, { value: 2, label: 'Control relay 2' }
+      ];
+      var TYPES = [
+        { value: 0, label: 'Water sensor' }, { value: 1, label: 'Humidity sensor' }, { value: 2, label: 'Water counter' }
+      ];
+
+      function opts(list){
+        var s = '', i; for (i=0;i<list.length;i++){ s += '<option value="'+list[i].value+'">'+list[i].label+'</option>'; }
+        return s;
+      }
+      var actionOpts = opts(ACTIONS), targetOpts = opts(TARGETS), typeOpts = opts(TYPES);
+
+      for (var i = 1; i <= NUM_DI; i++) {
+        var card = document.createElement('div');
+        card.innerHTML =
+          '<div style="border:1px solid #ccc;border-radius:6px;background:#e6f7e8;padding:1rem;">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;font-weight:600;margin-bottom:.25rem;">' +
+              'IN'+i+
+              '<span id="state-in'+i+'" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;"></span>' +
+            '</div>' +
+
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;">' +
+              '<label><input type="checkbox" id="enable-in'+i+'"> Enabled</label>' +
+              '<label><input type="checkbox" id="invert-in'+i+'"> Inverted</label>' +
+            '</div>' +
+
+            '<label style="display:block;margin-top:.5rem;">Type:' +
+              '<select id="type-in'+i+'" style="width:100%;padding:6px;border-radius:4px;">' + typeOpts + '</select>' +
+            '</label>' +
+
+            '<div id="counter-box-'+i+'" style="display:none;margin-top:.5rem;background:#fff;padding:.5rem;border:1px dashed #9ad09a;border-radius:6px;">' +
+              '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+                '<span>Counter: <strong id="counter-in'+i+'">0</strong></span>' +
+                '<button type="button" id="resetcnt-in'+i+'" style="padding:4px 10px;border:1px solid #28a745;border-radius:4px;background:#eaffea;">Reset</button>' +
+              '</div>' +
+            '</div>' +
+
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-top:.5rem;">' +
+              '<label>Action:' +
+                '<select id="action-in'+i+'" style="width:100%;padding:6px;border-radius:4px;">' + actionOpts + '</select>' +
+              '</label>' +
+              '<label>Control target:' +
+                '<select id="target-in'+i+'" style="width:100%;padding:6px;border-radius:4px;">' + targetOpts + '</select>' +
+              '</label>' +
+            '</div>' +
+            '<small style="color:#3a7;">Note: For "Water counter" the action/target are ignored; input counts rising edges.</small>' +
+          '</div>';
+        container.appendChild(card);
+      }
+    })();
+
+    // ---------- Build Relays ----------
+    (function buildRelays(){
+      var container = $('relays-config'); if (!container) return;
+      for (var i = 1; i <= NUM_RLY; i++) {
+        var card = document.createElement('div');
+        card.innerHTML =
+          '<div style="border:1px solid #ccc;border-radius:6px;background:#f1f1f1;padding:1rem;">' +
+            '<div style="font-weight:600;">' +
+              'Relay '+i+
+              '<span style="float:right;"><input type="checkbox" id="state-relay'+i+'" disabled></span>' +
+            '</div>' +
+            '<label><input type="checkbox" id="enable-relay'+i+'"> Enabled</label><br>' +
+            '<label><input type="checkbox" id="invert-relay'+i+'"> Inverted</label>' +
+          '</div>';
+        container.appendChild(card);
+      }
+    })();
+
+    // ---------- RECEIVE ----------
+    if (connection.on) {
+      connection.on('inputs', function(list){
+        (list || []).forEach(function(v, i){
+          var dot = $('state-in' + (i + 1));
           if (dot) dot.style.background = v ? '#4caf50' : '#ccc';
         });
       });
-      connection.on('enableList', (list) => (list || []).forEach((v, i) => {
-        const el = $('enable-in' + (i + 1)); if (el) el.checked = !!v;
-      }));
-      connection.on('invertList', (list) => (list || []).forEach((v, i) => {
-        const el = $('invert-in' + (i + 1)); if (el) el.checked = !!v;
-      }));
-      connection.on('inputActionList', (list) => (list || []).forEach((v, i) => {
-        const el = $('action-in' + (i + 1)); if (el) el.value = String(v || 0);
-      }));
-      // 4=None, 0=All, 1=R1, 2=R2
-      connection.on('inputTargetList', (list) => (list || []).forEach((v, i) => {
-        const el = $('target-in' + (i + 1)); if (el) el.value = String(typeof v === 'number' ? v : 0);
-      }));
 
-      // Relays
-      connection.on('relayStateList', (list) => (list || []).forEach((v, i) => {
-        const el = $('state-relay' + (i + 1)); if (el) el.checked = !!v;
-      }));
-      connection.on('relayEnableList', (list) => (list || []).forEach((v, i) => {
-        const el = $('enable-relay' + (i + 1)); if (el) el.checked = !!v;
-      }));
-      connection.on('relayInvertList', (list) => (list || []).forEach((v, i) => {
-        const el = $('invert-relay' + (i + 1)); if (el) el.checked = !!v;
-      }));
+      connection.on('enableList', function(list){ (list || []).forEach(function(v,i){ var el=$('enable-in'+(i+1)); if (el) el.checked=!!v; }); });
+      connection.on('invertList', function(list){ (list || []).forEach(function(v,i){ var el=$('invert-in'+(i+1)); if (el) el.checked=!!v; }); });
+      connection.on('inputActionList', function(list){ (list || []).forEach(function(v,i){ var el=$('action-in'+(i+1)); if (el) el.value=String(v||0); }); });
+      connection.on('inputTargetList', function(list){ (list || []).forEach(function(v,i){ var el=$('target-in'+(i+1)); if (el) el.value=String(typeof v==='number'?v:0); }); });
 
-      // ---------- CHANGE HANDLERS -> send config ----------
-      // Inputs
-      for (let i = 1; i <= NUM_DI; i++) {
-        $('enable-in' + i).addEventListener('change', sendInputEnable);
-        $('invert-in' + i).addEventListener('change', sendInputInvert);
-        $('action-in' + i).addEventListener('change',  sendInputAction);
-        $('target-in' + i).addEventListener('change',  sendInputTarget);
-      }
-      async function sendInputEnable() {
-        const list = []; for (let i = 1; i <= NUM_DI; i++) list.push(!!$('enable-in' + i).checked);
-        await connection.send("Config", { t: "inputEnable", list });
-      }
-      async function sendInputInvert() {
-        const list = []; for (let i = 1; i <= NUM_DI; i++) list.push(!!$('invert-in' + i).checked);
-        await connection.send("Config", { t: "inputInvert", list });
-      }
-      async function sendInputAction() {
-        const list = []; for (let i = 1; i <= NUM_DI; i++) list.push(parseInt($('action-in' + i).value || "0", 10));
-        await connection.send("Config", { t: "inputAction", list });
-      }
-      async function sendInputTarget() {
-        const list = []; for (let i = 1; i <= NUM_DI; i++) list.push(parseInt($('target-in' + i).value || "0", 10));
-        await connection.send("Config", { t: "inputTarget", list });
-      }
-
-      // Relays
-      for (let i = 1; i <= NUM_RLY; i++) {
-        $('enable-relay' + i).addEventListener('change', sendRelayConfig);
-        $('invert-relay' + i).addEventListener('change', sendRelayConfig);
-      }
-      async function sendRelayConfig() {
-        const list = [];
-        for (let i = 1; i <= NUM_RLY; i++) {
-          list.push({ enabled: $('enable-relay' + i).checked, inverted: $('invert-relay' + i).checked });
+      function refreshCounterVisibility(){
+        for (var i=1;i<=NUM_DI;i++){
+          var typeSel=$('type-in'+i), box=$('counter-box-'+i);
+          if (typeSel && box) box.style.display = (parseInt(typeSel.value,10) === 2) ? 'block' : 'none';
         }
-        await connection.send("Config", { t: "relays", list });
       }
-    })();
+      connection.on('inputTypeList', function(list){
+        (list || []).forEach(function(v,i){
+          var el=$('type-in'+(i+1));
+          if (el) el.value = String(typeof v==='number'?v:0);
+        });
+        refreshCounterVisibility();
+      });
+      connection.on('counterList', function(list){
+        (list || []).forEach(function(v,i){
+          var el = $('counter-in' + (i + 1));
+          if (el) el.textContent = (typeof v === 'number') ? Math.floor(v) : '0';
+        });
+      });
+
+      connection.on('relayStateList', function(list){ (list || []).forEach(function(v,i){ var el=$('state-relay'+(i+1)); if (el) el.checked=!!v; }); });
+      connection.on('relayEnableList', function(list){ (list || []).forEach(function(v,i){ var el=$('enable-relay'+(i+1)); if (el) el.checked=!!v; }); });
+      connection.on('relayInvertList', function(list){ (list || []).forEach(function(v,i){ var el=$('invert-relay'+(i+1)); if (el) el.checked=!!v; }); });
+    }
+
+    // ---------- SEND ----------
+    // Inputs
+    function sendInputEnable(){ var list=[], i; for(i=1;i<=NUM_DI;i++) list.push(!!$('enable-in'+i).checked); connection.send("Config",{ t:"inputEnable", list:list }); }
+    function sendInputInvert(){ var list=[], i; for(i=1;i<=NUM_DI;i++) list.push(!!$('invert-in'+i).checked); connection.send("Config",{ t:"inputInvert", list:list }); }
+    function sendInputAction(){ var list=[], i; for(i=1;i<=NUM_DI;i++) list.push(parseInt($('action-in'+i).value||"0",10)); connection.send("Config",{ t:"inputAction", list:list }); }
+    function sendInputTarget(){ var list=[], i; for(i=1;i<=NUM_DI;i++) list.push(parseInt($('target-in'+i).value||"0",10)); connection.send("Config",{ t:"inputTarget", list:list }); }
+    function sendInputType(){ var list=[], i; for(i=1;i<=NUM_DI;i++) list.push(parseInt($('type-in'+i).value||"0",10)); connection.send("Config",{ t:"inputType", list:list }); refreshCounterVisibility(); }
+    function resetSingleCounter(idx1){ var list=[], i; for(i=1;i<=NUM_DI;i++) list.push(i===idx1); connection.send("Config",{ t:"counterResetList", list:list }); }
+    function refreshCounterVisibility(){ for (var i=1;i<=NUM_DI;i++){ var typeSel=$('type-in'+i), box=$('counter-box-'+i); if (typeSel && box) box.style.display = (parseInt(typeSel.value,10) === 2) ? 'block' : 'none'; } }
+
+    var i;
+    for (i=1;i<=NUM_DI;i++){
+      $('enable-in'+i).addEventListener('change', sendInputEnable);
+      $('invert-in'+i).addEventListener('change', sendInputInvert);
+      $('action-in'+i).addEventListener('change', sendInputAction);
+      $('target-in'+i).addEventListener('change', sendInputTarget);
+      $('type-in'+i).addEventListener('change', sendInputType);
+      $('resetcnt-in'+i).addEventListener('click', (function(n){ return function(){ resetSingleCounter(n); }; })(i));
+    }
+
+    // Relays
+    function sendRelayConfig(){
+      var list=[], i;
+      for (i=1;i<=NUM_RLY;i++) {
+        list.push({ enabled: $('enable-relay'+i).checked, inverted: $('invert-relay'+i).checked });
+      }
+      connection.send("Config", { t: "relays", list: list });
+    }
+    for (i=1;i<=NUM_RLY;i++){
+      $('enable-relay'+i).addEventListener('change', sendRelayConfig);
+      $('invert-relay'+i).addEventListener('change', sendRelayConfig);
+    }
+  })();
   </script>
 </section>
