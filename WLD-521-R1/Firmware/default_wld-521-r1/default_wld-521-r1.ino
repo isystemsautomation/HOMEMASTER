@@ -23,7 +23,11 @@ OneWire oneWire(ONEWIRE_PIN);
 // ================== Sizes & types ==================
 static const uint8_t NUM_DI  = 5;
 static const uint8_t NUM_RLY = 2;
-enum : uint8_t { IT_WATER=0, IT_HUMIDITY=1, IT_WCOUNTER=2 };
+enum : uint8_t {
+  IT_WATER    = 0,
+  IT_HUMIDITY = 1,
+  IT_WCOUNTER = 2            // Use this type for flow meters (pulse)
+};
 
 struct InCfg  { bool enabled; bool inverted; uint8_t action; uint8_t target; uint8_t type; };
 struct RlyCfg { bool enabled; bool inverted; };
@@ -41,6 +45,14 @@ bool desiredRelay[NUM_RLY] = {false,false};
 uint32_t rlyPulseUntil[NUM_RLY] = {0,0};
 const uint32_t PULSE_MS = 500;
 
+// ===== Flow meter per-DI =====
+uint32_t flowPulsesPerL[NUM_DI];   // default 450
+float    flowCalib[NUM_DI];        // default 1.0
+float    flowAccumL[NUM_DI];       // accumulated liters
+float    flowRateLmin[NUM_DI];     // computed every second
+uint32_t lastPulseSnapshot[NUM_DI];
+uint32_t nextRateTickMs = 0;
+
 // ================== Web Serial ==================
 SimpleWebSerial WebSerial;
 JSONVar modbusStatus;
@@ -54,6 +66,7 @@ uint8_t  g_mb_address = 3;
 uint32_t g_mb_baud    = 19200;
 
 // ================== Persistence (LittleFS) ==================
+// V1 legacy
 struct PersistConfigV1 {
   uint32_t magic; uint16_t version; uint16_t size;
   InCfg   diCfg[NUM_DI];
@@ -62,6 +75,7 @@ struct PersistConfigV1 {
   uint8_t mb_address; uint32_t mb_baud; uint32_t crc32;
 } __attribute__((packed));
 
+// V2 legacy
 struct PersistConfigV2 {
   uint32_t magic; uint16_t version; uint16_t size;
   InCfg   diCfg[NUM_DI];
@@ -69,12 +83,32 @@ struct PersistConfigV2 {
   bool    desiredRelay[NUM_RLY];
   uint8_t mb_address; uint32_t mb_baud; uint32_t crc32;
 } __attribute__((packed));
-using PersistConfig = PersistConfigV2;
 
-static const uint32_t CFG_MAGIC      = 0x31524C57UL; // 'WLR1'
-static const uint16_t CFG_VERSION_V1 = 0x0001;
-static const uint16_t CFG_VERSION    = 0x0002;
-static const char*    CFG_PATH       = "/cfg.bin";
+// V3 current (adds flow arrays)
+struct PersistConfigV3 {
+  uint32_t magic;  uint16_t version;  uint16_t size;
+
+  InCfg   diCfg[NUM_DI];
+  RlyCfg  rlyCfg[NUM_RLY];
+  bool    desiredRelay[NUM_RLY];
+
+  uint8_t  mb_address;
+  uint32_t mb_baud;
+
+  uint32_t flowPPL[NUM_DI];
+  float    flowCalib[NUM_DI];
+  float    flowAccumL[NUM_DI];
+
+  uint32_t crc32;
+} __attribute__((packed));
+
+using PersistConfig = PersistConfigV3;
+
+static const uint32_t CFG_MAGIC       = 0x31524C57UL; // 'WLR1'
+static const uint16_t CFG_VERSION_V1  = 0x0001;
+static const uint16_t CFG_VERSION_V2  = 0x0002;
+static const uint16_t CFG_VERSION     = 0x0003;       // V3 adds flow arrays
+static const char*    CFG_PATH        = "/cfg.bin";
 
 // ---- 1-Wire DB ----
 static const char* ONEWIRE_DB_PATH = "/ow_sensors.json";
@@ -149,20 +183,28 @@ static bool jsonGetU64(JSONVar obj, const char* key, uint64_t &out) {
   if (!obj.hasOwnProperty(key)) return false;
   JSONVar v=obj[key];
   String t=JSON.typeof(v);
-  if (t=="number") { out=(uint64_t)(double)v; return true; }        // ONLY if it really came as a number
+  if (t=="number") { out=(uint64_t)(double)v; return true; }
   if (t=="string") { const char* s=(const char*)v; return parseDec64(s,out); }
   return false;
 }
 static bool jsonGetAddr(JSONVar obj, uint64_t &out) {
-  // 1) Preferred decimal keys (avoid float trouble)
+  // preferred numeric forms
   if (jsonGetU64(obj,"addr_u64", out)) return true;
   if (jsonGetU64(obj,"rom_u64",  out)) return true;
-  // 2) Hex string keys
+  // hex strings
   String s;
   if (jsonGetStr(obj,"rom_hex", s) || jsonGetStr(obj,"addr", s) ||
       jsonGetStr(obj,"address", s) || jsonGetStr(obj,"rom", s)) {
     return parseHex64(s.c_str(), out);
   }
+  return false;
+}
+static bool jsonGetDouble(JSONVar obj, const char* key, double &out) {
+  if (!obj.hasOwnProperty(key)) return false;
+  JSONVar v=obj[key];
+  String t=JSON.typeof(v);
+  if (t=="number") { out = (double)v; return true; }
+  if (t=="string") { const char* s=(const char*)v; if(!s) return false; char* e=nullptr; out = strtod(s,&e); return e && e!=s; }
   return false;
 }
 
@@ -171,7 +213,15 @@ void setDefaults() {
   for (int i=0;i<NUM_DI;i++)  diCfg[i]  = { true, false, 0, 0, IT_WATER };
   for (int i=0;i<NUM_RLY;i++) rlyCfg[i] = { true, false };
   for (int i=0;i<NUM_RLY;i++){ desiredRelay[i]=false; rlyPulseUntil[i]=0; }
-  for (int i=0;i<NUM_DI;i++){ diCounter[i]=0; diLastEdgeMs[i]=0; }
+  for (int i=0;i<NUM_DI;i++){
+    diCounter[i]=0; diLastEdgeMs[i]=0;
+    flowPulsesPerL[i] = 450;          // sensible default (YF-S201/B4-like)
+    flowCalib[i]      = 1.0f;
+    flowAccumL[i]     = 0.0f;
+    flowRateLmin[i]   = 0.0f;
+    lastPulseSnapshot[i] = 0;
+  }
+  nextRateTickMs = millis() + 1000;
   g_mb_address=3; g_mb_baud=19200;
 }
 
@@ -179,7 +229,13 @@ void captureToPersist(PersistConfig &pc){
   pc.magic=CFG_MAGIC; pc.version=CFG_VERSION; pc.size=sizeof(PersistConfig);
   memcpy(pc.diCfg,diCfg,sizeof(diCfg)); memcpy(pc.rlyCfg,rlyCfg,sizeof(rlyCfg));
   memcpy(pc.desiredRelay,desiredRelay,sizeof(desiredRelay));
-  pc.mb_address=g_mb_address; pc.mb_baud=g_mb_baud; pc.crc32=0;
+  pc.mb_address=g_mb_address; pc.mb_baud=g_mb_baud;
+  for (int i=0;i<NUM_DI;i++){
+    pc.flowPPL[i]   = flowPulsesPerL[i];
+    pc.flowCalib[i] = flowCalib[i];
+    pc.flowAccumL[i]= flowAccumL[i];
+  }
+  pc.crc32=0;
   pc.crc32=crc32_update(0,(const uint8_t*)&pc,sizeof(PersistConfig));
 }
 
@@ -192,17 +248,53 @@ bool applyFromPersistV1(const PersistConfigV1 &v1){
   for (int i=0;i<NUM_DI;i++) if (diCfg[i].type>IT_WCOUNTER) diCfg[i].type=IT_WATER;
   memcpy(rlyCfg, v1.rlyCfg, sizeof(rlyCfg));
   memcpy(desiredRelay, v1.desiredRelay, sizeof(desiredRelay));
-  g_mb_address=v1.mb_address; g_mb_baud=v1.mb_baud; return true;
+  g_mb_address=v1.mb_address; g_mb_baud=v1.mb_baud;
+
+  // initialize new flow arrays
+  for (int i=0;i<NUM_DI;i++){
+    flowPulsesPerL[i]=450; flowCalib[i]=1.0f; flowAccumL[i]=0.0f; flowRateLmin[i]=0.0f; lastPulseSnapshot[i]=0;
+  }
+  nextRateTickMs = millis() + 1000;
+  return true;
+}
+bool applyFromPersistV2(const PersistConfigV2 &v2){
+  if (v2.magic!=CFG_MAGIC || v2.size!=sizeof(PersistConfigV2)) return false;
+  PersistConfigV2 tmp=v2; uint32_t crc=tmp.crc32; tmp.crc32=0;
+  if (crc32_update(0,(const uint8_t*)&tmp,sizeof(tmp))!=crc) return false;
+  if (v2.version!=CFG_VERSION_V2) return false;
+  memcpy(diCfg, v2.diCfg, sizeof(diCfg));
+  for (int i=0;i<NUM_DI;i++) if (diCfg[i].type>IT_WCOUNTER) diCfg[i].type=IT_WATER;
+  memcpy(rlyCfg, v2.rlyCfg, sizeof(rlyCfg));
+  memcpy(desiredRelay, v2.desiredRelay, sizeof(desiredRelay));
+  g_mb_address=v2.mb_address; g_mb_baud=v2.mb_baud;
+
+  // initialize new flow arrays
+  for (int i=0;i<NUM_DI;i++){
+    flowPulsesPerL[i]=450; flowCalib[i]=1.0f; flowAccumL[i]=0.0f; flowRateLmin[i]=0.0f; lastPulseSnapshot[i]=0;
+  }
+  nextRateTickMs = millis() + 1000;
+  return true;
 }
 bool applyFromPersist(const PersistConfig &pc){
   if (pc.magic!=CFG_MAGIC || pc.size!=sizeof(PersistConfig)) return false;
   PersistConfig tmp=pc; uint32_t crc=tmp.crc32; tmp.crc32=0;
   if (crc32_update(0,(const uint8_t*)&tmp,sizeof(tmp))!=crc) return false;
   if (pc.version!=CFG_VERSION) return false;
+
   memcpy(diCfg, pc.diCfg, sizeof(diCfg));
   memcpy(rlyCfg, pc.rlyCfg, sizeof(rlyCfg));
   memcpy(desiredRelay, pc.desiredRelay, sizeof(desiredRelay));
-  g_mb_address=pc.mb_address; g_mb_baud=pc.mb_baud; return true;
+  g_mb_address=pc.mb_address; g_mb_baud=pc.mb_baud;
+
+  for (int i=0;i<NUM_DI;i++){
+    flowPulsesPerL[i]= pc.flowPPL[i] ? pc.flowPPL[i] : 450;
+    flowCalib[i]     = (isnan(pc.flowCalib[i])||pc.flowCalib[i]<=0) ? 1.0f : pc.flowCalib[i];
+    flowAccumL[i]    = isnan(pc.flowAccumL[i]) ? 0.0f : pc.flowAccumL[i];
+    flowRateLmin[i]  = 0.0f;
+    lastPulseSnapshot[i] = 0;
+  }
+  nextRateTickMs = millis() + 1000;
+  return true;
 }
 
 bool saveConfigFS(){
@@ -222,16 +314,22 @@ bool saveConfigFS(){
 bool loadConfigFS(){
   File f=LittleFS.open(CFG_PATH,"r"); if(!f){ WebSerial.send("message","load: open failed"); return false; }
   size_t sz=f.size();
-  if (sz==sizeof(PersistConfig)){
-    PersistConfig pc{}; size_t n=f.read((uint8_t*)&pc,sizeof(pc)); f.close();
-    if(n!=sizeof(pc)){ WebSerial.send("message","load: short read (v2)"); return false; }
-    if(!applyFromPersist(pc)){ WebSerial.send("message","load: v2 magic/version/crc mismatch"); return false; }
-    return true;
-  } else if (sz==sizeof(PersistConfigV1)){
+  if (sz==sizeof(PersistConfigV1)){
     PersistConfigV1 pc{}; size_t n=f.read((uint8_t*)&pc,sizeof(pc)); f.close();
     if(n!=sizeof(pc)){ WebSerial.send("message","load: short read (v1)"); return false; }
     if(!applyFromPersistV1(pc)){ WebSerial.send("message","load: v1 magic/version/crc mismatch"); return false; }
-    WebSerial.send("message","Loaded legacy config v1 and migrated to v2 defaults for new fields");
+    WebSerial.send("message","Loaded legacy config v1 → migrated to v3 defaults for flow.");
+    return true;
+  } else if (sz==sizeof(PersistConfigV2)){
+    PersistConfigV2 pc{}; size_t n=f.read((uint8_t*)&pc,sizeof(pc)); f.close();
+    if(n!=sizeof(pc)){ WebSerial.send("message","load: short read (v2)"); return false; }
+    if(!applyFromPersistV2(pc)){ WebSerial.send("message","load: v2 magic/version/crc mismatch"); return false; }
+    WebSerial.send("message","Loaded legacy config v2 → migrated to v3 with flow defaults.");
+    return true;
+  } else if (sz==sizeof(PersistConfig)){
+    PersistConfig pc{}; size_t n=f.read((uint8_t*)&pc,sizeof(pc)); f.close();
+    if(n!=sizeof(pc)){ WebSerial.send("message","load: short read (v3)"); return false; }
+    if(!applyFromPersist(pc)){ WebSerial.send("message","load: v3 magic/version/crc mismatch"); return false; }
     return true;
   } else {
     WebSerial.send("message",String("load: unexpected size ")+sz); f.close(); return false;
@@ -349,7 +447,7 @@ void setup(){
   WebSerial.on("command", handleCommand);
   WebSerial.on("onewire", handleOneWire);
 
-  WebSerial.send("message","Boot OK (DI types: Water/Humidity/WaterCounter; actions: None/Toggle/Pulse; targets: None/All/R1/R2)");
+  WebSerial.send("message","Boot OK (Flow on 'Water counter' type). Params: pulsesPerLiter, calibCoeff, accumLiters, rateLmin. Commands: flow_calculate.");
   sendAllEchoesOnce();   // also pushes onewireDb once
 }
 
@@ -357,24 +455,103 @@ void setup(){
 void handleCommand(JSONVar obj){
   const char* actC=(const char*)obj["action"]; if(!actC){ WebSerial.send("message","command: missing 'action'"); return; }
   String act=String(actC); act.toLowerCase();
+
   if (act=="reset"||act=="reboot"){
     bool ok=saveConfigFS();
     WebSerial.send("message", ok ? "Saved. Rebooting…" : "WARNING: Save verify FAILED. Rebooting anyway…");
     delay(400); performReset();
-  } else if (act=="save"){
+    return;
+  }
+  if (act=="save"){
     if (saveConfigFS()) WebSerial.send("message","Configuration saved"); else WebSerial.send("message","ERROR: Save failed");
-  } else if (act=="load"){
+    return;
+  }
+  if (act=="load"){
     if (loadConfigFS()){ WebSerial.send("message","Configuration loaded"); sendAllEchoesOnce(); applyModbusSettings(g_mb_address,g_mb_baud); }
     else WebSerial.send("message","ERROR: Load failed/invalid");
-  } else if (act=="factory"){
+    return;
+  }
+  if (act=="factory"){
     setDefaults(); if (saveConfigFS()){ WebSerial.send("message","Factory defaults restored & saved"); sendAllEchoesOnce(); applyModbusSettings(g_mb_address,g_mb_baud); }
     else WebSerial.send("message","ERROR: Save after factory reset failed");
-  } else if (act=="scan"||act=="scan1wire"||act=="scan_1wire"||act=="scan1w"){
-    doOneWireScan();
-  } else {
-    WebSerial.send("message", String("Unknown command: ")+actC);
+    return;
   }
+  if (act=="scan"||act=="scan1wire"||act=="scan_1wire"||act=="scan1w"){
+    doOneWireScan();
+    return;
+  }
+
+  // ===== Flow: calculate calibration from external accumulated liters =====
+  if (act=="flow_calculate"){
+    // di index (1..5 or 0..4)
+    int di = -1;
+    if (obj.hasOwnProperty("di")) di = (int)obj["di"];
+    else if (obj.hasOwnProperty("input")) di = (int)obj["input"];
+    else if (obj.hasOwnProperty("index")) di = (int)obj["index"];
+    if (di >= 1 && di <= (int)NUM_DI) di -= 1; // convert to 0-based
+    if (di < 0 || di >= (int)NUM_DI) { WebSerial.send("message","flow_calculate: invalid 'di'"); return; }
+
+    double extLit = 0.0;
+    if (!jsonGetDouble(obj,"external", extLit) &&
+        !jsonGetDouble(obj,"external_liters", extLit) &&
+        !jsonGetDouble(obj,"externalAccum", extLit)) {
+      WebSerial.send("message","flow_calculate: missing 'external' liters");
+      return;
+    }
+    if (extLit <= 0.0) { WebSerial.send("message","flow_calculate: external must be > 0"); return; }
+
+    uint32_t pulses = diCounter[di];
+    uint32_t ppl    = flowPulsesPerL[di] ? flowPulsesPerL[di] : 1;
+    if (pulses == 0) { WebSerial.send("message","flow_calculate: no pulses counted"); return; }
+
+    // theoretical liters from pulses (without calibration)
+    double liters_no_cal = (double)pulses / (double)ppl;
+    double newCal = extLit / liters_no_cal;
+
+    float oldCal = flowCalib[di];
+    flowCalib[di] = (float)newCal;
+
+    // rescale accumulated liters to keep history consistent
+    if (oldCal > 0.0f) {
+      flowAccumL[di] = flowAccumL[di] * (flowCalib[di] / oldCal);
+    }
+
+    cfgDirty = true; lastCfgTouchMs = millis();
+
+    // Message (fixed String concatenation)
+    {
+      String msg; msg.reserve(96);
+      msg += "flow_calculate: DI";
+      msg += String(di+1);
+      msg += " pulses="; msg += String(pulses);
+      msg += " ppl=";    msg += String((uint32_t)ppl);
+      msg += " external="; msg += String(extLit, 6);
+      msg += " => calib="; msg += String(newCal, 6);
+      WebSerial.send("message", msg);
+    }
+    return;
+  }
+
+  // ===== Flow: optional reset single via command =====
+  if (act=="flow_reset"){
+    int di = -1;
+    if (obj.hasOwnProperty("di")) di = (int)obj["di"];
+    if (di >= 1 && di <= (int)NUM_DI) di -= 1;
+    if (di >= 0 && di < (int)NUM_DI) {
+      flowAccumL[di] = 0.0f;
+      cfgDirty = true; lastCfgTouchMs = millis();
+      String msg; msg.reserve(32);
+      msg += "flow_reset: DI"; msg += String(di+1);
+      WebSerial.send("message", msg);
+    } else {
+      WebSerial.send("message","flow_reset: invalid 'di'");
+    }
+    return;
+  }
+
+  WebSerial.send("message", String("Unknown command: ")+actC);
 }
+
 void performReset(){ if(Serial) Serial.flush(); delay(50); watchdog_reboot(0,0,0); while(true){ __asm__("wfi"); } }
 
 void applyModbusSettings(uint8_t addr, uint32_t baud){
@@ -394,14 +571,57 @@ void handleValues(JSONVar values){
 void handleUnifiedConfig(JSONVar obj){
   const char* t=(const char*)obj["t"]; JSONVar list=obj["list"]; if(!t) return;
   String type=String(t); bool changed=false;
+
   if (type=="inputEnable"){ for(int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].enabled=(bool)list[i]; WebSerial.send("message","Input Enabled list updated"); changed=true; }
   else if(type=="inputInvert"){ for(int i=0;i<NUM_DI && i<list.length();i++) diCfg[i].inverted=(bool)list[i]; WebSerial.send("message","Input Invert list updated"); changed=true; }
   else if(type=="inputAction"){ for(int i=0;i<NUM_DI && i<list.length();i++){ int a=(int)list[i]; diCfg[i].action=(uint8_t)constrain(a,0,2);} WebSerial.send("message","Input Action list updated"); changed=true; }
   else if(type=="inputTarget"){ for(int i=0;i<NUM_DI && i<list.length();i++){ int tgt=(int)list[i]; diCfg[i].target=(uint8_t)((tgt==4||tgt==0||(tgt>=1&&tgt<=2))?tgt:0);} WebSerial.send("message","Input Control Target list updated"); changed=true; }
   else if(type=="inputType"){ for(int i=0;i<NUM_DI && i<list.length();i++){ int tp=(int)list[i]; diCfg[i].type=(uint8_t)constrain(tp,IT_WATER,IT_WCOUNTER);} WebSerial.send("message","Input Type list updated"); changed=true; }
-  else if(type=="counterResetList"){ uint32_t now=millis(); for(int i=0;i<NUM_DI && i<list.length();i++){ if((bool)list[i]){ diCounter[i]=0; diLastEdgeMs[i]=now; } } WebSerial.send("message","Counters reset"); }
-  else if(type=="relays"){ for(int i=0;i<NUM_RLY && i<list.length();i++){ rlyCfg[i].enabled=(bool)list[i]["enabled"]; rlyCfg[i].inverted=(bool)list[i]["inverted"]; } WebSerial.send("message","Relay Configuration updated"); changed=true; }
+
+  else if(type=="counterResetList"){
+    uint32_t now=millis(); for(int i=0;i<NUM_DI && i<list.length();i++){ if((bool)list[i]){ diCounter[i]=0; diLastEdgeMs[i]=now; lastPulseSnapshot[i]=0; } }
+    WebSerial.send("message","Counters reset");
+  }
+
+  else if(type=="relays"){
+    for(int i=0;i<NUM_RLY && i<list.length();i++){ rlyCfg[i].enabled=(bool)list[i]["enabled"]; rlyCfg[i].inverted=(bool)list[i]["inverted"]; }
+    WebSerial.send("message","Relay Configuration updated"); changed=true;
+  }
+
+  // ===== Flow configs from UI =====
+  else if (type=="flowPPL"){
+    for (int i=0;i<NUM_DI && i<list.length(); i++){
+      long v = (long)(double)list[i];
+      if (v <= 0) v = 1;
+      flowPulsesPerL[i] = (uint32_t)v;
+    }
+    WebSerial.send("message","Flow: pulsesPerLiter updated");
+    changed=true;
+  }
+  else if (type=="flowCalib"){
+    for (int i=0;i<NUM_DI && i<list.length(); i++){
+      double v = (double)list[i];
+      if (v <= 0.0) v = 1.0;
+      float old = flowCalib[i];
+      flowCalib[i] = (float)v;
+      if (old > 0.0f) {
+        // rescale accumulated to keep past volume consistent
+        flowAccumL[i] = flowAccumL[i] * (flowCalib[i] / old);
+      }
+    }
+    WebSerial.send("message","Flow: calibration updated & accum rescaled");
+    changed=true;
+  }
+  else if (type=="flowResetAccumList"){
+    for (int i=0;i<NUM_DI && i<list.length(); i++){
+      if ((bool)list[i]) flowAccumL[i] = 0.0f;
+    }
+    WebSerial.send("message","Flow: selected accumulators reset");
+    changed=true;
+  }
+
   else { WebSerial.send("message","Unknown Config type"); }
+
   if (changed){ cfgDirty=true; lastCfgTouchMs=millis(); }
 }
 
@@ -418,11 +638,19 @@ void handleOneWire(JSONVar obj){
 
   if (act=="add"||act=="save"||act=="rename"){
     String nm; if (!jsonGetStr(obj,"name",nm) || nm.length()==0){ WebSerial.send("message","onewire: missing 'name'"); return; }
-    if (owdbAddOrUpdate(addr, nm.c_str())) WebSerial.send("message", String("onewire: saved ")+hex64(addr));
-    else { WebSerial.send("message","onewire: save failed (maybe full?)"); owdbSendList(); }
+    if (owdbAddOrUpdate(addr, nm.c_str())) {
+      String msg; msg.reserve(48); msg += "onewire: saved "; msg += hex64(addr);
+      WebSerial.send("message", msg);
+    } else {
+      WebSerial.send("message","onewire: save failed (maybe full?)"); owdbSendList();
+    }
   } else if (act=="remove"||act=="delete"){
-    if (owdbRemove(addr)) WebSerial.send("message", String("onewire: removed ")+hex64(addr));
-    else { WebSerial.send("message","onewire: address not found"); owdbSendList(); }
+    if (owdbRemove(addr)) {
+      String msg; msg.reserve(48); msg += "onewire: removed "; msg += hex64(addr);
+      WebSerial.send("message", msg);
+    } else {
+      WebSerial.send("message","onewire: address not found"); owdbSendList();
+    }
   } else {
     WebSerial.send("message", String("onewire: unknown action '")+act+"'");
   }
@@ -439,7 +667,7 @@ void processModbusCommandPulses(){
     if (mb.Coil(CMD_DI_DIS_BASE+i)) { mb.setCoil(CMD_DI_DIS_BASE+i,false); if( diCfg[i].enabled){ diCfg[i].enabled=false; cfgDirty=true; lastCfgTouchMs=millis(); } }
   }
   for(int i=0;i<NUM_DI;i++){
-    if (mb.Coil(CMD_CNT_RST_BASE+i)) { mb.setCoil(CMD_CNT_RST_BASE+i,false); diCounter[i]=0; diLastEdgeMs[i]=millis(); }
+    if (mb.Coil(CMD_CNT_RST_BASE+i)) { mb.setCoil(CMD_CNT_RST_BASE+i,false); diCounter[i]=0; diLastEdgeMs[i]=millis(); lastPulseSnapshot[i]=0; }
   }
 }
 
@@ -457,16 +685,19 @@ void loop(){
   unsigned long now=millis();
   mb.task(); processModbusCommandPulses();
 
+  // autosave
   if (cfgDirty && (now-lastCfgTouchMs>=CFG_AUTOSAVE_MS)){
     if (saveConfigFS()) WebSerial.send("message","Configuration saved");
     else WebSerial.send("message","ERROR: Save failed");
     cfgDirty=false;
   }
 
+  // Inputs read + pulse handling
   JSONVar inputs; JSONVar counters;
   for (int i=0;i<NUM_DI;i++){
     bool raw=(digitalRead(DI_PINS[i])==HIGH); if (diCfg[i].inverted) raw=!raw;
     bool val=false;
+
     if(!diCfg[i].enabled){ val=false; }
     else {
       switch(diCfg[i].type){
@@ -475,22 +706,30 @@ void loop(){
         default: val=raw; break;
       }
     }
+
     bool prev=diState[i]; diPrev[i]=prev; diState[i]=val;
     inputs[i]=val; mb.setIsts(ISTS_DI_BASE+i, val);
 
     bool rising=(!prev && val);
+
     if (diCfg[i].type==IT_WCOUNTER){
       if (rising && (now - diLastEdgeMs[i] >= CNT_DEBOUNCE_MS)){
         diCounter[i]++; diLastEdgeMs[i]=now; setHreg32(HREG_DI_COUNT_BASE + (i*2), diCounter[i]);
+        // flow accumulation per pulse
+        uint32_t ppl = flowPulsesPerL[i] ? flowPulsesPerL[i] : 1;
+        float lit = (1.0f / (float)ppl) * flowCalib[i];
+        flowAccumL[i] += lit;
       }
     } else {
       uint8_t act=diCfg[i].action;
       if (act==1){ if (rising || (prev && !val)) applyActionToTarget(diCfg[i].target,1,now); }
       else if (act==2){ if (rising) applyActionToTarget(diCfg[i].target,2,now); }
     }
+
     counters[i]=(double)diCounter[i];
   }
 
+  // Relays
   JSONVar relayStateList;
   for (int i=0;i<NUM_RLY;i++){
     bool outVal=desiredRelay[i]; if(!rlyCfg[i].enabled) outVal=false; if(rlyCfg[i].inverted) outVal=!outVal;
@@ -499,6 +738,20 @@ void loop(){
     if (rlyPulseUntil[i] && timeAfter32(now, rlyPulseUntil[i])){ desiredRelay[i]=false; rlyPulseUntil[i]=0; cfgDirty=true; lastCfgTouchMs=now; }
   }
 
+  // Flow: compute rate every second (L/min)
+  if (timeAfter32(now, nextRateTickMs)) {
+    nextRateTickMs = now + 1000;
+    for (int i=0;i<NUM_DI;i++){
+      uint32_t ppl = flowPulsesPerL[i] ? flowPulsesPerL[i] : 1;
+      uint32_t delta = diCounter[i] - lastPulseSnapshot[i];
+      lastPulseSnapshot[i] = diCounter[i];
+      // liters in last second * 60 → L/min
+      float liters_last_sec = ((float)delta / (float)ppl) * flowCalib[i];
+      flowRateLmin[i] = liters_last_sec * 60.0f;
+    }
+  }
+
+  // periodic UI publish
   if (millis()-lastSend>=sendInterval){
     lastSend=millis();
     WebSerial.check();
@@ -512,6 +765,15 @@ void loop(){
     JSONVar relayEnableList, relayInvertList;
     for (int i=0;i<NUM_RLY;i++){ relayEnableList[i]=rlyCfg[i].enabled; relayInvertList[i]=rlyCfg[i].inverted; }
 
+    // Flow lists
+    JSONVar flowPPLList, flowCalibList, flowAccumList, flowRateList;
+    for (int i=0;i<NUM_DI;i++){
+      flowPPLList[i]   = (double)flowPulsesPerL[i];
+      flowCalibList[i] = (double)flowCalib[i];
+      flowAccumList[i] = (double)flowAccumL[i];
+      flowRateList[i]  = (double)flowRateLmin[i];
+    }
+
     WebSerial.send("inputs", inputs);
     WebSerial.send("invertList", invertList);
     WebSerial.send("enableList", enableList);
@@ -520,11 +782,16 @@ void loop(){
     WebSerial.send("inputTypeList", typeList);
     WebSerial.send("counterList", counters);
 
+    WebSerial.send("flowPPLList",   flowPPLList);
+    WebSerial.send("flowCalibList", flowCalibList);
+    WebSerial.send("flowAccumList", flowAccumList);
+    WebSerial.send("flowRateList",  flowRateList);
+
     WebSerial.send("relayStateList", relayStateList);
     WebSerial.send("relayEnableList", relayEnableList);
     WebSerial.send("relayInvertList", relayInvertList);
 
-    // >>> YOUR REQUEST: always push the stored 1-Wire DB alongside other lists <<<
+    // Per your request: always include stored 1-Wire DB with other lists
     owdbSendList();
   }
 }
@@ -548,6 +815,19 @@ void sendAllEchoesOnce(){
   for (int i=0;i<NUM_RLY;i++){ relayEnableList[i]=rlyCfg[i].enabled; relayInvertList[i]=rlyCfg[i].inverted; }
   WebSerial.send("relayEnableList", relayEnableList);
   WebSerial.send("relayInvertList", relayInvertList);
+
+  // Flow lists
+  JSONVar flowPPLList, flowCalibList, flowAccumList, flowRateList;
+  for (int i=0;i<NUM_DI;i++){
+    flowPPLList[i]   = (double)flowPulsesPerL[i];
+    flowCalibList[i] = (double)flowCalib[i];
+    flowAccumList[i] = (double)flowAccumL[i];
+    flowRateList[i]  = (double)flowRateLmin[i];
+  }
+  WebSerial.send("flowPPLList",   flowPPLList);
+  WebSerial.send("flowCalibList", flowCalibList);
+  WebSerial.send("flowAccumList", flowAccumList);
+  WebSerial.send("flowRateList",  flowRateList);
 
   // Push stored 1-Wire list on boot as well
   owdbSendList();
