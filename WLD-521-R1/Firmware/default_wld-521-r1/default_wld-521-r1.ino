@@ -1,4 +1,4 @@
-#include <Arduino.h>
+#include <Arduino.h> 
 #include <ModbusSerial.h>
 #include <SimpleWebSerial.h>
 #include <Arduino_JSON.h>
@@ -57,6 +57,17 @@ float    flowRateLmin[NUM_DI];       // computed every second
 uint32_t lastPulseSnapshot[NUM_DI];
 uint32_t nextRateTickMs = 0;
 
+// ===== Heat energy per-DI =====
+bool     heatEnabled[NUM_DI];
+uint64_t heatAddrA[NUM_DI], heatAddrB[NUM_DI];
+float    heatCp[NUM_DI], heatRho[NUM_DI], heatCalib[NUM_DI];
+double   heatTA[NUM_DI], heatTB[NUM_DI], heatDT[NUM_DI];
+double   heatPowerW[NUM_DI];
+double   heatEnergyJ[NUM_DI];
+
+uint32_t nextOneWireConvertMs = 0;
+bool     oneWireBusy = false;
+
 // ================== Web Serial ==================
 SimpleWebSerial WebSerial;
 JSONVar modbusStatus;
@@ -102,7 +113,7 @@ struct PersistConfigV3 {
   uint32_t crc32;
 } __attribute__((packed));
 
-// V4 current (separate calibs + baseline; no stored liters)
+// V4 legacy (separate calibs + baseline; no stored liters)
 struct PersistConfigV4 {
   uint32_t magic;  uint16_t version;  uint16_t size;
 
@@ -121,13 +132,42 @@ struct PersistConfigV4 {
   uint32_t crc32;
 } __attribute__((packed));
 
-using PersistConfig = PersistConfigV4;
+// V5 current: adds heat energy config/state
+struct PersistConfigV5 {
+  uint32_t magic;  uint16_t version;  uint16_t size;
+
+  InCfg   diCfg[NUM_DI];
+  RlyCfg  rlyCfg[NUM_RLY];
+  bool    desiredRelay[NUM_RLY];
+
+  uint8_t  mb_address;
+  uint32_t mb_baud;
+
+  uint32_t flowPPL[NUM_DI];
+  float    flowCalibRate[NUM_DI];
+  float    flowCalibAccum[NUM_DI];
+  uint32_t flowCounterBase[NUM_DI];
+
+  // Heat
+  bool     heatEnabled[NUM_DI];
+  uint64_t heatAddrA[NUM_DI];
+  uint64_t heatAddrB[NUM_DI];
+  float    heatCp[NUM_DI];     // J/(kg·°C)
+  float    heatRho[NUM_DI];    // kg/L
+  float    heatCalib[NUM_DI];  // unitless
+  double   heatEnergyJ[NUM_DI]; // accumulated joules
+
+  uint32_t crc32;
+} __attribute__((packed));
+
+using PersistConfig = PersistConfigV5;
 
 static const uint32_t CFG_MAGIC       = 0x31524C57UL; // 'WLR1'
 static const uint16_t CFG_VERSION_V1  = 0x0001;
 static const uint16_t CFG_VERSION_V2  = 0x0002;
 static const uint16_t CFG_VERSION_V3  = 0x0003;
-static const uint16_t CFG_VERSION     = 0x0004;       // V4: separate calibs + baseline, no stored liters
+static const uint16_t CFG_VERSION_V4  = 0x0004;
+static const uint16_t CFG_VERSION     = 0x0005;       // V5: adds heat energy
 static const char*    CFG_PATH        = "/cfg.bin";
 
 // ---- 1-Wire DB ----
@@ -236,10 +276,18 @@ void setDefaults() {
     flowPulsesPerL[i] = 450;
     flowCalibRate[i]  = 1.0f;
     flowCalibAccum[i] = 1.0f;
-    flowCounterBase[i]= 0;      // accumulation window starts from power-on
+    flowCounterBase[i]= 0;
     flowRateLmin[i]   = 0.0f;
     lastPulseSnapshot[i] = 0;
+
+    // Heat defaults
+    heatEnabled[i]=false;
+    heatAddrA[i]=0; heatAddrB[i]=0;
+    heatCp[i]=4186.0f; heatRho[i]=1.0f; heatCalib[i]=1.0f;
+    heatTA[i]=NAN; heatTB[i]=NAN; heatDT[i]=0.0;
+    heatPowerW[i]=0.0; heatEnergyJ[i]=0.0;
   }
+  oneWireBusy=false; nextOneWireConvertMs=millis();
   nextRateTickMs = millis() + 1000;
   g_mb_address=3; g_mb_baud=19200;
 }
@@ -254,6 +302,14 @@ void captureToPersist(PersistConfig &pc){
     pc.flowCalibRate[i]  = flowCalibRate[i];
     pc.flowCalibAccum[i] = flowCalibAccum[i];
     pc.flowCounterBase[i]= flowCounterBase[i];
+
+    pc.heatEnabled[i] = heatEnabled[i];
+    pc.heatAddrA[i]   = heatAddrA[i];
+    pc.heatAddrB[i]   = heatAddrB[i];
+    pc.heatCp[i]      = heatCp[i];
+    pc.heatRho[i]     = heatRho[i];
+    pc.heatCalib[i]   = heatCalib[i];
+    pc.heatEnergyJ[i] = heatEnergyJ[i];
   }
   pc.crc32=0;
   pc.crc32=crc32_update(0,(const uint8_t*)&pc,sizeof(PersistConfig));
@@ -270,10 +326,12 @@ bool applyFromPersistV1(const PersistConfigV1 &v1){
   memcpy(desiredRelay, v1.desiredRelay, sizeof(desiredRelay));
   g_mb_address=v1.mb_address; g_mb_baud=v1.mb_baud;
 
-  // Initialize flow to defaults on migration
   for (int i=0;i<NUM_DI;i++){
     flowPulsesPerL[i]=450; flowCalibRate[i]=1.0f; flowCalibAccum[i]=1.0f; flowCounterBase[i]=diCounter[i];
     flowRateLmin[i]=0.0f; lastPulseSnapshot[i]=0;
+    // Heat defaults
+    heatEnabled[i]=false; heatAddrA[i]=0; heatAddrB[i]=0;
+    heatCp[i]=4186.0f; heatRho[i]=1.0f; heatCalib[i]=1.0f; heatEnergyJ[i]=0.0;
   }
   nextRateTickMs = millis() + 1000;
   return true;
@@ -292,6 +350,8 @@ bool applyFromPersistV2(const PersistConfigV2 &v2){
   for (int i=0;i<NUM_DI;i++){
     flowPulsesPerL[i]=450; flowCalibRate[i]=1.0f; flowCalibAccum[i]=1.0f; flowCounterBase[i]=diCounter[i];
     flowRateLmin[i]=0.0f; lastPulseSnapshot[i]=0;
+    heatEnabled[i]=false; heatAddrA[i]=0; heatAddrB[i]=0;
+    heatCp[i]=4186.0f; heatRho[i]=1.0f; heatCalib[i]=1.0f; heatEnergyJ[i]=0.0;
   }
   nextRateTickMs = millis() + 1000;
   return true;
@@ -312,13 +372,17 @@ bool applyFromPersistV3(const PersistConfigV3 &pc){
     float seedCal = (isnan(pc.flowCalib[i])||pc.flowCalib[i]<=0) ? 1.0f : pc.flowCalib[i];
     flowCalibRate[i]  = seedCal;
     flowCalibAccum[i] = seedCal;
-    flowCounterBase[i]= diCounter[i]; // start window from current pulses
+    flowCounterBase[i]= diCounter[i];
     flowRateLmin[i]   = 0.0f;
     lastPulseSnapshot[i] = 0;
+
+    heatEnabled[i]=false; heatAddrA[i]=0; heatAddrB[i]=0;
+    heatCp[i]=4186.0f; heatRho[i]=1.0f; heatCalib[i]=1.0f; heatEnergyJ[i]=0.0;
   }
   nextRateTickMs = millis() + 1000;
   return true;
 }
+
 bool applyFromPersist(const PersistConfig &pc){
   if (pc.magic!=CFG_MAGIC || pc.size!=sizeof(PersistConfig)) return false;
   PersistConfig tmp=pc; uint32_t crc=tmp.crc32; tmp.crc32=0;
@@ -337,6 +401,15 @@ bool applyFromPersist(const PersistConfig &pc){
     flowCounterBase[i]= pc.flowCounterBase[i];
     flowRateLmin[i]   = 0.0f;
     lastPulseSnapshot[i] = 0;
+
+    // heat
+    heatEnabled[i] = pc.heatEnabled[i];
+    heatAddrA[i]   = pc.heatAddrA[i];
+    heatAddrB[i]   = pc.heatAddrB[i];
+    heatCp[i]      = (isnan(pc.heatCp[i]) || pc.heatCp[i]<=0) ? 4186.0f : pc.heatCp[i];
+    heatRho[i]     = (isnan(pc.heatRho[i])|| pc.heatRho[i]<=0)? 1.0f    : pc.heatRho[i];
+    heatCalib[i]   = (isnan(pc.heatCalib[i])||pc.heatCalib[i]<=0)?1.0f  : pc.heatCalib[i];
+    heatEnergyJ[i] = isfinite(pc.heatEnergyJ[i]) ? pc.heatEnergyJ[i] : 0.0;
   }
   nextRateTickMs = millis() + 1000;
   return true;
@@ -363,24 +436,46 @@ bool loadConfigFS(){
     PersistConfigV1 pc{}; size_t n=f.read((uint8_t*)&pc,sizeof(pc)); f.close();
     if(n!=sizeof(pc)){ WebSerial.send("message","load: short read (v1)"); return false; }
     if(!applyFromPersistV1(pc)){ WebSerial.send("message","load: v1 magic/version/crc mismatch"); return false; }
-    WebSerial.send("message","Loaded legacy config v1 → migrated to v4 defaults for flow.");
+    WebSerial.send("message","Loaded legacy config v1 → migrated to v5 defaults for flow/heat.");
     return true;
   } else if (sz==sizeof(PersistConfigV2)){
     PersistConfigV2 pc{}; size_t n=f.read((uint8_t*)&pc,sizeof(pc)); f.close();
     if(n!=sizeof(pc)){ WebSerial.send("message","load: short read (v2)"); return false; }
     if(!applyFromPersistV2(pc)){ WebSerial.send("message","load: v2 magic/version/crc mismatch"); return false; }
-    WebSerial.send("message","Loaded legacy config v2 → migrated to v4 defaults for flow.");
+    WebSerial.send("message","Loaded legacy config v2 → migrated to v5 defaults for flow/heat.");
     return true;
   } else if (sz==sizeof(PersistConfigV3)){
     PersistConfigV3 pc{}; size_t n=f.read((uint8_t*)&pc,sizeof(pc)); f.close();
     if(n!=sizeof(pc)){ WebSerial.send("message","load: short read (v3)"); return false; }
     if(!applyFromPersistV3(pc)){ WebSerial.send("message","load: v3 magic/version/crc mismatch"); return false; }
-    WebSerial.send("message","Loaded legacy config v3 → migrated to v4 (split calibs, derived total).");
+    WebSerial.send("message","Loaded legacy config v3 → migrated to v5 (split calibs, derived total, heat defaults).");
+    return true;
+  } else if (sz==sizeof(PersistConfigV4)){
+    PersistConfigV4 pc{}; size_t n=f.read((uint8_t*)&pc,sizeof(pc)); f.close();
+    if(n!=sizeof(pc)){ WebSerial.send("message","load: short read (v4)"); return false; }
+    // Apply v4 then add heat defaults
+    // Reuse v3 migrator logic: set from pc, then set heat defaults
+    memcpy(diCfg, pc.diCfg, sizeof(diCfg));
+    memcpy(rlyCfg, pc.rlyCfg, sizeof(rlyCfg));
+    memcpy(desiredRelay, pc.desiredRelay, sizeof(desiredRelay));
+    g_mb_address=pc.mb_address; g_mb_baud=pc.mb_baud;
+    for (int i=0;i<NUM_DI;i++){
+      flowPulsesPerL[i]= pc.flowPPL[i] ? pc.flowPPL[i] : 1;
+      flowCalibRate[i]= (isnan(pc.flowCalibRate[i])||pc.flowCalibRate[i]<=0)?1.0f:pc.flowCalibRate[i];
+      flowCalibAccum[i]=(isnan(pc.flowCalibAccum[i])||pc.flowCalibAccum[i]<=0)?1.0f:pc.flowCalibAccum[i];
+      flowCounterBase[i]=pc.flowCounterBase[i];
+      flowRateLmin[i]=0.0f; lastPulseSnapshot[i]=0;
+      // Heat defaults
+      heatEnabled[i]=false; heatAddrA[i]=0; heatAddrB[i]=0;
+      heatCp[i]=4186.0f; heatRho[i]=1.0f; heatCalib[i]=1.0f; heatEnergyJ[i]=0.0;
+    }
+    nextRateTickMs = millis() + 1000;
+    WebSerial.send("message","Loaded legacy config v4 → migrated to v5 (heat defaults).");
     return true;
   } else if (sz==sizeof(PersistConfig)){
     PersistConfig pc{}; size_t n=f.read((uint8_t*)&pc,sizeof(pc)); f.close();
-    if(n!=sizeof(pc)){ WebSerial.send("message","load: short read (v4)"); return false; }
-    if(!applyFromPersist(pc)){ WebSerial.send("message","load: v4 magic/version/crc mismatch"); return false; }
+    if(n!=sizeof(pc)){ WebSerial.send("message","load: short read (v5)"); return false; }
+    if(!applyFromPersist(pc)){ WebSerial.send("message","load: v5 magic/version/crc mismatch"); return false; }
     return true;
   } else {
     WebSerial.send("message",String("load: unexpected size ")+sz); f.close(); return false;
@@ -467,6 +562,28 @@ void processModbusCommandPulses();
 void applyActionToTarget(uint8_t target, uint8_t action, uint32_t now);
 void doOneWireScan();
 
+// ---- DS18B20 helpers ----
+bool ds18b20StartConvertAll(){
+  oneWire.reset();
+  oneWire.skip();
+  oneWire.write(0x44, 0);  // Convert T
+  return true;
+}
+bool ds18b20ReadTempC(uint64_t rom, double &outC){
+  if (!rom) return false;
+  uint8_t addr[8]; uint64_t v=rom;
+  for (int i=0;i<8;i++){ addr[i]=(uint8_t)(v & 0xFF); v >>= 8; }
+  if (!oneWire.reset()) return false;
+  oneWire.select(addr);
+  oneWire.write(0xBE); // Read Scratchpad
+  uint8_t data[9];
+  for (int i=0;i<9;i++) data[i]=oneWire.read();
+  if (OneWire::crc8(data,8) != data[8]) return false;
+  int16_t raw = (data[1] << 8) | data[0];
+  outC = (double)raw / 16.0;
+  return true;
+}
+
 // ================== Setup ==================
 void setup(){
   Serial.begin(57600);
@@ -498,7 +615,7 @@ void setup(){
   WebSerial.on("command", handleCommand);
   WebSerial.on("onewire", handleOneWire);
 
-  WebSerial.send("message","Boot OK (Flow on 'Water counter' type). Separate rate/accum calibration; accumulated derived from pulses.");
+  WebSerial.send("message","Boot OK (Flow on 'Water counter' + Heat energy). Separate rate/accum calibration; accumulated liters derived from pulses. Heat uses A−B ΔT.");
   sendAllEchoesOnce();   // also pushes onewireDb once
 }
 
@@ -588,6 +705,15 @@ void handleCommand(JSONVar obj){
     return;
   }
 
+  // Heat: reset single DI
+  if (act=="heat_reset"){
+    int di=-1; if (obj.hasOwnProperty("di")) di=(int)obj["di"];
+    if (di>=1 && di<=NUM_DI) di-=1;
+    if (di>=0 && di<NUM_DI){ heatEnergyJ[di]=0.0; WebSerial.send("message", String("heat_reset: DI")+String(di+1)); }
+    else WebSerial.send("message","heat_reset: invalid 'di'");
+    return;
+  }
+
   WebSerial.send("message", String("Unknown command: ")+actC);
 }
 
@@ -605,6 +731,27 @@ void handleValues(JSONVar values){
   applyModbusSettings((uint8_t)addr,(uint32_t)baud);
   WebSerial.send("message","Modbus configuration updated");
   cfgDirty=true; lastCfgTouchMs=millis();
+}
+
+// Helper to apply a single heat config object to a DI index
+bool applyHeatCfgObjectToIndex(int idx, JSONVar o){
+  if (idx < 0 || idx >= (int)NUM_DI) return false;
+  // enabled
+  if (o.hasOwnProperty("enabled")) heatEnabled[idx] = (bool)o["enabled"];
+  // addresses: accept strings (hex) or numeric u64 via helpers
+  String sA, sB;
+  uint64_t v;
+  if (jsonGetStr(o,"addrA",sA)) { if(parseHex64(sA.c_str(), v)) heatAddrA[idx]=v; }
+  if (jsonGetStr(o,"addrB",sB)) { if(parseHex64(sB.c_str(), v)) heatAddrB[idx]=v; }
+  // numeric fallbacks
+  if (jsonGetU64(o,"addrA_u64", v)) heatAddrA[idx]=v;
+  if (jsonGetU64(o,"addrB_u64", v)) heatAddrB[idx]=v;
+
+  double dv;
+  if (jsonGetDouble(o,"cp",dv)  && dv>0) heatCp[idx]=(float)dv;
+  if (jsonGetDouble(o,"rho",dv) && dv>0) heatRho[idx]=(float)dv;
+  if (jsonGetDouble(o,"calib",dv) && dv>0) heatCalib[idx]=(float)dv;
+  return true;
 }
 
 void handleUnifiedConfig(JSONVar obj){
@@ -680,6 +827,44 @@ void handleUnifiedConfig(JSONVar obj){
     }
     WebSerial.send("message","Flow: accumulation windows reset (baseline moved)");
     changed=true;
+  }
+
+  // ===== Heat configs: BACK‑COMPAT (array) =====
+  else if (type=="heatConfig"){
+    for (int i=0;i<NUM_DI && i<list.length(); i++){
+      JSONVar o = list[i];
+      applyHeatCfgObjectToIndex(i, o);
+    }
+    WebSerial.send("message","Heat: configuration updated (array)");
+    changed=true;
+  }
+  else if (type=="heatResetEnergyList"){
+    for (int i=0;i<NUM_DI && i<list.length(); i++){
+      if ((bool)list[i]) heatEnergyJ[i]=0.0;
+    }
+    WebSerial.send("message","Heat: energy counters reset");
+    changed=true;
+  }
+
+  // ===== NEW: Heat config single‑channel =====
+  else if (type=="heatConfigSingle"){
+    int di = -1;
+    if (obj.hasOwnProperty("di")) di = (int)obj["di"];
+    if (di >= 1 && di <= (int)NUM_DI) di -= 1; // allow 1-based from UI
+    if (di < 0 || di >= (int)NUM_DI) { WebSerial.send("message","heatConfigSingle: invalid 'di'"); return; }
+
+    if (!obj.hasOwnProperty("cfg")) { WebSerial.send("message","heatConfigSingle: missing 'cfg'"); return; }
+    JSONVar cfg = obj["cfg"];
+    if (JSON.typeof(cfg)!="object"){ WebSerial.send("message","heatConfigSingle: 'cfg' must be an object"); return; }
+
+    if (!applyHeatCfgObjectToIndex(di, cfg)){
+      WebSerial.send("message","heatConfigSingle: failed to apply");
+      return;
+    }
+    changed = true;
+    String msg; msg.reserve(48);
+    msg += "Heat: DI"; msg += String(di+1); msg += " configuration updated (single)";
+    WebSerial.send("message", msg);
   }
 
   else { WebSerial.send("message","Unknown Config type"); }
@@ -798,15 +983,47 @@ void loop(){
     if (rlyPulseUntil[i] && timeAfter32(now, rlyPulseUntil[i])){ desiredRelay[i]=false; rlyPulseUntil[i]=0; cfgDirty=true; lastCfgTouchMs=now; }
   }
 
-  // Flow: compute rate every second (L/min) using flowCalibRate
+  // Flow + Heat: compute once per second (pipelined 1-Wire conversion)
   if (timeAfter32(now, nextRateTickMs)) {
+    uint32_t dt_ms = 1000; // nominal 1s tick
     nextRateTickMs = now + 1000;
+
+    // start conversions if not already, else read
+    if (!oneWireBusy) {
+      ds18b20StartConvertAll();
+      oneWireBusy = true;
+      nextOneWireConvertMs = now + 750; // conversion time
+    } else if (timeAfter32(now, nextOneWireConvertMs)) {
+      for (int i=0;i<NUM_DI;i++){
+        double ta=NAN, tb=NAN;
+        if (heatEnabled[i] && heatAddrA[i]) ds18b20ReadTempC(heatAddrA[i], ta);
+        if (heatEnabled[i] && heatAddrB[i]) ds18b20ReadTempC(heatAddrB[i], tb);
+        heatTA[i]=ta; heatTB[i]=tb;
+      }
+      oneWireBusy=false;
+    }
+
+    // Flow rate (L/min)
     for (int i=0;i<NUM_DI;i++){
       uint32_t ppl   = flowPulsesPerL[i] ? flowPulsesPerL[i] : 1;
       uint32_t delta = diCounter[i] - lastPulseSnapshot[i];
       lastPulseSnapshot[i] = diCounter[i];
       float liters_last_sec = ((float)delta / (float)ppl) * flowCalibRate[i];
       flowRateLmin[i] = liters_last_sec * 60.0f;
+    }
+
+    // Heat power & energy
+    for (int i=0;i<NUM_DI;i++){
+      double P=0.0; double dT=0.0;
+      if (diCfg[i].type==IT_WCOUNTER && heatEnabled[i] &&
+          isfinite(heatTA[i]) && isfinite(heatTB[i])) {
+        dT = (heatTA[i] - heatTB[i]);           // If you want |ΔT|: dT = fabs(heatTA[i]-heatTB[i]);
+        double m_dot = ((double)flowRateLmin[i] / 60.0) * (double)heatRho[i]; // kg/s
+        P = m_dot * (double)heatCp[i] * dT;     // W
+        P *= (double)heatCalib[i];
+        heatEnergyJ[i] += P * (dt_ms/1000.0);   // J
+      }
+      heatDT[i]=dT; heatPowerW[i]=P;
     }
   }
 
@@ -827,7 +1044,6 @@ void loop(){
     // Flow lists to UI:
     JSONVar flowPPLList, flowCalibList, flowAccumList, flowRateList, flowCalibRateList, flowCalibAccumList;
     for (int i=0;i<NUM_DI;i++){
-      // derived accumulated liters since baseline using flowCalibAccum
       uint32_t ppl = flowPulsesPerL[i] ? flowPulsesPerL[i] : 1;
       uint32_t pulses_since = (diCounter[i] >= flowCounterBase[i]) ? (diCounter[i] - flowCounterBase[i]) : 0;
       double accumL = ((double)pulses_since / (double)ppl) * (double)flowCalibAccum[i];
@@ -838,6 +1054,26 @@ void loop(){
       flowCalibAccumList[i]  = (double)flowCalibAccum[i];
       flowAccumList[i]       = accumL;
       flowRateList[i]        = (double)flowRateLmin[i];
+    }
+
+    // Heat lists to UI
+    JSONVar heatEnabledList, heatAddrAList, heatAddrBList, heatCpList, heatRhoList, heatCalibList;
+    JSONVar heatTAList, heatTBList, heatDTList, heatPowerList, heatEnergyJList, heatEnergyKWhList;
+
+    for (int i=0;i<NUM_DI;i++){
+      heatEnabledList[i]=heatEnabled[i];
+      heatAddrAList[i]=hex64(heatAddrA[i]);
+      heatAddrBList[i]=hex64(heatAddrB[i]);
+      heatCpList[i]=(double)heatCp[i];
+      heatRhoList[i]=(double)heatRho[i];
+      heatCalibList[i]=(double)heatCalib[i];
+
+      heatTAList[i]=isfinite(heatTA[i])?heatTA[i]:NAN;
+      heatTBList[i]=isfinite(heatTB[i])?heatTB[i]:NAN;
+      heatDTList[i]=heatDT[i];
+      heatPowerList[i]=heatPowerW[i];              // W
+      heatEnergyJList[i]=heatEnergyJ[i];           // J
+      heatEnergyKWhList[i]=heatEnergyJ[i]/3.6e6;   // kWh
     }
 
     WebSerial.send("inputs", inputs);
@@ -854,6 +1090,20 @@ void loop(){
     WebSerial.send("flowCalibAccumList", flowCalibAccumList); // new (optional)
     WebSerial.send("flowAccumList", flowAccumList);
     WebSerial.send("flowRateList",  flowRateList);
+
+    // Heat publishes
+    WebSerial.send("heatEnabledList", heatEnabledList);
+    WebSerial.send("heatAddrAList", heatAddrAList);
+    WebSerial.send("heatAddrBList", heatAddrBList);
+    WebSerial.send("heatCpList", heatCpList);
+    WebSerial.send("heatRhoList", heatRhoList);
+    WebSerial.send("heatCalibList", heatCalibList);
+    WebSerial.send("heatTAList", heatTAList);
+    WebSerial.send("heatTBList", heatTBList);
+    WebSerial.send("heatDTList", heatDTList);
+    WebSerial.send("heatPowerList", heatPowerList);
+    WebSerial.send("heatEnergyJList", heatEnergyJList);
+    WebSerial.send("heatEnergyKWhList", heatEnergyKWhList);
 
     WebSerial.send("relayStateList", relayStateList);
     WebSerial.send("relayEnableList", relayEnableList);
@@ -905,6 +1155,37 @@ void sendAllEchoesOnce(){
   WebSerial.send("flowAccumList", flowAccumList);
   WebSerial.send("flowRateList",  flowRateList);
 
+  // Heat lists (config values and zeros at boot if needed)
+  JSONVar heatEnabledList, heatAddrAList, heatAddrBList, heatCpList, heatRhoList, heatCalibList;
+  JSONVar heatTAList, heatTBList, heatDTList, heatPowerList, heatEnergyJList, heatEnergyKWhList;
+  for (int i=0;i<NUM_DI;i++){
+    heatEnabledList[i]=heatEnabled[i];
+    heatAddrAList[i]=hex64(heatAddrA[i]);
+    heatAddrBList[i]=hex64(heatAddrB[i]);
+    heatCpList[i]=(double)heatCp[i];
+    heatRhoList[i]=(double)heatRho[i];
+    heatCalibList[i]=(double)heatCalib[i];
+
+    heatTAList[i]=isfinite(heatTA[i])?heatTA[i]:NAN;
+    heatTBList[i]=isfinite(heatTB[i])?heatTB[i]:NAN;
+    heatDTList[i]=heatDT[i];
+    heatPowerList[i]=heatPowerW[i];
+    heatEnergyJList[i]=heatEnergyJ[i];
+    heatEnergyKWhList[i]=heatEnergyJ[i]/3.6e6;
+  }
+  WebSerial.send("heatEnabledList", heatEnabledList);
+  WebSerial.send("heatAddrAList", heatAddrAList);
+  WebSerial.send("heatAddrBList", heatAddrBList);
+  WebSerial.send("heatCpList", heatCpList);
+  WebSerial.send("heatRhoList", heatRhoList);
+  WebSerial.send("heatCalibList", heatCalibList);
+  WebSerial.send("heatTAList", heatTAList);
+  WebSerial.send("heatTBList", heatTBList);
+  WebSerial.send("heatDTList", heatDTList);
+  WebSerial.send("heatPowerList", heatPowerList);
+  WebSerial.send("heatEnergyJList", heatEnergyJList);
+  WebSerial.send("heatEnergyKWhList", heatEnergyKWhList);
+
   owdbSendList();
 
   modbusStatus["address"]=g_mb_address; modbusStatus["baud"]=g_mb_baud;
@@ -919,7 +1200,7 @@ void doOneWireScan(){
     uint64_t v=romBytesToU64(addr);
     romList[idx++]=hex64(v); found++;
   }
-  // add two test ROMs
+  // add two test ROMs (kept for UI convenience)
   romList[idx++]="0x0000000000000001";
   romList[idx++]="0x0000000000000002";
   WebSerial.send("onewireScan", romList);
