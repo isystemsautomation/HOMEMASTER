@@ -12,24 +12,70 @@ The **ENM‑223‑R1** is a high‑precision, compact metering module designed f
 
 ## 📑 Table of Contents
 
-1. [Introduction](#1-introduction)  
-2. [Safety Information](#2-safety-information)  
-3. [System Overview](#3-system-overview)  
-4. [Getting Started](#4-getting-started)  
-5. [Powering the Devices](#5-powering-the-devices)  
-6. [Networking & Communication](#6-networking--communication)  
-7. [Installation & Wiring](#7-installation--wiring)  
-8. [Software & UI Configuration](#8-software--ui-configuration)  
-9. [Modbus RTU Communication](#9-modbus-rtu-communication)  
-10. [Programming & Customization](#10-programming--customization)  
-11. [Diagrams & Pinouts](#11-diagrams--pinouts)  
-12. [Maintenance & Troubleshooting](#12-maintenance--troubleshooting)  
-13. [Technical Specifications](#13-technical-specifications-electrical--external)  
-14. [Open Source & Licensing](#14-open-source--licensing)  
-15. [Downloads](#15-downloads)  
-16. [Support](#16-support)  
-17. [ESPHome Integration Guide](#17-esphome-integration-guide-microplcminiplc--enm)
+### 1. [Introduction](#1-introduction)
+- [1.1 Overview of the HOMEMASTER Ecosystem](#11-overview-of-the-homemaster-ecosystem)  
+- [1.2 Supported Modules & Controllers](#12-supported-modules--controllers)  
+- [1.3 Use Cases](#13-use-cases)  
 
+### 2. [Safety Information](#2-safety-information)
+- [2.1 General Electrical Safety](#21-general-electrical-safety)  
+- [2.2 Handling & Installation](#22-handling--installation)  
+- [2.3 Device-Specific Warnings](#23-device-specific-warnings)  
+
+### 3. [System Overview](#3-system-overview)
+- [3.1 Architecture & Modular Design](#31-architecture--modular-design)  
+- [3.2 MicroPLC vs MiniPLC](#32-microplc-vs-miniplc)  
+- [3.3 Integration with Home Assistant](#33-integration-with-home-assistant)  
+- [3.4 Diagrams & Pinouts](#34-diagrams--pinouts)  
+- [3.5 Technical Specifications](#35-technical-specifications-module-internals)  
+
+### 4. [Getting Started](#4-getting-started)
+- [4.1 What You Need](#41-what-you-need)  
+- [4.2 Quick Setup Checklist](#42-quick-setup-checklist)  
+
+### 5. [Powering the Devices](#5-powering-the-devices)
+- [5.1 Power Supply Types](#51-power-supply-types)  
+- [5.2 Current Consumption](#52-current-consumption)  
+- [5.3 Power Safety Tips](#53-power-safety-tips)  
+
+### 6. [Networking & Communication](#6-networking--communication)
+- [6.1 RS-485 Modbus](#61-rs-485-modbus)  
+- [6.2 USB-C Configuration](#62-usb-c-configuration)  
+
+### 7. [Installation & Wiring](#7-installation--wiring)
+- [7.1 ENM-223-R1 Wiring](#71-enm-223-r1-wiring)  
+
+### 8. [Software & UI Configuration](#8-software--ui-configuration)
+- [8.1 Web Config Tool (USB Web Serial)](#81-web-config-tool-usb-web-serial)  
+- [8.2 ESPHome / Home Assistant](#82-esphome--home-assistant)  
+- [8.3 Meter Options & Calibration](#83-meter-options--calibration)  
+- [8.4 Alarms](#84-alarms)  
+- [8.5 Relays & Overrides](#85-relays--overrides)  
+- [8.6 Buttons](#86-buttons)  
+- [8.7 User LEDs, Energies & Live Meter](#87-user-leds-energies--live-meter)  
+
+### 9. [Modbus RTU Communication](#9-modbus-rtu-communication)
+- [9.1 Input Registers (Read-Only)](#91-input-registers-read-only)  
+- [9.2 Holding Registers (Read/Write)](#92-holding-registers-readwrite)  
+- [9.3 Discrete Inputs & Coils](#93-discrete-inputs--coils)  
+- [9.4 Scaling Summary](#scaling-summary)  
+- [9.5 Basics & Function Codes](#basics--function-codes)  
+- [9.6 Register Map (Summary)](#register-map-summary)  
+- [9.7 Override Priority](#override-priority)  
+
+### 10. [Programming & Customization](#10-programming--customization)
+- [10.1 Supported Languages](#101-supported-languages)  
+- [10.2 Flashing via USB-C](#102-flashing-via-usb-c)  
+- [10.3 PlatformIO & Arduino](#103-platformio--arduino)  
+
+### 11. [Diagrams & Pinouts](#11-diagrams--pinouts)  
+### 12. [Maintenance & Troubleshooting](#12-maintenance--troubleshooting)  
+### 13. [Technical Specifications](#13-technical-specifications-electrical--external)  
+### 14. [Open Source & Licensing](#14-open-source--licensing)  
+### 15. [Downloads](#15-downloads)  
+### 16. [Support](#16-support)
+
+### 17. [ESPHome Integration Guide (MicroPLC/MiniPLC + ENM)](#17-esphome-integration-guide-microplcminiplc--enm)
 
 ## 1. Introduction
 
@@ -222,6 +268,12 @@ This layout enables direct field wiring, interactive diagnostics, and ease of in
 | Storage         | LittleFS on internal flash    |
 | Mounting        | DIN rail or custom enclosure  |
 
+### 3.1 Architecture & Modular Design
+- **Metering IC:** ATM90E32AS (3×U, 3×I)  
+- **Measurements:** Urms/Upeak, Irms/Ipeak, P/Q/S/N, PF, phase angle, frequency (per phase & totals)  
+- **Control:** 2× SPDT relays (NO/NC)  
+- **Indicators:** Status LED(s); CF pulse LED (1000 pulses = 1 kWh)
+
 ### 3.2 MicroPLC vs MiniPLC
 - **MicroPLC:** Higher I/O density, RS‑485 master, rule engine — ideal for multi‑module racks.  
 - **MiniPLC:** Compact controller — suitable for smaller panels.
@@ -283,6 +335,12 @@ This layout enables direct field wiring, interactive diagnostics, and ease of in
 | LEDs            | 4 user LEDs (GPIO18–21)       |
 | Storage         | LittleFS on internal flash    |
 | Mounting        | DIN rail or custom enclosure  |
+
+### 3.1 Architecture & Modular Design
+- **Metering IC:** ATM90E32AS (3×U, 3×I)  
+- **Measurements:** Urms/Upeak, Irms/Ipeak, P/Q/S/N, PF, phase angle, frequency (per phase & totals)  
+- **Control:** 2× SPDT relays (NO/NC)  
+- **Indicators:** Status LED(s); CF pulse LED (1000 pulses = 1 kWh)
 
 ### 3.2 MicroPLC vs MiniPLC
 - **MicroPLC:** Higher I/O density, RS‑485 master, rule engine — ideal for multi‑module racks.  
@@ -732,87 +790,16 @@ This chapter adds a **step‑by‑step manual** to connect a **HomeMaster MicroP
 
 ---
 
-### 17.2 ESPHome: MicroPLC/MiniPLC Master (Working Example)
 
-The controller runs ESPHome and acts as a **Modbus master** over RS‑485. Below is a **working configuration** for a MicroPLC that connects to **two ENM‑223‑R1** modules. It fetches the ENM entity definitions **remotely from this repository** using ESPHome **packages** and parameter substitution.
+### 17.2 ESPHome: MicroPLC/MiniPLC Connection
 
-> Save this as your controller’s ESPHome YAML (e.g., `microplc.yaml`).
+To connect one or more **ENM-223-R1** modules to your **MicroPLC** or **MiniPLC** running ESPHome:
+
+1. Ensure the PLC is configured as a **Modbus RTU Master** over RS-485.
+2. Set a unique Modbus address for each ENM module using the USB Config Tool.
+3. In your PLC's ESPHome config, import the ENM module block via a GitHub `packages:` override:
 
 ```yaml
-substitutions:
-  name: "microplc-cb5db4"
-  friendly_name: "Homemaster MicroPLC cb5db4"
-  room: ""
-  device_description: "Homemaster MicroPLC"
-  project_name: "Homemaster.MicroPLC"
-  project_version: "v1.0.0"
-  update_interval: 60s
-  dns_domain: ".local"
-  timezone: ""
-  wifi_fast_connect: "false"
-  log_level: "DEBUG"
-  ipv6_enable: "false"
-
-esphome:
-  name: ${name}
-  friendly_name: ${friendly_name}
-  comment: ${device_description}
-  area: ${room}
-  name_add_mac_suffix: false
-  min_version: 2025.7.0
-  project:
-    name: ${project_name}
-    version: ${project_version}
-
-esp32:
-  board: esp32dev
-  framework:
-    type: esp-idf
-    version: recommended
-
-logger:
-  baud_rate: 115200
-  level: ${log_level}
-
-mdns:
-  disabled: false
-
-api:
-
-ota:
-  - platform: esphome
-
-network:
-  enable_ipv6: ${ipv6_enable}
-
-wifi:
-  ap: {}
-  fast_connect: ${wifi_fast_connect}
-  domain: ${dns_domain}
-
-captive_portal:
-improv_serial:
-
-esp32_improv:
-  authorizer: none
-
-dashboard_import:
-  package_import_url: github://isystemsautomation/HOMEMASTER/MicroPLC/Firmware/microplc.yaml@main
-  import_full_config: true
-
-uart:
-  id: uart_modbus
-  tx_pin: 17
-  rx_pin: 16
-  baud_rate: 19200
-  parity: NONE
-  stop_bits: 1
-
-modbus:
-  id: modbus_bus
-  uart_id: uart_modbus
-
-# --- Pull two ENM packages from GitHub, overriding name/id/address via vars
 packages:
   enm1:
     url: https://github.com/isystemsautomation/HOMEMASTER
@@ -824,50 +811,11 @@ packages:
           enm_id: enm223_1
           enm_address: 4
     refresh: 1d
-  enm2:
-    url: https://github.com/isystemsautomation/HOMEMASTER
-    ref: main
-    files:
-      - path: ENM-223-R1/Firmware/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml
-        vars:
-          enm_prefix: "ENM#2"
-          enm_id: enm223_2
-          enm_address: 5
-    refresh: 1d
-
-time:
-  - platform: pcf8563
-    id: pcf8563_time
-    address: 0x51
-  - platform: homeassistant
-    id: ha_time
-    on_time_sync:
-      then:
-        - pcf8563.write_time
-
-i2c:
-  - id: bus_a
-    sda: 32
-    scl: 33
-    scan: true
-
-one_wire:
-  - platform: gpio
-    pin: GPIO04
-    id: hub_1
-
-switch:
-  - platform: gpio
-    name: "Relay"
-    pin: 26
-    id: relay1
-
-status_led:
-  pin:
-    number: GPIO25
-    inverted: true
-    id: st_led
 ```
+
+> 📌 **Note**: Your MicroPLC/MiniPLC config should already define `uart`, `modbus`, and basic system settings. Use this block to add ENM‑223‑R1 entities.
+
+
 
 **What this does**
 - Configures RS‑485 on **TX=17 / RX=16 @ 19200 8N1**.  
@@ -880,7 +828,8 @@ status_led:
 
 ---
 
-### 17.3 External ENM Package (Parameterizable)
+### 17.3 External ENM Package
+ (Parameterizable)
 
 The external YAML referenced above is **parameterized** so it can be reused for any meter instance. It expects three variables: `${enm_id}`, `${enm_address}`, `${enm_prefix}`. A shortened excerpt is shown here (full file lives at `ENM-223-R1/Firmware/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml`).
 
