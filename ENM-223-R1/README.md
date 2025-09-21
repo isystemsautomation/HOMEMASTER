@@ -114,17 +114,7 @@ HOMEMASTER provides modular DIN‑rail controllers and I/O modules that intercon
 
 ### 3.4 Diagrams & Pinouts
 
-#### ENM System Diagram
-![ENM System Diagram](Images/ENM_Diagram.png)
-
-#### RP2350 MCU Pinout
-![MCU Pinouts](Images/ENM_MCU_Pinouts.png)
-
-#### Field Board Layout
-![Field Board Diagram](Images/FieldBoard_Diagram.png)
-
-#### MCU Board Layout
-![MCU Board Diagram](Images/MCUBoard_Diagram.png)
+<div align="center"> <table> <tr> <td align="center"> <strong>ENM System Diagram</strong><br> <img src="Images/ENM_Diagram.png" alt="ENM System Diagram" width="360"> </td> <td align="center"> <strong>RP2350 MCU Pinout</strong><br> <img src="Images/ENM_MCU_Pinouts.png" alt="MCU Pinouts" width="360"> </td> </tr> <tr> <td align="center"> <strong>Field Board Layout</strong><br> <img src="Images/FieldBoard_Diagram.png" alt="Field Board Diagram" width="360"> </td> <td align="center"> <strong>MCU Board Layout</strong><br> <img src="Images/MCUBoard_Diagram.png" alt="MCU Board Diagram" width="360"> </td> </tr> </table> </div>
 
 
 ### 3.5 Technical Specifications
