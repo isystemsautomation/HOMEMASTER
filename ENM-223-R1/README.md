@@ -169,6 +169,37 @@ HOMEMASTER provides modular DIN‑rail controllers and I/O modules that intercon
 | RS-485       | Full duplex with A/B/GND wiring        |
 | CTs & Ux     | Metering inputs, isolated              |
 | Terminals    | L1/L2/L3, PE/N, V+/GND, CT1/2/3, A/B   |
+### 3.4.2 Front View of ENM‑223‑R1
+
+<div align="center">
+  <table>
+    <tr>
+      <td align="center">
+        <strong>Front View</strong><br>
+        <img src="Images/photo1.png" alt="Front View ENM Module" width="320">
+      </td>
+      <td align="center">
+        <strong>Angled View (Left)</strong><br>
+        <img src="Images/photo3.png" alt="Angled View ENM Module" width="320">
+      </td>
+    </tr>
+  </table>
+</div>
+
+The ENM‑223‑R1 module is housed in a compact DIN-rail mountable enclosure with clearly labeled terminal blocks and an interactive front interface.
+
+#### 🔍 Key Features Visible
+
+- **USB-C Port**: Located at the bottom left, used for WebSerial configuration and firmware flashing.
+- **LED Indicators**: PWR, TX, RX — for power and RS‑485 activity.
+- **Buttons**: Four tactile push-buttons for relay control, LED override, and user-defined actions.
+- **Relay Status LEDs**: Dual status indicators above buttons for R1 and R2.
+- **Terminal Blocks**:
+  - **Top row**: 24 V DC power input, CT1/2/3 terminals, and voltage inputs (PE, N, L1, L2, L3).
+  - **Bottom row**: RS‑485 (A/B/COM), Relay 1 and 2 outputs (NO/NC/COM), and CT1 input.
+
+This layout enables direct field wiring, interactive diagnostics, and ease of integration into HomeMaster‑based systems.
+
 ### 3.5 Technical Specifications
 
 | Parameter                | Value                        |
