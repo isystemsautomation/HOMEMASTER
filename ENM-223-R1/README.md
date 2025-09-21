@@ -114,9 +114,61 @@ HOMEMASTER provides modular DIN‑rail controllers and I/O modules that intercon
 
 ### 3.4 Diagrams & Pinouts
 
-<div align="center"> <table> <tr> <td align="center"> <strong>ENM System Diagram</strong><br> <img src="Images/ENM_Diagram.png" alt="ENM System Diagram" width="360"> </td> <td align="center"> <strong>RP2350 MCU Pinout</strong><br> <img src="Images/ENM_MCU_Pinouts.png" alt="MCU Pinouts" width="360"> </td> </tr> <tr> <td align="center"> <strong>Field Board Layout</strong><br> <img src="Images/FieldBoard_Diagram.png" alt="Field Board Diagram" width="360"> </td> <td align="center"> <strong>MCU Board Layout</strong><br> <img src="Images/MCUBoard_Diagram.png" alt="MCU Board Diagram" width="360"> </td> </tr> </table> </div>
+<div align="center">
+  <table>
+    <tr>
+      <td align="center">
+        <strong>ENM System Diagram</strong><br>
+        <img src="Images/ENM_Diagram.png" alt="ENM System Diagram" width="360">
+      </td>
+      <td align="center">
+        <strong>RP2350 MCU Pinout</strong><br>
+        <img src="Images/ENM_MCU_Pinouts.png" alt="MCU Pinouts" width="360">
+      </td>
+    </tr>
+    <tr>
+      <td align="center">
+        <strong>Field Board Layout</strong><br>
+        <img src="Images/FieldBoard_Diagram.png" alt="Field Board Diagram" width="360">
+      </td>
+      <td align="center">
+        <strong>MCU Board Layout</strong><br>
+        <img src="Images/MCUBoard_Diagram.png" alt="MCU Board Diagram" width="360">
+      </td>
+    </tr>
+  </table>
+</div>
 
+### 3.4.1 Hardware Architecture Description
 
+#### MCU Board
+
+- **Processor:** RP2040 (RP2350A) with onboard QSPI Flash (W25Q32)
+- **Interfaces:** USB‑C with ESD protection, RS‑485 via MAX485
+- **Digital IOs:** 4× buttons (GPIO22–25), 4× LEDs (GPIO18–21)
+- **Peripherals:** SPI and I²C routed to FieldBoard; connected to ATM90E32AS and FRAM
+- **Other:** SWD debug header, logic-level signal protection
+
+#### Field Board
+
+- **Metering IC:** ATM90E32AS (3× Voltage, 3× Current)
+- **Current Inputs:** CT terminals IAP/IAN, IBP/IBN, ICP/ICN with burden + anti-aliasing filters
+- **Voltage Inputs:** Divider networks on L1/L2/L3 (220kΩ)
+- **Isolation:** ISO7761 isolators between MCU and analog domain
+- **Relays:** 2× SPDT relays (HF115F), opto-driven (SFH6156), with snubbers
+- **FRAM:** FM24CL16B (2kB, I²C)
+- **Power:** 24 V DC input → 5 V (buck) → 3.3 V (LDO); isolation via B0505S‑1WR3
+- **Protections:** TVS, PTC, ferrites on all exposed ports
+
+#### Interconnects
+
+| Signal       | Description                            |
+|--------------|----------------------------------------|
+| SPI/I²C      | ATM90E32 + FRAM on shared bus          |
+| GPIO         | For LEDs, Buttons, Relays              |
+| RS-485       | Full duplex with A/B/GND wiring        |
+| CTs & Ux     | Metering inputs, isolated              |
+| Terminals    | L1/L2/L3, PE/N, V+/GND, CT1/2/3, A/B   |
 ### 3.5 Technical Specifications
 
 | Parameter                | Value                        |
