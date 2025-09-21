@@ -115,16 +115,16 @@ HOMEMASTER provides modular DIN‑rail controllers and I/O modules that intercon
 ### 3.4 Diagrams & Pinouts
 
 #### ENM System Diagram
-![ENM System Diagram](Image/ENM_Diagram.png)
+![ENM System Diagram](Images/ENM_Diagram.png)
 
 #### RP2350 MCU Pinout
-![MCU Pinouts](Image/ENM_MCU_Pinouts.png)
+![MCU Pinouts](Images/ENM_MCU_Pinouts.png)
 
 #### Field Board Layout
-![Field Board Diagram](Image/FieldBoard_Diagram.png)
+![Field Board Diagram](Images/FieldBoard_Diagram.png)
 
 #### MCU Board Layout
-![MCU Board Diagram](Image/MCUBoard_Diagram.png)
+![MCU Board Diagram](Images/MCUBoard_Diagram.png)
 
 
 ### 3.5 Technical Specifications
@@ -296,7 +296,14 @@ Assign a button action **“Override Relay 1 (hold 3s)”** or **“… Relay 2 
 **Actions:**  
 `0 None` • `1 Toggle R1` • `2 Toggle R2` • `3 Toggle LED1` • `4 Toggle LED2` • `5 Toggle LED3` • `6 Toggle LED4` • `7 Override R1 (hold 3s)` • `8 Override R2 (hold 3s)`
 
-> **Boot/Reset combinations:** Not implemented in this firmware snapshot. Factory‑reset and boot‑key combos will be documented once available. Use firmware flashing to restore defaults if required.
+> **Boot/Reset Combinations:**  
+> - **Buttons 1 + 2** → forces the module into **BOOT mode** (via transistor logic)  
+> - **Buttons 3 + 4** → triggers a **hardware RESET** (via transistor logic)  
+> These behaviors are handled **in hardware** (not firmware).  
+> Use these combinations during firmware flashing or to restart the device manually.
+
+📷 **Button Numbering Reference:**  
+![Button Layout](Images/buttons1.png)
 
 ### User LEDs
 **Where in UI:** *User LEDs (4)*.  
