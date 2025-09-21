@@ -297,14 +297,15 @@ Assign a button action **“Override Relay 1 (hold 3s)”** or **“… Relay 2 
 `0 None` • `1 Toggle R1` • `2 Toggle R2` • `3 Toggle LED1` • `4 Toggle LED2` • `5 Toggle LED3` • `6 Toggle LED4` • `7 Override R1 (hold 3s)` • `8 Override R2 (hold 3s)`
 
 > **Boot/Reset Combinations:**  
-> - **Buttons 1 + 2** → forces the module into **BOOT mode** (via transistor logic)  
-> - **Buttons 3 + 4** → triggers a **hardware RESET** (via transistor logic)  
-> These behaviors are handled **in hardware** (not firmware).  
+> - **Buttons 1 + 2** → forces the module into **BOOT mode**   
+> - **Buttons 3 + 4** → triggers a **hardware RESET**  
+> These behaviors are handled **in hardware**  
 > Use these combinations during firmware flashing or to restart the device manually.
 
 📷 **Button Numbering Reference:**  
-![Button Layout](Images/buttons1.png)
-
+<p align="center">
+  <img src="Images/buttons1.png" alt="Button Layout" width="320">
+</p>
 ### User LEDs
 **Where in UI:** *User LEDs (4)*.  
 - **Mode:** `Steady` or `Blink` *(when active)*.  
