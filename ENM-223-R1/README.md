@@ -8,66 +8,62 @@ The **ENM‑223‑R1** is a high‑precision, compact metering module designed f
 
 ## 📑 Table of Contents
 
-**1. Introduction**  
-1.1 [Overview of the HOMEMASTER Ecosystem](#overview-of-the-homemaster-ecosystem)
-1.2 [Supported Modules & Controllers](#supported-modules-controllers)
-1.3 [Use Cases](#use-cases)
+### 1. [Introduction](#1-introduction)
+- [1.1 Overview of the HOMEMASTER Ecosystem](#11-overview-of-the-homemaster-ecosystem)  
+- [1.2 Supported Modules & Controllers](#12-supported-modules--controllers)  
+- [1.3 Use Cases](#13-use-cases)  
 
-**2. Safety Information**  
-2.1 [General Electrical Safety](#general-electrical-safety)
-2.2 [Handling & Installation](#handling-installation)
-2.3 [Device-Specific Warnings](#device-specific-warnings)
+### 2. [Safety Information](#2-safety-information)
+- [2.1 General Electrical Safety](#21-general-electrical-safety)  
+- [2.2 Handling & Installation](#22-handling--installation)  
+- [2.3 Device-Specific Warnings](#23-device-specific-warnings)  
 
-**3. System Overview**  
-3.1 [Architecture & Modular Design](#architecture-modular-design)
-3.2 [MicroPLC vs MiniPLC](#microplc-vs-miniplc)
-3.3 [Integration with Home Assistant](#integration-with-home-assistant)
-3.4 [Diagrams & Pinouts](#diagrams-pinouts)
-3.5 [Technical Specifications](#technical-specifications)
+### 3. [System Overview](#3-system-overview)
+- [3.1 Architecture & Modular Design](#31-architecture--modular-design)  
+- [3.2 MicroPLC vs MiniPLC](#32-microplc-vs-miniplc)  
+- [3.3 Integration with Home Assistant](#33-integration-with-home-assistant)  
+- [3.4 Diagrams & Pinouts](#34-diagrams--pinouts)  
+- [3.5 Technical Specifications](#35-technical-specifications)  
 
-**4. Getting Started**  
-4.1 [What You Need](#what-you-need)
-4.2 [Quick Setup Checklist](#quick-setup-checklist)
+### 4. [Getting Started](#4-getting-started)
+- [4.1 What You Need](#41-what-you-need)  
+- [4.2 Quick Setup Checklist](#42-quick-setup-checklist)  
 
-**5. Powering the Devices**  
-5.1 [Power Supply Types](#power-supply-types)
-5.2 [Current Consumption](#current-consumption)
-5.3 [Power Safety Tips](#power-safety-tips)
+### 5. [Powering the Devices](#5-powering-the-devices)
+- [5.1 Power Supply Types](#51-power-supply-types)  
+- [5.2 Current Consumption](#52-current-consumption)  
+- [5.3 Power Safety Tips](#53-power-safety-tips)  
 
-**6. Networking & Communication**  
-6.1 [RS-485 Modbus](#rs-485-modbus)
-6.2 [USB-C Configuration](#usb-c-configuration)
+### 6. [Networking & Communication](#6-networking--communication)
+- [6.1 RS-485 Modbus](#61-rs-485-modbus)  
+- [6.2 USB-C Configuration](#62-usb-c-configuration)  
 
-**7. Installation & Wiring**  
-7.1 [ENM-223-R1 Wiring](#enm-223-r1-wiring)
+### 7. [Installation & Wiring](#7-installation--wiring)
+- [7.1 ENM-223-R1 Wiring](#71-enm-223-r1-wiring)  
 
-**8. Software Configuration**  
-8.1 [Web Config Tool (USB Web Serial)](#web-config-tool-usb-web-serial)
-8.2 [ESPHome / Home Assistant](#esphome-home-assistant)
-8.3 [Meter Options & Calibration](#meter-options-calibration)
-8.4 [Alarms](#alarms)
-8.5 [Relays & Overrides](#relays-overrides)
-8.6 [Buttons](#buttons)
-8.7 [User LEDs, Energies & Live Meter](#user-leds-energies-live-meter)
+### 8. [Software Configuration](#8-software-configuration)
+- [8.1 Web Config Tool (USB Web Serial)](#81-web-config-tool-usb-web-serial)  
+- [8.2 ESPHome / Home Assistant](#82-esphome--home-assistant)  
+- [8.3 Meter Options & Calibration](#83-meter-options--calibration)  
+- [8.4 Alarms](#84-alarms)  
+- [8.5 Relays & Overrides](#85-relays--overrides)  
+- [8.6 Buttons](#86-buttons)  
+- [8.7 User LEDs, Energies & Live Meter](#87-user-leds-energies--live-meter)  
 
-**9. Modbus RTU Communication**  
-9.1 [Basics & Function Codes](#basics-function-codes)
-9.2 [Register Map (Summary)](#register-map-summary)
-9.3 [Override Priority](#override-priority)
+### 9. [Modbus RTU Communication](#9-modbus-rtu-communication)
+- [9.1 Basics & Function Codes](#91-basics--function-codes)  
+- [9.2 Register Map (Summary)](#92-register-map-summary)  
+- [9.3 Override Priority](#93-override-priority)  
 
-**10. Programming & Customization**  
-10.1 [Supported Languages](#supported-languages)
-10.2 [Flashing via USB-C](#flashing-via-usb-c)
-10.3 [PlatformIO & Arduino](#platformio-arduino)
+### 10. [Programming & Customization](#10-programming--customization)
+- [10.1 Supported Languages](#101-supported-languages)  
+- [10.2 Flashing via USB-C](#102-flashing-via-usb-c)  
+- [10.3 PlatformIO & Arduino](#103-platformio--arduino)  
 
-**11. Maintenance & Troubleshooting**  
-**12. Open Source & Licensing**  
-**13. Downloads**  
-**14. Support & Contact**
-
----
-
-
+### 11. [Maintenance & Troubleshooting](#11-maintenance--troubleshooting)  
+### 12. [Open Source & Licensing](#12-open-source--licensing)  
+### 13. [Downloads](#13-downloads)  
+### 14. [Support & Contact](#14-support--contact)
 ## 1. Introduction
 
 The **ENM‑223‑R1** is a compact, high‑precision **3‑phase power quality & energy metering module** built around the **ATM90E32AS** metering IC. It integrates neatly with **HOMEMASTER MicroPLC** and **MiniPLC** controllers for real‑time monitoring, automation, and energy optimization.
