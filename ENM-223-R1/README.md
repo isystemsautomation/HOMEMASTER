@@ -6,51 +6,77 @@ The **ENM‑223‑R1** is a high‑precision, compact metering module designed f
 
 ---
 
+
 ## 📑 Table of Contents
 
-1. [Introduction](#1-introduction)  
-   • [Overview of the HOMEMASTER Ecosystem](#overview-of-the-homemaster-ecosystem) • [Supported Modules & Controllers](#supported-modules--controllers) • [Use Cases](#use-cases)
+1. Introduction  
+   1.1. Overview of the HOMEMASTER Ecosystem  
+   1.2. Supported Modules & Controllers  
+   1.3. Use Cases  
 
-2. [Safety Information](#2-safety-information)  
-   • [General Electrical Safety](#general-electrical-safety) • [Handling & Installation](#handling--installation) • [Device-Specific Warnings](#device-specific-warnings)
+2. Safety Information  
+   2.1. General Electrical Safety  
+   2.2. Handling & Installation  
+   2.3. Device-Specific Warnings  
 
-3. [System Overview](#3-system-overview)  
-   • [Architecture & Modular Design](#architecture--modular-design) • [MicroPLC vs MiniPLC](#microplc-vs-miniplc) • [Integration with Home Assistant](#integration-with-home-assistant)
+3. System Overview  
+   3.1. Architecture & Modular Design  
+   3.2. MicroPLC vs MiniPLC  
+   3.3. Integration with Home Assistant  
 
-4. [Getting Started](#4-getting-started)  
-   • [What You Need](#what-you-need) • [Quick Setup Checklist](#quick-setup-checklist)
+4. Getting Started  
+   4.1. What You Need  
+   4.2. Quick Setup Checklist  
 
-5. [Powering the Devices](#5-powering-the-devices)  
-   • [Power Supply Types](#power-supply-types) • [Current Consumption](#current-consumption) • [Power Safety Tips](#power-safety-tips)
+5. Powering the Devices  
+   5.1. Power Supply Types  
+   5.2. Current Consumption  
+   5.3. Power Safety Tips  
 
-6. [Networking & Communication](#6-networking--communication)  
-   • [RS-485 Modbus](#rs-485-modbus) • [USB-C Configuration](#usb-c-configuration)
+6. Networking & Communication  
+   6.1. RS-485 Modbus  
+   6.2. USB-C Configuration  
 
-7. [Installation & Wiring](#7-installation--wiring)  
-   • [ENM-223-R1 Wiring](#enm-223-r1-wiring)
+7. Installation & Wiring  
+   7.1. ENM-223-R1 Wiring  
 
-8. [Software Configuration](#8-software-configuration)  
-   • [Web Config Tool (USB Web Serial)](#web-config-tool-usb-web-serial) • [ESPHome/Home Assistant](#esphomehome-assistant)
+8. Software Configuration  
+   8.1. Web Config Tool (USB Web Serial)  
+   8.2. ESPHome / Home Assistant  
 
-9. [Modbus RTU Communication](#9-modbus-rtu-communication)  
-   • [Basics & Function Codes](#basics--function-codes) • [Register Map (Summary)](#register-map-summary) • [Override Priority](#override-priority)
+9. Modbus RTU Communication  
+   9.1. Basics & Function Codes  
+   9.2. Register Map (Summary)  
+   9.3. Override Priority  
 
-10. [Programming & Customization](#10-programming--customization)  
-    • [Supported Languages](#supported-languages) • [Flashing via USB-C](#flashing-via-usb-c) • [PlatformIO & Arduino](#platformio--arduino)
+9.5. Detailed Configuration (UI & Firmware)  
+   9.5.1. Meter Options & Calibration  
+   9.5.2. Alarms  
+   9.5.3. Relays & Overrides  
+   9.5.4. Buttons  
+   9.5.5. User LEDs  
+   9.5.6. Energies  
+   9.5.7. Live Meter  
 
-11. [Diagrams & Pinouts](#11-diagrams--pinouts)
+10. Programming & Customization  
+    10.1. Supported Languages  
+    10.2. Flashing via USB-C  
+    10.3. PlatformIO & Arduino  
 
-12. [Maintenance & Troubleshooting](#12-maintenance--troubleshooting)
+11. Diagrams & Pinouts  
 
-13. [Technical Specifications](#13-technical-specifications)
+12. Maintenance & Troubleshooting  
 
-14. [Open Source & Licensing](#14-open-source--licensing)
+13. Technical Specifications  
 
-15. [Downloads](#15-downloads)
+14. Open Source & Licensing  
 
-16. [Support & Contact](#16-support--contact)
+15. Downloads  
+
+16. Support & Contact
 
 ---
+
 
 ## 1. Introduction
 
@@ -209,6 +235,99 @@ Expose ENM registers via your controller (ESPHome/Modbus). Create sensors for **
 4. PLC/HA automations
 
 ---
+
+
+---
+
+## 9.5. Detailed Configuration (UI & Firmware)
+
+> This section is generated for the **ENM‑223‑R1 (2025‑09 firmware snapshot)** and documents what you see in the included **Web Serial Config UI** and what the firmware actually does behind the scenes.
+
+### Meter Options & Calibration
+**Where in UI:** *Meter Options* and *Calibration (Phase A/B/C)* cards.  
+**Firmware:** pushed every 1 s via `MeterOptions`/`CalibCfg` messages; persisted to **LittleFS** with CRC32.
+
+#### Meter Options
+- **Line Frequency (Hz)** — `50` or `60` → applies to ATM90E32 `MMode0` and protection thresholds.  
+- **Sum Mode** *(0=algorithmic, 1=absolute)* — affects totalization inside the metering IC.  
+- **Ucal (gain)** — base voltage gain used for sag threshold/voltage scaling.  
+- **Sample Interval (ms)** — main sampling/publish period (10…5000 ms).  
+**How to change:** Edit a field and press **Enter**. The field shows an "editing…" badge and is *locked* until you press Enter or Esc.  
+**Persistence:** Changes are auto‑saved ~1.2 s after the last touch. Re‑initialization of the chip occurs automatically when needed (line freq / sum mode changes).
+
+#### Calibration (per phase A/B/C)
+- **Ugain/Igain** — 16‑bit unsigned (0…65535).  
+- **Uoffset/Ioffset** — 16‑bit signed (−32768…32767).  
+**Workflow:** Enter values for each phase and press **Enter** → firmware writes to the ATM90E32 (`UgainX/IgainX/UoffsetX/IoffsetX`) under config‑access, then exits config mode and saves to flash.
+
+> Tip: Perform calibration with stable loads. Verify PF and angles after applying calibration.
+
+### Alarms
+**Where in UI:** *Alarms (L1, L2, L3, Totals)* grid. Each channel has **Alarm**, **Warning**, **Event** rows and an **Ack required** toggle.  
+**Firmware:** `AlarmsCfg` (config), `AlarmsState` (runtime). Evaluated against integer engineering units, not raw counts.
+
+#### Metrics & Units
+Choose a **Metric** per rule (drop‑down), and enter **min/max** thresholds in the indicated units:
+- `Voltage (Urms)` — **0.01 V** units (e.g., 230.00 V → enter 23000)  
+- `Current (Irms)` — **0.001 A** units (e.g., 5.000 A → 5000)  
+- `Active power P` — **W**  
+- `Reactive power Q` — **var** (sign follows phase angle)  
+- `Apparent power S` — **VA**  
+- `Frequency` — **0.01 Hz** units (e.g., 50.00 Hz → 5000; channel selection is ignored)
+
+**Enable** a rule to make it effective. When **Ack required** is enabled for a channel, an out‑of‑band condition **latches** until acknowledged; otherwise it auto‑clears when back in range.
+
+**Acknowledge:** Click **Ack [channel]** or use **Ack All** in the UI. Over Modbus, coils `610..613` acknowledge channels L1/L2/L3/Totals.
+
+### Relays & Overrides
+**Where in UI:** *Relays (2)*.  
+**Firmware:** `RelaysCfg` (config) and `RelaysSet` (actions). Two logical layers protect the outputs: **Mode** and **Button Override**.
+
+- **Enabled at power‑on** (per relay) — default state after boot.  
+- **Inverted (active‑low)** — single polarity setting that applies to **both relays** in hardware.  
+- **Mode:**  
+  - **None** — firmware ignores external writes; relay stays at its internal state/defaults.  
+  - **Modbus Controlled** — coil writes (`600` for R1, `601` for R2) are honored **unless** an override is active.  
+  - **Alarm Controlled** — relay follows selected **Channel** (L1/L2/L3/Totals) and **Kinds** (Alarm/Warning/Event bit‑mask). Direct writes are **blocked** in this mode.
+- **Toggle button** in UI sends `RelaysSet { idx, toggle:true }` (honored only if Mode ≠ Alarm and no override).
+
+**Override with Button (per‑relay):**  
+Assign a button action **“Override Relay 1 (hold 3s)”** or **“… Relay 2 (hold 3s)”**.  
+- **Hold 3 s** → enters/leaves override mode for that relay (captures current state).  
+- While in override, **short‑press** of the same button toggles the relay state.  
+- Exiting override hands control back to **Modbus** / **Alarm** according to the configured **Mode**.
+
+### Buttons
+**Where in UI:** *Buttons (4)*.  
+**Hardware:** GPIO22…25, debounced in firmware; long‑press threshold = **3 s**.  
+**Actions:**  
+`0 None` • `1 Toggle R1` • `2 Toggle R2` • `3 Toggle LED1` • `4 Toggle LED2` • `5 Toggle LED3` • `6 Toggle LED4` • `7 Override R1 (hold 3s)` • `8 Override R2 (hold 3s)`
+
+> **Boot/Reset combinations:** Not implemented in this firmware snapshot. Factory‑reset and boot‑key combos will be documented once available. Use firmware flashing to restore defaults if required.
+
+### User LEDs
+**Where in UI:** *User LEDs (4)*.  
+- **Mode:** `Steady` or `Blink` *(when active)*.  
+- **Source:** Select what drives each LED — override state indicators and alarm sources are available:  
+  - `Override R1`, `Override R2`  
+  - `Alarm/Warning/Event` for L1/L2/L3/Totals  
+  - `Any (A|W|E)` for L1/L2/L3/Totals  
+When the chosen **Source** is active, the LED is ON (or blinks if **Mode=Blink**). You can also toggle LEDs manually via **button actions 3–6**; manual toggles layer on top of source logic.
+
+### Energies
+**UI:** *Energies* cards show **k‑units** from the metering IC: per‑phase (A/B/C) and **Totals**:  
+- **Active + (kWh)** import, **Active − (kWh)** export  
+- **Reactive + (kvarh)** inductive, **Reactive − (kvarh)** capacitive  
+- **Apparent (kVAh)**
+
+**Modbus:** 32‑bit **Wh/varh/VAh** pairs (Hi/Lo words) for A/B/C/Totals. Values are derived from ATM90E32 counters using the firmware’s internal scaling factors and published at the main sampling rate.
+
+### Live Meter
+**UI:** *Live Meter* shows at 1 Hz (while connected):  
+- **L1/L2/L3 cards:** `U (V)`, `I (A)`, `P (W)`, `Q (var)`, `S (VA)`, `PF`, `Angle (°)`  
+- **Totals:** `P/Q/S`, `PF (tot)`, `Freq (Hz)`, `Temp (°C)`  
+While you are typing in a field elsewhere, that field pauses auto‑refresh (field lock). The **Serial Log** captures every command and echo for traceability.
+
 
 ## 10. Programming & Customization
 

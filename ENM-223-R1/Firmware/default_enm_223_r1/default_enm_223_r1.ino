@@ -1,15 +1,16 @@
 // ==== ENM-223-R1 (RP2350/RP2040) ====
 // ATM90E32 via SPI1 (NO external library) + 2x Relays on GPIO0/1
-// WebSerial UI, Modbus RTU, LittleFS persistence
+// WebSerial UI (REAL VALUES ONLY), Modbus RTU (scaled integers), LittleFS persistence
 // Buttons: GPIO22..25, LEDs: GPIO18..21
-// Includes: Per‑relay Button Override (R1/R2), LED sources for Override mode
+// Per-relay Button Override (R1/R2), LED alarm sources
 //
-// NEW BEHAVIOR (2025-09):
-// - Periodic UI push (every 1 s): LED config, Relay config, Button config, Meter Options,
-//   Scaling (Engineering Units), Alarms (L1,L2,L3,Totals), and Live Meter data
+// NEW (2025-09):
+// - 1 Hz UI push: LED/Relay/Button config, Meter Options, Alarms, Calibration, Live Meter (REAL VALUES ONLY)
+// - UI exposes NO engineering scales or raw counts
+// - Modbus exposes scaled integers only (no floats)
+// - Per-phase + total energy counters from ATM90E32 (AP,AN,RP,RN,S)
 // ============================================================================
 
-// ---- Arduino auto-prototype fix for forward types
 struct PersistConfig;
 struct AlarmRule;
 struct MetricsSnapshot;
@@ -23,13 +24,13 @@ struct MetricsSnapshot;
 #include <math.h>
 #include <limits>
 
-// ================== Hardware pins / behavior ==================
+// ================== Hardware ==================
 constexpr uint8_t LED_PINS[4]    = {18,19,20,21};
 constexpr uint8_t BUTTON_PINS[4] = {22,23,24,25};
 constexpr uint8_t RELAY_PINS[2]  = {0,1};
 
-constexpr bool LED_ACTIVE_LOW     = false;
-constexpr bool BUTTON_USES_PULLUP = false; // pressed == HIGH if false
+constexpr bool LED_ACTIVE_LOW        = false;
+constexpr bool BUTTON_USES_PULLUP    = false; // pressed == HIGH if false
 constexpr bool RELAY_ACTIVE_LOW_DFLT = false;
 
 // ===== ATM90E32 on SPI1 (NO LIB) =====
@@ -55,17 +56,17 @@ constexpr int TxenPin = -1;     // not used
 int SlaveId = 1;
 ModbusSerial mb(Serial2, SlaveId, TxenPin);
 
-// ================== Buttons & LEDs config ==================
+// ================== Buttons & LEDs ==================
 struct LedCfg   { uint8_t mode; uint8_t source; }; // mode: 0 steady, 1 blink
-struct ButtonCfg{ uint8_t action; };               // see doButtonAction / override
+struct ButtonCfg{ uint8_t action; };
 
 LedCfg    ledCfg[4];
 ButtonCfg buttonCfg[4];
 
-bool      ledManual[4] = {false,false,false,false}; // user toggles
+bool      ledManual[4] = {false,false,false,false};
 bool      ledPhys[4]   = {false,false,false,false};
 
-// Button runtime
+// Buttons runtime
 constexpr unsigned long BTN_DEBOUNCE_MS = 30;
 constexpr unsigned long BTN_LONG_MS     = 3000; // 3s
 bool buttonState[4]      = {false,false,false,false};
@@ -74,11 +75,11 @@ unsigned long btnChangeAt[4] = {0,0,0,0};
 unsigned long btnPressAt[4]  = {0,0,0,0};
 bool btnLongDone[4]      = {false,false,false,false};
 
-// ---- Button override (per‑relay) ----
-bool buttonOverrideMode[2]  = {false,false}; // true => relay is under button control
-bool buttonOverrideState[2] = {false,false}; // desired ON/OFF while in override
+// ---- Button override (per-relay) ----
+bool buttonOverrideMode[2]  = {false,false};
+bool buttonOverrideState[2] = {false,false};
 
-// Relays (logical state; true = ON before polarity)
+// Relays (logical state; true = ON)
 bool relayState[2] = {false,false};
 
 // ================== Web Serial ==================
@@ -101,14 +102,20 @@ uint16_t sample_ms    = 200;   // meter poll period
 // ATM90E32 options (persisted)
 uint16_t atm_lineFreqHz = 50;  // 50/60
 uint8_t  atm_sumModeAbs = 1;   // affects MMode0
-uint16_t atm_ucal       = 25256; // voltage calibration (used by vSag calc)
+uint16_t atm_ucal       = 25256; // default Ugain (used by vSag calc)
 
-// Measurement scaling (persisted)
+// ===== Per-phase calibration (persisted) =====
+uint16_t cal_Ugain[3]  = {25256,25256,25256}; // A,B,C
+uint16_t cal_Igain[3]  = {0,0,0};             // A,B,C
+int16_t  cal_Uoffset[3]= {0,0,0};             // A,B,C
+int16_t  cal_Ioffset[3]= {0,0,0};             // A,B,C
+
+// ===== Internal fixed conversions (not exposed) =====
 uint32_t p_scale_mW_per_lsb            = 1;
 uint32_t q_scale_mvar_per_lsb_x1000    = 1;
 uint32_t s_scale_mva_per_lsb_x1000     = 1;
 
-// Energy scales (persisted)
+// ATM90E32 energy scales (k-units/count, in 1e-5)
 uint32_t e_ap_kWh_per_cnt_x1e5   = 1;
 uint32_t e_an_kWh_per_cnt_x1e5   = 1;
 uint32_t e_rp_kvarh_per_cnt_x1e5 = 1;
@@ -145,7 +152,7 @@ struct RelayAlarmSrc { uint8_t ch; uint8_t kindsMask; }; // bit0=Alarm,1=Warn,2=
 uint8_t       relay_mode[2]      = { RM_MODBUS, RM_MODBUS };
 RelayAlarmSrc relay_alarm_src[2] = { {CH_TOT, 0b001}, {CH_TOT, 0b001} };
 
-// ================== Persistence blob ==================
+// ================== Persistence (config) ==================
 struct PersistConfig {
   uint32_t magic;       // 'ENM2'
   uint16_t version;
@@ -172,7 +179,13 @@ struct PersistConfig {
   uint8_t  atm_sumModeAbs;
   uint16_t atm_ucal;
 
-  // Scales
+  // Per-phase calibration
+  uint16_t cal_Ugain[3];
+  uint16_t cal_Igain[3];
+  int16_t  cal_Uoffset[3];
+  int16_t  cal_Ioffset[3];
+
+  // Internal scales (kept for compatibility, not exposed)
   uint32_t p_scale_mW_per_lsb;
   uint32_t q_scale_mvar_per_lsb_x1000;
   uint32_t s_scale_mva_per_lsb_x1000;
@@ -183,23 +196,23 @@ struct PersistConfig {
   uint32_t e_rn_kvarh_per_cnt_x1e5;
   uint32_t e_s_kVAh_per_cnt_x1e5;
 
-  // ===== Alarms (persisted) =====
+  // Alarms
   uint8_t  alarm_ack_required[CH_COUNT];
   struct PackedRule { uint8_t enabled; int32_t min; int32_t max; uint8_t metric; } alarm_rules[CH_COUNT][AK_COUNT];
 
-  // Relays — modes + alarm sources
-  uint8_t  relay_mode0;          // RM_*
+  // Relays
+  uint8_t  relay_mode0;
   uint8_t  relay_mode1;
-  uint8_t  relay_alarm_ch0;      // 0..3
+  uint8_t  relay_alarm_ch0;
   uint8_t  relay_alarm_ch1;
-  uint8_t  relay_alarm_mask0;    // bits: Alarm/Warning/Event
+  uint8_t  relay_alarm_mask0;
   uint8_t  relay_alarm_mask1;
 
   uint32_t crc32;
 } __attribute__((packed));
 
 constexpr uint32_t CFG_MAGIC   = 0x324D4E45UL; // 'ENM2'
-constexpr uint16_t CFG_VERSION = 0x0007;       // +relay modes/alarm source
+constexpr uint16_t CFG_VERSION = 0x0008;
 static const char* CFG_PATH    = "/enm223.bin";
 
 volatile bool   cfgDirty        = false;
@@ -254,14 +267,20 @@ void setDefaults() {
   relay_default[0] = false;
   relay_default[1] = false;
 
-  // Relay control defaults
   relay_mode[0] = RM_MODBUS; relay_mode[1] = RM_MODBUS;
-  relay_alarm_src[0] = { CH_TOT, 0b001 }; // Alarm only
+  relay_alarm_src[0] = { CH_TOT, 0b001 };
   relay_alarm_src[1] = { CH_TOT, 0b001 };
 
   atm_lineFreqHz = 50;
   atm_sumModeAbs = 1;
   atm_ucal       = 25256;
+
+  for (int i=0;i<3;i++){
+    cal_Ugain[i]   = atm_ucal;
+    cal_Igain[i]   = 0;
+    cal_Uoffset[i] = 0;
+    cal_Ioffset[i] = 0;
+  }
 
   p_scale_mW_per_lsb         = 1;
   q_scale_mvar_per_lsb_x1000 = 1;
@@ -275,13 +294,12 @@ void setDefaults() {
 
   setAlarmDefaults();
 
-  // Clear overrides on defaults
   buttonOverrideMode[0] = buttonOverrideMode[1] = false;
   buttonOverrideState[0] = buttonOverrideState[1] = false;
 }
 
 void captureToPersist(PersistConfig &pc) {
-  pc = {}; // zero
+  pc = {};
   pc.magic   = CFG_MAGIC;
   pc.version = CFG_VERSION;
   pc.size    = sizeof(PersistConfig);
@@ -300,6 +318,11 @@ void captureToPersist(PersistConfig &pc) {
   pc.atm_lineFreqHz = atm_lineFreqHz;
   pc.atm_sumModeAbs = atm_sumModeAbs;
   pc.atm_ucal       = atm_ucal;
+
+  memcpy(pc.cal_Ugain,   cal_Ugain,   sizeof(cal_Ugain));
+  memcpy(pc.cal_Igain,   cal_Igain,   sizeof(cal_Igain));
+  memcpy(pc.cal_Uoffset, cal_Uoffset, sizeof(cal_Uoffset));
+  memcpy(pc.cal_Ioffset, cal_Ioffset, sizeof(cal_Ioffset));
 
   pc.p_scale_mW_per_lsb         = p_scale_mW_per_lsb;
   pc.q_scale_mvar_per_lsb_x1000 = q_scale_mvar_per_lsb_x1000;
@@ -321,7 +344,6 @@ void captureToPersist(PersistConfig &pc) {
     }
   }
 
-  // Relay fields
   pc.relay_mode0       = relay_mode[0];
   pc.relay_mode1       = relay_mode[1];
   pc.relay_alarm_ch0   = relay_alarm_src[0].ch;
@@ -332,7 +354,6 @@ void captureToPersist(PersistConfig &pc) {
   pc.crc32 = 0;
   pc.crc32 = crc32_update(0, reinterpret_cast<const uint8_t*>(&pc), sizeof(PersistConfig));
 }
-
 bool applyFromPersist(const PersistConfig &pc) {
   if (pc.magic != CFG_MAGIC || pc.version != CFG_VERSION || pc.size != sizeof(PersistConfig)) return false;
   PersistConfig tmp = pc; uint32_t crc = tmp.crc32; tmp.crc32 = 0;
@@ -352,6 +373,11 @@ bool applyFromPersist(const PersistConfig &pc) {
   atm_lineFreqHz = pc.atm_lineFreqHz;
   atm_sumModeAbs = pc.atm_sumModeAbs;
   atm_ucal       = pc.atm_ucal;
+
+  memcpy(cal_Ugain,   pc.cal_Ugain,   sizeof(cal_Ugain));
+  memcpy(cal_Igain,   pc.cal_Igain,   sizeof(cal_Igain));
+  memcpy(cal_Uoffset, pc.cal_Uoffset, sizeof(cal_Uoffset));
+  memcpy(cal_Ioffset, pc.cal_Ioffset, sizeof(cal_Ioffset));
 
   p_scale_mW_per_lsb         = pc.p_scale_mW_per_lsb;
   q_scale_mvar_per_lsb_x1000 = pc.q_scale_mvar_per_lsb_x1000;
@@ -388,7 +414,6 @@ bool applyFromPersist(const PersistConfig &pc) {
 
   return true;
 }
-
 bool saveConfigFS() {
   PersistConfig pc{}; captureToPersist(pc);
   File f = LittleFS.open(CFG_PATH, "w"); if (!f) return false;
@@ -444,11 +469,28 @@ bool loadConfigFS() {
 #define IgainC   0x6A
 #define UoffsetC 0x6B
 #define IoffsetC 0x6C
+// Energy (total + per-phase)
 #define APenergyT 0x80
+#define APenergyA 0x81
+#define APenergyB 0x82
+#define APenergyC 0x83
 #define ANenergyT 0x84
+#define ANenergyA 0x85
+#define ANenergyB 0x86
+#define ANenergyC 0x87
 #define RPenergyT 0x88
+#define RPenergyA 0x89
+#define RPenergyB 0x8A
+#define RPenergyC 0x8B
 #define RNenergyT 0x8C
+#define RNenergyA 0x8D
+#define RNenergyB 0x8E
+#define RNenergyC 0x8F
 #define SAenergyT 0x90
+#define SAenergyA 0x91
+#define SAenergyB 0x92
+#define SAenergyC 0x93
+// Averages / live
 #define PmeanT  0xB0
 #define PmeanA  0xB1
 #define PmeanB  0xB2
@@ -551,8 +593,16 @@ static inline double read_rms_like(uint16_t regH, uint16_t regLSB, double sH, do
   return (h * sH) + (((l >> 8) & 0xFF) * sLb);
 }
 
-// ===== Simple init of the chip =====
+// ===== Simple init =====
 static inline uint8_t gainCode(uint8_t g){ if(g==1)return 0; if(g==2)return 1; if(g==4)return 2; return 1; }
+
+static void apply_calibration_to_chip() {
+  atm90_write16(UgainA,   cal_Ugain[0]); atm90_write16(UgainB,   cal_Ugain[1]); atm90_write16(UgainC,   cal_Ugain[2]);
+  atm90_write16(IgainA,   cal_Igain[0]); atm90_write16(IgainB,   cal_Igain[1]); atm90_write16(IgainC,   cal_Igain[2]);
+  atm90_write16(UoffsetA, (uint16_t)cal_Uoffset[0]); atm90_write16(UoffsetB, (uint16_t)cal_Uoffset[1]); atm90_write16(UoffsetC, (uint16_t)cal_Uoffset[2]);
+  atm90_write16(IoffsetA, (uint16_t)cal_Ioffset[0]); atm90_write16(IoffsetB, (uint16_t)cal_Ioffset[1]); atm90_write16(IoffsetC, (uint16_t)cal_Ioffset[2]);
+}
+
 static void atm90_init()
 {
   pinMode(PIN_PM1, OUTPUT); pinMode(PIN_PM0, OUTPUT);
@@ -585,7 +635,7 @@ static void atm90_init()
   m0 |= ((atm_sumModeAbs ? 0b11u : 0b00u) << 3);
   m0 &= ~0b111u; m0 |= 0b101u;
 
-  const uint8_t gIA=2,gIB=2,gIC=2;
+  const uint8_t gIA=1,gIB=1,gIC=1;
   uint8_t m1=0; m1|=(gainCode(gIA)<<0); m1|=(gainCode(gIB)<<2); m1|=(gainCode(gIC)<<4);
 
   atm90_write16(PLconstH, 0x0861);
@@ -599,39 +649,55 @@ static void atm90_init()
   atm90_write16(QPhaseTh, 0x02EE);
   atm90_write16(SPhaseTh, 0x02EE);
 
-  atm90_write16(UgainA, atm_ucal); atm90_write16(UgainB, atm_ucal); atm90_write16(UgainC, atm_ucal);
-  atm90_write16(IgainA, 0);        atm90_write16(IgainB, 0);        atm90_write16(IgainC, 0);
-  atm90_write16(UoffsetA, 0);      atm90_write16(UoffsetB, 0);      atm90_write16(UoffsetC, 0);
-  atm90_write16(IoffsetA, 0);      atm90_write16(IoffsetB, 0);      atm90_write16(IoffsetC, 0);
+  apply_calibration_to_chip();
 
   atm90_write16(CfgRegAccEn, 0x0000);
 }
 
-// ================== Modbus map ==================
+// ================== Modbus map (scaled ints, no floats) ==================
 enum : uint16_t {
   IREG_URMS_BASE    = 100,  // 100..102: Urms L1..L3 in 0.01 V (u16)
   IREG_IRMS_BASE    = 110,  // 110..112: Irms L1..L3 in 0.001 A (u16)
-  IREG_P_BASE       = 200,  // pairs L1..L3 P RAW
-  IREG_Q_BASE       = 210,  // pairs L1..L3 Q RAW
-  IREG_S_BASE       = 220,  // pairs L1..L3 S RAW
-  IREG_PTOT         = 230,  // 230/231 P_total RAW
-  IREG_QTOT         = 232,  // 232/233 Q_total RAW
-  IREG_STOT         = 234,  // 234/235 S_total RAW
-  IREG_PF_BASE      = 240,  // 240..242 PF L1..L3 raw s16
-  IREG_PF_TOT       = 243,  // 243 PF total raw s16
-  IREG_ANGLE_BASE   = 244,  // 244..246 Phase angle L1..L3, 0.1° s16
-  IREG_FREQ_X100    = 250,  // Hz ×100
+
+  // P/Q/S in real units (W/var/VA), s32 pairs (Hi,Lo)
+  IREG_P_BASE       = 200,  // 200..207 : L1..L3,Tot (8 regs)
+  IREG_Q_BASE       = 210,  // 210..217
+  IREG_S_BASE       = 220,  // 220..227
+
+  IREG_PF_BASE      = 240,  // 240..242 PF L1..L3 ×1000 (s16)
+  IREG_PF_TOT       = 243,  // 243 PF total ×1000 (s16)
+  IREG_ANGLE_BASE   = 244,  // 244..246 Phase angle L1..L3 ×10 (0.1°) s16
+  IREG_FREQ_X100    = 250,  // Hz ×100 (u16)
   IREG_TEMP_C       = 251,  // °C s16
-  IREG_E_AP_RAW     = 300,
-  IREG_E_AN_RAW     = 301,
-  IREG_E_RP_RAW     = 302,
-  IREG_E_RN_RAW     = 303,
-  IREG_E_S_RAW      = 304,
-  IREG_E_AP_MILLI   = 310,  // engineered energies u32 pairs
-  IREG_E_AN_MILLI   = 312,
-  IREG_E_RP_MILLI   = 314,
-  IREG_E_RN_MILLI   = 316,
-  IREG_E_S_MILLI    = 318,
+
+  // Energies (Wh/varh/VAh) u32 pairs — per-phase and totals
+  // Active + (AP)
+  IREG_E_AP_A_Wh    = 300,  // 300/301
+  IREG_E_AP_B_Wh    = 302,  // 302/303
+  IREG_E_AP_C_Wh    = 304,  // 304/305
+  IREG_E_AP_T_Wh    = 306,  // 306/307
+  // Active - (AN)
+  IREG_E_AN_A_Wh    = 308,  // 308/309
+  IREG_E_AN_B_Wh    = 310,  // 310/311
+  IREG_E_AN_C_Wh    = 312,  // 312/313
+  IREG_E_AN_T_Wh    = 314,  // 314/315
+  // Reactive + (RP)
+  IREG_E_RP_A_varh  = 316,  // 316/317
+  IREG_E_RP_B_varh  = 318,
+  IREG_E_RP_C_varh  = 320,
+  IREG_E_RP_T_varh  = 322,
+  // Reactive - (RN)
+  IREG_E_RN_A_varh  = 324,
+  IREG_E_RN_B_varh  = 326,
+  IREG_E_RN_C_varh  = 328,
+  IREG_E_RN_T_varh  = 330,
+  // Apparent (S)
+  IREG_E_S_A_VAh    = 332,
+  IREG_E_S_B_VAh    = 334,
+  IREG_E_S_C_VAh    = 336,
+  IREG_E_S_T_VAh    = 338,
+
+  // Diagnostics
   IREG_EMM0         = 360,
   IREG_EMM1         = 361,
   IREG_INT0         = 362,
@@ -639,22 +705,11 @@ enum : uint16_t {
   IREG_CRCERR       = 364,
   IREG_LASTSPI      = 365,
 
-  // Holding
+  // Holding (RW) — minimal; NO scaling HREGs
   HREG_SMPLL_MS     = 400,
   HREG_LFREQ_HZ     = 401,
   HREG_SUMMODE      = 402,
   HREG_UCAL         = 403,
-  HREG_P_SCALE_mW_L = 404,
-  HREG_P_SCALE_mW_H = 405,
-  HREG_Q_SCALE_X1k_L= 406,
-  HREG_Q_SCALE_X1k_H= 407,
-  HREG_S_SCALE_X1k_L= 408,
-  HREG_S_SCALE_X1k_H= 409,
-  HREG_E_AP_kWh_x1e5_L = 410, HREG_E_AP_kWh_x1e5_H = 411,
-  HREG_E_AN_kWh_x1e5_L = 412, HREG_E_AN_kWh_x1e5_H = 413,
-  HREG_E_RP_kvarh_x1e5_L = 414, HREG_E_RP_kvarh_x1e5_H = 415,
-  HREG_E_RN_kvarh_x1e5_L = 416, HREG_E_RN_kvarh_x1e5_H = 417,
-  HREG_E_S_kVAh_x1e5_L = 418,  HREG_E_S_kVAh_x1e5_H = 419,
 
   // Discrete & coils
   ISTS_LED_BASE    = 500,
@@ -676,19 +731,16 @@ void setLedPhys(uint8_t idx, bool on){
   ledPhys[idx] = on;
   mb.setIsts(ISTS_LED_BASE + idx, on);
 }
-
 void setRelayPhys(uint8_t idx, bool on){
   bool drive = on ^ (relay_active_low != 0);
   digitalWrite(RELAY_PINS[idx], drive ? HIGH : LOW);
   relayState[idx] = on;
   mb.setIsts(ISTS_RLY_BASE + idx, on);
 }
-
 template <class M>
 inline auto setSlaveIdIfAvailable(M& m, uint8_t id)
-  -> decltype(std::declval<M&>().setSlaveId(uint8_t{}), void()) { m.setSlaveId(id); }
+-> decltype(std::declval<M&>().setSlaveId(uint8_t{}), void()) { m.setSlaveId(id); }
 inline void setSlaveIdIfAvailable(...) {}
-
 void applyModbusSettings(uint8_t addr, uint32_t baud) {
   if ((uint32_t)modbusStatus["baud"] != baud) {
     Serial2.end(); Serial2.begin(baud); mb.config(baud);
@@ -735,22 +787,20 @@ void echoRelayState() {
 // ===== Alarms helpers =====
 static inline int32_t p_raw_to_W(int32_t p_raw){
   int64_t num = (int64_t)p_raw * (int64_t)p_scale_mW_per_lsb;
-  return (int32_t)(num / 1000); // mW -> W
+  return (int32_t)(num / 1000);
 }
 static inline int32_t q_raw_to_var(int32_t q_raw){
   int64_t num = (int64_t)q_raw * (int64_t)q_scale_mvar_per_lsb_x1000;
-  return (int32_t)(num / 1000); // mvar*1000 -> var
+  return (int32_t)(num / 1000);
 }
 static inline int32_t s_raw_to_VA(int32_t s_raw){
   int64_t num = (int64_t)s_raw * (int64_t)s_scale_mva_per_lsb_x1000;
-  return (int32_t)(num / 1000); // mVA -> VA
+  return (int32_t)(num / 1000);
 }
-
 static inline bool out_of_band(int32_t v, const AlarmRule& r){
   if (!r.enabled) return false;
   return (v < r.min) || (v > r.max);
 }
-
 static void alarms_ack_channel(uint8_t ch){
   if (ch >= CH_COUNT) return;
   for (int k=0;k<AK_COUNT;++k) {
@@ -760,7 +810,6 @@ static void alarms_ack_channel(uint8_t ch){
     }
   }
 }
-
 static void alarms_publish_cfg(){
   JSONVar alCfg;
   for (int ch=0; ch<CH_COUNT; ++ch) {
@@ -772,13 +821,12 @@ static void alarms_publish_cfg(){
       r["min"]    = (int32_t)g_alarmCfg[ch].rule[k].min;
       r["max"]    = (int32_t)g_alarmCfg[ch].rule[k].max;
       r["metric"] = (uint8_t)g_alarmCfg[ch].rule[k].metric;
-      chO[k]=r;
+      chO[(int)k]=r;
     }
-    alCfg[ch]=chO;
+    alCfg[(int)ch]=chO;
   }
   WebSerial.send("AlarmsCfg", alCfg);
 }
-
 static void alarms_publish_state(){
   JSONVar st;
   for (int ch=0; ch<CH_COUNT; ++ch) {
@@ -788,28 +836,50 @@ static void alarms_publish_state(){
       r["cond"]   = g_alarmRt[ch][k].conditionNow;
       r["active"] = g_alarmRt[ch][k].active;
       r["latched"]= g_alarmRt[ch][k].latched;
-      chO[k]=r;
+      chO[(int)k]=r;
     }
-    st[ch]=chO;
+    st[(int)ch]=chO;
   }
   WebSerial.send("AlarmsState", st);
 }
 
-// Snapshot of measurements (integer engineering units)
+// ===== Calibration helpers =====
+static JSONVar calib_json_from_cfg(){
+  JSONVar arr;
+  for (int ph=0; ph<3; ++ph){
+    JSONVar o;
+    o["Ug"] = (uint32_t)cal_Ugain[ph];
+    o["Ig"] = (uint32_t)cal_Igain[ph];
+    o["Uo"] = (int32_t)cal_Uoffset[ph];
+    o["Io"] = (int32_t)cal_Ioffset[ph];
+    arr[ph]=o;
+  }
+  return arr;
+}
+static void calib_publish_cfg(){
+  WebSerial.send("CalibCfg", calib_json_from_cfg());
+}
+static bool set_calib_phase_from_obj(int ph, JSONVar obj, bool &changed){
+  if (ph < 0 || ph > 2) return false;
+  bool any=false;
+  if (obj.hasOwnProperty("Ug")) { uint32_t v=(uint32_t)obj["Ug"]; if (v>65535) v=65535; if (cal_Ugain[ph] != (uint16_t)v){ cal_Ugain[ph]=(uint16_t)v; any=true; } }
+  if (obj.hasOwnProperty("Ig")) { uint32_t v=(uint32_t)obj["Ig"]; if (v>65535) v=65535; if (cal_Igain[ph] != (uint16_t)v){ cal_Igain[ph]=(uint16_t)v; any=true; } }
+  if (obj.hasOwnProperty("Uo")) { int32_t v=(int32_t)obj["Uo"]; if (v<-32768) v=-32768; if (v>32767) v=32767; if (cal_Uoffset[ph] != (int16_t)v){ cal_Uoffset[ph]=(int16_t)v; any=true; } }
+  if (obj.hasOwnProperty("Io")) { int32_t v=(int32_t)obj["Io"]; if (v<-32768) v=-32768; if (v>32767) v=32767; if (cal_Ioffset[ph] != (int16_t)v){ cal_Ioffset[ph]=(int16_t)v; any=true; } }
+  changed |= any;
+  return any;
+}
+
+// Snapshot used for alarms (integer eng units)
 struct MetricsSnapshot {
   int32_t Urms_cV[3];   // 0.01 V
   int32_t Irms_mA[3];   // 0.001 A
-  int32_t P_W[4];       // W (L1..L3, total)
-  int32_t Q_var[4];     // var (L1..L3, total)
-  int32_t S_VA[4];      // VA (L1..L3, total)
+  int32_t P_W[4];       // W L1..L3, total
+  int32_t Q_var[4];     // var
+  int32_t S_VA[4];      // VA
   int32_t Freq_cHz;     // 0.01 Hz
 };
 
-// ---- Explicit prototypes ----
-static int32_t pick_metric_value(uint8_t ch, uint8_t metric, const MetricsSnapshot& m);
-static void    eval_alarms_with_metrics(const MetricsSnapshot& snap);
-
-// ---- Alarm evaluation ----
 static int32_t pick_metric_value(uint8_t ch, uint8_t metric, const MetricsSnapshot& m) {
   switch ((AlarmMetric)metric) {
     case AM_VOLTAGE:    return (ch<3)? m.Urms_cV[ch] : (m.Urms_cV[0]+m.Urms_cV[1]+m.Urms_cV[2])/3;
@@ -821,7 +891,6 @@ static int32_t pick_metric_value(uint8_t ch, uint8_t metric, const MetricsSnapsh
     default:            return 0;
   }
 }
-
 static void eval_alarms_with_metrics(const MetricsSnapshot& snap){
   for (int ch=0; ch<CH_COUNT; ++ch) {
     for (int k=0; k<AK_COUNT; ++k) {
@@ -841,7 +910,7 @@ static void eval_alarms_with_metrics(const MetricsSnapshot& snap){
   }
 }
 
-// ================== UI config JSON builders (periodic push) ==================
+// ================== UI config JSON (no Scaling) ==================
 static JSONVar MeterOptionsJSON() {
   JSONVar mo;
   mo["lineHz"] = atm_lineFreqHz;
@@ -850,20 +919,6 @@ static JSONVar MeterOptionsJSON() {
   mo["sample_ms"] = sample_ms;
   return mo;
 }
-static JSONVar ScalingJSON() {
-  JSONVar sc;
-  sc["p_mW_per_lsb"]        = p_scale_mW_per_lsb;
-  sc["q_mvar_x1k_per_lsb"]  = q_scale_mvar_per_lsb_x1000;
-  sc["s_mva_per_lsb_x1000"] = s_scale_mva_per_lsb_x1000;
-  sc["e_ap_kWh_x1e5"]       = e_ap_kWh_per_cnt_x1e5;
-  sc["e_an_kWh_x1e5"]       = e_an_kWh_per_cnt_x1e5;
-  sc["e_rp_kvarh_x1e5"]     = e_rp_kvarh_per_cnt_x1e5;
-  sc["e_rn_kvarh_x1e5"]     = e_rn_kvarh_per_cnt_x1e5;
-  sc["e_s_kVAh_x1e5"]       = e_s_kVAh_per_cnt_x1e5;
-  return sc;
-}
-
-// ---- WebSerial CONFIG handlers ----
 void handleValues(JSONVar values) {
   int addr = (int)values["mb_address"];
   int baud = (int)values["mb_baud"];
@@ -873,7 +928,6 @@ void handleValues(JSONVar values) {
   WebSerial.send("message", "Modbus configuration updated");
   cfgDirty = true; lastCfgTouchMs = millis();
 }
-
 void handleUnifiedConfig(JSONVar obj) {
   const char* t = (const char*)obj["t"];
   if (!t) { WebSerial.send("message", "Config: missing 't'"); return; }
@@ -882,71 +936,64 @@ void handleUnifiedConfig(JSONVar obj) {
 
   if (type == "meter") {
     JSONVar c = obj["cfg"];
-    uint16_t lf = (uint16_t)constrain((int)c["lineHz"], 50, 60);
-    uint8_t  sm = (uint8_t)constrain((int)c["sumAbs"], 0, 1);
-    uint16_t uc = (uint16_t)constrain((int)c["ucal"], 1, 65535);
-    if (lf != atm_lineFreqHz) { atm_lineFreqHz = lf; reinit = true; }
-    if (sm != atm_sumModeAbs) { atm_sumModeAbs = sm; reinit = true; }
-    if (uc != atm_ucal)       { atm_ucal       = uc; reinit = true; }
-    int smp = (int)c["sample_ms"]; sample_ms = (uint16_t)constrain(smp, 10, 5000);
-
-    uint32_t v;
-    if ((v=(uint32_t)c["p_mW_per_lsb"]))              p_scale_mW_per_lsb = v;
-    if ((v=(uint32_t)c["q_mvar_x1k_per_lsb"]))        q_scale_mvar_per_lsb_x1000 = v;
-    if ((v=(uint32_t)c["s_mva_per_lsb_x1000"]))       s_scale_mva_per_lsb_x1000  = v;
-    else if ((v=(uint32_t)c["s_mva_x1k_per_lsb"]))    s_scale_mva_per_lsb_x1000  = v;
-    if ((v=(uint32_t)c["e_ap_kWh_x1e5"]))            e_ap_kWh_per_cnt_x1e5 = v;
-    if ((v=(uint32_t)c["e_an_kWh_x1e5"]))            e_an_kWh_per_cnt_x1e5 = v;
-    if ((v=(uint32_t)c["e_rp_kvarh_per_cnt_x1e5"]))  e_rp_kvarh_per_cnt_x1e5 = v;
-    if ((v=(uint32_t)c["e_rn_kvarh_per_cnt_x1e5"]))  e_rn_kvarh_per_cnt_x1e5 = v;
-    if ((v=(uint32_t)c["e_s_kVAh_per_cnt_x1e5"]))    e_s_kVAh_per_cnt_x1e5 = v;
-
-    changed = true;
+    if (c.hasOwnProperty("lineHz")) {
+      uint16_t lf = (uint16_t)constrain((int)c["lineHz"], 50, 60);
+      if (lf != atm_lineFreqHz) { atm_lineFreqHz = lf; reinit = true; }
+      mb.Hreg(HREG_LFREQ_HZ, atm_lineFreqHz);
+      changed = true;
+    }
+    if (c.hasOwnProperty("sumAbs")) {
+      uint8_t  sm = (uint8_t)constrain((int)c["sumAbs"], 0, 1);
+      if (sm != atm_sumModeAbs) { atm_sumModeAbs = sm; reinit = true; }
+      mb.Hreg(HREG_SUMMODE, atm_sumModeAbs);
+      changed = true;
+    }
+    if (c.hasOwnProperty("ucal")) {
+      uint16_t uc = (uint16_t)constrain((int)c["ucal"], 1, 65535);
+      atm_ucal = uc;
+      mb.Hreg(HREG_UCAL, atm_ucal);
+      changed = true;
+    }
+    if (c.hasOwnProperty("sample_ms")) {
+      int smp = (int)c["sample_ms"];
+      sample_ms = (uint16_t)constrain(smp, 10, 5000);
+      mb.Hreg(HREG_SMPLL_MS, sample_ms);
+      changed = true;
+    }
     if (reinit) atm90_init();
-    WebSerial.send("message", "Meter options updated");
+    if (changed) { cfgDirty = true; lastCfgTouchMs = millis(); WebSerial.send("message", "Meter options updated"); }
   }
   else if (type == "leds") {
     JSONVar list = obj["list"];
     for (int i=0;i<4 && i<list.length();i++) {
       ledCfg[i].mode   = (uint8_t)constrain((int)list[i]["mode"],   0, 1);
-      // LED sources:
-      // 0 None, 8 Override R1, 9 Override R2,
-      // 10..13 Alarm L1..L3,Tot, 14..17 Warning L1..L3,Tot,
-      // 18..21 Event L1..L3,Tot, 22..25 Any(A|W|E) L1..L3,Tot
       ledCfg[i].source = (uint8_t)constrain((int)list[i]["source"], 0, 25);
     }
     WebSerial.send("message", "LEDs configuration updated");
     WebSerial.send("LedConfigList", LedConfigListFromCfg());
-    changed = true;
+    cfgDirty = true; lastCfgTouchMs = millis();
   }
   else if (type == "buttons") {
     JSONVar list = obj["list"];
     for (int i=0;i<4 && i<list.length();i++) {
-      int a = (int)list[i]["action"];
-      if (a < 0) a = 0; if (a > 8) a = 8;  // 7/8 for override
+      int a = (int)list[i]["action"]; if (a < 0) a = 0; if (a > 8) a = 8;
       buttonCfg[i].action = (uint8_t)a;
     }
     WebSerial.send("message", "Buttons configuration updated");
     WebSerial.send("ButtonConfigList", ButtonConfigListFromCfg());
-    changed = true;
+    cfgDirty = true; lastCfgTouchMs = millis();
   }
   else {
     WebSerial.send("message", String("Unknown Config type: ") + t);
   }
-
-  if (changed) { cfgDirty = true; lastCfgTouchMs = millis(); }
 }
 
 // --- Direct relay control via WebSerial ---
 void handleRelaysSet(JSONVar v){
   bool changed=false;
-
-  // In ALARM mode, ignore external direct writes for that relay
   auto canWrite = [&](int idx)->bool{
-    // also block writes when in button override
     return (relay_mode[idx] != RM_ALARM) && !buttonOverrideMode[idx];
   };
-
   if (v.hasOwnProperty("list") && v["list"].length() >= 2) {
     bool r0 = (bool)v["list"][0];
     bool r1 = (bool)v["list"][1];
@@ -968,7 +1015,6 @@ void handleRelaysSet(JSONVar v){
   } else {
     WebSerial.send("message","RelaysSet: no-op (bad payload)");
   }
-
   if (changed) {
     mb.Coil(COIL_RLY1, relayState[0]);
     mb.Coil(COIL_RLY2, relayState[1]);
@@ -976,19 +1022,14 @@ void handleRelaysSet(JSONVar v){
     WebSerial.send("message","Relays updated");
   }
 }
-
-// Configure relay polarity & power-on defaults (persisted) + modes/alarm sources
 void handleRelaysCfg(JSONVar v){
   bool touched=false;
-
   if (v.hasOwnProperty("active_low")) {
     relay_active_low = (uint8_t)constrain((int)v["active_low"],0,1);
     touched=true;
   }
   if (v.hasOwnProperty("def0")) { relay_default[0] = (bool)v["def0"]; touched=true; }
   if (v.hasOwnProperty("def1")) { relay_default[1] = (bool)v["def1"]; touched=true; }
-
-  // Modes
   if (v.hasOwnProperty("mode") && v["mode"].length() >= 2) {
     for (int i=0;i<2;i++){
       int m = (int)v["mode"][i];
@@ -997,8 +1038,6 @@ void handleRelaysCfg(JSONVar v){
     }
     touched=true;
   }
-
-  // Alarm source
   if (v.hasOwnProperty("alarm") && v["alarm"].length() >= 2) {
     for (int i=0;i<2;i++){
       JSONVar a = v["alarm"][i];
@@ -1018,22 +1057,16 @@ void handleRelaysCfg(JSONVar v){
     }
     touched=true;
   }
-
-  // Re-apply drive polarity
   setRelayPhys(0, relayState[0]);
   setRelayPhys(1, relayState[1]);
-
   if (touched) { cfgDirty = true; lastCfgTouchMs = millis(); }
-
-  WebSerial.send("message","RelaysCfg updated (persist)");
+  WebSerial.send("message","RelaysCfg updated");
   echoRelayState();
 }
 
-// ================ Alarms cfg/ack (WebSerial) ================
+// =============== Alarms cfg/ack (WebSerial) ===============
 void handleAlarmsCfg(JSONVar cfgArr){
-  // Accept wrong-shape (per-channel) sent to "AlarmsCfg"
   if (cfgArr.hasOwnProperty("ch") || cfgArr.hasOwnProperty("cfg")) {
-    // forward to per-channel handler
     JSONVar v = cfgArr;
     if (!v.hasOwnProperty("ch")) return;
     int ch = constrain((int)v["ch"], 0, CH_COUNT-1);
@@ -1052,7 +1085,6 @@ void handleAlarmsCfg(JSONVar cfgArr){
         g_alarmCfg[ch].rule[k].metric=(uint8_t)m; changed=true;
       }
     }
-    // Echo back only this channel
     JSONVar chO; chO["ack"]=g_alarmCfg[ch].ackRequired;
     for (int k=0;k<AK_COUNT;++k){
       JSONVar rr; rr["enabled"]=g_alarmCfg[ch].rule[k].enabled;
@@ -1099,10 +1131,8 @@ void handleAlarmsCfg(JSONVar cfgArr){
     WebSerial.send("message","AlarmsCfg: no changes");
   }
 }
-
 void handleAlarmsAck(JSONVar v){
   bool any = false;
-
   if (v.hasOwnProperty("ch")) {
     int _ch = constrain((int)v["ch"], 0, CH_COUNT-1);
     alarms_ack_channel((uint8_t)_ch);
@@ -1113,53 +1143,101 @@ void handleAlarmsAck(JSONVar v){
       if ((bool)v["list"][ch]) { alarms_ack_channel((uint8_t)ch); any = true; }
     }
   }
-
   if (any) { WebSerial.send("message","Alarms acknowledged"); alarms_publish_state(); }
   else     { WebSerial.send("message","AlarmsAck: no-op"); }
+}
+
+// =============== Calibration cfg (WebSerial) ===============
+void handleCalibCfg(JSONVar payload){
+  bool changed=false;
+  if (String(JSON.typeof(payload)) == "array") {
+    for (int ph=0; ph<3 && ph<payload.length(); ++ph){
+      JSONVar o = payload[ph];
+      set_calib_phase_from_obj(ph, o, changed);
+    }
+  } else if (payload.hasOwnProperty("ph")) {
+    int ph = constrain((int)payload["ph"], 0, 2);
+    if (payload.hasOwnProperty("cfg")) {
+      JSONVar o = payload["cfg"];
+      set_calib_phase_from_obj(ph, o, changed);
+    } else {
+      set_calib_phase_from_obj(ph, payload, changed);
+    }
+  } else {
+    WebSerial.send("message","CalibCfg: no-op (bad payload)");
+    calib_publish_cfg();
+    return;
+  }
+  if (changed) {
+    atm90_write16(CfgRegAccEn, 0x55AA);
+    apply_calibration_to_chip();
+    atm90_write16(CfgRegAccEn, 0x0000);
+    cfgDirty = true; lastCfgTouchMs = millis();
+    if (saveConfigFS()) WebSerial.send("message","CalibCfg saved & applied");
+    else                WebSerial.send("message","ERROR: saving CalibCfg failed");
+  } else {
+    WebSerial.send("message","CalibCfg: no changes");
+  }
+  calib_publish_cfg();
 }
 
 // ================== Cached last meter read (for 1 Hz UI echo) ==================
 static double   g_urms[3] = {0,0,0};
 static double   g_irms[3] = {0,0,0};
-static int32_t  g_p_raw[4] = {0,0,0,0};
-static int32_t  g_q_raw[4] = {0,0,0,0};
-static int32_t  g_s_raw[4] = {0,0,0,0};
+static int32_t  g_p_W[4] = {0,0,0,0};
+static int32_t  g_q_var[4] = {0,0,0,0};
+static int32_t  g_s_VA[4] = {0,0,0,0};
 static int16_t  g_pf_raw[4] = {0,0,0,0};
 static int16_t  g_ang_raw[3] = {0,0,0};
 static uint16_t g_f_x100 = 0;
 static int16_t  g_tempC = 0;
-static uint16_t g_e_ap = 0, g_e_an = 0, g_e_rp = 0, g_e_rn = 0, g_e_s = 0;
+
+// Energies (Wh/varh/VAh) from chip, per-phase + totals (u32 internal)
+static uint32_t g_e_ap_Wh[4]={0,0,0,0}, g_e_an_Wh[4]={0,0,0,0}, g_e_rp_varh[4]={0,0,0,0}, g_e_rn_varh[4]={0,0,0,0}, g_e_s_VAh[4]={0,0,0,0};
 static bool     g_haveMeter = false;
 
-// ================== Meter echo ==================
-void sendMeterEcho(double urms[3], double irms[3],
-                   int32_t p_raw[4], int32_t q_raw[4], int32_t s_raw[4],
-                   int16_t pf_raw[4], int16_t ang_raw[3],
-                   uint16_t f_x100, int16_t tC,
-                   uint16_t e_ap_raw, uint16_t e_an_raw, uint16_t e_rp_raw, uint16_t e_rn_raw, uint16_t e_s_raw)
+// ================== Meter echo (UI only real values) ==================
+void sendMeterEcho()
 {
   JSONVar m;
-  for (int i=0;i<3;i++){ m["Urms"][i]=urms[i]; m["Irms"][i]=irms[i]; }
 
-  for (int i=0;i<3;i++){ m["Praw"][i]=p_raw[i]; m["Qraw"][i]=q_raw[i]; m["Sraw"][i]=s_raw[i]; }
-  m["Ptot_raw"]=p_raw[3]; m["Qtot_raw"]=q_raw[3]; m["Stot_raw"]=s_raw[3];
+  for (int i=0;i<3;i++){ m["Urms"][i]=g_urms[i]; m["Irms"][i]=g_irms[i]; }
 
-  for (int i=0;i<3;i++){ m["PFraw"][i]=pf_raw[i]; m["Ang0p1deg"][i]=ang_raw[i]; }
-  m["PFtot_raw"]=pf_raw[3];
+  JSONVar pW, qVar, sVA;
+  for (int i=0;i<4;i++){ pW[i]=g_p_W[i]; qVar[i]=g_q_var[i]; sVA[i]=g_s_VA[i]; }
+  m["P_W"]=pW; m["Q_var"]=qVar; m["S_VA"]=sVA;
+  m["Ptot_W"]=g_p_W[3]; m["Qtot_var"]=g_q_var[3]; m["Stot_VA"]=g_s_VA[3];
 
-  m["FreqHz"]=f_x100/100.0; m["TempC"]=tC;
+  JSONVar pfR; for(int i=0;i<4;i++) pfR[i] = ((double)g_pf_raw[i])/1000.0;
+  m["PF"]=pfR; m["PFtot"]=((double)g_pf_raw[3])/1000.0;
 
-  m["Eraw"]["AP"]=e_ap_raw; m["Eraw"]["AN"]=e_an_raw; m["Eraw"]["RP"]=e_rp_raw; m["Eraw"]["RN"]=e_rn_raw; m["Eraw"]["S"]=e_s_raw;
+  JSONVar ang; for(int i=0;i<3;i++) ang[i]=((double)g_ang_raw[i])/10.0;
+  m["Angle_deg"]=ang;
 
-  auto e_milli = [](uint16_t raw, uint32_t k_per_cnt_x1e5)->uint32_t{
-    return (uint32_t)(( (uint64_t)raw * (uint64_t)k_per_cnt_x1e5 ) / 100ULL);
-  };
-  m["E"]["AP_mkWh"]= e_milli(e_ap_raw, e_ap_kWh_per_cnt_x1e5);
-  m["E"]["AN_mkWh"]= e_milli(e_an_raw, e_an_kWh_per_cnt_x1e5);
-  m["E"]["RP_mkvarh"]= e_milli(e_rp_raw, e_rp_kvarh_per_cnt_x1e5);
-  m["E"]["RN_mkvarh"]= e_milli(e_rn_raw, e_rn_kvarh_per_cnt_x1e5);
-  m["E"]["S_mkVAh"]= e_milli(e_s_raw, e_s_kVAh_per_cnt_x1e5);
+  m["FreqHz"]=((double)g_f_x100)/100.0; m["TempC"]=(int)g_tempC;
 
+  // Energies: UI shows k-units
+  auto to_k = [](uint32_t Wh)->double{ return Wh/1000.0; };
+  JSONVar E;
+  for (int i=0;i<3;i++){
+    JSONVar ph;
+    ph["AP_kWh"]=to_k(g_e_ap_Wh[i]);
+    ph["AN_kWh"]=to_k(g_e_an_Wh[i]);
+    ph["RP_kvarh"]=to_k(g_e_rp_varh[i]);
+    ph["RN_kvarh"]=to_k(g_e_rn_varh[i]);
+    ph["S_kVAh"]=to_k(g_e_s_VAh[i]);
+    E[i]=ph;
+  }
+  JSONVar tot;
+  tot["AP_kWh"]=to_k(g_e_ap_Wh[3]);
+  tot["AN_kWh"]=to_k(g_e_an_Wh[3]);
+  tot["RP_kvarh"]=to_k(g_e_rp_varh[3]);
+  tot["RN_kvarh"]=to_k(g_e_rn_varh[3]);
+  tot["S_kVAh"]=to_k(g_e_s_VAh[3]);
+  E["tot"]=tot;
+  m["E"]=E;
+
+  // Alarms state
   JSONVar st;
   for (int ch=0; ch<CH_COUNT; ++ch) {
     JSONVar chO;
@@ -1190,26 +1268,21 @@ void setup() {
 
   setDefaults();
 
-  // LittleFS
   if (!LittleFS.begin()) { WebSerial.send("message", "LittleFS mount failed. Formatting…"); LittleFS.format(); LittleFS.begin(); }
   if (loadConfigFS()) WebSerial.send("message", "Config loaded from flash");
   else { WebSerial.send("message", "No valid config. Using defaults."); saveConfigFS(); }
 
-  // Apply relay defaults
   setRelayPhys(0, relay_default[0]);
   setRelayPhys(1, relay_default[1]);
 
-  // SPI1 + CS
   pinMode(PIN_ATM_CS, OUTPUT); csRelease();
   MCM_SPI.setSCK(PIN_SPI_SCK);
   MCM_SPI.setTX(PIN_SPI_MOSI);
   MCM_SPI.setRX(PIN_SPI_MISO);
   MCM_SPI.begin();
 
-  // Meter init
   atm90_init();
 
-  // Modbus RTU
   Serial2.setTX(TX2); Serial2.setRX(RX2);
   Serial2.begin(g_mb_baud);
   mb.config(g_mb_baud);
@@ -1219,12 +1292,9 @@ void setup() {
   for (uint16_t i=0;i<3;i++) mb.addIreg(IREG_URMS_BASE + i);
   for (uint16_t i=0;i<3;i++) mb.addIreg(IREG_IRMS_BASE + i);
 
-  for (uint16_t i=0;i<6;i++) mb.addIreg(IREG_P_BASE + i);
-  for (uint16_t i=0;i<6;i++) mb.addIreg(IREG_Q_BASE + i);
-  for (uint16_t i=0;i<6;i++) mb.addIreg(IREG_S_BASE + i);
-  for (uint16_t i=0;i<2;i++) mb.addIreg(IREG_PTOT + i);
-  for (uint16_t i=0;i<2;i++) mb.addIreg(IREG_QTOT + i);
-  for (uint16_t i=0;i<2;i++) mb.addIreg(IREG_STOT + i);
+  for (uint16_t i=0;i<8;i++) mb.addIreg(IREG_P_BASE + i);
+  for (uint16_t i=0;i<8;i++) mb.addIreg(IREG_Q_BASE + i);
+  for (uint16_t i=0;i<8;i++) mb.addIreg(IREG_S_BASE + i);
 
   for (uint16_t i=0;i<3;i++) mb.addIreg(IREG_PF_BASE + i);
   mb.addIreg(IREG_PF_TOT);
@@ -1233,9 +1303,10 @@ void setup() {
   mb.addIreg(IREG_FREQ_X100);
   mb.addIreg(IREG_TEMP_C);
 
-  for (uint16_t i=0;i<5;i++) mb.addIreg(IREG_E_AP_RAW + i);
-  for (uint16_t i=0;i<10;i++) mb.addIreg(IREG_E_AP_MILLI + i);
+  // Energies per-phase + totals: 20 pairs = 40 regs
+  for (uint16_t r=IREG_E_AP_A_Wh; r<=IREG_E_S_T_VAh+1; ++r) mb.addIreg(r);
 
+  // Diagnostics
   mb.addIreg(IREG_EMM0); mb.addIreg(IREG_EMM1); mb.addIreg(IREG_INT0); mb.addIreg(IREG_INT1);
   mb.addIreg(IREG_CRCERR); mb.addIreg(IREG_LASTSPI);
 
@@ -1245,42 +1316,29 @@ void setup() {
   mb.addHreg(HREG_SUMMODE);  mb.Hreg(HREG_SUMMODE,  atm_sumModeAbs);
   mb.addHreg(HREG_UCAL);     mb.Hreg(HREG_UCAL,     atm_ucal);
 
-  auto setU32 = [&](uint16_t regL, uint32_t v){ mb.addHreg(regL); mb.addHreg(regL+1); mb.Hreg(regL, (uint16_t)(v & 0xFFFF)); mb.Hreg(regL+1, (uint16_t)(v>>16)); };
-  setU32(HREG_P_SCALE_mW_L,    p_scale_mW_per_lsb);
-  setU32(HREG_Q_SCALE_X1k_L,   q_scale_mvar_per_lsb_x1000);
-  setU32(HREG_S_SCALE_X1k_L,   s_scale_mva_per_lsb_x1000);
-  setU32(HREG_E_AP_kWh_x1e5_L, e_ap_kWh_per_cnt_x1e5);
-  setU32(HREG_E_AN_kWh_x1e5_L, e_an_kWh_per_cnt_x1e5);
-  setU32(HREG_E_RP_kvarh_x1e5_L, e_rp_kvarh_per_cnt_x1e5);
-  setU32(HREG_E_RN_kvarh_x1e5_L, e_rn_kvarh_per_cnt_x1e5);
-  setU32(HREG_E_S_kVAh_x1e5_L,  e_s_kVAh_per_cnt_x1e5);
-
   // ---- Discrete & Coils ----
   for (uint16_t i=0;i<4;i++) mb.addIsts(ISTS_LED_BASE + i);
   for (uint16_t i=0;i<4;i++) mb.addIsts(ISTS_BTN_BASE + i);
   for (uint16_t i=0;i<2;i++) mb.addIsts(ISTS_RLY_BASE + i);
-
   for (uint16_t i=0;i<CH_COUNT*AK_COUNT;i++) mb.addIsts(ISTS_ALARM_BASE + i);
 
   mb.addCoil(COIL_RLY1); mb.Coil(COIL_RLY1, relayState[0]);
   mb.addCoil(COIL_RLY2); mb.Coil(COIL_RLY2, relayState[1]);
-
   for (uint16_t i=0;i<CH_COUNT;i++){ mb.addCoil(COIL_ALARM_ACK_BASE + i); mb.Coil(COIL_ALARM_ACK_BASE + i, 0); }
 
-  // WebSerial handlers (config/control)
+  // WebSerial handlers
   WebSerial.on("values",     handleValues);
   WebSerial.on("Config",     handleUnifiedConfig);
   WebSerial.on("RelaysSet",  handleRelaysSet);
   WebSerial.on("RelaysCfg",  handleRelaysCfg);
   WebSerial.on("AlarmsCfg",  handleAlarmsCfg);
   WebSerial.on("AlarmsAck",  handleAlarmsAck);
+  WebSerial.on("CalibCfg",   handleCalibCfg);
 
-  WebSerial.send("message", "Boot OK (ENM-223-R1, 1 Hz UI config+meter echo)");
+  WebSerial.send("message", "Boot OK (ENM-223-R1, real-values UI + scaled-int Modbus + per-phase energy)");
 }
 
-// ================== HREG write watcher ==================
-static uint32_t readU32H(uint16_t regL){ return ((uint32_t)mb.Hreg(regL+1)<<16) | mb.Hreg(regL); }
-
+// ================== HREG write watcher (minimal; no scales) ==================
 void serviceHregWrites() {
   static uint16_t prevSm = 0xFFFF, prevLf = 0xFFFF, prevSu = 0xFFFF, prevUc = 0xFFFF;
   uint16_t sm = mb.Hreg(HREG_SMPLL_MS);
@@ -1292,23 +1350,12 @@ void serviceHregWrites() {
   if (sm != prevSm) { prevSm=sm; sample_ms = constrain((int)sm, 10, 5000); cfgDirty=true; lastCfgTouchMs=millis(); }
   if (lf != prevLf) { prevLf=lf; atm_lineFreqHz = (uint16_t)((lf==60)?60:50); reinit=true; }
   if (su != prevSu) { prevSu=su; atm_sumModeAbs = (uint8_t)((su)?1:0); reinit=true; }
-  if (uc != prevUc) { prevUc=uc; atm_ucal = uc; reinit=true; }
-
-  p_scale_mW_per_lsb            = readU32H(HREG_P_SCALE_mW_L);
-  q_scale_mvar_per_lsb_x1000    = readU32H(HREG_Q_SCALE_X1k_L);
-  s_scale_mva_per_lsb_x1000     = readU32H(HREG_S_SCALE_X1k_L);
-  e_ap_kWh_per_cnt_x1e5         = readU32H(HREG_E_AP_kWh_x1e5_L);
-  e_an_kWh_per_cnt_x1e5         = readU32H(HREG_E_AN_kWh_x1e5_L);
-  e_rp_kvarh_per_cnt_x1e5       = readU32H(HREG_E_RP_kvarh_x1e5_L);
-  e_rn_kvarh_per_cnt_x1e5       = readU32H(HREG_E_RN_kvarh_x1e5_L);
-  e_s_kVAh_per_cnt_x1e5         = readU32H(HREG_E_S_kVAh_x1e5_L);
+  if (uc != prevUc) { prevUc=uc; atm_ucal = uc; }
 
   if (reinit) { atm90_init(); cfgDirty=true; lastCfgTouchMs=millis(); }
 }
 
 // ================== Button actions ==================
-// Actions: 0 None | 1 Toggle Relay1 | 2 Toggle Relay2 | 3..6 Toggle LED0..3
-// NEW: 7=Override R1 (hold=enter/exit, short=toggle if in override), 8=Override R2
 void doButtonAction(uint8_t idx) {
   uint8_t act = buttonCfg[idx].action;
   switch (act) {
@@ -1320,7 +1367,7 @@ void doButtonAction(uint8_t idx) {
   }
 }
 
-// ================== LED source evaluation ==================
+// ================== LED source ==================
 bool evalLedSource(uint8_t src) {
   auto anyKinds = [&](uint8_t ch)->bool {
     if (ch >= CH_COUNT) return false;
@@ -1332,13 +1379,10 @@ bool evalLedSource(uint8_t src) {
     if (ch >= CH_COUNT || kind >= AK_COUNT) return false;
     return g_alarmRt[ch][kind].active;
   };
-
   switch (src) {
-    case 0:  return false;                 // None
-    case 8:  return buttonOverrideMode[0]; // Override R1
-    case 9:  return buttonOverrideMode[1]; // Override R2
-
-    // Alarm/Warning/Event for L1..L3,Tot
+    case 0:  return false;
+    case 8:  return buttonOverrideMode[0];
+    case 9:  return buttonOverrideMode[1];
     case 10: return alarmKind(CH_L1, AK_ALARM);
     case 11: return alarmKind(CH_L2, AK_ALARM);
     case 12: return alarmKind(CH_L3, AK_ALARM);
@@ -1351,13 +1395,10 @@ bool evalLedSource(uint8_t src) {
     case 19: return alarmKind(CH_L2, AK_EVENT);
     case 20: return alarmKind(CH_L3, AK_EVENT);
     case 21: return alarmKind(CH_TOT,AK_EVENT);
-
-    // Any(A|W|E)
     case 22: return anyKinds(CH_L1);
     case 23: return anyKinds(CH_L2);
     case 24: return anyKinds(CH_L3);
     case 25: return anyKinds(CH_TOT);
-
     default: return false;
   }
 }
@@ -1377,31 +1418,18 @@ void loop() {
   mb.task();
   serviceHregWrites();
 
-  // ===== Buttons (debounce + long/short + override logic) =====
+  // ===== Buttons (debounce + basic actions) =====
   for (int i = 0; i < 4; i++) {
     const bool pressed = readPressed(i);
     if (pressed != buttonState[i] && (now - btnChangeAt[i] >= BTN_DEBOUNCE_MS)) {
       btnChangeAt[i] = now; buttonPrev[i]  = buttonState[i]; buttonState[i] = pressed;
-
       const uint8_t act = buttonCfg[i].action;
-
-      // Edge: press
-      if (!buttonPrev[i] && buttonState[i]) {
-        btnPressAt[i] = now;
-        btnLongDone[i] = false;
-      }
-
-      // Edge: release => potential short-press
+      if (!buttonPrev[i] && buttonState[i]) { btnPressAt[i] = now; btnLongDone[i] = false; }
       if (buttonPrev[i] && !buttonState[i]) {
         if (!btnLongDone[i]) {
           if (act == 7 || act == 8) {
             const int r = (act == 7) ? 0 : 1;
-            if (buttonOverrideMode[r]) {
-              // toggle while in override
-              buttonOverrideState[r] = !buttonOverrideState[r];
-            } else {
-              // not in override -> ignore short press
-            }
+            if (buttonOverrideMode[r]) { buttonOverrideState[r] = !buttonOverrideState[r]; }
           } else {
             doButtonAction(i);
             echoRelayState();
@@ -1409,47 +1437,29 @@ void loop() {
         }
       }
     }
-
-    // Long hold detection
     if (buttonState[i] && !btnLongDone[i] && (now - btnPressAt[i] >= BTN_LONG_MS)) {
       const uint8_t act = buttonCfg[i].action;
       if (act == 7 || act == 8) {
         const int r = (act == 7) ? 0 : 1;
-        if (!buttonOverrideMode[r]) {
-          // ENTER override: seed from current logical state
-          buttonOverrideMode[r]  = true;
-          buttonOverrideState[r] = relayState[r];
-        } else {
-          // EXIT override: return to normal control; mirror coil so SCADA reflects current
-          buttonOverrideMode[r]  = false;
-          if (r == 0) mb.Coil(COIL_RLY1, relayState[0]);
-          else        mb.Coil(COIL_RLY2, relayState[1]);
-        }
+        if (!buttonOverrideMode[r]) { buttonOverrideMode[r]  = true; buttonOverrideState[r] = relayState[r]; }
+        else { buttonOverrideMode[r]  = false; if (r == 0) mb.Coil(COIL_RLY1, relayState[0]); else mb.Coil(COIL_RLY2, relayState[1]); }
       }
-      btnLongDone[i] = true; // latch until release
+      btnLongDone[i] = true;
     }
-
     mb.setIsts(ISTS_BTN_BASE + i, buttonState[i]);
   }
 
   // ===== Modbus coils control =====
   auto canExternalWrite = [&](int idx)->bool{
-    // Allow external (Modbus coil) writes only if in MODBUS mode and NOT in override
     return (relay_mode[idx] == RM_MODBUS) && !buttonOverrideMode[idx];
   };
-
   if (canExternalWrite(0)) {
     if (mb.Coil(COIL_RLY1) != relayState[0]) setRelayPhys(0, mb.Coil(COIL_RLY1));
-  } else {
-    if (mb.Coil(COIL_RLY1) != relayState[0]) mb.Coil(COIL_RLY1, relayState[0]);
-  }
+  } else { if (mb.Coil(COIL_RLY1) != relayState[0]) mb.Coil(COIL_RLY1, relayState[0]); }
   if (canExternalWrite(1)) {
     if (mb.Coil(COIL_RLY2) != relayState[1]) setRelayPhys(1, mb.Coil(COIL_RLY2));
-  } else {
-    if (mb.Coil(COIL_RLY2) != relayState[1]) mb.Coil(COIL_RLY2, relayState[1]);
-  }
+  } else { if (mb.Coil(COIL_RLY2) != relayState[1]) mb.Coil(COIL_RLY2, relayState[1]); }
 
-  // Alarm ACK coils (edge)
   for (uint16_t ch=0; ch<CH_COUNT; ++ch) {
     uint16_t coil = COIL_ALARM_ACK_BASE + ch;
     if (mb.Coil(coil)) { alarms_ack_channel((uint8_t)ch); mb.Coil(coil, 0); }
@@ -1464,7 +1474,6 @@ void loop() {
     urms[0] = read_rms_like(UrmsA, UrmsALSB, 0.01, 0.01/256.0);
     urms[1] = read_rms_like(UrmsB, UrmsBLSB, 0.01, 0.01/256.0);
     urms[2] = read_rms_like(UrmsC, UrmsCLSB, 0.01, 0.01/256.0);
-
     double irms[3];
     irms[0] = read_rms_like(IrmsA, IrmsALSB, 0.001, 0.001/256.0);
     irms[1] = read_rms_like(IrmsB, IrmsBLSB, 0.001, 0.001/256.0);
@@ -1475,84 +1484,124 @@ void loop() {
     for (int i=0;i<3;i++) mb.Ireg(IREG_URMS_BASE + i, clampU(urms[i]));
     for (int i=0;i<3;i++) mb.Ireg(IREG_IRMS_BASE + i, clampI(irms[i]));
 
-    // ---- Powers RAW ----
-    int32_t p_raw[4], q_raw[4], s_raw[4];
-    p_raw[0]=read_power32(PmeanA, PmeanALSB); p_raw[1]=read_power32(PmeanB, PmeanBLSB); p_raw[2]=read_power32(PmeanC, PmeanCLSB);
-    q_raw[0]=read_power32(QmeanA, QmeanALSB); q_raw[1]=read_power32(QmeanB, QmeanBLSB); q_raw[2]=read_power32(QmeanC, QmeanCLSB);
-    s_raw[0]=read_power32(SmeanA, SmeanALSB); s_raw[1]=read_power32(SmeanB, SmeanBLSB); s_raw[2]=read_power32(SmeanC, SmeanCLSB);
-    p_raw[3]=read_power32(PmeanT, PmeanTLSB);
-    q_raw[3]=read_power32(QmeanT, QmeanTLSB);
-    s_raw[3]=read_power32(SmeanT, SAmeanTLSB);
+    // ---- Powers (scaled to real W/var/VA) into s32 pairs ----
+// ---- PF & Angles (read first) ----
+g_pf_raw[0]=(int16_t)atm90_read16(PFmeanA);
+g_pf_raw[1]=(int16_t)atm90_read16(PFmeanB);
+g_pf_raw[2]=(int16_t)atm90_read16(PFmeanC);
+g_pf_raw[3]=(int16_t)atm90_read16(PFmeanT);
+for (int i=0;i<3;i++) mb.Ireg(IREG_PF_BASE + i, (uint16_t)g_pf_raw[i]);
+mb.Ireg(IREG_PF_TOT, (uint16_t)g_pf_raw[3]);
 
-    auto put_s32 = [&](uint16_t base, int32_t v){
-      mb.Ireg(base+0, (uint16_t)((v>>16)&0xFFFF));
-      mb.Ireg(base+1, (uint16_t)(v & 0xFFFF));
-    };
-    put_s32(IREG_P_BASE+0, p_raw[0]); put_s32(IREG_P_BASE+2, p_raw[1]); put_s32(IREG_P_BASE+4, p_raw[2]);
-    put_s32(IREG_Q_BASE+0, q_raw[0]); put_s32(IREG_Q_BASE+2, q_raw[1]); put_s32(IREG_Q_BASE+4, q_raw[2]);
-    put_s32(IREG_S_BASE+0, s_raw[0]); put_s32(IREG_S_BASE+2, s_raw[1]); put_s32(IREG_S_BASE+4, s_raw[2]);
-    put_s32(IREG_PTOT, p_raw[3]); put_s32(IREG_QTOT, q_raw[3]); put_s32(IREG_STOT, s_raw[3]);
+g_ang_raw[0]=(int16_t)atm90_read16(PAngleA);
+g_ang_raw[1]=(int16_t)atm90_read16(PAngleB);
+g_ang_raw[2]=(int16_t)atm90_read16(PAngleC);
+for (int i=0;i<3;i++) mb.Ireg(IREG_ANGLE_BASE + i, (uint16_t)g_ang_raw[i]);
 
-    // ---- PF & Angles ----
-    int16_t pf_raw[4];
-    pf_raw[0]=(int16_t)atm90_read16(PFmeanA);
-    pf_raw[1]=(int16_t)atm90_read16(PFmeanB);
-    pf_raw[2]=(int16_t)atm90_read16(PFmeanC);
-    pf_raw[3]=(int16_t)atm90_read16(PFmeanT);
-    for (int i=0;i<3;i++) mb.Ireg(IREG_PF_BASE + i, (uint16_t)pf_raw[i]);
-    mb.Ireg(IREG_PF_TOT, (uint16_t)pf_raw[3]);
+// ---- Compute REAL S, P, Q from Urms/Irms/PF/Angle ----
+// PF from chip is ×1000 -> 0..1
+auto pf01 = [](int16_t pf_raw){ return constrain(pf_raw/1000.0, -1.0, 1.0); };
 
-    int16_t ang_raw[3];
-    ang_raw[0]=(int16_t)atm90_read16(PAngleA);
-    ang_raw[1]=(int16_t)atm90_read16(PAngleB);
-    ang_raw[2]=(int16_t)atm90_read16(PAngleC);
-    for (int i=0;i<3;i++) mb.Ireg(IREG_ANGLE_BASE + i, (uint16_t)ang_raw[i]);
+double S_va_d[3], P_w_d[3], Q_var_d[3];
+for (int i=0;i<3;i++) {
+  const double S = urms[i] * irms[i];                 // VA
+  const double PF = pf01(g_pf_raw[i]);                // 0..1 (signed if chip reports sign)
+  const double P  = S * PF;                           // W
+  const double ang_deg = g_ang_raw[i] / 10.0;         // 0.1°
+  const double ang_rad = ang_deg * (M_PI/180.0);
+  const double Qmag = sqrt(fmax(0.0, (S*S) - (P*P))); // var magnitude
+  // sign from angle (flip once here if your site uses opposite reactive sign)
+  const double Q = (sin(ang_rad) >= 0.0) ? Qmag : -Qmag;
+
+  S_va_d[i] = S; P_w_d[i] = P; Q_var_d[i] = Q;
+}
+
+// Totals
+double S_tot_d = S_va_d[0] + S_va_d[1] + S_va_d[2];
+double P_tot_d = P_w_d[0]  + P_w_d[1]  + P_w_d[2];
+double Q_tot_d = Q_var_d[0]+ Q_var_d[1]+ Q_var_d[2];
+
+// ---- Publish P/Q/S as scaled integers over Modbus (s32, whole units) ----
+auto put_s32 = [&](uint16_t base, int32_t v){
+  mb.Ireg(base+0, (uint16_t)((v>>16)&0xFFFF));
+  mb.Ireg(base+1, (uint16_t)(v & 0xFFFF));
+};
+
+g_p_W[0] = (int32_t)lround(P_w_d[0]);
+g_p_W[1] = (int32_t)lround(P_w_d[1]);
+g_p_W[2] = (int32_t)lround(P_w_d[2]);
+g_p_W[3] = (int32_t)lround(P_tot_d);
+
+g_q_var[0] = (int32_t)lround(Q_var_d[0]);
+g_q_var[1] = (int32_t)lround(Q_var_d[1]);
+g_q_var[2] = (int32_t)lround(Q_var_d[2]);
+g_q_var[3] = (int32_t)lround(Q_tot_d);
+
+g_s_VA[0] = (int32_t)lround(S_va_d[0]);
+g_s_VA[1] = (int32_t)lround(S_va_d[1]);
+g_s_VA[2] = (int32_t)lround(S_va_d[2]);
+g_s_VA[3] = (int32_t)lround(S_tot_d);
+
+// high‑word first, pairs every +2 regs
+put_s32(IREG_P_BASE+0, g_p_W[0]); put_s32(IREG_P_BASE+2, g_p_W[1]); put_s32(IREG_P_BASE+4, g_p_W[2]); put_s32(IREG_P_BASE+6, g_p_W[3]);
+put_s32(IREG_Q_BASE+0, g_q_var[0]); put_s32(IREG_Q_BASE+2, g_q_var[1]); put_s32(IREG_Q_BASE+4, g_q_var[2]); put_s32(IREG_Q_BASE+6, g_q_var[3]);
+put_s32(IREG_S_BASE+0, g_s_VA[0]); put_s32(IREG_S_BASE+2, g_s_VA[1]); put_s32(IREG_S_BASE+4, g_s_VA[2]); put_s32(IREG_S_BASE+6, g_s_VA[3]);
+
 
     // ---- Freq/Temp ----
     uint16_t fraw = atm90_read16(Freq);
     int16_t  tC   = (int16_t)atm90_read16(Temp);
+    g_f_x100 = fraw; g_tempC = tC;
     mb.Ireg(IREG_FREQ_X100, fraw);
     mb.Ireg(IREG_TEMP_C, (uint16_t)tC);
 
-    // ---- Energies ----
-    uint16_t e_ap = atm90_read16(APenergyT);
-    uint16_t e_an = atm90_read16(ANenergyT);
-    uint16_t e_rp = atm90_read16(RPenergyT);
-    uint16_t e_rn = atm90_read16(RNenergyT);
-    uint16_t e_s  = atm90_read16(SAenergyT);
-    mb.Ireg(IREG_E_AP_RAW, e_ap);
-    mb.Ireg(IREG_E_AN_RAW, e_an);
-    mb.Ireg(IREG_E_RP_RAW, e_rp);
-    mb.Ireg(IREG_E_RN_RAW, e_rn);
-    mb.Ireg(IREG_E_S_RAW,  e_s);
+    // ---- Energies (read from chip, convert to Wh/varh/VAh for Modbus u32; UI shows k-units) ----
+    // Helper: convert chip raw count -> Wh (or varh/VAh) using k-units per count scale (in 1e-5)
+    auto cnt_to_Wh    = [&](uint16_t cnt)->uint32_t{ double kWh = ((double)cnt * (double)e_ap_kWh_per_cnt_x1e5)/100000.0; return (uint32_t)lround(kWh*1000.0); };
+    auto cnt_to_Wh_AN = [&](uint16_t cnt)->uint32_t{ double kWh = ((double)cnt * (double)e_an_kWh_per_cnt_x1e5)/100000.0; return (uint32_t)lround(kWh*1000.0); };
+    auto cnt_to_varhP = [&](uint16_t cnt)->uint32_t{ double kvarh = ((double)cnt * (double)e_rp_kvarh_per_cnt_x1e5)/100000.0; return (uint32_t)lround(kvarh*1000.0); };
+    auto cnt_to_varhN = [&](uint16_t cnt)->uint32_t{ double kvarh = ((double)cnt * (double)e_rn_kvarh_per_cnt_x1e5)/100000.0; return (uint32_t)lround(kvarh*1000.0); };
+    auto cnt_to_VAh   = [&](uint16_t cnt)->uint32_t{ double kVAh = ((double)cnt * (double)e_s_kVAh_per_cnt_x1e5 )/100000.0; return (uint32_t)lround(kVAh*1000.0); };
 
-    auto e_milli = [](uint16_t raw, uint32_t k_per_cnt_x1e5)->uint32_t{
-      return (uint32_t)(( (uint64_t)raw * (uint64_t)k_per_cnt_x1e5 ) / 100ULL);
-    };
+    uint16_t apA=atm90_read16(APenergyA), apB=atm90_read16(APenergyB), apC=atm90_read16(APenergyC), apT=atm90_read16(APenergyT);
+    uint16_t anA=atm90_read16(ANenergyA), anB=atm90_read16(ANenergyB), anC=atm90_read16(ANenergyC), anT=atm90_read16(ANenergyT);
+    uint16_t rpA=atm90_read16(RPenergyA), rpB=atm90_read16(RPenergyB), rpC=atm90_read16(RPenergyC), rpT=atm90_read16(RPenergyT);
+    uint16_t rnA=atm90_read16(RNenergyA), rnB=atm90_read16(RNenergyB), rnC=atm90_read16(RNenergyC), rnT=atm90_read16(RNenergyT);
+    uint16_t sA =atm90_read16(SAenergyA), sB =atm90_read16(SAenergyB), sC =atm90_read16(SAenergyC), sT =atm90_read16(SAenergyT);
+
+    g_e_ap_Wh[0]=cnt_to_Wh(apA); g_e_ap_Wh[1]=cnt_to_Wh(apB); g_e_ap_Wh[2]=cnt_to_Wh(apC); g_e_ap_Wh[3]=cnt_to_Wh(apT);
+    g_e_an_Wh[0]=cnt_to_Wh_AN(anA); g_e_an_Wh[1]=cnt_to_Wh_AN(anB); g_e_an_Wh[2]=cnt_to_Wh_AN(anC); g_e_an_Wh[3]=cnt_to_Wh_AN(anT);
+    g_e_rp_varh[0]=cnt_to_varhP(rpA); g_e_rp_varh[1]=cnt_to_varhP(rpB); g_e_rp_varh[2]=cnt_to_varhP(rpC); g_e_rp_varh[3]=cnt_to_varhP(rpT);
+    g_e_rn_varh[0]=cnt_to_varhN(rnA); g_e_rn_varh[1]=cnt_to_varhN(rnB); g_e_rn_varh[2]=cnt_to_varhN(rnC); g_e_rn_varh[3]=cnt_to_varhN(rnT);
+    g_e_s_VAh[0]=cnt_to_VAh(sA); g_e_s_VAh[1]=cnt_to_VAh(sB); g_e_s_VAh[2]=cnt_to_VAh(sC); g_e_s_VAh[3]=cnt_to_VAh(sT);
+
     auto put_u32 = [&](uint16_t base, uint32_t v){
       mb.Ireg(base+0, (uint16_t)((v>>16)&0xFFFF));
       mb.Ireg(base+1, (uint16_t)(v & 0xFFFF));
     };
-    put_u32(IREG_E_AP_MILLI, e_milli(e_ap, e_ap_kWh_per_cnt_x1e5));
-    put_u32(IREG_E_AN_MILLI, e_milli(e_an, e_an_kWh_per_cnt_x1e5));
-    put_u32(IREG_E_RP_MILLI, e_milli(e_rp, e_rp_kvarh_per_cnt_x1e5));
-    put_u32(IREG_E_RN_MILLI, e_milli(e_rn, e_rn_kvarh_per_cnt_x1e5));
-    put_u32(IREG_E_S_MILLI,  e_milli(e_s,  e_s_kVAh_per_cnt_x1e5));
+    // AP
+    put_u32(IREG_E_AP_A_Wh, g_e_ap_Wh[0]); put_u32(IREG_E_AP_B_Wh, g_e_ap_Wh[1]); put_u32(IREG_E_AP_C_Wh, g_e_ap_Wh[2]); put_u32(IREG_E_AP_T_Wh, g_e_ap_Wh[3]);
+    // AN
+    put_u32(IREG_E_AN_A_Wh, g_e_an_Wh[0]); put_u32(IREG_E_AN_B_Wh, g_e_an_Wh[1]); put_u32(IREG_E_AN_C_Wh, g_e_an_Wh[2]); put_u32(IREG_E_AN_T_Wh, g_e_an_Wh[3]);
+    // RP
+    put_u32(IREG_E_RP_A_varh, g_e_rp_varh[0]); put_u32(IREG_E_RP_B_varh, g_e_rp_varh[1]); put_u32(IREG_E_RP_C_varh, g_e_rp_varh[2]); put_u32(IREG_E_RP_T_varh, g_e_rp_varh[3]);
+    // RN
+    put_u32(IREG_E_RN_A_varh, g_e_rn_varh[0]); put_u32(IREG_E_RN_B_varh, g_e_rn_varh[1]); put_u32(IREG_E_RN_C_varh, g_e_rn_varh[2]); put_u32(IREG_E_RN_T_varh, g_e_rn_varh[3]);
+    // S
+    put_u32(IREG_E_S_A_VAh, g_e_s_VAh[0]); put_u32(IREG_E_S_B_VAh, g_e_s_VAh[1]); put_u32(IREG_E_S_C_VAh, g_e_s_VAh[2]); put_u32(IREG_E_S_T_VAh, g_e_s_VAh[3]);
 
     // ---- Build metrics snapshot for alarms ----
     MetricsSnapshot ms{};
     for (int i=0;i<3;i++){
-      ms.Urms_cV[i] = (int32_t)lround(urms[i]*100.0);   // 0.01 V
-      ms.Irms_mA[i] = (int32_t)lround(irms[i]*1000.0);  // 0.001 A
+      ms.Urms_cV[i] = (int32_t)lround(urms[i]*100.0);
+      ms.Irms_mA[i] = (int32_t)lround(irms[i]*1000.0);
     }
     for (int i=0;i<4;i++){
-      ms.P_W[i]   = p_raw_to_W(p_raw[i]);
-      ms.Q_var[i] = q_raw_to_var(q_raw[i]);
-      ms.S_VA[i]  = s_raw_to_VA(s_raw[i]);
+      ms.P_W[i]   = g_p_W[i];
+      ms.Q_var[i] = g_q_var[i];
+      ms.S_VA[i]  = g_s_VA[i];
     }
-    ms.Freq_cHz = (int32_t)fraw; // already ×100
-
-    // ---- Alarm evaluation ----
+    ms.Freq_cHz = (int32_t)g_f_x100;
     eval_alarms_with_metrics(ms);
 
     // ---- Relay Alarm-mode evaluation ----
@@ -1563,7 +1612,6 @@ void loop() {
       if (mask & 0b100) any |= g_alarmRt[ch][AK_EVENT].active;
       return any;
     };
-
     if (relay_mode[0] == RM_ALARM && !buttonOverrideMode[0]) {
       bool on0 = alarm_any_selected(relay_alarm_src[0].ch, relay_alarm_src[0].kindsMask);
       if (relayState[0] != on0) setRelayPhys(0, on0);
@@ -1572,21 +1620,10 @@ void loop() {
       bool on1 = alarm_any_selected(relay_alarm_src[1].ch, relay_alarm_src[1].kindsMask);
       if (relayState[1] != on1) setRelayPhys(1, on1);
     }
+    for (int r=0; r<2; ++r) if (buttonOverrideMode[r]) if (relayState[r] != buttonOverrideState[r]) setRelayPhys(r, buttonOverrideState[r]);
 
-    // ---- Button override enforcement (highest priority) ----
-    for (int r=0; r<2; ++r) {
-      if (buttonOverrideMode[r]) {
-        if (relayState[r] != buttonOverrideState[r]) {
-          setRelayPhys(r, buttonOverrideState[r]);
-        }
-      }
-    }
-
-    // Cache latest meter for 1 Hz echo
-    for (int i=0;i<3;i++){ g_urms[i]=urms[i]; g_irms[i]=irms[i]; g_ang_raw[i]=ang_raw[i]; }
-    for (int i=0;i<4;i++){ g_p_raw[i]=p_raw[i]; g_q_raw[i]=q_raw[i]; g_s_raw[i]=s_raw[i]; g_pf_raw[i]=pf_raw[i]; }
-    g_f_x100 = fraw; g_tempC = tC;
-    g_e_ap=e_ap; g_e_an=e_an; g_e_rp=e_rp; g_e_rn=e_rn; g_e_s=e_s;
+    // Cache latest meter
+    for (int i=0;i<3;i++){ g_urms[i]=urms[i]; g_irms[i]=irms[i]; }
     g_haveMeter = true;
   }
 
@@ -1605,35 +1642,17 @@ void loop() {
     lastSend = now;
 
     WebSerial.check();
-
-    // Status (address/baud)
     sendStatusEcho();
 
-    // 1) LED config
     WebSerial.send("LedConfigList", LedConfigListFromCfg());
-
-    // 2) Button config
     WebSerial.send("ButtonConfigList", ButtonConfigListFromCfg());
-
-    // 3) Relay config
     WebSerial.send("RelaysCfg", RelayConfigFromCfg());
-
-    // 4) Meter Options (basic)
     WebSerial.send("MeterOptions", MeterOptionsJSON());
-
-    // 5) Scaling (engineering units)
-    WebSerial.send("Scaling", ScalingJSON());
-
-    // 6) Alarms configuration (L1, L2, L3, Totals)
     alarms_publish_cfg();
+    calib_publish_cfg();
 
-    // 7) Live meter (latest cached sample)
-    if (g_haveMeter) {
-      sendMeterEcho(g_urms, g_irms, g_p_raw, g_q_raw, g_s_raw, g_pf_raw, g_ang_raw,
-                    g_f_x100, g_tempC, g_e_ap, g_e_an, g_e_rp, g_e_rn, g_e_s);
-    }
+    if (g_haveMeter) sendMeterEcho();
 
-    // (Optional extras: live states)
     JSONVar btnState; for(int i=0;i<4;i++) btnState[i]=buttonState[i];
     WebSerial.send("ButtonStateList", btnState);
     WebSerial.send("LedStateList", ledStateList);

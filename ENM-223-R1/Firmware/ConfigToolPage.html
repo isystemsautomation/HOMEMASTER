@@ -21,6 +21,19 @@
     @media (max-width:560px){.al-row .lbl{flex:1 1 100%;order:-1}}
     .lock-badge{font-size:.75rem;color:#0d6efd;margin-left:.35rem;display:none}
     .locked+.lock-badge{display:inline}
+
+    /* Calibration cards */
+    .cal-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem}
+    .cal-card{border:1px solid #ddd;border-radius:8px;background:#fff;padding:1rem}
+    .cal-row{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
+    @media (max-width:1000px){.cal-grid{grid-template-columns:1fr}}
+
+    /* Live cards */
+    .card{border:1px solid #ddd;border-radius:8px;background:#fff;padding:1rem}
+    .kv{display:grid;grid-template-columns:1fr auto;gap:.35rem .75rem;font-size:.95rem}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:1rem}
+    .energy-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem}
+    .muted{color:#666}
   </style>
 
   <div style="text-align:center;margin-bottom:2rem;">
@@ -39,7 +52,7 @@
     <div>
       <label><strong>Baud Rate</strong></label>
       <select id="modbus-baud" class="enm-input">
-        <option>9600</option><option selected="">19200</option><option>38400</option><option>57600</option><option>115200</option>
+        <option>9600</option><option selected>19200</option><option>38400</option><option>57600</option><option>115200</option>
       </select>
     </div>
     <div style="grid-column:span 2;display:flex;justify-content:flex-end;">
@@ -58,17 +71,17 @@
       <div>
         <label><strong>Line Frequency (Hz)</strong></label>
         <select id="opt-lineHz" class="enm-input">
-          <option value="50" selected="">50</option><option value="60">60</option>
+          <option value="50" selected>50</option><option value="60">60</option>
         </select>
       </div>
       <div>
-        <label><strong>Sum Mode</strong> <small style="color:#666;">(0=alg, 1=abs)</small></label>
+        <label><strong>Sum Mode</strong> <small class="muted">(0=alg, 1=abs)</small></label>
         <select id="opt-sumAbs" class="enm-input">
-          <option value="0">0</option><option value="1" selected="">1</option>
+          <option value="0">0</option><option value="1" selected>1</option>
         </select>
       </div>
       <div>
-        <label><strong>Ucal</strong> <small style="color:#666;">(gain)</small></label>
+        <label><strong>Ucal</strong> <small class="muted">(gain)</small></label>
         <input id="opt-ucal" type="number" min="1" max="65535" step="1" value="25256" class="enm-input">
         <small class="lock-badge">editing… press Enter to send</small>
       </div>
@@ -81,16 +94,10 @@
   </section>
 
   <section style="margin-bottom:1.25rem;">
-    <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Scaling (Engineering Units)</h2>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem;">
-      <div><label><strong>P scale</strong> <small style="color:#666;">mW/LSB</small></label><input id="sc-p" type="number" min="0" step="1" value="1" class="enm-input"><small class="lock-badge">editing… press Enter</small></div>
-      <div><label><strong>Q scale</strong> <small style="color:#666;">mvar×1000/LSB</small></label><input id="sc-q" type="number" min="0" step="1" value="1" class="enm-input"><small class="lock-badge">editing… press Enter</small></div>
-      <div><label><strong>S scale</strong> <small style="color:#666;">mVA×1000/LSB</small></label><input id="sc-s" type="number" min="0" step="1" value="1" class="enm-input"><small class="lock-badge">editing… press Enter</small></div>
-      <div><label><strong>AP energy</strong> <small style="color:#666;">kWh×1e5/CNT</small></label><input id="sc-eap" type="number" min="0" step="1" value="1" class="enm-input"><small class="lock-badge">editing… press Enter</small></div>
-      <div><label><strong>AN energy</strong> <small style="color:#666;">kWh×1e5/CNT</small></label><input id="sc-ean" type="number" min="0" step="1" value="1" class="enm-input"><small class="lock-badge">editing… press Enter</small></div>
-      <div><label><strong>RP energy</strong> <small style="color:#666;">kvarh×1e5/CNT</small></label><input id="sc-erp" type="number" min="0" step="1" value="1" class="enm-input"><small class="lock-badge">editing… press Enter</small></div>
-      <div><label><strong>RN energy</strong> <small style="color:#666;">kvarh×1e5/CNT</small></label><input id="sc-ern" type="number" min="0" step="1" value="1" class="enm-input"><small class="lock-badge">editing… press Enter</small></div>
-      <div><label><strong>S energy</strong> <small style="color:#666;">kVAh×1e5/CNT</small></label><input id="sc-es" type="number" min="0" step="1" value="1" class="enm-input"><small class="lock-badge">editing… press Enter</small></div>
+    <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Calibration (Phase A / B / C)</h2>
+    <div id="calib-grid" class="cal-grid"></div>
+    <div class="muted" style="margin-top:.5rem;font-size:.9rem;">
+      Gains and offsets are 16‑bit (0..65535). Press <b>Enter</b> in a field to send. While editing, live refresh is paused for that field.
     </div>
   </section>
 
@@ -107,9 +114,15 @@
     <div id="relays-config"></div>
   </section>
 
-  <section style="margin-bottom:1.25rem;">
+  <section style="margin-bottom:.75rem;">
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Live Meter</h2>
-    <div id="chan-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:1rem;"></div>
+    <div id="chan-grid" class="grid"></div>
+  </section>
+
+  <section style="margin-bottom:1.25rem;">
+    <h3 style="font-size:1.1rem;margin-bottom:.5rem;">Energies</h3>
+    <div id="energy-grid" class="energy-grid"></div>
+    <div class="muted" style="margin-top:.3rem">Chip-sourced counters. Units: kWh / kvarh / kVAh.</div>
   </section>
 
   <section style="margin-bottom:1.25rem;">
@@ -120,19 +133,17 @@
   <section style="margin-bottom:1.25rem;">
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">User LEDs (4)</h2>
     <div id="leds-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
-    <div style="color:#666;margin-top:.5rem;font-size:.9rem;">
+    <div class="muted" style="margin-top:.5rem;font-size:.9rem;">
       Tip: set a LED source to <b>Override R1</b> or <b>Override R2</b> to light when a relay is in button override mode.
     </div>
   </section>
 </section>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
+<script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
 <script>
 (function(){
   /* ===== Helpers ===== */
   const $ = id => document.getElementById(id);
-  const inRange = (n, a, b) => (typeof n === 'number') && n >= a && n <= b;
-
   const LOG_MAX=300, logBuffer=[];
   function appendLog(label,data){
     const el=$("log-content"); if(!el) return;
@@ -143,11 +154,6 @@
     if(logBuffer.length>LOG_MAX) logBuffer.shift();
     el.textContent=logBuffer.join('\n'); el.scrollTop=el.scrollHeight;
   }
-  const unitForMetric=m=>({0:'V',1:'A',2:'W',3:'var',4:'VA',5:'Hz'}[+m]||'');
-  const hintForMetric=m=>({
-    0:'Urms (0.01 V)',1:'Irms (0.001 A)',2:'Active Power P (W)',
-    3:'Reactive Power Q (var)',4:'Apparent Power S (VA)',5:'Frequency (0.01 Hz)'
-  }[+m]||'');
 
   /* ===== Serial connection ===== */
   const connection = SimpleWebSerial.setupSerialConnection({
@@ -158,7 +164,7 @@
   connection.on('close', ()=>appendLog('port','close'));
   connection.on('message', (m)=>appendLog('log', m));
 
-  /* ===== Field lock system (prevents overwrite while editing) ===== */
+  /* ===== Field lock system ===== */
   const locked = new Set();
   function attachLockHandlers(input, key, sendFn){
     if(!input) return;
@@ -166,62 +172,158 @@
     const hint = input.nextElementSibling && input.nextElementSibling.classList.contains('lock-badge') ? input.nextElementSibling : null;
     const lock=()=>{ locked.add(key); input.classList.add('locked'); if(hint) hint.style.display='inline'; };
     const unlock=()=>{ locked.delete(key); input.classList.remove('locked'); if(hint) hint.style.display='none'; };
-
     input.addEventListener('focus', lock);
     input.addEventListener('input', lock);
     input.addEventListener('keydown', (ev)=>{
-      if(ev.key==='Enter'){
-        ev.preventDefault();
-        if(typeof sendFn==='function') sendFn();
-        unlock();
-      } else if(ev.key==='Escape'){
-        ev.preventDefault(); unlock();
-      }
+      if(ev.key==='Enter'){ ev.preventDefault(); if(typeof sendFn==='function') sendFn(); unlock(); }
+      else if(ev.key==='Escape'){ ev.preventDefault(); unlock(); }
     });
   }
   const canApply = (key)=>!locked.has(key);
 
-  /* ===== Populate static selects ===== */
+  /* ===== Populate Modbus address select ===== */
   (function populateAddresses(){
     const sel=$('modbus-address'); if(!sel) return; sel.innerHTML='';
     for(let i=1;i<=255;i++){ const o=document.createElement('option'); o.value=i; o.textContent=i; sel.appendChild(o); }
     sel.value='3';
   })();
 
-  /* ===== Live meter cards ===== */
+  /* ===== Build Live Meter cards (Totals has no U/I) ===== */
   (function buildChannelCards(){
     const grid=$('chan-grid'); if(!grid) return; grid.innerHTML='';
     const labels=['L1','L2','L3','Totals'];
     for(let ch=0; ch<4; ch++){
-      const card=document.createElement('div');
-      card.style="border:1px solid #ddd;border-radius:8px;padding:1rem;background:#fff;";
+      const card=document.createElement('div'); card.className='card';
+      const hdrBadge = ch===3?'<span class="pill">totals</span>':'';
+      const bodyPhase =
+        ` <div>U (V)</div><div id="u${ch}" style="text-align:right">--</div>
+          <div>I (A)</div><div id="i${ch}" style="text-align:right">--</div>
+          <div>P (W)</div><div id="p${ch}" style="text-align:right">--</div>
+          <div>Q (var)</div><div id="q${ch}" style="text-align:right">--</div>
+          <div>S (VA)</div><div id="s${ch}" style="text-align:right">--</div>
+          <div>PF</div><div id="pf${ch}" style="text-align:right">--</div>
+          <div>Angle (°)</div><div id="ang${ch}" style="text-align:right">--</div>`;
+      const bodyTotals =
+        ` <div>P (W)</div><div id="p3" style="text-align:right">--</div>
+          <div>Q (var)</div><div id="q3" style="text-align:right">--</div>
+          <div>S (VA)</div><div id="s3" style="text-align:right">--</div>
+          <div>PF (tot)</div><div id="pft" style="text-align:right">--</div>
+          <div>Freq (Hz)</div><div id="f" style="text-align:right">--</div>
+          <div>Temp (°C)</div><div id="t" style="text-align:right">--</div>`;
       card.innerHTML =
-        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;"><strong>'+labels[ch]+'</strong>'
-      + (ch===3?'<span class="pill">totals</span>':'' ) + '</div>'
-      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.35rem .75rem;font-size:.95rem;">'
-      + '  <div>U (V):</div><div id="u'+ch+'" style="text-align:right">--</div>'
-      + '  <div>I (A):</div><div id="i'+ch+'" style="text-align:right">--</div>'
-      + '  <div>P raw:</div><div id="p'+ch+'" style="text-align:right">--</div>'
-      + '  <div>Q raw:</div><div id="q'+ch+'" style="text-align:right">--</div>'
-      + '  <div>S raw:</div><div id="s'+ch+'" style="text-align:right">--</div>'
-      + (ch<3 ? ('  <div>PF raw:</div><div id="pf'+ch+'" style="text-align:right">--</div>'
-               + '  <div>Angle (0.1°):</div><div id="ang'+ch+'" style="text-align:right">--</div>')
-              : ('  <div>PF tot raw:</div><div id="pft" style="text-align:right">--</div>'
-               + '  <div>Freq (Hz):</div><div id="f" style="text-align:right">--</div>'
-               + '  <div>Temp (°C):</div><div id="t" style="text-align:right">--</div>'))
-      + '</div>';
+        `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;">
+           <strong>${labels[ch]}</strong>${hdrBadge}
+         </div>
+         <div class="kv">
+           ${ch<3 ? bodyPhase : bodyTotals}
+         </div>`;
       grid.appendChild(card);
     }
   })();
+
+  /* ===== Energy cards ===== */
+  (function buildEnergyCards(){
+    const grid=$('energy-grid'); if(!grid) return; grid.innerHTML='';
+    const labels=['Phase A','Phase B','Phase C','Totals'];
+    for(let i=0;i<4;i++){
+      const card=document.createElement('div'); card.className='card';
+      card.innerHTML =
+        `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;">
+          <strong>${labels[i]}</strong>
+        </div>
+        <div class="kv">
+          <div>Active + (kWh)</div><div id="e-ap-${i}" style="text-align:right">--</div>
+          <div>Active − (kWh)</div><div id="e-an-${i}" style="text-align:right">--</div>
+          <div>Reactive + (kvarh)</div><div id="e-rp-${i}" style="text-align:right">--</div>
+          <div>Reactive − (kvarh)</div><div id="e-rn-${i}" style="text-align:right">--</div>
+          <div>Apparent (kVAh)</div><div id="e-s-${i}" style="text-align:right">--</div>
+        </div>`;
+      grid.appendChild(card);
+    }
+  })();
+
+  /* ===== Calibration UI ===== */
+  function buildCalibrationUI(){
+    const grid=$('calib-grid'); if(!grid) return; grid.innerHTML='';
+    const PH=['A','B','C'];
+    for(let ch=0; ch<3; ch++){
+      const card=document.createElement('div'); card.className='cal-card';
+      card.innerHTML =
+        `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;">
+          <strong>Phase ${PH[ch]}</strong>
+        </div>
+        <div class="cal-row">
+          <div>
+            <label><strong>Ugain</strong></label>
+            <input id="cal-ugain-${ch}" class="enm-input" type="number" min="0" max="65535" step="1" placeholder="0..65535">
+            <small class="lock-badge">editing… Enter</small>
+          </div>
+          <div>
+            <label><strong>Igain</strong></label>
+            <input id="cal-igain-${ch}" class="enm-input" type="number" min="0" max="65535" step="1" placeholder="0..65535">
+            <small class="lock-badge">editing… Enter</small>
+          </div>
+        </div>
+        <div class="cal-row" style="margin-top:.5rem">
+          <div>
+            <label><strong>Uoffset</strong></label>
+            <input id="cal-uoff-${ch}" class="enm-input" type="number" min="0" max="65535" step="1" placeholder="0..65535">
+            <small class="lock-badge">editing… Enter</small>
+          </div>
+          <div>
+            <label><strong>Ioffset</strong></label>
+            <input id="cal-ioff-${ch}" class="enm-input" type="number" min="0" max="65535" step="1" placeholder="0..65535">
+            <small class="lock-badge">editing… Enter</small>
+          </div>
+        </div>`;
+      grid.appendChild(card);
+
+      const sendCh=()=>sendCalibCh(ch);
+      attachLockHandlers($('cal-ugain-'+ch), 'cal-ugain-'+ch, sendCh);
+      attachLockHandlers($('cal-igain-'+ch), 'cal-igain-'+ch, sendCh);
+      attachLockHandlers($('cal-uoff-'+ch),  'cal-uoff-'+ch,  sendCh);
+      attachLockHandlers($('cal-ioff-'+ch),  'cal-ioff-'+ch,  sendCh);
+    }
+  }
+  buildCalibrationUI();
+
+  function collectCalibCh(ch){
+    const ug=+$('cal-ugain-'+ch)?.value || 0;
+    const ig=+$('cal-igain-'+ch)?.value || 0;
+    const uo=+$('cal-uoff-'+ch )?.value || 0;
+    const io=+$('cal-ioff-'+ch )?.value || 0;
+    return { Ug: ug, Ig: ig, Uo: uo, Io: io };
+  }
+  function sendCalibCh(ch){
+    const cfg=collectCalibCh(ch);
+    connection.send("CalibCfg",{ ph: ch, cfg });
+    appendLog("CalibCfg",{ ph: ch, cfg });
+  }
+  function applyCalibCh(ch, obj){
+    if(!obj || typeof obj!=='object') return;
+    const Ug = (obj.Ug ?? obj.Ugain);
+    const Ig = (obj.Ig ?? obj.Igain);
+    const Uo = (obj.Uo ?? obj.Uoffset);
+    const Io = (obj.Io ?? obj.Ioffset);
+    if(Ug !== undefined && canApply('cal-ugain-'+ch)) $('cal-ugain-'+ch).value = String(Ug);
+    if(Ig !== undefined && canApply('cal-igain-'+ch)) $('cal-igain-'+ch).value = String(Ig);
+    if(Uo !== undefined && canApply('cal-uoff-'+ch))  $('cal-uoff-'+ch).value  = String(Uo);
+    if(Io !== undefined && canApply('cal-ioff-'+ch))  $('cal-ioff-'+ch).value  = String(Io);
+  }
 
   /* ===== Alarms UI ===== */
   const AK_LABELS=['Alarm','Warning','Event'];
   const CH_LABELS=['L1','L2','L3','Totals'];
   const METRICS=[
-    {v:0,l:'Voltage (Urms)'},{v:1,l:'Current (Irms)'},{v:2,l:'Active power P'},
-    {v:3,l:'Reactive power Q'},{v:4,l:'Total/Apparent power S'},{v:5,l:'Frequency'}
+    {v:0,l:'Voltage (Urms)', hint:'Urms (0.01 V)'},
+    {v:1,l:'Current (Irms)', hint:'Irms (0.001 A)'},
+    {v:2,l:'Active power P', hint:'W'},
+    {v:3,l:'Reactive power Q', hint:'var'},
+    {v:4,l:'Apparent power S', hint:'VA'},
+    {v:5,l:'Frequency', hint:'0.01 Hz'}
   ];
-  const metricOptionsHTML=(sel)=>METRICS.map(m=>'<option value="'+m.v+'" '+(String(sel)==String(m.v)?'selected':'')+'>'+m.l+'</option>').join('');
+  function metricOptionsHTML(sel){ return METRICS.map(m=>`<option value="${m.v}" ${String(sel)==String(m.v)?'selected':''}>${m.l}</option>`).join(''); }
+  function unitForMetric(m){ return ({0:'V',1:'A',2:'W',3:'var',4:'VA',5:'Hz'}[+m]||''); }
 
   function buildAlarmsUI(){
     const grid=$('alarms-grid'); if(!grid) return; grid.innerHTML='';
@@ -229,31 +331,31 @@
       const card=document.createElement('div'); card.className='al-card';
       const rows = AK_LABELS.map((lbl, ak)=>{
         const metricSelId='al-met-'+ch+'-'+ak;
-        return ''+
-          '<div class="al-row">'
-        + '  <div class="lbl">'+lbl+'</div>'
-        + '  <label class="en"><input type="checkbox" id="al-en-'+ch+'-'+ak+'"> <span>Enabled</span></label>'
-        + '  <div class="metric"><select id="'+metricSelId+'" class="enm-input">'+metricOptionsHTML(4)+'</select></div>'
-        + '  <div class="min"><input id="al-min-'+ch+'-'+ak+'" type="number" step="1" placeholder="min" class="enm-input"><small class="lock-badge">editing… Enter</small></div>'
-        + '  <div class="max"><input id="al-max-'+ch+'-'+ak+'" type="number" step="1" placeholder="max" class="enm-input"><small class="lock-badge">editing… Enter</small></div>'
-        + '</div>'
-        + '<div id="al-hint-'+ch+'-'+ak+'" class="al-hint"></div>';
+        return `
+          <div class="al-row">
+            <div class="lbl">${lbl}</div>
+            <label class="en"><input type="checkbox" id="al-en-${ch}-${ak}"> <span>Enabled</span></label>
+            <div class="metric"><select id="${metricSelId}" class="enm-input">${metricOptionsHTML(4)}</select></div>
+            <div class="min"><input id="al-min-${ch}-${ak}" type="number" step="1" placeholder="min" class="enm-input"><small class="lock-badge">editing… Enter</small></div>
+            <div class="max"><input id="al-max-${ch}-${ak}" type="number" step="1" placeholder="max" class="enm-input"><small class="lock-badge">editing… Enter</small></div>
+          </div>
+          <div id="al-hint-${ch}-${ak}" class="al-hint"></div>`;
       }).join('');
       card.innerHTML =
-        '<div class="al-top">'
-        + '  <div><strong>'+CH_LABELS[ch]+'</strong></div>'
-        + '  <div style="display:flex;gap:.3rem;align-items:center;">'
-        + '    <span id="al-led-'+ch+'-0" class="al-led" title="Alarm"></span>'
-        + '    <span id="al-led-'+ch+'-1" class="al-led" title="Warning"></span>'
-        + '    <span id="al-led-'+ch+'-2" class="al-led" title="Event"></span>'
-        + '  </div>'
-        + '</div>'
-        + '<label style="display:flex;align-items:center;gap:.4rem;margin-bottom:.5rem;"><input type="checkbox" id="al-ackreq-'+ch+'"> <span> Ack required</span></label>'
-        + '<div style="border-top:1px dashed #ddd;margin:.5rem 0;"></div>'
-        + rows
-        + '<div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:.6rem;">'
-        + '  <button type="button" id="al-ack-'+ch+'" style="padding:6px 10px;background:#198754;border:none;border-radius:6px;color:#fff;">Ack '+CH_LABELS[ch]+'</button>'
-        + '</div>';
+        `<div class="al-top">
+          <div><strong>${CH_LABELS[ch]}</strong></div>
+          <div style="display:flex;gap:.3rem;align-items:center;">
+            <span id="al-led-${ch}-0" class="al-led" title="Alarm"></span>
+            <span id="al-led-${ch}-1" class="al-led" title="Warning"></span>
+            <span id="al-led-${ch}-2" class="al-led" title="Event"></span>
+          </div>
+        </div>
+        <label style="display:flex;align-items:center;gap:.4rem;margin-bottom:.5rem;"><input type="checkbox" id="al-ackreq-${ch}"> <span> Ack required</span></label>
+        <div style="border-top:1px dashed #ddd;margin:.5rem 0;"></div>
+        ${rows}
+        <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:.6rem;">
+          <button type="button" id="al-ack-${ch}" style="padding:6px 10px;background:#198754;border:none;border-radius:6px;color:#fff;">Ack ${CH_LABELS[ch]}</button>
+        </div>`;
       grid.appendChild(card);
     }
 
@@ -262,11 +364,12 @@
       for(let ak=0; ak<3; ak++){
         const s=$('al-met-'+ch+'-'+ak);
         const upd=()=>{
-          const m=s?s.value:4, unit=unitForMetric(m), hint=hintForMetric(m);
+          const m=s?s.value:4, unit=unitForMetric(m);
+          const meta=METRICS.find(x=>String(x.v)==String(m));
           const mn=$('al-min-'+ch+'-'+ak), mx=$('al-max-'+ch+'-'+ak), h=$('al-hint-'+ch+'-'+ak);
           if(mn) mn.placeholder='min '+unit;
           if(mx) mx.placeholder='max '+unit;
-          if(h)  h.textContent='Metric: '+(METRICS.find(x=>String(x.v)==String(m))?.l||'')+' — '+hint+'.';
+          if(h)  h.textContent='Metric: '+(meta?.l||'')+' — '+(meta?.hint||'')+'.';
         };
         if(s){ s.addEventListener('change', ()=>{ sendChannelCfg(ch); }); upd(); }
 
@@ -311,9 +414,12 @@
       if(mx && r.hasOwnProperty('max') && canApply(`al-max-${ch}-${ak}`)) mx.value=r.max;
       if(met && r.hasOwnProperty('metric')) met.value=String(r.metric);
       const s=$('al-met-'+ch+'-'+ak);
-      if(s){ const unit=unitForMetric(s.value), hint=hintForMetric(s.value);
-        const h=$('al-hint-'+ch+'-'+ak); if(h) h.textContent='Metric: '+(METRICS.find(x=>String(x.v)==String(s.value))?.l||'')+' — '+hint+'.';
-        if(mn) mn.placeholder='min '+unit; if(mx) mx.placeholder='max '+unit;
+      if(s){
+        const meta=METRICS.find(x=>String(x.v)==String(s.value));
+        const h=$('al-hint-'+ch+'-'+ak);
+        if(h) h.textContent='Metric: '+(meta?.l||'')+' — '+(meta?.hint||'')+'.';
+        if(mn) mn.placeholder='min '+unitForMetric(s.value);
+        if(mx) mx.placeholder='max '+unitForMetric(s.value);
       }
     }
   }
@@ -356,7 +462,7 @@
       + '<div class="rly-row" style="justify-content:flex-end;margin-top:.5rem;">'
       + '  <button type="button" id="toggle-relay'+i+'" style="padding:6px 10px;background:#0d6efd;border:none;border-radius:6px;color:#fff;">Toggle</button>'
       + '</div>'
-      + '<small style="color:#666;">In <b>Alarm</b> mode the relay follows selected alarm(s). Direct writes may be blocked by firmware.</small>';
+      + '<small class="muted">In <b>Alarm</b> mode the relay follows selected alarm(s). Direct writes may be blocked by firmware.</small>';
       container.appendChild(card);
 
       ((idx)=>{
@@ -401,13 +507,12 @@
     for(let i=1;i<=4;i++){
       const card=document.createElement('div');
       card.innerHTML =
-        '<div style="border:1px solid #ccc;border-radius:6px;background:#cbdcf7;padding:1rem;">'
+        '<div class="card" style="background:#cbdcf7;">'
       + '  <div style="font-weight:600;">Button '+i+'<span id="state-button'+i+'" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;float:right;"></span></div>'
       + '  <label>Action:<select id="action-button'+i+'" class="enm-input">'+options+'</select></label>'
       + '</div>';
       container.appendChild(card);
     }
-    // BUGFIX: loop uses 1..4 and reads ids 1..4 (no off-by-one)
     function sendButtons(){
       const list=[];
       for(let j=1;j<=4;j++){
@@ -439,14 +544,13 @@
     for(let i=1;i<=4;i++){
       const card=document.createElement('div');
       card.innerHTML =
-        '<div style="border:1px solid #ccc;border-radius:6px;background:#f3f5d0;padding:1rem;">'
+        '<div class="card" style="background:#f3f5d0;">'
       + '  <div style="font-weight:600;">User LED '+i+'<span id="state-led'+i+'" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;float:right;"></span></div>'
       + '  <label>Mode:<select id="mode-led'+i+'" class="enm-input">'+modeOpts+'</select></label><br>'
       + '  <label>Source:<select id="source-led'+i+'" class="enm-input">'+srcOpts+'</select></label>'
       + '</div>';
       container.appendChild(card);
     }
-    // BUGFIX: loop uses 1..4 and reads ids 1..4 (no off-by-one)
     const sendLEDs=()=>{
       const list=[];
       for(let j=1;j<=4;j++){
@@ -463,28 +567,17 @@
   }
   buildLEDs();
 
-  /* ===== Meter & Scaling send (Enter-to-send with locks) ===== */
+  /* ===== Meter Options send ===== */
   function sendMeterCfg(partial){
     connection.send("Config",{t:"meter", cfg: partial});
     appendLog("Config.meter", partial);
   }
-  // Meter selects send immediately
   $('opt-lineHz')?.addEventListener('change', ()=>sendMeterCfg({lineHz:+$('opt-lineHz').value}));
   $('opt-sumAbs')?.addEventListener('change', ()=>sendMeterCfg({sumAbs:+$('opt-sumAbs').value}));
-  // Meter numeric with locks
   attachLockHandlers($('opt-ucal'), 'opt-ucal', ()=>sendMeterCfg({ucal:+$('opt-ucal').value}));
   attachLockHandlers($('opt-samplems'), 'opt-samplems', ()=>sendMeterCfg({sample_ms:+$('opt-samplems').value}));
-  // Scaling numeric with locks
-  attachLockHandlers($('sc-p'),   'sc-p',   ()=>sendMeterCfg({p_mW_per_lsb:+$('sc-p').value}));
-  attachLockHandlers($('sc-q'),   'sc-q',   ()=>sendMeterCfg({q_mvar_x1k_per_lsb:+$('sc-q').value}));
-  attachLockHandlers($('sc-s'),   'sc-s',   ()=>sendMeterCfg({s_mva_per_lsb_x1000:+$('sc-s').value}));
-  attachLockHandlers($('sc-eap'), 'sc-eap', ()=>sendMeterCfg({e_ap_kWh_x1e5:+$('sc-eap').value}));
-  attachLockHandlers($('sc-ean'), 'sc-ean', ()=>sendMeterCfg({e_an_kWh_x1e5:+$('sc-ean').value}));
-  attachLockHandlers($('sc-erp'), 'sc-erp', ()=>sendMeterCfg({e_rp_kvarh_per_cnt_x1e5:+$('sc-erp').value}));
-  attachLockHandlers($('sc-ern'), 'sc-ern', ()=>sendMeterCfg({e_rn_kvarh_per_cnt_x1e5:+$('sc-ern').value}));
-  attachLockHandlers($('sc-es'),  'sc-es',  ()=>sendMeterCfg({e_s_kVAh_per_cnt_x1e5:+$('sc-es').value}));
 
-  /* ===== Modbus live send on change ===== */
+  /* ===== Modbus live push on change ===== */
   function pushModbus(){
     const mb_address=parseInt($('modbus-address')?.value||"3",10);
     const mb_baud   =parseInt($('modbus-baud')?.value||"19200",10);
@@ -507,19 +600,27 @@
     if(mo.sample_ms!==undefined && canApply('opt-samplems'))  $('opt-samplems').value=String(mo.sample_ms);
   });
 
-  connection.on('Scaling', function(sc){
-    if(!sc) return;
-    if(sc.p_mW_per_lsb!==undefined && canApply('sc-p')) $('sc-p').value=String(sc.p_mW_per_lsb);
-    if(sc.q_mvar_x1k_per_lsb!==undefined && canApply('sc-q')) $('sc-q').value=String(sc.q_mvar_x1k_per_lsb);
-    const sKey = (sc.s_mva_per_lsb_x1000!==undefined) ? 's_mva_per_lsb_x1000' : 's_mva_x1k_per_lsb';
-    if(sc[sKey]!==undefined && canApply('sc-s')) $('sc-s').value=String(sc[sKey]);
-    if(sc.e_ap_kWh_x1e5!==undefined && canApply('sc-eap')) $('sc-eap').value=String(sc.e_ap_kWh_x1e5);
-    if(sc.e_an_kWh_x1e5!==undefined && canApply('sc-ean')) $('sc-ean').value=String(sc.e_an_kWh_x1e5);
-    if(sc.e_rp_kvarh_per_cnt_x1e5!==undefined && canApply('sc-erp')) $('sc-erp').value=String(sc.e_rp_kvarh_per_cnt_x1e5);
-    if(sc.e_rn_kvarh_per_cnt_x1e5!==undefined && canApply('sc-ern')) $('sc-ern').value=String(sc.e_rn_kvarh_per_cnt_x1e5);
-    if(sc.e_s_kVAh_per_cnt_x1e5!==undefined && canApply('sc-es')) $('sc-es').value=String(sc.e_s_kVAh_per_cnt_x1e5);
+  /* ===== Calibration echo handler ===== */
+  connection.on('CalibCfg', function(payload){
+    try{
+      if(Array.isArray(payload)){
+        for(let ch=0; ch<3 && ch<payload.length; ch++) applyCalibCh(ch, payload[ch]||{});
+      } else if(payload && typeof payload==='object'){
+        if(payload.hasOwnProperty('ph') && payload.hasOwnProperty('cfg')){
+          applyCalibCh(+payload.ph, payload.cfg);
+        } else if(payload.hasOwnProperty('ch') && payload.hasOwnProperty('cfg')){
+          applyCalibCh(+payload.ch, payload.cfg);
+        } else {
+          for(const k in payload){
+            const ch=parseInt(k,10);
+            if(!isNaN(ch)) applyCalibCh(ch, payload[k]);
+          }
+        }
+      }
+    }catch(e){}
   });
 
+  /* ===== Config echoes ===== */
   function applyLedCfg(list){
     if(!Array.isArray(list)) return;
     for(let i=0;i<list.length&&i<4;i++){
@@ -552,15 +653,15 @@
       if(chs[0]) chs[0].value=String(rc.alarm[0].ch);
       if(chs[1]) chs[1].value=String(rc.alarm[1].ch);
       const setMask=(idx,mask)=>{ const al=document.querySelectorAll('.rly-kind-al')[idx],wa=document.querySelectorAll('.rly-kind-wa')[idx],ev=document.querySelectorAll('.rly-kind-ev')[idx]; if(al)al.checked=!!(mask&1); if(wa)wa.checked=!!(mask&2); if(ev)ev.checked=!!(mask&4); };
-      setMask(0, rc.alarm[0].kindsMask!==undefined?rc.alarm[0].kindsMask:(rc.alarm[0].mask|0));
-      setMask(1, rc.alarm[1].kindsMask!==undefined?rc.alarm[1].kindsMask:(rc.alarm[1].mask|0));
+      const m0 = (rc.alarm[0].kindsMask!==undefined)?rc.alarm[0].kindsMask:(rc.alarm[0].mask|0);
+      const m1 = (rc.alarm[1].kindsMask!==undefined)?rc.alarm[1].kindsMask:(rc.alarm[1].mask|0);
+      setMask(0, m0); setMask(1, m1);
     }
     if(rc.relayState){
       const arr=Array.isArray(rc.relayState)?rc.relayState:[rc.relayState[0],rc.relayState[1]];
       for(let r=0;r<2;r++){ const el=$('state-relay'+(r+1)); if(el&&arr[r]!==undefined) el.checked=!!arr[r]; }
     }
   }
-
   connection.on('LedConfigList',   (list)=>{ try{ applyLedCfg(list); }catch(e){} });
   connection.on('ButtonConfigList',(list)=>{ try{ applyButtonCfg(list); }catch(e){} });
   connection.on('RelaysCfg',       (obj)=>{  try{ applyRelaysCfg(obj); }catch(e){} });
@@ -575,34 +676,56 @@
     }catch(e){}
   });
   connection.on('AlarmsState', (state)=>{ try{ updateAlarmsState(state); }catch(e){} });
-
   $('ack-all')?.addEventListener('click', ()=>{ connection.send("AlarmsAck",{list:[true,true,true,true]}); appendLog("AlarmsAck","all"); });
 
+  /* ===== Live Meter handler (REAL VALUES) ===== */
   connection.on('ENM_Meter', function(m){
     try{
-      const Urms=(m&&m.Urms)||[], Irms=(m&&m.Irms)||[], Praw=(m&&m.Praw)||[], Qraw=(m&&m.Qraw)||[], Sraw=(m&&m.Sraw)||[];
-      const PF=(m&&m.PFraw)||[], Ang=(m&&m.Ang0p1deg)||[];
+      const Urms=(m&&m.Urms)||[], Irms=(m&&m.Irms)||[];
+      const PW=(m&&m.P_W)||[], QV=(m&&m.Q_var)||[], SV=(m&&m.S_VA)||[];
+      const PF=(m&&m.PF)||[], Ang=(m&&m.Angle_deg)||[];
+      const FreqHz = m?.FreqHz, TempC = m?.TempC;
+
+      // Per-phase
       for(let i=0;i<3;i++){
-        const uEl=$('u'+i), iEl=$('i'+i), pEl=$('p'+i), qEl=$('q'+i), sEl=$('s'+i), pfEl=$('pf'+i), aEl=$('ang'+i);
-        if(uEl) uEl.textContent=(typeof Urms[i]==='number')?Urms[i].toFixed(2):'--';
-        if(iEl) iEl.textContent=(typeof Irms[i]==='number')?Irms[i].toFixed(3):'--';
-        if(pEl) pEl.textContent=(Praw[i]!==undefined)?Praw[i]:'--';
-        if(qEl) qEl.textContent=(Qraw[i]!==undefined)?Qraw[i]:'--';
-        if(sEl) sEl.textContent=(Sraw[i]!==undefined)?Sraw[i]:'--';
-        if(pfEl)pfEl.textContent=(PF[i]!==undefined)?PF[i]:'--';
-        if(aEl) aEl.textContent=(Ang[i]!==undefined)?Ang[i]:'--';
+        $('u'+i) && ( $('u'+i).textContent = (typeof Urms[i]==='number') ? Urms[i].toFixed(2) : '--' );
+        $('i'+i) && ( $('i'+i).textContent = (typeof Irms[i]==='number') ? Irms[i].toFixed(3) : '--' );
+        $('p'+i) && ( $('p'+i).textContent = (PW[i]!==undefined) ? PW[i] : '--' );
+        $('q'+i) && ( $('q'+i).textContent = (QV[i]!==undefined) ? QV[i] : '--' );
+        $('s'+i) && ( $('s'+i).textContent = (SV[i]!==undefined) ? SV[i] : '--' );
+        $('pf'+i) && ( $('pf'+i).textContent = (typeof PF[i]==='number') ? PF[i].toFixed(3) : '--' );
+        $('ang'+i) && ( $('ang'+i).textContent = (typeof Ang[i]==='number') ? Ang[i].toFixed(1) : '--' );
       }
-      const pt=$('p3'),qt=$('q3'),st=$('s3'),pft=$('pft'),fEl=$('f'),tEl=$('t');
-      if(pt)pt.textContent=(m.Ptot_raw!==undefined)?m.Ptot_raw:'--';
-      if(qt)qt.textContent=(m.Qtot_raw!==undefined)?m.Qtot_raw:'--';
-      if(st)st.textContent=(m.Stot_raw!==undefined)?m.Stot_raw:'--';
-      if(pft)pft.textContent=(m.PFtot_raw!==undefined)?m.PFtot_raw:'--';
-      if(fEl)fEl.textContent=(typeof m.FreqHz==='number')?m.FreqHz.toFixed(2):((m&&m.FreqHz)?m.FreqHz:'--');
-      if(tEl)tEl.textContent=(m.TempC!==undefined)?m.TempC:'--';
+
+      // Totals (no U/I)
+      $('p3') && ( $('p3').textContent = (PW[3]!==undefined) ? PW[3] : '--' );
+      $('q3') && ( $('q3').textContent = (QV[3]!==undefined) ? QV[3] : '--' );
+      $('s3') && ( $('s3').textContent = (SV[3]!==undefined) ? SV[3] : '--' );
+      $('pft') && ( $('pft').textContent = (typeof PF?.[3]==='number') ? PF[3].toFixed(3) : '--' );
+      $('f') && ( $('f').textContent = (typeof FreqHz==='number') ? FreqHz.toFixed(2) : '--' );
+      $('t') && ( $('t').textContent = (TempC!==undefined) ? TempC : '--' );
+
+      // Energies (k-units)
+      const E = m?.E || {};
+      const phases = [0,1,2,'tot'];
+      const ids = [0,1,2,3];
+      for(let k=0;k<phases.length;k++){
+        const src = E[ phases[k] ];
+        const idx = ids[k];
+        if(!src) continue;
+        const set = (id,val,dec=3)=>{ const el=$(id); if(el) el.textContent = (typeof val==='number') ? val.toFixed(dec) : '--'; };
+        set(`e-ap-${idx}`, src.AP_kWh, 3);
+        set(`e-an-${idx}`, src.AN_kWh, 3);
+        set(`e-rp-${idx}`, src.RP_kvarh, 3);
+        set(`e-rn-${idx}`, src.RN_kvarh, 3);
+        set(`e-s-${idx}`,  src.S_kVAh, 3);
+      }
+
       if(m&&m.AlarmsState) updateAlarmsState(m.AlarmsState);
     }catch(e){}
   });
 
+  /* ===== Button/LED/Relay states ===== */
   connection.on('ButtonStateList', function(list){
     if(!list||typeof list.length==='undefined') return;
     for(let i=0;i<list.length&&i<4;i++){ const dot=$('state-button'+(i+1)); if(dot) dot.style.background=list[i]?'#4caf50':'#ccc'; }
@@ -615,5 +738,6 @@
     const arr=(Array.isArray(obj)?obj:[obj[0],obj[1]]);
     for(let i=0;i<2;i++){ const el=$('state-relay'+(i+1)); if(el&&arr&&arr[i]!==undefined) el.checked=!!arr[i]; }
   });
+
 })();
 </script>
