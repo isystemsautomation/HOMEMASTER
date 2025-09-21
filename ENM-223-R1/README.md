@@ -25,7 +25,7 @@ The **ENM‑223‑R1** is a high‑precision, compact metering module designed f
 - [3.2 MicroPLC vs MiniPLC](#32-microplc-vs-miniplc)  
 - [3.3 Integration with Home Assistant](#33-integration-with-home-assistant)  
 - [3.4 Diagrams & Pinouts](#34-diagrams--pinouts)  
-- [3.5 Technical Specifications](#35-technical-specifications)  
+- [3.5 Technical Specifications](#35-technical-specifications-module-internals)  
 
 ### 4. [Getting Started](#4-getting-started)
 - [4.1 What You Need](#41-what-you-need)  
@@ -68,7 +68,7 @@ The **ENM‑223‑R1** is a high‑precision, compact metering module designed f
 
 ### 11. [Diagrams & Pinouts](#11-diagrams--pinouts)  
 ### 12. [Maintenance & Troubleshooting](#12-maintenance--troubleshooting)  
-### 13. [Technical Specifications](#13-technical-specifications)  
+### 13. [Technical Specifications](#13-technical-specifications-electrical--external)  
 ### 14. [Open Source & Licensing](#14-open-source--licensing)  
 ### 15. [Downloads](#15-downloads)  
 ### 16. [Support](#16-support)
@@ -84,7 +84,45 @@ HOMEMASTER provides modular DIN‑rail controllers and I/O modules that intercon
 - **Controllers:** MicroPLC, MiniPLC  
 - **Companion I/O:** DIO, DIM, AIO, ALM series
 
-### 1.3 Use Cases
+#
+---
+
+## 🛠 Quick Start Panel
+
+> For rapid setup and field deployment. Use this section before reading the full manual.
+
+### ✅ Basic Wiring (Single-Phase Example)
+- **L1** → connected to phase conductor  
+- **L2, L3** → tie to **N** (avoids phantom voltages)  
+- **N & PE** → connect to terminal block (ensure proper earth bonding)  
+- **CTs** → split-core, oriented with arrow **toward load**  
+- **Power** → 24 V DC (V+, GND)
+
+### ⚙️ Configuration Defaults
+| Feature         | Default            |
+|----------------|--------------------|
+| Modbus Address | `3`                |
+| Baud Rate      | `19200, 8N1`       |
+| Sample Rate    | `200 ms`           |
+| Frequency      | `50 Hz`            |
+| Sum Mode       | `Absolute (1)`     |
+| USB‑C Config   | Web Serial (Chrome)|
+| Reset Register | Holding `499 = 1`  |
+
+### 🔧 USB‑C Setup (Web Serial)
+1. Connect to PC using **USB‑C cable**
+2. Open `tools/ConfigToolPage.html` in Chrome/Edge
+3. Select correct **serial port**
+4. Confirm live data & perform calibration (if needed)
+
+### 🔍 LED Indicators
+- **PWR** = Power OK  
+- **TX/RX** = RS‑485 activity  
+- **User LEDs** = assignable to alarm/relay states
+
+---
+
+## 1.3 Use Cases
 - Sub‑metering for tenants/circuits  
 - Power monitoring in data centers/industrial panels  
 - Load shedding & demand response (via relays)  
@@ -143,7 +181,7 @@ HOMEMASTER provides modular DIN‑rail controllers and I/O modules that intercon
 #### Hardware Architecture Description
 
 #### MCU Board
-- **Processor:** RP2040 (RP2350A) with onboard QSPI flash (W25Q32)  
+- **Processor:** RP2350 with onboard QSPI flash (W25Q32)  
 - **Interfaces:** USB‑C with ESD protection; RS‑485 via MAX485  
 - **Digital I/Os:** 4× buttons (GPIO22–25), 4× LEDs (GPIO18–21)  
 - **Peripherals:** SPI and I²C routed to FieldBoard; connected to ATM90E32AS and FRAM  
@@ -195,15 +233,15 @@ The ENM‑223‑R1 module is housed in a compact DIN‑rail‑mountable enclosur
 - **Relay status LEDs:** Dual status indicators above buttons for R1 and R2.  
 - **Terminal blocks:**  
   - **Top row:** 24 V DC power input, CT1/2/3 terminals, and voltage inputs (PE, N, L1, L2, L3).  
-  - **Bottom row:** RS‑485 (A/B/COM), relay 1 and 2 outputs (NO/NC/COM), and CT1 input.
+  - **Bottom row:** RS‑485 (A/B/COM) and relay outputs (R1/R2: NO/NC/COM).
 
 This layout enables direct field wiring, interactive diagnostics, and ease of integration into HomeMaster‑based systems.
 
-### 3.5 Technical Specifications
+### 3.5 Technical Specifications (Module internals)
 
 | Parameter       | Value                         |
 |-----------------|-------------------------------|
-| Processor       | RP2040 (RP2350A package)      |
+| Processor       | RP2350      |
 | Metering IC     | ATM90E32AS                    |
 | Voltage Inputs  | 3‑phase, direct connect       |
 | Current Inputs  | External CTs (333 mV or 1 V)  |
@@ -228,6 +266,147 @@ This layout enables direct field wiring, interactive diagnostics, and ease of in
 Connect ENM‑223‑R1 to a MicroPLC/MiniPLC that exposes data to Home Assistant (Modbus/ESPHome). Create automations using real‑time energy metrics and events.
 
 ---
+### 3.4 Diagrams & Pinouts
+
+<div align="center">
+  <table>
+    <tr>
+      <td align="center">
+        <strong>ENM System Diagram</strong><br>
+        <img src="Images/ENM_Diagram.png" alt="ENM System Diagram" width="360">
+      </td>
+      <td align="center">
+        <strong>RP2350 MCU Pinout</strong><br>
+        <img src="Images/ENM_MCU_Pinouts.png" alt="MCU Pinouts" width="360">
+      </td>
+    </tr>
+    <tr>
+      <td align="center">
+        <strong>Field Board Layout</strong><br>
+        <img src="Images/FieldBoard_Diagram.png" alt="Field Board Diagram" width="360">
+      </td>
+      <td align="center">
+        <strong>MCU Board Layout</strong><br>
+        <img src="Images/MCUBoard_Diagram.png" alt="MCU Board Diagram" width="360">
+      </td>
+    </tr>
+  </table>
+</div>
+
+#### Hardware Architecture Description
+
+#### MCU Board
+- **Processor:** RP2350 with onboard QSPI flash (W25Q32)  
+- **Interfaces:** USB‑C with ESD protection; RS‑485 via MAX485  
+- **Digital I/Os:** 4× buttons (GPIO22–25), 4× LEDs (GPIO18–21)  
+- **Peripherals:** SPI and I²C routed to FieldBoard; connected to ATM90E32AS and FRAM  
+- **Other:** SWD debug header; logic‑level signal protection
+
+#### Field Board
+- **Metering IC:** ATM90E32AS (3× voltage, 3× current)  
+- **Current Inputs:** CT terminals IAP/IAN, IBP/IBN, ICP/ICN with burden + anti‑aliasing filters  
+- **Voltage Inputs:** Divider networks on L1/L2/L3 (220 kΩ)  
+- **Isolation:** ISO7761 isolators between MCU and analog domain  
+- **Relays:** 2× SPDT relays (HF115F), opto‑driven (SFH6156), with snubbers  
+- **FRAM:** FM24CL16B (2 kB, I²C)  
+- **Power:** 24 V DC input → 5 V (buck) → 3.3 V (LDO); isolation via B0505S‑1WR3  
+- **Protections:** TVS, PTC, ferrites on all exposed ports
+
+#### Interconnects
+
+| Signal  | Description                             |
+|---------|-----------------------------------------|
+| SPI/I²C | ATM90E32 + FRAM on shared bus           |
+| GPIO    | For LEDs, buttons, relays               |
+| RS‑485  | Half‑duplex with A/B/GND wiring         |
+| CTs & Ux| Metering inputs, isolated               |
+| Terminals | L1/L2/L3, PE/N, V+/GND, CT1/2/3, A/B |
+
+#### Front View of ENM‑223‑R1
+
+<div align="center">
+  <table>
+    <tr>
+      <td align="center">
+        <strong>Front View</strong><br>
+        <img src="Images/photo1.png" alt="Front View ENM Module" width="320">
+      </td>
+      <td align="center">
+        <strong>Angled View (Left)</strong><br>
+        <img src="Images/photo3.png" alt="Angled View ENM Module" width="320">
+      </td>
+    </tr>
+  </table>
+</div>
+
+The ENM‑223‑R1 module is housed in a compact DIN‑rail‑mountable enclosure with clearly labeled terminal blocks and an interactive front interface.
+
+#### 🔍 Key Features Visible
+- **USB‑C port:** Located at the bottom left; used for Web Serial configuration and firmware flashing.  
+- **LED indicators:** PWR, TX, RX — for power and RS‑485 activity.  
+- **Buttons:** Four tactile push‑buttons for relay control, LED override, and user‑defined actions.  
+- **Relay status LEDs:** Dual status indicators above buttons for R1 and R2.  
+- **Terminal blocks:**  
+  - **Top row:** 24 V DC power input, CT1/2/3 terminals, and voltage inputs (PE, N, L1, L2, L3).  
+  - **Bottom row:** RS‑485 (A/B/COM) and relay outputs (R1/R2: NO/NC/COM).
+
+This layout enables direct field wiring, interactive diagnostics, and ease of integration into HomeMaster‑based systems.
+
+### 3.5 Technical Specifications (Module internals)
+
+| Parameter       | Value                         |
+|-----------------|-------------------------------|
+| Processor       | RP2350      |
+| Metering IC     | ATM90E32AS                    |
+| Voltage Inputs  | 3‑phase, direct connect       |
+| Current Inputs  | External CTs (333 mV or 1 V)  |
+| Relay Outputs   | 2× SPDT (NO/NC), 5 A rated    |
+| Communication   | RS‑485 (Modbus RTU), USB‑C    |
+| Buttons         | 4 tactile inputs (GPIO22–25)  |
+| LEDs            | 4 user LEDs (GPIO18–21)       |
+| Storage         | LittleFS on internal flash    |
+| Mounting        | DIN rail or custom enclosure  |
+
+### 3.1 Architecture & Modular Design
+- **Metering IC:** ATM90E32AS (3×U, 3×I)  
+- **Measurements:** Urms/Upeak, Irms/Ipeak, P/Q/S/N, PF, phase angle, frequency (per phase & totals)  
+- **Control:** 2× SPDT relays (NO/NC)  
+- **Indicators:** Status LED(s); CF pulse LED (1000 pulses = 1 kWh)
+
+### 3.2 MicroPLC vs MiniPLC
+- **MicroPLC:** Higher I/O density, RS‑485 master, rule engine — ideal for multi‑module racks.  
+- **MiniPLC:** Compact controller — suitable for smaller panels.
+
+### 3.3 Integration with Home Assistant
+Connect ENM‑223‑R1 to a MicroPLC/MiniPLC that exposes data to Home Assistant (Modbus/ESPHome). Create automations using real‑time energy metrics and events.
+
+---
+
+## 📈 Single-Phase Wiring Example
+
+```text
+  +---------------------------+
+  | ENM-223-R1 (Front View)   |
+  |                           |
+  |  L1 ────────────┐         |
+  |  L2 ───┐        │         |
+  |  L3 ───┘ Tie to N         |
+  |  N  ────────────┐         |
+  |  PE ────────────┘         |
+  |                           |
+  |  CT1 (arrow → load)       |
+  |   ┌────┐                  |
+  |   │    └───────┬────────┐ |
+  |   └────────────┘        │ |
+  |                     LOAD │ |
+  |   V+ / GND (24 V DC)     │ |
+  |   A / B (RS‑485, optional)| |
+  +--------------------------+-+
+```
+
+> For single-phase systems, only L1 is energized. Tie L2 and L3 to N.  
+> Ensure PE is connected for safety and measurement stability.
+
 
 ## 4. Getting Started
 
@@ -385,7 +564,7 @@ Assign a button action **“Override Relay 1 (hold 3 s)”** or **“… Relay
 - **Mode:** `Steady` or `Blink` *(when active)*.  
 - **Source:** Select what drives each LED — override state indicators and alarm sources are available:  
   - `Override R1`, `Override R2`  
-  - `Alarm/Warning/Event` for L1/L2/L3/Totals  
+  - `Alarm/Warning/Event (A/W/E)` for L1/L2/L3/Totals  
   - `Any (A|W|E)` for L1/L2/L3/Totals  
 When the chosen **Source** is active, the LED is ON (or blinks if **Mode = Blink**). You can also toggle LEDs manually via **button actions 3–6**; manual toggles layer on top of source logic.
 
@@ -559,7 +738,7 @@ Reset & Factory Restore: write to holding register `499` with value `1`, or use 
 
 ---
 
-## 13. Technical Specifications
+## 13. Technical Specifications (Electrical & external)
 
 | Parameter        | Value                                |
 |------------------|--------------------------------------|
