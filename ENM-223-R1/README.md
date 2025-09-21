@@ -75,6 +75,8 @@ The **ENM‑223‑R1** is a high‑precision, compact metering module designed f
 ### 15. [Downloads](#15-downloads)  
 ### 16. [Support](#16-support)
 
+### 17. [ESPHome Integration Guide (MicroPLC/MiniPLC + ENM)](#17-esphome-integration-guide-microplcminiplc--enm)
+
 ## 1. Introduction
 
 The **ENM‑223‑R1** is a compact, high‑precision **3‑phase power quality & energy metering module** built around the **ATM90E32AS** metering IC. It integrates neatly with **HOMEMASTER MicroPLC** and **MiniPLC** controllers for real‑time monitoring, automation, and energy optimization.
@@ -761,3 +763,298 @@ If you need help using or configuring the ENM‑223‑R1 module, the following r
 - [YouTube Channel](https://www.youtube.com/channel/UCD_T5wsJrXib3Rd21JPU1dg) – Video tutorials and module demos.  
 - [Reddit Community](https://www.reddit.com/r/HomeMaster) – Questions, help, and user contributions.  
 - [Instagram](https://www.instagram.com/home_master.eu) – Visual updates and product insights.
+
+
+## 17. ESPHome Integration Guide (MicroPLC/MiniPLC + ENM)
+
+This chapter adds a **step‑by‑step manual** to connect a **HomeMaster MicroPLC / MiniPLC** controller to one or more **ENM‑223‑R1** modules over **RS‑485 (Modbus RTU)** using **ESPHome**, and to integrate everything with **Home Assistant**. The examples below are based on the *working configurations* validated during field testing.
+
+### 17.1 Hardware & RS‑485 Wiring
+
+1. **Power**  
+   - ENM‑223‑R1 interface: **24 V DC** to **V+ / GND**.  
+   - MicroPLC/MiniPLC: power as per controller manual.
+
+2. **RS‑485**  
+   - Connect **A ↔ A**, **B ↔ B**. If your wiring is unmarked, verify polarity; reversed A/B causes continuous CRC errors.  
+   - If ENM and PLC use different power supplies, also share **GND** between devices (recommended).  
+   - Terminate the RS‑485 bus at both physical ends (typically **120 Ω**), and enable/ensure biasing resistors on the master side.
+
+3. **CTs & Phase Voltage** — follow the wiring guidance in this README (see Sections **7** and **3.4**) and in the Web Config Tool.  
+   - For single‑phase: energize **L1** only and tie **L2/L3 → N** to avoid phantom voltages.  
+   - CT arrows **→ load**. If **P** is negative, flip the CT or enable **Invert**.
+
+4. **Addressing**  
+   - Each ENM must have a **unique Modbus address** (range 1…247). The examples below use **4** and **5** for two meters.  
+   - Set address and baud via **USB‑C Web Serial Config Tool** (see Section **8.1**). Default baud is **19200 8N1**.
+
+---
+
+### 17.2 ESPHome: MicroPLC/MiniPLC Master (Working Example)
+
+The controller runs ESPHome and acts as a **Modbus master** over RS‑485. Below is a **working configuration** for a MicroPLC that connects to **two ENM‑223‑R1** modules. It fetches the ENM entity definitions **remotely from this repository** using ESPHome **packages** and parameter substitution.
+
+> Save this as your controller’s ESPHome YAML (e.g., `microplc.yaml`).
+
+```yaml
+substitutions:
+  name: "microplc-cb5db4"
+  friendly_name: "Homemaster MicroPLC cb5db4"
+  room: ""
+  device_description: "Homemaster MicroPLC"
+  project_name: "Homemaster.MicroPLC"
+  project_version: "v1.0.0"
+  update_interval: 60s
+  dns_domain: ".local"
+  timezone: ""
+  wifi_fast_connect: "false"
+  log_level: "DEBUG"
+  ipv6_enable: "false"
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+  comment: ${device_description}
+  area: ${room}
+  name_add_mac_suffix: false
+  min_version: 2025.7.0
+  project:
+    name: ${project_name}
+    version: ${project_version}
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+    version: recommended
+
+logger:
+  baud_rate: 115200
+  level: ${log_level}
+
+mdns:
+  disabled: false
+
+api:
+
+ota:
+  - platform: esphome
+
+network:
+  enable_ipv6: ${ipv6_enable}
+
+wifi:
+  ap: {}
+  fast_connect: ${wifi_fast_connect}
+  domain: ${dns_domain}
+
+captive_portal:
+improv_serial:
+
+esp32_improv:
+  authorizer: none
+
+dashboard_import:
+  package_import_url: github://isystemsautomation/HOMEMASTER/MicroPLC/Firmware/microplc.yaml@main
+  import_full_config: true
+
+uart:
+  id: uart_modbus
+  tx_pin: 17
+  rx_pin: 16
+  baud_rate: 19200
+  parity: NONE
+  stop_bits: 1
+
+modbus:
+  id: modbus_bus
+  uart_id: uart_modbus
+
+# --- Pull two ENM packages from GitHub, overriding name/id/address via vars
+packages:
+  enm1:
+    url: https://github.com/isystemsautomation/HOMEMASTER
+    ref: main
+    files:
+      - path: ENM-223-R1/Firmware/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml
+        vars:
+          enm_prefix: "ENM#1"
+          enm_id: enm223_1
+          enm_address: 4
+    refresh: 1d
+  enm2:
+    url: https://github.com/isystemsautomation/HOMEMASTER
+    ref: main
+    files:
+      - path: ENM-223-R1/Firmware/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml
+        vars:
+          enm_prefix: "ENM#2"
+          enm_id: enm223_2
+          enm_address: 5
+    refresh: 1d
+
+time:
+  - platform: pcf8563
+    id: pcf8563_time
+    address: 0x51
+  - platform: homeassistant
+    id: ha_time
+    on_time_sync:
+      then:
+        - pcf8563.write_time
+
+i2c:
+  - id: bus_a
+    sda: 32
+    scl: 33
+    scan: true
+
+one_wire:
+  - platform: gpio
+    pin: GPIO04
+    id: hub_1
+
+switch:
+  - platform: gpio
+    name: "Relay"
+    pin: 26
+    id: relay1
+
+status_led:
+  pin:
+    number: GPIO25
+    inverted: true
+    id: st_led
+```
+
+**What this does**
+- Configures RS‑485 on **TX=17 / RX=16 @ 19200 8N1**.  
+- Loads the ENM entity blocks from GitHub twice with different **variables**:  
+  - `enm_prefix` → prefixes all entity names (e.g., `ENM#1 Urms L1`).  
+  - `enm_id` → unique ID for each Modbus controller inside ESPHome (e.g., `enm223_1`).  
+  - `enm_address` → Modbus slave address (e.g., `4` and `5`).
+
+> 🧩 **ESPHome packages with variables** require recent ESPHome (you’re on 2025.8.0, which supports this).
+
+---
+
+### 17.3 External ENM Package (Parameterizable)
+
+The external YAML referenced above is **parameterized** so it can be reused for any meter instance. It expects three variables: `${enm_id}`, `${enm_address}`, `${enm_prefix}`. A shortened excerpt is shown here (full file lives at `ENM-223-R1/Firmware/default_enm_223_r1_plc/default_enm_223_r1_plc.yaml`).
+
+```yaml
+modbus_controller:
+  - id: ${enm_id}
+    address: ${enm_address}
+    modbus_id: modbus_bus
+    update_interval: 1s
+    command_throttle: 0ms
+
+binary_sensor:
+  - platform: modbus_controller
+    modbus_controller_id: ${enm_id}
+    name: "${enm_prefix} LED1"
+    address: 500
+    register_type: discrete_input
+  # ... LEDs 2–4, Buttons 1–4, Relay state 1–2, Alarms (L1/L2/L3/Total)
+
+switch:
+  - platform: modbus_controller
+    modbus_controller_id: ${enm_id}
+    name: "${enm_prefix} Relay 1"
+    address: 600
+    register_type: coil
+  # ... Relay 2 and ACK coils 610–613 (with auto-off pulse)
+
+number:
+  - platform: modbus_controller
+    modbus_controller_id: ${enm_id}
+    name: "${enm_prefix} Sample Period (ms)"
+    address: 400
+    register_type: holding
+    value_type: U_WORD
+    min_value: 10
+    max_value: 5000
+    step: 10
+    mode: box
+  # ... Line Freq (401), SumModeAbs (402), Ucal (403)
+
+sensor:
+  - platform: modbus_controller
+    modbus_controller_id: ${enm_id}
+    name: "${enm_prefix} Urms L1"
+    address: 100
+    register_type: read        # <‑ use 'read' for Input Registers (FC04)
+    value_type: U_WORD
+    unit_of_measurement: "V"
+    accuracy_decimals: 2
+    filters: [{ multiply: 0.01 }]
+  # ... Irms, PF/Angle, Freq/Temp, P/Q/S, Energies (Wh/varh/VAh)
+```
+
+> ℹ️ In ESPHome’s `modbus_controller` platform, **Input Registers** use `register_type: read` (not `input`). Using `input` will raise the “Unknown value 'input' …” error.
+
+**Naming conflict note** — Apparent **power** (S, in **VA**) and Apparent **energy** (in **VAh**) are distinct. To avoid duplicate names in Home Assistant, the energy entities are named **“VAh Lx/Total”** rather than “S …”.
+
+---
+
+### 17.4 Adding More ENM Modules
+
+Add one `packages` entry **per meter**, each with unique values for:
+- `enm_prefix`: a label prefix (e.g., `ENM#3`)  
+- `enm_id`: unique internal ID (e.g., `enm223_3`)  
+- `enm_address`: the Modbus address on the bus
+
+Keep `update_interval` sensible (e.g., `1s`). With many meters, consider raising it (e.g., `2–5s`) to reduce bus load.
+
+---
+
+### 17.5 Home Assistant Integration
+
+1. **Add the ESPHome device**  
+   - In Home Assistant, go to **Settings → Devices & Services → Integrations**.  
+   - Click **Add Integration** → **ESPHome** → enter the controller’s hostname or IP (e.g., `microplc-cb5db4.local`).
+
+2. **Entities**  
+   - Entities appear under device names “**ENM#1 …**”, “**ENM#2 …**” etc (because of `enm_prefix`).  
+   - Energies (`AP Total`, `AN Total`, `RP/RN Total`, `VAh Total`) carry `device_class: energy` and `state_class: total_increasing` and thus qualify for the **Energy Dashboard**.
+
+3. **Energy Dashboard**  
+   - Go to **Settings → Dashboards → Energy** and add the sensors:  
+     - **Electricity grid → Consumption**: select `ENM#x AP Total` (Wh).  
+     - Optionally add **Return to grid**: `ENM#x AN Total` (export Wh).  
+   - If you prefer kWh, create **template sensors** dividing by 1000 (or configure a unit conversion in HA).
+
+4. **Dashboards & Groups**  
+   - Use **Areas** in HA (assign devices to rooms).  
+   - Create a **tab per meter** with cards like **Gauge** (Urms), **Sensor** (PF), **History Graph** (P/Q/S), **Entities** (relays & alarms).  
+   - For per‑phase groupings, create **Sections** (L1/L2/L3) or use the **Stacked Area** chart for powers.
+
+5. **Automations**  
+   - Example: turn **Relay 1** ON when `ENM#1 P Total` exceeds a threshold for 5 min.  
+   - Acknowledge alarms via service **switch.turn_on** targeting `ENM#x ACK L1/L2/L3/Total` (coils 610–613).
+
+---
+
+### 17.6 Troubleshooting (ESPHome/HA)
+
+- **“Unknown value 'input' … register_type”** → Use `register_type: read` for Input Registers (FC04).  
+- **Duplicate entity names** → Ensure unique `enm_prefix` per meter; energy entities use `VAh` naming to avoid clashing with `S` (VA).  
+- **Time‑outs / CRC errors** → Check A/B polarity, shared GND (if separate PSUs), and termination/biasing.  
+- **Slow updates** → Increase `update_interval` or reduce the number of polled registers.  
+- **No energy in HA Energy Dashboard** → Confirm `device_class: energy` and `state_class: total_increasing` on the chosen sensors (`AP/AN/RP/RN/VAh`).
+
+---
+
+### 17.7 Version & Compatibility Notes
+
+- Tested with **ESPHome 2025.8.0**.  
+- `packages → files → vars` substitution is supported in your version and used here to parameterize the ENM block.  
+- The controller YAML uses **ESP‑IDF**; **Arduino** also works if preferred (adjust platform accordingly).
+
+---
+
+### 17.8 Licensing & Attribution
+
+- This integration guide is an extension to the ENM‑223‑R1 documentation and follows the repository’s licensing terms.  
+- Hardware: **CERN‑OHL‑W 2.0**; Firmware/examples: **GPLv3** unless otherwise specified.
