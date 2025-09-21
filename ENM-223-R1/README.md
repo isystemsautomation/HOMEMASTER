@@ -601,14 +601,15 @@ The following key project resources are included in this repository:
 - **📖 Datasheet & Documentation (if available):** [`Manuals/`](Manuals/)  
   Contains PDF datasheets or technical overviews, if applicable.
 
-## 16. Support & Contact
+## 16. Support
 
-**ISYSTEMS AUTOMATION SRL**  
-• GitHub Issues: use the Issues tab of this repo  
-• Website: *TBD*
+If you need help using or configuring the ENM‑223‑R1 module, the following resources are available:
 
----
+- [🛠 Web Config Tool](https://www.home-master.eu/configtool-enm-223-r1) – Configure and calibrate via USB-C in your browser.  
+- [🌐 Official Support Page](https://www.home-master.eu/support) – Knowledge base and contact options.  
 
-### Attribution
-Parts of the best‑practice wiring, CT orientation, and phase mapping guidance are inspired by established industry practice for three‑phase sub‑metering devices.
-
+### 📡 Community & Updates
+- [Hackster Projects](https://www.hackster.io/homemaster) – Integration guides, wiring, and code examples.  
+- [YouTube Channel](https://www.youtube.com/channel/UCD_T5wsJrXib3Rd21JPU1dg) – Video tutorials and module demos.  
+- [Reddit Community](https://www.reddit.com/r/HomeMaster) – Questions, help, and user contributions.  
+- [Instagram](https://www.instagram.com/home_master.eu) – Visual updates and product insights.
