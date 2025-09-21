@@ -1,72 +1,64 @@
+<img src="Images/photo1.png" align="right" width="160" alt="ENM-223-R1 Module">
 
-<table>
-<tr>
-<td width="180px"><img src="Images/photo1.png" width="160"></td>
-<td>
+# ENM-223-R1 — 3‑Phase Power Quality & Energy Metering Module
 
-# ENM-223-R1 — 3‑Phase Power Quality & Energy Metering Module  
-**HOMEMASTER – Modular control. Custom logic.**  
+**HOMEMASTER – Modular control. Custom logic.**
 
 The **ENM‑223‑R1** is a high‑precision, compact metering module designed for seamless integration with **HomeMaster MicroPLC** and **MiniPLC** systems. It provides real‑time monitoring of 3‑phase electrical parameters, supports load control with **2× SPDT relays**, and is ideal for energy management, automation, and smart‑building applications.
-
-</td>
-</tr>
-</table>
-
 
 ## 📑 Table of Contents
 
 **1. Introduction**  
- 1.1 Overview of the HOMEMASTER Ecosystem  
- 1.2 Supported Modules & Controllers  
- 1.3 Use Cases  
+1.1 [Overview of the HOMEMASTER Ecosystem](#overview-of-the-homemaster-ecosystem)
+1.2 [Supported Modules & Controllers](#supported-modules-controllers)
+1.3 [Use Cases](#use-cases)
 
 **2. Safety Information**  
- 2.1 General Electrical Safety  
- 2.2 Handling & Installation  
- 2.3 Device-Specific Warnings  
+2.1 [General Electrical Safety](#general-electrical-safety)
+2.2 [Handling & Installation](#handling-installation)
+2.3 [Device-Specific Warnings](#device-specific-warnings)
 
 **3. System Overview**  
- 3.1 Architecture & Modular Design  
- 3.2 MicroPLC vs MiniPLC  
- 3.3 Integration with Home Assistant  
- 3.4 Diagrams & Pinouts  
- 3.5 Technical Specifications  
+3.1 [Architecture & Modular Design](#architecture-modular-design)
+3.2 [MicroPLC vs MiniPLC](#microplc-vs-miniplc)
+3.3 [Integration with Home Assistant](#integration-with-home-assistant)
+3.4 [Diagrams & Pinouts](#diagrams-pinouts)
+3.5 [Technical Specifications](#technical-specifications)
 
 **4. Getting Started**  
- 4.1 What You Need  
- 4.2 Quick Setup Checklist  
+4.1 [What You Need](#what-you-need)
+4.2 [Quick Setup Checklist](#quick-setup-checklist)
 
 **5. Powering the Devices**  
- 5.1 Power Supply Types  
- 5.2 Current Consumption  
- 5.3 Power Safety Tips  
+5.1 [Power Supply Types](#power-supply-types)
+5.2 [Current Consumption](#current-consumption)
+5.3 [Power Safety Tips](#power-safety-tips)
 
 **6. Networking & Communication**  
- 6.1 RS-485 Modbus  
- 6.2 USB-C Configuration  
+6.1 [RS-485 Modbus](#rs-485-modbus)
+6.2 [USB-C Configuration](#usb-c-configuration)
 
 **7. Installation & Wiring**  
- 7.1 ENM-223-R1 Wiring  
+7.1 [ENM-223-R1 Wiring](#enm-223-r1-wiring)
 
 **8. Software Configuration**  
- 8.1 Web Config Tool (USB Web Serial)  
- 8.2 ESPHome / Home Assistant  
- 8.3 Meter Options & Calibration  
- 8.4 Alarms  
- 8.5 Relays & Overrides  
- 8.6 Buttons  
- 8.7 User LEDs, Energies & Live Meter  
+8.1 [Web Config Tool (USB Web Serial)](#web-config-tool-usb-web-serial)
+8.2 [ESPHome / Home Assistant](#esphome-home-assistant)
+8.3 [Meter Options & Calibration](#meter-options-calibration)
+8.4 [Alarms](#alarms)
+8.5 [Relays & Overrides](#relays-overrides)
+8.6 [Buttons](#buttons)
+8.7 [User LEDs, Energies & Live Meter](#user-leds-energies-live-meter)
 
 **9. Modbus RTU Communication**  
- 9.1 Basics & Function Codes  
- 9.2 Register Map (Summary)  
- 9.3 Override Priority  
+9.1 [Basics & Function Codes](#basics-function-codes)
+9.2 [Register Map (Summary)](#register-map-summary)
+9.3 [Override Priority](#override-priority)
 
 **10. Programming & Customization**  
- 10.1 Supported Languages  
- 10.2 Flashing via USB-C  
- 10.3 PlatformIO & Arduino  
+10.1 [Supported Languages](#supported-languages)
+10.2 [Flashing via USB-C](#flashing-via-usb-c)
+10.3 [PlatformIO & Arduino](#platformio-arduino)
 
 **11. Maintenance & Troubleshooting**  
 **12. Open Source & Licensing**  
@@ -74,7 +66,6 @@ The **ENM‑223‑R1** is a high‑precision, compact metering module designed f
 **14. Support & Contact**
 
 ---
-
 
 
 ## 1. Introduction
