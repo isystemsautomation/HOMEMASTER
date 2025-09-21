@@ -1,3 +1,5 @@
+**Firmware Version:** 2025-09 snapshot
+
 # ENM-223-R1 — 3‑Phase Power Quality & Energy Metering Module
 
 **HOMEMASTER – Modular control. Custom logic.**
@@ -278,56 +280,7 @@ This layout enables direct field wiring, interactive diagnostics, and ease of in
 Connect ENM‑223‑R1 to a MicroPLC/MiniPLC that exposes data to Home Assistant (Modbus/ESPHome). Create automations using real‑time energy metrics and events.
 
 ---
-### 3.4 Diagrams & Pinouts
-
-<div align="center">
-  <table>
-    <tr>
-      <td align="center">
-        <strong>ENM System Diagram</strong><br>
-        <img src="Images/ENM_Diagram.png" alt="ENM System Diagram" width="360">
-      </td>
-      <td align="center">
-        <strong>RP2350 MCU Pinout</strong><br>
-        <img src="Images/ENM_MCU_Pinouts.png" alt="MCU Pinouts" width="360">
-      </td>
-    </tr>
-    <tr>
-      <td align="center">
-        <strong>Field Board Layout</strong><br>
-        <img src="Images/FieldBoard_Diagram.png" alt="Field Board Diagram" width="360">
-      </td>
-      <td align="center">
-        <strong>MCU Board Layout</strong><br>
-        <img src="Images/MCUBoard_Diagram.png" alt="MCU Board Diagram" width="360">
-      </td>
-    </tr>
-  </table>
-</div>
-
-#### Hardware Architecture Description
-
-#### MCU Board
-- **Processor:** RP2350 with onboard QSPI flash (W25Q32)  
-- **Interfaces:** USB‑C with ESD protection; RS‑485 via MAX485  
-- **Digital I/Os:** 4× buttons (GPIO22–25), 4× LEDs (GPIO18–21)  
-- **Peripherals:** SPI and I²C routed to FieldBoard; connected to ATM90E32AS and FRAM  
-- **Other:** SWD debug header; logic‑level signal protection
-
-#### Field Board
-- **Metering IC:** ATM90E32AS (3× voltage, 3× current)  
-- **Current Inputs:** CT terminals IAP/IAN, IBP/IBN, ICP/ICN with burden + anti‑aliasing filters  
-- **Voltage Inputs:** Divider networks on L1/L2/L3 (220 kΩ)  
-- **Isolation:** ISO7761 isolators between MCU and analog domain  
-- **Relays:** 2× SPDT relays (HF115F), opto‑driven (SFH6156), with snubbers  
-- **FRAM:** FM24CL16B (2 kB, I²C)  
-- **Power:** 24 V DC input → 5 V (buck) → 3.3 V (LDO); isolation via B0505S‑1WR3  
-- **Protections:** TVS, PTC, ferrites on all exposed ports
-
-#### Interconnects
-
-| Signal  | Description                             |
-|---------|-----------------------------------------|
+---------|-----------------------------------------|
 | SPI/I²C | ATM90E32 + FRAM on shared bus           |
 | GPIO    | For LEDs, buttons, relays               |
 | RS‑485  | Half‑duplex with A/B/GND wiring         |
