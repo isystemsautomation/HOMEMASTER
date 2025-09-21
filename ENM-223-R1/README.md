@@ -323,6 +323,88 @@ While you are typing in a field elsewhere, that field pauses auto‑refresh (fie
 
 ## 9. Modbus RTU Communication
 
+**Slave ID:** Configurable (default `3`)  
+**Baud Rate:** Configurable (default `19200`, 8N1)  
+**Data Model:**  
+- **Input Registers (3xxxx / FC04):** Real-time telemetry  
+- **Holding Registers (4xxxx / FC03/06/16):** Runtime options  
+- **Discrete Inputs (1xxxx / FC02):** Read-only flags  
+- **Coils (0xxxx / FC01/05/15):** Output and ack control  
+
+---
+
+### 9.1 Input Registers (Read-Only)
+
+| Addr | Type  | Description                    | Units | Scaling     |
+|------|-------|--------------------------------|-------|-------------|
+| 100  | U16   | Voltage L1                     | V     | ×0.01       |
+| 101  | U16   | Voltage L2                     | V     | ×0.01       |
+| 102  | U16   | Voltage L3                     | V     | ×0.01       |
+| 110  | U16   | Current L1                     | A     | ×0.001      |
+| 111  | U16   | Current L2                     | A     | ×0.001      |
+| 112  | U16   | Current L3                     | A     | ×0.001      |
+| 200–207 | S32 | Active Power L1–L3, Total     | W     | 1           |
+| 210–217 | S32 | Reactive Power L1–L3, Total   | var   | 1           |
+| 220–227 | S32 | Apparent Power L1–L3, Total   | VA    | 1           |
+| 240–243 | S16 | Power Factor L1–L3, Total     | -     | ×0.001      |
+| 244–246 | S16 | Phase Angle L1–L3             | °     | ×0.1        |
+| 250  | U16   | Frequency                      | Hz    | ×0.01       |
+| 251  | S16   | Temperature                    | °C    | 1           |
+
+#### Energy Registers (Wh/varh/VAh, 32-bit pairs)
+
+| Addr | Type  | Description            | Units | Scaling |
+|------|-------|------------------------|--------|---------|
+| 300–307 | U32 | Active Energy + (A/B/C/Total) | Wh | 1 |
+| 308–315 | U32 | Active Energy − (A/B/C/Total) | Wh | 1 |
+| 316–323 | U32 | Reactive Energy + (A/B/C/Total) | varh | 1 |
+| 324–331 | U32 | Reactive Energy − (A/B/C/Total) | varh | 1 |
+| 332–339 | U32 | Apparent Energy (A/B/C/Total) | VAh | 1 |
+
+---
+
+### 9.2 Holding Registers (Read/Write)
+
+| Addr | Type | Description                | Range         |
+|------|------|----------------------------|---------------|
+| 400  | U16  | Sample Interval (ms)       | 10 – 5000     |
+| 401  | U16  | Line Frequency             | 50 or 60      |
+| 402  | U16  | Sum Mode                   | 0 = alg, 1 = abs |
+| 403  | U16  | Ucal                       | 1 – 65535     |
+
+---
+
+### 9.3 Discrete Inputs & Coils
+
+#### Discrete Inputs (Read-Only)
+
+| Addr | Description                     |
+|------|---------------------------------|
+| 500–503 | LED States 1–4              |
+| 520–523 | Button States 1–4           |
+| 540–541 | Relay States 1–2            |
+| 560–571 | Alarms (ch×3 + kind idx)    |
+
+#### Coils (Writable)
+
+| Addr | Description                     |
+|------|---------------------------------|
+| 600  | Relay 1 ON/OFF                  |
+| 601  | Relay 2 ON/OFF                  |
+| 610–613 | Ack alarms (L1, L2, L3, Tot) |
+
+---
+
+### Scaling Summary
+
+- Voltage = `value / 100`
+- Current = `value / 1000`
+- Power Factor = `value / 1000`
+- Frequency = `value / 100`
+- Angle = `value / 10`
+- Energy values are 32-bit unsigned (no multiplier)
+
+---
 ### Basics & Function Codes
 - **Physical:** RS‑485 half‑duplex, multi‑drop, termination at both ends.  
 - **Function codes:** `0x03` Read Holding, `0x04` Read Input, `0x06` Write Single, `0x10` Write Multiple, `0x01/0x05/0x0F` for coils (if exposed).
