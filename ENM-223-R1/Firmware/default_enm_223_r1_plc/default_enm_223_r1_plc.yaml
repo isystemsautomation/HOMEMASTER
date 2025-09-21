@@ -1,14 +1,3 @@
-# ENM-223-R1 — Modbus package (parametric)
-# Use with ESPHome packages (Git) and pass vars:
-#   enm_prefix: "ENM#1" / "ENM#2"
-#   enm_id: enm223_1 / enm223_2
-#   enm_address: 4 / 5
-
-substitutions:
-  enm_prefix: "ENM"
-  enm_id: enm223
-  enm_address: "3"
-
 modbus_controller:
   - id: ${enm_id}
     address: ${enm_address}        # Modbus slave ID
