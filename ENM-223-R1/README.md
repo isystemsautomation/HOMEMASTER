@@ -584,15 +584,22 @@ Reset & Factory Restore: write the reset register or use the button sequence (TB
 
 ## 15. Downloads
 
-- **Config Tool (HTML):** `tools/ConfigToolPage.html`  
-- **Default Arduino/firmware example:** `firmware/default_enm_223_r1.ino`  
-- **(Coming soon) Register table:** `docs/registers_enm_223_r1.md`
+The following key project resources are included in this repository:
 
-> In this repository snapshot, the two core files are included for convenience:
-> - `/tools/ConfigToolPage.html`  
-> - `/firmware/default_enm_223_r1.ino`
+- **🧠 Firmware (Arduino/PlatformIO):** [`firmware/default_enm_223_r1.ino`](firmware/default_enm_223_r1.ino)  
+  Main sketch implementing ATM90E32 metering, relays, button overrides, alarms, Modbus RTU, and WebSerial support.
 
----
+- **🛠 Web Config Tool:** [`tools/ConfigToolPage.html`](tools/ConfigToolPage.html)  
+  HTML-based USB Web Serial configuration UI, used for meter options, calibration, relays, alarms, etc.
+
+- **📷 Images & Visual Documentation:** [`Images/`](Images/)  
+  Contains UI screenshots, module photos, diagrams, and layout references used in this documentation.
+
+- **📐 Hardware Schematics:** [`Schematics/`](Schematics/)  
+  Includes Field Board and MCU Board schematics in PDF format for hardware developers and integrators.
+
+- **📖 Datasheet & Documentation (if available):** [`Manuals/`](Manuals/)  
+  Contains PDF datasheets or technical overviews, if applicable.
 
 ## 16. Support & Contact
 
