@@ -306,6 +306,7 @@ Assign a button action **“Override Relay 1 (hold 3s)”** or **“… Relay 2 
 <p align="center">
   <img src="Images/buttons1.png" alt="Button Layout" width="320">
 </p>
+
 ### User LEDs
 **Where in UI:** *User LEDs (4)*.  
 - **Mode:** `Steady` or `Blink` *(when active)*.  
