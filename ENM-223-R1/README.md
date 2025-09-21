@@ -4,7 +4,11 @@
 
 **HOMEMASTER – Modular control. Custom logic.**
 
+<img src="Images/photo1.png" align="left" width="220" alt="ENM-223-R1 module photo">
+
 The **ENM‑223‑R1** is a high‑precision, compact metering module designed for seamless integration with **HomeMaster MicroPLC** and **MiniPLC** systems. It provides real‑time monitoring of 3‑phase electrical parameters, supports load control with **2× SPDT relays**, and is ideal for energy management, automation, and smart‑building applications.
+
+<br clear="left"/>
 
 ## 📑 Table of Contents
 
