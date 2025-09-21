@@ -1,31 +1,17 @@
+
 <table>
 <tr>
-<td width="180" align="center">
-  <img src="Images/photo1.png" alt="ENM-223-R1 Front Photo" width="160"><br>
-  <img src="Images/photo3.png" alt="ENM-223-R1 Angled Photo" width="160">
-</td>
+<td width="180px"><img src="Images/photo1.png" width="160"></td>
 <td>
 
-<table>
-<tr>
-<td width="200" align="center" valign="top">
-  <img src="Images/photo1.png" alt="ENM-223-R1 Module Photo" width="200">
-</td>
-<td valign="top">
-
-# ENM-223-R1 — 3‑Phase Power Quality & Energy Metering Module
-
-> **HOMEMASTER – Modular control. Custom logic.**
+# ENM-223-R1 — 3‑Phase Power Quality & Energy Metering Module  
+**HOMEMASTER – Modular control. Custom logic.**  
 
 The **ENM‑223‑R1** is a high‑precision, compact metering module designed for seamless integration with **HomeMaster MicroPLC** and **MiniPLC** systems. It provides real‑time monitoring of 3‑phase electrical parameters, supports load control with **2× SPDT relays**, and is ideal for energy management, automation, and smart‑building applications.
 
 </td>
 </tr>
 </table>
-
-
----
-
 
 
 ## 📑 Table of Contents
