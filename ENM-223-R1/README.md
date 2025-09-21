@@ -462,7 +462,7 @@ Connect ENM‑223‑R1 to a MicroPLC/MiniPLC that exposes data to Home Assistant
 ## 6. Networking & Communication
 
 ### 6.1 RS-485 Modbus
-- **Defaults:** `9600 8N2` (configurable).  
+- **Defaults:** `19200 8N1` (configurable).  
 - **Address range:** 1–247.  
 - Standard Modbus RTU function codes supported for input/holding registers; relays via coils/registers.
 
