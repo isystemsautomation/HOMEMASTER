@@ -234,8 +234,20 @@ The ENM‑223‑R1 module is housed in a compact DIN‑rail‑mountable enclosur
 - **Terminal blocks:**  
   - **Top row:** 24 V DC power input, CT1/2/3 terminals, and voltage inputs (PE, N, L1, L2, L3).  
   - **Bottom row:** RS‑485 (A/B/COM) and relay outputs (R1/R2: NO/NC/COM).
+> 🧷 **Note:** CT1 is available on both the top and bottom terminal rows for flexible field wiring.
+
 
 This layout enables direct field wiring, interactive diagnostics, and ease of integration into HomeMaster‑based systems.
+
+
+
+> 💡 **Note on front panel labels:**
+> - LED indicators labeled **U.1 to U.4** on the module correspond to **LED1 to LED4** in this documentation.
+> - Buttons beneath the LEDs are referred to as **Button 1 to Button 4**, left to right.
+> - **O.1 / O.2** indicate the **actual relay output state** (ON/OFF) for Relay 1 and Relay 2.
+> - **Override mode**, if configured, can be shown using **U.1–U.4** (via Web Config Tool).
+
+
 
 ### 3.5 Technical Specifications (Module internals)
 
@@ -349,6 +361,8 @@ The ENM‑223‑R1 module is housed in a compact DIN‑rail‑mountable enclosur
 - **Terminal blocks:**  
   - **Top row:** 24 V DC power input, CT1/2/3 terminals, and voltage inputs (PE, N, L1, L2, L3).  
   - **Bottom row:** RS‑485 (A/B/COM) and relay outputs (R1/R2: NO/NC/COM).
+> 🧷 **Note:** CT1 is available on both the top and bottom terminal rows for flexible field wiring.
+
 
 This layout enables direct field wiring, interactive diagnostics, and ease of integration into HomeMaster‑based systems.
 
