@@ -7,75 +7,68 @@ The **ENM‑223‑R1** is a high‑precision, compact metering module designed f
 ---
 
 
+
 ## 📑 Table of Contents
 
-1. Introduction  
-   1.1. Overview of the HOMEMASTER Ecosystem  
-   1.2. Supported Modules & Controllers  
-   1.3. Use Cases  
+**1. Introduction**  
+ 1.1 Overview of the HOMEMASTER Ecosystem  
+ 1.2 Supported Modules & Controllers  
+ 1.3 Use Cases  
 
-2. Safety Information  
-   2.1. General Electrical Safety  
-   2.2. Handling & Installation  
-   2.3. Device-Specific Warnings  
+**2. Safety Information**  
+ 2.1 General Electrical Safety  
+ 2.2 Handling & Installation  
+ 2.3 Device-Specific Warnings  
 
-3. System Overview  
-   3.1. Architecture & Modular Design  
-   3.2. MicroPLC vs MiniPLC  
-   3.3. Integration with Home Assistant  
+**3. System Overview**  
+ 3.1 Architecture & Modular Design  
+ 3.2 MicroPLC vs MiniPLC  
+ 3.3 Integration with Home Assistant  
+ 3.4 Diagrams & Pinouts  
+ 3.5 Technical Specifications  
 
-4. Getting Started  
-   4.1. What You Need  
-   4.2. Quick Setup Checklist  
+**4. Getting Started**  
+ 4.1 What You Need  
+ 4.2 Quick Setup Checklist  
 
-5. Powering the Devices  
-   5.1. Power Supply Types  
-   5.2. Current Consumption  
-   5.3. Power Safety Tips  
+**5. Powering the Devices**  
+ 5.1 Power Supply Types  
+ 5.2 Current Consumption  
+ 5.3 Power Safety Tips  
 
-6. Networking & Communication  
-   6.1. RS-485 Modbus  
-   6.2. USB-C Configuration  
+**6. Networking & Communication**  
+ 6.1 RS-485 Modbus  
+ 6.2 USB-C Configuration  
 
-7. Installation & Wiring  
-   7.1. ENM-223-R1 Wiring  
+**7. Installation & Wiring**  
+ 7.1 ENM-223-R1 Wiring  
 
-8. Software Configuration  
-   8.1. Web Config Tool (USB Web Serial)  
-   8.2. ESPHome / Home Assistant  
+**8. Software Configuration**  
+ 8.1 Web Config Tool (USB Web Serial)  
+ 8.2 ESPHome / Home Assistant  
+ 8.3 Meter Options & Calibration  
+ 8.4 Alarms  
+ 8.5 Relays & Overrides  
+ 8.6 Buttons  
+ 8.7 User LEDs, Energies & Live Meter  
 
-9. Modbus RTU Communication  
-   9.1. Basics & Function Codes  
-   9.2. Register Map (Summary)  
-   9.3. Override Priority  
+**9. Modbus RTU Communication**  
+ 9.1 Basics & Function Codes  
+ 9.2 Register Map (Summary)  
+ 9.3 Override Priority  
 
-9.5. Detailed Configuration (UI & Firmware)  
-   9.5.1. Meter Options & Calibration  
-   9.5.2. Alarms  
-   9.5.3. Relays & Overrides  
-   9.5.4. Buttons  
-   9.5.5. User LEDs  
-   9.5.6. Energies  
-   9.5.7. Live Meter  
+**10. Programming & Customization**  
+ 10.1 Supported Languages  
+ 10.2 Flashing via USB-C  
+ 10.3 PlatformIO & Arduino  
 
-10. Programming & Customization  
-    10.1. Supported Languages  
-    10.2. Flashing via USB-C  
-    10.3. PlatformIO & Arduino  
-
-11. Diagrams & Pinouts  
-
-12. Maintenance & Troubleshooting  
-
-13. Technical Specifications  
-
-14. Open Source & Licensing  
-
-15. Downloads  
-
-16. Support & Contact
+**11. Maintenance & Troubleshooting**  
+**12. Open Source & Licensing**  
+**13. Downloads**  
+**14. Support & Contact**
 
 ---
+
 
 
 ## 1. Introduction
@@ -117,6 +110,38 @@ HOMEMASTER provides modular DIN‑rail controllers and I/O modules that intercon
 ---
 
 ## 3. System Overview
+
+
+### 3.4 Diagrams & Pinouts
+
+#### ENM System Diagram
+![ENM System Diagram](Image/ENM_Diagram.png)
+
+#### RP2350 MCU Pinout
+![MCU Pinouts](Image/ENM_MCU_Pinouts.png)
+
+#### Field Board Layout
+![Field Board Diagram](Image/FieldBoard_Diagram.png)
+
+#### MCU Board Layout
+![MCU Board Diagram](Image/MCUBoard_Diagram.png)
+
+
+### 3.5 Technical Specifications
+
+| Parameter                | Value                        |
+|-------------------------|------------------------------|
+| Processor               | RP2040 (RP2350A package)     |
+| Metering IC             | ATM90E32AS                   |
+| Voltage Inputs          | 3-phase, direct connect      |
+| Current Inputs          | External CTs (333 mV or 1 V) |
+| Relay Outputs           | 2x SPDT (NO/NC), 5A rated     |
+| Communication           | RS-485 (Modbus RTU), USB-C   |
+| Buttons                 | 4 Tactile Inputs (GPIO 22–25)|
+| LEDs                    | 4 User LEDs (GPIO 18–21)     |
+| Storage                 | LittleFS on internal flash   |
+| Mounting                | DIN rail or custom enclosure |
+
 
 ### Architecture & Modular Design
 - **Metering IC:** ATM90E32AS (3×U, 3×I)
@@ -192,7 +217,7 @@ Use USB‑C for initial configuration, firmware updates, and diagnostics via the
 
 ---
 
-## 8. Software Configuration
+## 8. Software & UI Configuration
 
 ### Web Config Tool (USB Web Serial)
 The included **Config Tool** (HTML) communicates over Web Serial in Chromium‑based browsers. It lets you:
@@ -208,38 +233,6 @@ The included **Config Tool** (HTML) communicates over Web Serial in Chromium‑b
 Expose ENM registers via your controller (ESPHome/Modbus). Create sensors for **Urms, Irms, P, PF, Frequency, Energy** and switches for **Relay 1/2**.
 
 ---
-
-## 9. Modbus RTU Communication
-
-### Basics & Function Codes
-- **Physical:** RS‑485 half‑duplex, multi‑drop, termination at both ends.  
-- **Function codes:** `0x03` Read Holding, `0x04` Read Input, `0x06` Write Single, `0x10` Write Multiple, `0x01/0x05/0x0F` for coils (if exposed).
-
-### Register Map (Summary)
-> Exact addresses depend on firmware build and will be published in `/docs/registers_enm_223_r1.md`.
-
-- **Identification:** Model, FW version  
-- **Comms:** Modbus address, baud, parity/stop  
-- **Per Phase:** Urms, Upeak, Irms, Ipeak, P, Q, S, N, PF, PhaseAngle  
-- **Totals:** P_total, Q_total, S_total, PF_total, Frequency  
-- **Energies:** Active/Reactive/Apparent/Non‑active — Import/Export  
-- **CT Config:** Turns_Lx, Phi_Lx, Invert_Lx  
-- **Phase Mapping:** ActualPhase_Lx (map Ix ↔ Ux)  
-- **Relays:** R1/R2 state, override, pulse width  
-- **Diagnostics:** Status, alarms, counters
-
-### Override Priority
-1. Safety lock (if enabled)  
-2. Manual override (front button)  
-3. Modbus command  
-4. PLC/HA automations
-
----
-
-
----
-
-## 9.5. Detailed Configuration (UI & Firmware)
 
 > This section is generated for the **ENM‑223‑R1 (2025‑09 firmware snapshot)** and documents what you see in the included **Web Serial Config UI** and what the firmware actually does behind the scenes.
 
@@ -328,6 +321,35 @@ When the chosen **Source** is active, the LED is ON (or blinks if **Mode=Blink**
 - **Totals:** `P/Q/S`, `PF (tot)`, `Freq (Hz)`, `Temp (°C)`  
 While you are typing in a field elsewhere, that field pauses auto‑refresh (field lock). The **Serial Log** captures every command and echo for traceability.
 
+## 9. Modbus RTU Communication
+
+### Basics & Function Codes
+- **Physical:** RS‑485 half‑duplex, multi‑drop, termination at both ends.  
+- **Function codes:** `0x03` Read Holding, `0x04` Read Input, `0x06` Write Single, `0x10` Write Multiple, `0x01/0x05/0x0F` for coils (if exposed).
+
+### Register Map (Summary)
+> Exact addresses depend on firmware build and will be published in `/docs/registers_enm_223_r1.md`.
+
+- **Identification:** Model, FW version  
+- **Comms:** Modbus address, baud, parity/stop  
+- **Per Phase:** Urms, Upeak, Irms, Ipeak, P, Q, S, N, PF, PhaseAngle  
+- **Totals:** P_total, Q_total, S_total, PF_total, Frequency  
+- **Energies:** Active/Reactive/Apparent/Non‑active — Import/Export  
+- **CT Config:** Turns_Lx, Phi_Lx, Invert_Lx  
+- **Phase Mapping:** ActualPhase_Lx (map Ix ↔ Ux)  
+- **Relays:** R1/R2 state, override, pulse width  
+- **Diagnostics:** Status, alarms, counters
+
+### Override Priority
+1. Safety lock (if enabled)  
+2. Manual override (front button)  
+3. Modbus command  
+4. PLC/HA automations
+
+---
+
+
+---
 
 ## 10. Programming & Customization
 
