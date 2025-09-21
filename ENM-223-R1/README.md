@@ -140,7 +140,7 @@ HOMEMASTER provides modular DIN‑rail controllers and I/O modules that intercon
   </table>
 </div>
 
-### 3.4.1 Hardware Architecture Description
+#### Hardware Architecture Description
 
 #### MCU Board
 - **Processor:** RP2040 (RP2350A) with onboard QSPI flash (W25Q32)  
@@ -169,7 +169,7 @@ HOMEMASTER provides modular DIN‑rail controllers and I/O modules that intercon
 | CTs & Ux| Metering inputs, isolated               |
 | Terminals | L1/L2/L3, PE/N, V+/GND, CT1/2/3, A/B |
 
-### 3.4.2 Front View of ENM‑223‑R1
+#### Front View of ENM‑223‑R1
 
 <div align="center">
   <table>
@@ -339,7 +339,7 @@ Choose a **Metric** per rule (drop‑down), and enter **min/max** thresholds in 
 - `Apparent power S` — **VA**  
 - `Frequency` — **0.01 Hz** units (e.g., 50.00 Hz → 5000; channel selection is ignored)
 
-**Enable** a rule to make it effective. When **Ack required** is enabled for a channel, an out‑of‑band condition **latches** until acknowledged; otherwise it auto‑clears when back in range.
+**Enable** a rule to make it effective. ⚠️ Enter values in scaled units as shown in the Live Meter (e.g., voltage in 0.01 V, current in 0.001 A). When **Ack required** is enabled for a channel, an out‑of‑band condition **latches** until acknowledged; otherwise it auto‑clears when back in range.
 
 **Acknowledge:** Click **Ack [channel]** or use **Ack All** in the UI. Over Modbus, coils `610..613` acknowledge channels L1/L2/L3/Totals.
 
@@ -489,7 +489,7 @@ While you are typing in a field elsewhere, that field pauses auto‑refresh (fie
 
 ### Basics & Function Codes
 - **Physical:** RS‑485 half‑duplex, multi‑drop; termination at both ends.  
-- **Function codes:** `0x03` Read Holding, `0x04` Read Input, `0x06` Write Single, `0x10` Write Multiple, `0x01/0x05/0x0F` for coils (if exposed).
+- **Function codes:** `0x04` Read Input, `0x03` Read Holding, `0x06` Write Single, `0x10` Write Multiple, `0x01`, `0x05`, `0x0F` for coils.
 
 ### Register Map (Summary)
 > Exact addresses depend on firmware build and will be published in `/docs/registers_enm_223_r1.md`.
@@ -555,7 +555,7 @@ L1/L2/L3 → Attenuation → ATM90E32AS ← CT1/2/3
 - **Phantom voltage on unused phases:** Tie unused **Lx** to **N** (single‑phase).  
 - **RS‑485 timeouts/noise:** Check termination, biasing, common GND reference.
 
-Reset & Factory Restore: write the reset register or use the button sequence (TBD). Energy counters are retained across power cycles.
+Reset & Factory Restore: write to holding register `499` with value `1`, or use the hardware button combination (Buttons 3+4 held at power-up). Energy counters are retained across power cycles.
 
 ---
 
