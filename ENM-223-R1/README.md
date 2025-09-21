@@ -1,5 +1,3 @@
-<img src="Images/photo1.png" align="right" width="160" alt="ENM-223-R1 Module">
-
 # ENM-223-R1 — 3‑Phase Power Quality & Energy Metering Module
 
 **HOMEMASTER – Modular control. Custom logic.**
