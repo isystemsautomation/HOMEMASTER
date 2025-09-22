@@ -43,8 +43,7 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
 - **ESPHome** out of the box for **Home Assistant**
 - **USB‑C** & **WebConfig** (browser) for driverless configuration
 
-
-### 1.2 Modules & controllers
+### 1.2 Controllers
 
 <table>
 <tr>
@@ -63,21 +62,22 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
 </tr>
 </table>
 
-#### Controllers
+**Controller comparison (summary)**
 
-| Controller | Description |
-|-----------|-------------|
-| **MiniPLC**  | Advanced DIN‑rail controller with Ethernet, relays, analog I/O, RTD, display, SD logging |
-| **MicroPLC** | Compact controller with RS‑485, relay, input, 1‑Wire, RTC, USB‑C |
+| Feature / Use Case            | 🟢 **MiniPLC** — standalone‑capable | 🔵 **MicroPLC** — made for extensions |
+|------------------------------|-------------------------------------|---------------------------------------|
+| Form factor                  | Full DIN enclosure                   | Compact DIN enclosure                 |
+| Onboard I/O                  | **6× relays, 4× DI, 2× AI/O, 2× RTD, OLED, RTC** | **1× relay, 1× DI, 1‑Wire, RTC**     |
+| Connectivity                 | **Ethernet**, Wi‑Fi, USB‑C, **BLE + Improv (BLE & Serial)** | Wi‑Fi, USB‑C, **BLE + Improv (BLE & Serial)** |
+| ESPHome                      | **Preinstalled**                     | **Preinstalled**                      |
+| Extensions (RS‑485 Modbus)   | Yes                                  | Yes (primary usage)                   |
+| Ideal for                    | Smart homes, labs, HVAC/solar; works **standalone** or expanded | Affordable, modular base; lighting, metering, room/special setups |
+| Power input                  | Wide‑range AC/DC or 24 VDC           | 24 VDC                                 |
+| MCU / memory                 | Same class as MicroPLC               | Same class as MiniPLC                  |
 
-#### Extension modules (detailed)
+> Both controllers share the same chip and memory size. **MiniPLC** includes rich onboard I/O so it can act as a standalone PLC; **MicroPLC** focuses on price and modularity via extensions.
 
-> Images on the left, capabilities on the right. Click a photo to open full resolution.
-
-<table>
-  ... (truncated for now — we'll paste in full below)
-</table>
- Modules overview
+### 1.3 Modules overview
 Below is a concise overview. Each module has its **own page** with wiring, manuals, and ESPHome configs.
 
 | Module | What it does | Highlights |
