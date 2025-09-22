@@ -262,40 +262,68 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
 ## 6. Software & UI configuration
 
 ### 6.1 Web Config Tool (USB Web Serial)
-- HTML file that runs locally in the browser (no install needed).
-- Features per module:
-  - **Modbus address & baud rate**
-  - **Module settings** (relay control, alarm rules, input mappings, LED behavior)
-  - Calibration / phase mapping
-  - Live diagnostics
 
-### 6.2 ESPHome setup (via controller)
-- **No flashing needed** — MiniPLC/MicroPLC include ESPHome.
-- The controller exposes connected modules using `modbus_controller:` in ESPHome.
-- Use `packages:` with variable overrides for each ENM or DIM module.
-- Add the ESPHome device to Home Assistant and select energy sensors or switches.
+All HomeMaster extension modules include a built-in **USB WebConfig interface** — a single HTML file that runs in your browser (no install, no drivers).
+
+It lets you configure each module in seconds:
+
+- Set the **Modbus address** and **baud rate**
+- Adjust **relay behavior**, **input mappings**, or **LED modes**
+- Configure **alarm thresholds** (where applicable)
+- Perform **calibration** (e.g. phase mapping, CT scaling)
+- See **live diagnostics** for all inputs, relays, and logic
+
+Each module has its own version of the tool with tailored panels, but the interface is consistent across the lineup.
+
+> 💡 WebConfig works in Chrome or Edge via USB‑C — just plug in and click “Connect”. Full details live in each module’s manual.
+
+### 6.2 ESPHome Setup (via Controller)
+
+All HomeMaster controllers come with **ESPHome pre-installed** and support **Improv onboarding** over **USB or Bluetooth** — no flashing required.
+
+Once powered on:
+
+- Connect via [improv-wifi.com](https://improv-wifi.com) to enter your Wi‑Fi credentials  
+- The controller appears in **ESPHome Dashboard** or **Home Assistant**, ready to use  
+- Add connected modules using `modbus_controller:` and per-module `packages:`  
+
+Each controller supports automatic discovery and YAML import for easy customization. Full setup guides and YAML templates are available on each module's page.
+
+> 💡 For advanced users, manual flashing via USB‑C is also supported — with no need for reset buttons.
 
 [Back to top ↑](#-quick-navigation)
 
 ---
 
-## 7. Programming & customization
+## 7. Programming & Customization
 
-### 7.1 Supported languages
-- **Arduino IDE**
-- **PlatformIO**
+### 7.1 Supported Languages
+All HomeMaster controllers and modules support firmware customization via **USB‑C**.
+
+- **ESPHome YAML** (pre-installed on controllers)
+- **Arduino IDE** (both ESP32 and RP2040/RP2350)
+- **PlatformIO** (cross-platform)
 - **MicroPython** (via Thonny)
-- **ESPHome YAML** (default config for most users)
+- **ESP-IDF** (for ESP32-based controllers)
+- **Pico SDK / CircuitPython** (for RP2350-based modules)
 
-### 7.2 Optional developer flashing (USB‑C)
-- Controllers and modules support auto‑reset via USB‑C.
-- For custom firmware (Arduino/ESP‑IDF/MicroPython), use drag‑and‑drop UF2 (RP2040/RP2350) or ESPHome Web Flasher.
-- **ESPHome users don’t need to flash.**
+### 7.2 USB‑C Developer Flashing (Optional)
+Both controllers and modules support easy flashing and auto-reset via **USB‑C**, with no need to press BOOT or RESET buttons.
 
-### 7.3 PlatformIO & Arduino
-- Clone firmware repository.
-- Use `default_xxx.ino` sketches for each module.
-- Add libraries: `ModbusSerial`, `LittleFS`, `Arduino_JSON`, `SimpleWebSerial`.
+- **ESP32-based controllers** (MiniPLC, MicroPLC): programmable using Arduino IDE, PlatformIO, ESP-IDF, or ESPHome Dashboard.
+- **RP2350-based modules**: support drag‑and‑drop **UF2 flashing** and tools from the RP2040 ecosystem (e.g., Pico SDK, CircuitPython).
+
+> ⚠️ Note: All controllers and modules ship with pre-installed firmware.  
+> - **Controllers** are ESPHome-ready and appear in Home Assistant.
+> - **Modules** are fully functional out-of-the-box and configurable via the **WebConfig Tool**.
+
+Flashing is only required for advanced users who want to replace default firmware.
+
+### 7.3 Arduino & PlatformIO Notes
+- Clone the firmware repository
+- Use the provided `default_xxx.ino` sketches per module or controller
+- Add libraries as needed:  
+  `ModbusSerial`, `LittleFS`, `Arduino_JSON`, `SimpleWebSerial`
 
 [Back to top ↑](#-quick-navigation)
 
