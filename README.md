@@ -4,6 +4,19 @@
 
 ---
 
+## 📑 Quick navigation
+- [1. Introduction](#1-introduction)
+- [2. Safety information](#2-safety-information)
+- [3. System overview](#3-system-overview)
+- [4. Networking & communication](#4-networking--communication)
+- [5. Software & UI configuration](#5-software--ui-configuration)
+- [6. Programming & customization](#6-programming--customization)
+- [7. Open source & licensing](#7-open-source--licensing)
+- [8. Downloads](#8-downloads)
+- [9. Support](#9-support)
+
+---
+
 ## 1. Introduction
 
 ### 1.1 Overview of the HomeMaster ecosystem
@@ -65,57 +78,59 @@ Modules include local logic and continue functioning even without a network.
 <td align="center" width="33%">
   <a href="./ENM-223-R1/Images/photo1.png">
     <img src="./ENM-223-R1/Images/photo1.png" alt="ENM‑223‑R1" width="220">
-  </a><br/><sub><b>ENM‑223‑R1</b><br/>3‑phase meter + 2 relays</sub>
+  </a><br/><sub><b>ENM‑223‑R1</b></sub>
 </td>
 <td align="center" width="33%">
   <a href="./ALM-173-R1/Images/photo1.png">
     <img src="./ALM-173-R1/Images/photo1.png" alt="ALM‑173‑R1" width="220">
-  </a><br/><sub><b>ALM‑173‑R1</b><br/>17 DI + 3 relays</sub>
+  </a><br/><sub><b>ALM‑173‑R1</b></sub>
 </td>
 <td align="center" width="33%">
   <a href="./DIM-420-R1/Images/photo1.png">
     <img src="./DIM-420-R1/Images/photo1.png" alt="DIM‑420‑R1" width="220">
-  </a><br/><sub><b>DIM‑420‑R1</b><br/>2‑ch dimmer + 4 inputs</sub>
+  </a><br/><sub><b>DIM‑420‑R1</b></sub>
 </td>
 </tr>
 <tr>
 <td align="center" width="33%">
   <a href="./AIO-422-R1/Images/photo1.png">
     <img src="./AIO-422-R1/Images/photo1.png" alt="AIO‑422‑R1" width="220">
-  </a><br/><sub><b>AIO‑422‑R1</b><br/>Analog I/O + RTD</sub>
+  </a><br/><sub><b>AIO‑422‑R1</b></sub>
 </td>
 <td align="center" width="33%">
   <a href="./DIO-430-R1/Images/photo1.png">
     <img src="./DIO-430-R1/Images/photo1.png" alt="DIO‑430‑R1" width="220">
-  </a><br/><sub><b>DIO‑430‑R1</b><br/>Digital I/O</sub>
+  </a><br/><sub><b>DIO‑430‑R1</b></sub>
 </td>
 <td align="center" width="33%">
   <a href="./RGB-620-R1/Images/photo1.png">
     <img src="./RGB-620-R1/Images/photo1.png" alt="RGB‑620‑R1" width="220">
-  </a><br/><sub><b>RGB‑620‑R1</b><br/>6× MOSFET RGB channels</sub>
+  </a><br/><sub><b>RGB‑620‑R1</b></sub>
 </td>
 </tr>
 <tr>
 <td align="center" width="33%">
   <a href="./STR-3221-R1/Images/photo1.png">
     <img src="./STR-3221-R1/Images/photo1.png" alt="STR‑3221‑R1" width="220">
-  </a><br/><sub><b>STR‑3221‑R1</b><br/>Staircase LED controller</sub>
+  </a><br/><sub><b>STR‑3221‑R1</b></sub>
 </td>
 <td align="center" width="33%">
   <a href="./WLD-521-R1/Images/photo1.png">
     <img src="./WLD-521-R1/Images/photo1.png" alt="WLD‑521‑R1" width="220">
-  </a><br/><sub><b>WLD‑521‑R1</b><br/>Leak detector + valve</sub>
+  </a><br/><sub><b>WLD‑521‑R1</b></sub>
 </td>
 <td width="33%"></td>
 </tr>
 </table>
 
 ### 1.3 Use cases
-- Smart energy monitoring and control
-- Smart lighting and climate control
-- Leak detection and safety automation
-- Modbus‑connected distributed systems
-- Industrial and home lab control
+- [x] Smart energy monitoring and control  
+- [x] Smart lighting and climate control  
+- [x] Leak detection and safety automation  
+- [x] Modbus‑connected distributed systems  
+- [x] Industrial and home lab control  
+
+[Back to top ↑](#-quick-navigation)
 
 ---
 
@@ -135,6 +150,8 @@ Modules include local logic and continue functioning even without a network.
 - Connect PE/N properly for metering modules.
 - Use correct CTs (1 V or 333 mV) — never connect 5 A CTs directly.
 - Avoid reverse polarity on RS‑485 lines.
+
+[Back to top ↑](#-quick-navigation)
 
 ---
 
@@ -160,6 +177,8 @@ Modules include local logic and continue functioning even without a network.
 - Home Assistant can use entities for dashboards, automations, and energy monitoring.
 - Use YAML package files to add ENM, ALM, DIM, etc. easily.
 
+[Back to top ↑](#-quick-navigation)
+
 ---
 
 ## 4. Networking & communication
@@ -183,6 +202,8 @@ Modules include local logic and continue functioning even without a network.
 - Available on MiniPLC only.
 - Enables fast and stable connection to Home Assistant or MQTT brokers.
 
+[Back to top ↑](#-quick-navigation)
+
 ---
 
 ## 5. Software & UI configuration
@@ -201,6 +222,8 @@ Modules include local logic and continue functioning even without a network.
 - MiniPLC/MicroPLC expose connected modules using `modbus_controller:` in ESPHome.
 - Use `packages:` with variable overrides for each ENM or DIM module.
 - Add ESPHome device to Home Assistant and select energy sensors or switches.
+
+[Back to top ↑](#-quick-navigation)
 
 ---
 
@@ -221,6 +244,8 @@ Modules include local logic and continue functioning even without a network.
 - Use `default_xxx.ino` sketches for each module.
 - Add libraries: `ModbusSerial`, `LittleFS`, `Arduino_JSON`, `SimpleWebSerial`.
 
+[Back to top ↑](#-quick-navigation)
+
 ---
 
 ## 7. Open source & licensing
@@ -228,6 +253,8 @@ Modules include local logic and continue functioning even without a network.
 - **Hardware:** CERN‑OHL‑W v2.0 (can be modified; commercial use permitted with open‑source derivative)
 - **Firmware:** GPLv3 (contributions welcome)
 - **Web UI:** MIT (ConfigToolPage.html files for each module)
+
+[Back to top ↑](#-quick-navigation)
 
 ---
 
@@ -239,6 +266,8 @@ Modules include local logic and continue functioning even without a network.
 - 📐 [Schematics](https://github.com/isystemsautomation/HOMEMASTER/tree/main/Schematics)
 - 📖 [Manuals (PDF)](https://github.com/isystemsautomation/HOMEMASTER/tree/main/Manuals)
 
+[Back to top ↑](#-quick-navigation)
+
 ---
 
 ## 9. Support
@@ -248,6 +277,8 @@ Modules include local logic and continue functioning even without a network.
 - 🎥 [YouTube Channel](https://www.youtube.com/channel/UCD_T5wsJrXib3Rd21JPU1dg)
 - 💬 [Reddit /r/HomeMaster](https://www.reddit.com/r/HomeMaster)
 - 📷 [Instagram](https://www.instagram.com/home_master.eu)
+
+[Back to top ↑](#-quick-navigation)
 
 ---
 
@@ -340,3 +371,5 @@ The MiniPLC includes a built‑in **ESPHome OTA‑capable web server**.
 ### ESPHome OTA update flow
 - Upload firmware via ESPHome Dashboard or OTA.
 - Use USB‑C to flash manually if needed.
+
+[Back to top ↑](#-quick-navigation)
