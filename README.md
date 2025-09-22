@@ -80,7 +80,7 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
       <a href="./ENM-223-R1/Images/photo1.png">
         <img src="./ENM-223-R1/Images/photo1.png" alt="ENM‑223‑R1" width="260">
       </a>
-      <br/><sub><b>[ENM‑223‑R1](./ENM-223-R1) — 3‑Phase Energy Meter</b></sub>
+      <br/><a href="./ENM-223-R1"><sub><b>ENM‑223‑R1](./ENM-223-R1) — 3‑Phase Energy Meter</b></sub></a>
     </td>
     <td width="65%" valign="top">
       ATM90E32AS‑based sub‑metering (per‑phase Urms/Irms/P/Q/S/PF + totals) with **2× SPDT relays**. RS‑485 Modbus RTU; USB‑C WebConfig. 24 VDC DIN‑rail.
@@ -92,7 +92,7 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
       <a href="./ALM-173-R1/Images/photo1.png">
         <img src="./ALM-173-R1/Images/photo1.png" alt="ALM‑173‑R1" width="260">
       </a>
-      <br/><sub><b>[ALM‑173‑R1](./ALM-173-R1) — Alarm I/O</b></sub>
+      <br/><a href="./ALM-173-R1"><sub><b>ALM‑173‑R1](./ALM-173-R1) — Alarm I/O</b></sub></a>
     </td>
     <td valign="top">
       **17 opto DIs** for sensors, **3× SPDT relays** (up to 16 A), isolated 12 V/5 V aux rails. RS‑485 + USB‑C WebConfig. 24 VDC DIN‑rail.
@@ -104,7 +104,7 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
       <a href="./DIM-420-R1/Images/photo1.png">
         <img src="./DIM-420-R1/Images/photo1.png" alt="DIM‑420‑R1" width="260">
       </a>
-      <br/><sub><b>[DIM‑420‑R1](./DIM-420-R1) — Dual‑Channel AC Dimmer</b></sub>
+      <br/><a href="./DIM-420-R1"><sub><b>DIM‑420‑R1](./DIM-420-R1) — Dual‑Channel AC Dimmer</b></sub></a>
     </td>
     <td valign="top">
       **2‑ch phase‑cut dimming** (per‑channel leading/trailing), **4 DIs** with multi‑mode button logic, dual zero‑cross sensing. RS‑485 + WebConfig.
@@ -116,7 +116,7 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
       <a href="./AIO-422-R1/Images/photo1.png">
         <img src="./AIO-422-R1/Images/photo1.png" alt="AIO‑422‑R1" width="260">
       </a>
-      <br/><sub><b>[AIO‑422‑R1](./AIO-422-R1) — Analog I/O + RTD</b></sub>
+      <br/><a href="./AIO-422-R1"><sub><b>AIO‑422‑R1](./AIO-422-R1) — Analog I/O + RTD</b></sub></a>
     </td>
     <td valign="top">
       **4× 0–10 V inputs** (ADS1115), **2× 0–10 V outputs** (MCP4725+op‑amp), **2× RTD** (MAX31865). RS‑485 + USB‑C. 24 VDC DIN‑rail (~3M).
@@ -128,7 +128,7 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
       <a href="./DIO-430-R1/Images/photo1.png">
         <img src="./DIO-430-R1/Images/photo1.png" alt="DIO‑430‑R1" width="260">
       </a>
-      <br/><sub><b>[DIO‑430‑R1](./DIO-430-R1) — Digital I/O</b></sub>
+      <br/><a href="./DIO-430-R1"><sub><b>DIO‑430‑R1](./DIO-430-R1) — Digital I/O</b></sub></a>
     </td>
     <td valign="top">
       **3× SPDT relays** (up to 16 A), **4× isolated 24 VDC inputs**, override buttons, RS‑485 + USB‑C WebConfig. 24 VDC DIN‑rail.
@@ -140,7 +140,7 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
       <a href="./RGB-621-R1/Images/photo1.png">
         <img src="./RGB-621-R1/Images/photo1.png" alt="RGB‑621‑R1" width="260">
       </a>
-      <br/><sub><b>[RGB‑621‑R1](./RGB-621-R1) — RGBCCT LED Control</b></sub>
+      <br/><a href="./RGB-621-R1"><sub><b>RGB‑621‑R1](./RGB-621-R1) — RGBCCT LED Control</b></sub></a>
     </td>
     <td valign="top">
       **5× PWM** (RGB+CCT) with smooth fades, **2 DIs**, **1× relay**. RS‑485 + USB‑C; ESPHome‑ready. 24 VDC DIN‑rail.
@@ -152,7 +152,7 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
       <a href="./STR-3221-R1/Images/photo1.png">
         <img src="./STR-3221-R1/Images/photo1.png" alt="STR‑3221‑R1" width="260">
       </a>
-      <br/><sub><b>[STR‑3221‑R1](./STR-3221-R1) — Staircase LED Controller</b></sub>
+      <br/><a href="./STR-3221-R1"><sub><b>STR‑3221‑R1](./STR-3221-R1) — Staircase LED Controller</b></sub></a>
     </td>
     <td valign="top">
       **32 constant‑current LED channels** with animated sequences; **3 opto inputs**. RS‑485 + USB‑C. 24 VDC DIN‑rail.
@@ -164,7 +164,7 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
       <a href="./WLD-521-R1/Images/photo1.png">
         <img src="./WLD-521-R1/Images/photo1.png" alt="WLD‑521‑R1" width="260">
       </a>
-      <br/><sub><b>[WLD‑521‑R1](./WLD-521-R1) — Water/Leak Detection</b></sub>
+      <br/><a href="./WLD-521-R1"><sub><b>WLD‑521‑R1](./WLD-521-R1) — Water/Leak Detection</b></sub></a>
     </td>
     <td valign="top">
       **5 opto DIs** for leak probes & pulse meters (up to 1 kHz), **2 relays**, **1‑Wire** temp; isolated 12 V/5 V aux. RS‑485 + USB‑C.
