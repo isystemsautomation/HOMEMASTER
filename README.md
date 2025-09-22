@@ -72,71 +72,161 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
 | **MiniPLC**  | Advanced DIN‑rail controller with Ethernet, relays, analog I/O, RTD, display, SD logging |
 | **MicroPLC** | Compact controller with RS‑485, relay, input, 1‑Wire, RTC, USB‑C |
 
-#### Extension modules (summary)
+#### Extension modules (detailed)
 
-| Extension Module | Key Features |
-|------------------|--------------|
-| **ENM‑223‑R1** | 3‑phase energy meter + 2 relays |
-| **ALM‑173‑R1** | 17 digital inputs + 3 relays |
-| **DIM‑420‑R1** | 2‑channel dimmer + 4 inputs |
-| **AIO‑422‑R1** | Analog I/O + RTD |
-| **DIO‑430‑R1** | Digital I/O |
-| **RGB‑620‑R1** | 6× MOSFET RGB channels |
-| **WLD‑521‑R1** | Leak detector + valve |
-| **STR‑3221‑R1** | Staircase LED controller (32 channels) |
-
-### 🧩 Extension modules — image gallery
-
-> Thumbnails are sized for readability. Click an image to open the full‑resolution version.
+> Images on the left, capabilities on the right. Click a photo to open full resolution.
 
 <table>
-<tr>
-<td align="center" width="33%">
-  <a href="./ENM-223-R1/Images/photo1.png">
-    <img src="./ENM-223-R1/Images/photo1.png" alt="ENM‑223‑R1" width="220">
-  </a><br/><sub><b>ENM‑223‑R1</b></sub>
-</td>
-<td align="center" width="33%">
-  <a href="./ALM-173-R1/Images/photo1.png">
-    <img src="./ALM-173-R1/Images/photo1.png" alt="ALM‑173‑R1" width="220">
-  </a><br/><sub><b>ALM‑173‑R1</b></sub>
-</td>
-<td align="center" width="33%">
-  <a href="./DIM-420-R1/Images/photo1.png">
-    <img src="./DIM-420-R1/Images/photo1.png" alt="DIM‑420‑R1" width="220">
-  </a><br/><sub><b>DIM‑420‑R1</b></sub>
-</td>
-</tr>
-<tr>
-<td align="center" width="33%">
-  <a href="./AIO-422-R1/Images/photo1.png">
-    <img src="./AIO-422-R1/Images/photo1.png" alt="AIO‑422‑R1" width="220">
-  </a><br/><sub><b>AIO‑422‑R1</b></sub>
-</td>
-<td align="center" width="33%">
-  <a href="./DIO-430-R1/Images/photo1.png">
-    <img src="./DIO-430-R1/Images/photo1.png" alt="DIO‑430‑R1" width="220">
-  </a><br/><sub><b>DIO‑430‑R1</b></sub>
-</td>
-<td align="center" width="33%">
-  <a href="./RGB-620-R1/Images/photo1.png">
-    <img src="./RGB-620-R1/Images/photo1.png" alt="RGB‑620‑R1" width="220">
-  </a><br/><sub><b>RGB‑620‑R1</b></sub>
-</td>
-</tr>
-<tr>
-<td align="center" width="33%">
-  <a href="./STR-3221-R1/Images/photo1.png">
-    <img src="./STR-3221-R1/Images/photo1.png" alt="STR‑3221‑R1" width="220">
-  </a><br/><sub><b>STR‑3221‑R1</b></sub>
-</td>
-<td align="center" width="33%">
-  <a href="./WLD-521-R1/Images/photo1.png">
-    <img src="./WLD-521-R1/Images/photo1.png" alt="WLD‑521‑R1" width="220">
-  </a><br/><sub><b>WLD‑521‑R1</b></sub>
-</td>
-<td width="33%"></td>
-</tr>
+  <tr>
+    <td width="35%" align="center" valign="top">
+      <a href="./ENM-223-R1/Images/photo1.png">
+        <img src="./ENM-223-R1/Images/photo1.png" alt="ENM‑223‑R1" width="260">
+      </a>
+      <br/><sub><b>ENM‑223‑R1 — 3‑Phase Energy Meter</b></sub>
+    </td>
+    <td width="65%" valign="top">
+      <ul>
+        <li><b>Metering IC:</b> ATM90E32AS — per‑phase <i>Urms, Irms, P/Q/S, PF, frequency</i> with totals.</li>
+        <li><b>Relays:</b> 2× SPDT (NO/NC) for load control (5 A rated).</li>
+        <li><b>Current inputs:</b> external CTs (333 mV or 1 V). <b>Voltage:</b> 3‑phase direct (L1/L2/L3 + N, PE).</li>
+        <li><b>Interface:</b> RS‑485 Modbus RTU (default 19200 8N1), USB‑C Web Serial Config.</li>
+        <li><b>UI:</b> 4 buttons + 4 user LEDs; live diagnostics via Config Tool.</li>
+        <li><b>Supply:</b> 24 VDC; DIN‑rail enclosure.</li>
+        <li><b>Use cases:</b> sub‑metering, power quality KPIs, load shedding via relays.</li>
+      </ul>
+    </td>
+  </tr>
+
+  <tr>
+    <td align="center" valign="top">
+      <a href="./ALM-173-R1/Images/photo1.png">
+        <img src="./ALM-173-R1/Images/photo1.png" alt="ALM‑173‑R1" width="260">
+      </a>
+      <br/><sub><b>ALM‑173‑R1 — Alarm I/O</b></sub>
+    </td>
+    <td valign="top">
+      <ul>
+        <li><b>Inputs:</b> 17 opto‑isolated digital inputs (5 V logic) for PIR, magnetic contacts, tamper, panic, etc.</li>
+        <li><b>Relays:</b> 3× SPDT (NO/NC), up to 16 A; follow alarm groups or manual overrides.</li>
+        <li><b>Aux rails:</b> isolated 12 V & 5 V for powering sensors.</li>
+        <li><b>UI:</b> 4 buttons, 4 LEDs; button overrides & acknowledgements.</li>
+        <li><b>Interface:</b> RS‑485 Modbus RTU; USB‑C Web Serial Config Tool.</li>
+        <li><b>MCU:</b> RP2350A; persistent config in flash.</li>
+        <li><b>Supply:</b> 24 VDC; DIN‑rail.</li>
+      </ul>
+    </td>
+  </tr>
+
+  <tr>
+    <td align="center" valign="top">
+      <a href="./DIM-420-R1/Images/photo1.png">
+        <img src="./DIM-420-R1/Images/photo1.png" alt="DIM‑420‑R1" width="260">
+      </a>
+      <br/><sub><b>DIM‑420‑R1 — Dual‑Channel AC Dimmer</b></sub>
+    </td>
+    <td valign="top">
+      <ul>
+        <li><b>Channels:</b> 2 phase‑cut dimming outputs (per‑channel Leading/Trailing edge).</li>
+        <li><b>Inputs:</b> 4 digital inputs, configurable as <i>momentary</i> or <i>latching</i> with rich press logic (short/long/double/short‑then‑long).</li>
+        <li><b>UI:</b> 4 buttons + 4 LEDs (steady/blink sources: channel/AC/DI).</li>
+        <li><b>Zero‑cross:</b> dual ZC sensing; reports mains frequency per channel.</li>
+        <li><b>Interface:</b> RS‑485 Modbus RTU; Web Serial Config Tool; ESPHome YAML available.</li>
+        <li><b>MCU:</b> RP2350A; autosave with LittleFS.</li>
+      </ul>
+    </td>
+  </tr>
+
+  <tr>
+    <td align="center" valign="top">
+      <a href="./AIO-422-R1/Images/photo1.png">
+        <img src="./AIO-422-R1/Images/photo1.png" alt="AIO‑422‑R1" width="260">
+      </a>
+      <br/><sub><b>AIO‑422‑R1 — Analog I/O + RTD</b></sub>
+    </td>
+    <td valign="top">
+      <ul>
+        <li><b>Analog in:</b> 4× 0–10 V via ADS1115 (16‑bit).</li>
+        <li><b>Analog out:</b> 2× 0–10 V via MCP4725 (12‑bit + op‑amp).</li>
+        <li><b>RTD:</b> 2 channels PT100/PT1000 using MAX31865 (2/3/4‑wire).</li>
+        <li><b>UI:</b> 4 buttons + status LEDs; USB‑C for flashing/diagnostics.</li>
+        <li><b>Interface:</b> RS‑485 Modbus RTU; seamless ESPHome/Home Assistant integration.</li>
+        <li><b>Supply:</b> 24 VDC; DIN‑rail (≈3M wide).</li>
+      </ul>
+    </td>
+  </tr>
+
+  <tr>
+    <td align="center" valign="top">
+      <a href="./DIO-430-R1/Images/photo1.png">
+        <img src="./DIO-430-R1/Images/photo1.png" alt="DIO‑430‑R1" width="260">
+      </a>
+      <br/><sub><b>DIO‑430‑R1 — Digital I/O</b></sub>
+    </td>
+    <td valign="top">
+      <ul>
+        <li><b>Relays:</b> 3× SPDT (NO/NC), up to 16 A; pulse/toggle/override modes.</li>
+        <li><b>Inputs:</b> 4× isolated 24 VDC; per‑input action & target mapping.</li>
+        <li><b>UI:</b> 3 buttons + 3 LEDs; assignable override/functions.</li>
+        <li><b>Interface:</b> RS‑485 Modbus RTU; USB‑C Web Serial Config Tool.</li>
+        <li><b>Persistence:</b> LittleFS autosave; CRC‑guarded config structure.</li>
+        <li><b>Supply:</b> 24 VDC; DIN‑rail.</li>
+      </ul>
+    </td>
+  </tr>
+
+  <tr>
+    <td align="center" valign="top">
+      <a href="./RGB-620-R1/Images/photo1.png">
+        <img src="./RGB-620-R1/Images/photo1.png" alt="RGB‑620‑R1" width="260">
+      </a>
+      <br/><sub><b>RGB‑620‑R1 — RGBCCT LED Control</b></sub>
+    </td>
+    <td valign="top">
+      <ul>
+        <li><b>PWM:</b> 5 independent channels for RGB + Tunable White (CCT); smooth fades & transitions.</li>
+        <li><b>Inputs:</b> 2 isolated digital inputs for wall switches/motion.</li>
+        <li><b>Relay:</b> 1× NO relay for driver/aux load switching.</li>
+        <li><b>Interface:</b> RS‑485 Modbus RTU; USB‑C; ESPHome/Home Assistant ready.</li>
+        <li><b>MCU & Supply:</b> RP2350A; 24 VDC; DIN‑rail.</li>
+      </ul>
+    </td>
+  </tr>
+
+  <tr>
+    <td align="center" valign="top">
+      <a href="./STR-3221-R1/Images/photo1.png">
+        <img src="./STR-3221-R1/Images/photo1.png" alt="STR‑3221‑R1" width="260">
+      </a>
+      <br/><sub><b>STR‑3221‑R1 — Staircase LED Controller</b></sub>
+    </td>
+    <td valign="top">
+      <ul>
+        <li><b>Channels:</b> 32 constant‑current LED outputs; animated sequences for stair effects.</li>
+        <li><b>Inputs:</b> 3 opto‑isolated (top/bottom motion + override).</li>
+        <li><b>Interface:</b> RS‑485 Modbus RTU; USB‑C configuration.</li>
+        <li><b>Power:</b> 24 VDC; reverse‑polarity protected; DIN‑rail.</li>
+      </ul>
+    </td>
+  </tr>
+
+  <tr>
+    <td align="center" valign="top">
+      <a href="./WLD-521-R1/Images/photo1.png">
+        <img src="./WLD-521-R1/Images/photo1.png" alt="WLD‑521‑R1" width="260">
+      </a>
+      <br/><sub><b>WLD‑521‑R1 — Water/Leak Detection</b></sub>
+    </td>
+    <td valign="top">
+      <ul>
+        <li><b>Inputs:</b> 5 opto‑isolated digital inputs for leak probes & pulse meters (up to 1 kHz configurable).</li>
+        <li><b>Relays:</b> 2× (NO/NC) for valves, pumps, alarms.</li>
+        <li><b>1‑Wire:</b> DS18B20 support for temperature‑aware logic.</li>
+        <li><b>Aux power:</b> isolated 12 V & 5 V rails for sensors.</li>
+        <li><b>UI & Interface:</b> 4 buttons + LEDs; RS‑485 Modbus RTU; USB‑C.</li>
+        <li><b>Supply:</b> 24 VDC; DIN‑rail.</li>
+      </ul>
+    </td>
+  </tr>
 </table>
 
 ### 1.3 Use cases
