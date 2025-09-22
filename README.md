@@ -50,14 +50,14 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
 <tr>
 <td align="center" width="50%">
   <strong>🔵 [MicroPLC](./MicroPLC)</strong><br>
-  <a href="./[MicroPLC](./MicroPLC)/Images/[MicroPLC](./MicroPLC).png">
-    <img src="./[MicroPLC](./MicroPLC)/Images/[MicroPLC](./MicroPLC).png" alt="[MicroPLC](./MicroPLC)" height="220">
+  <a href="./MicroPLC/Images/MicroPLC.png">
+    <img src="./MicroPLC/Images/MicroPLC.png" alt="MicroPLC" height="220">
   </a><br><sub>Click to view full size</sub>
 </td>
 <td align="center" width="50%">
   <strong>🟢 [MiniPLC](./MiniPLC)</strong><br>
-  <a href="./[MiniPLC](./MiniPLC)/Images/[MiniPLC](./MiniPLC)2.png">
-    <img src="./[MiniPLC](./MiniPLC)/Images/[MiniPLC](./MiniPLC)2.png" alt="[MiniPLC](./MiniPLC)" height="220">
+  <a href="./MiniPLC/Images/MiniPLC2.png">
+    <img src="./MiniPLC/Images/MiniPLC2.png" alt="MiniPLC" height="220">
   </a><br><sub>Click to view full size</sub>
 </td>
 </tr>
@@ -78,7 +78,7 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
   <tr>
     <td width="35%" align="center" valign="top">
       <a href="./ENM-223-R1/Images/photo1.png">
-        <img src="./ENM-223-R1/Images/photo1.png" alt="[ENM‑223‑R1](./ENM-223-R1)" width="260">
+        <img src="./ENM-223-R1/Images/photo1.png" alt="ENM‑223‑R1" width="260">
       </a>
       <br/><sub><b>[ENM‑223‑R1](./ENM-223-R1) — 3‑Phase Energy Meter</b></sub>
     </td>
@@ -90,7 +90,7 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
   <tr>
     <td align="center" valign="top">
       <a href="./ALM-173-R1/Images/photo1.png">
-        <img src="./ALM-173-R1/Images/photo1.png" alt="[ALM‑173‑R1](./ALM-173-R1)" width="260">
+        <img src="./ALM-173-R1/Images/photo1.png" alt="ALM‑173‑R1" width="260">
       </a>
       <br/><sub><b>[ALM‑173‑R1](./ALM-173-R1) — Alarm I/O</b></sub>
     </td>
@@ -102,7 +102,7 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
   <tr>
     <td align="center" valign="top">
       <a href="./DIM-420-R1/Images/photo1.png">
-        <img src="./DIM-420-R1/Images/photo1.png" alt="[DIM‑420‑R1](./DIM-420-R1)" width="260">
+        <img src="./DIM-420-R1/Images/photo1.png" alt="DIM‑420‑R1" width="260">
       </a>
       <br/><sub><b>[DIM‑420‑R1](./DIM-420-R1) — Dual‑Channel AC Dimmer</b></sub>
     </td>
@@ -114,7 +114,7 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
   <tr>
     <td align="center" valign="top">
       <a href="./AIO-422-R1/Images/photo1.png">
-        <img src="./AIO-422-R1/Images/photo1.png" alt="[AIO‑422‑R1](./AIO-422-R1)" width="260">
+        <img src="./AIO-422-R1/Images/photo1.png" alt="AIO‑422‑R1" width="260">
       </a>
       <br/><sub><b>[AIO‑422‑R1](./AIO-422-R1) — Analog I/O + RTD</b></sub>
     </td>
@@ -126,7 +126,7 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
   <tr>
     <td align="center" valign="top">
       <a href="./DIO-430-R1/Images/photo1.png">
-        <img src="./DIO-430-R1/Images/photo1.png" alt="[DIO‑430‑R1](./DIO-430-R1)" width="260">
+        <img src="./DIO-430-R1/Images/photo1.png" alt="DIO‑430‑R1" width="260">
       </a>
       <br/><sub><b>[DIO‑430‑R1](./DIO-430-R1) — Digital I/O</b></sub>
     </td>
@@ -138,7 +138,7 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
   <tr>
     <td align="center" valign="top">
       <a href="./RGB-621-R1/Images/photo1.png">
-        <img src="./RGB-621-R1/Images/photo1.png" alt="[RGB‑621‑R1](./RGB-621-R1)" width="260">
+        <img src="./RGB-621-R1/Images/photo1.png" alt="RGB‑621‑R1" width="260">
       </a>
       <br/><sub><b>[RGB‑621‑R1](./RGB-621-R1) — RGBCCT LED Control</b></sub>
     </td>
@@ -150,7 +150,7 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
   <tr>
     <td align="center" valign="top">
       <a href="./STR-3221-R1/Images/photo1.png">
-        <img src="./STR-3221-R1/Images/photo1.png" alt="[STR‑3221‑R1](./STR-3221-R1)" width="260">
+        <img src="./STR-3221-R1/Images/photo1.png" alt="STR‑3221‑R1" width="260">
       </a>
       <br/><sub><b>[STR‑3221‑R1](./STR-3221-R1) — Staircase LED Controller</b></sub>
     </td>
@@ -162,7 +162,7 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
   <tr>
     <td align="center" valign="top">
       <a href="./WLD-521-R1/Images/photo1.png">
-        <img src="./WLD-521-R1/Images/photo1.png" alt="[WLD‑521‑R1](./WLD-521-R1)" width="260">
+        <img src="./WLD-521-R1/Images/photo1.png" alt="WLD‑521‑R1" width="260">
       </a>
       <br/><sub><b>[WLD‑521‑R1](./WLD-521-R1) — Water/Leak Detection</b></sub>
     </td>
