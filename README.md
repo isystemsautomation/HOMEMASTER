@@ -245,19 +245,73 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
 
 ---
 
-## 2. Quick start
 
-### 2.1 Choose a starting setup
-- **Starter (lighting):** MicroPLC + DIO‑430‑R1 + RGB‑620‑R1  
-- **Energy (monitoring):** MicroPLC + ENM‑223‑R1  
-- **Lab/Pro:** MiniPLC + any modules needed over RS‑485
+## 2. Choosing the Right PLC and Modules
 
-### 2.2 Flash & connect
-1. Power the controller (see **Appendix A**).
-2. Connect via **ESPHome Web Flasher** (USB‑C) or add the device with **Improv Wi‑Fi** (fallback SSID visible on first boot).
-3. Use **WebConfig** to set each module’s **Modbus address/baud**.
+### 2.1 MiniPLC vs MicroPLC – Selection Guide
 
-### 2.3 Minimal ESPHome example (via `modbus_controller:`)
+| Feature / Use Case             | 🟢 **MiniPLC**                                   | 🔵 **MicroPLC**                               |
+|-------------------------------|--------------------------------------------------|-----------------------------------------------|
+| Size                          | Full-width DIN enclosure                         | Compact DIN enclosure                         |
+| Onboard I/O                   | 6x Relays, 4x DI, 2x RTD, 2x AI/O, Display       | 1x Relay, 1x DI, RTC, 1-Wire                   |
+| Connectivity                  | Ethernet, USB‑C, Wi‑Fi                           | USB‑C, Wi‑Fi, Bluetooth (Improv)              |
+| Storage                       | microSD card slot                                | Internal flash only                           |
+| Ideal for                     | Full homes, labs, smart HVAC, solar controllers  | Rooms, lighting control, energy sub-metering  |
+| Power input                   | AC/DC wide range or 24 VDC                       | 24 VDC only                                   |
+| ESPHome integration           | Yes, with rich entity exposure                   | Yes, ideal for smaller YAML configs           |
+| Installation type             | Centralized, all-in-one                          | Distributed, compact use                      |
+
+---
+
+### 2.2 Module Comparison Table
+
+| Module Code     | Digital Inputs | Analog / RTD      | Relay Outputs | Special Features                          | Typical Use Cases                         |
+|-----------------|----------------|-------------------|----------------|--------------------------------------------|-------------------------------------------|
+| **ENM‑223‑R1**  | —              | Voltage + CTs     | 2 relays       | 3‑phase metering, power KPIs              | Grid, solar, energy sub-metering          |
+| **ALM‑173‑R1**  | 17 DI          | —                 | 3 relays       | Sensor AUX power, alarm logic             | Security, panic, tamper, window contacts  |
+| **DIM‑420‑R1**  | 4 DI           | —                 | 2 dim outputs  | AC dimming, press logic, LED feedback     | Room lighting, stair lighting             |
+| **AIO‑422‑R1**  | —              | 4 AI + 2 RTD      | 2 AO           | 0–10 V input/output, PT100/PT1000         | HVAC, environmental sensors               |
+| **DIO‑430‑R1**  | 4 DI           | —                 | 3 relays       | Logic mapping, override buttons           | Generic input/output, control boards      |
+| **RGB‑620‑R1**  | 2 DI           | —                 | 1 relay        | 5x PWM (RGB+CCT), LED fades               | RGB lighting, wall-switch control         |
+| **STR‑3221‑R1** | 3 DI           | —                 | —              | 32-channel LED sequencing (TLC59208F)      | Stair lights, animation control           |
+| **WLD‑521‑R1**  | 5 DI           | 1‑Wire Temp       | 2 relays       | Leak detection, pulse metering            | Bathrooms, kitchens, utility rooms        |
+
+---
+
+### 2.3 Recommended Setups
+
+- 🏠 **Starter Setup (Lighting + I/O)**  
+  🔹 MicroPLC + DIO‑430‑R1 + RGB‑620‑R1  
+  👉 For basic lighting control, wall switch input, RGB strip control.
+
+- ⚡ **Energy Monitoring Setup**  
+  🔹 MicroPLC + ENM‑223‑R1  
+  👉 For tracking grid power, solar production, or 3-phase loads.
+
+- 🧪 **Lab / Professional Setup**  
+  🔹 MiniPLC + any mix of modules  
+  👉 Best for complex automation with analog, temperature, safety logic.
+
+- 💧 **Safety & Leak Detection**  
+  🔹 MicroPLC + WLD‑521‑R1 + ALM‑173‑R1  
+  👉 Secure your home with leak sensors, alarm inputs, and auto-valve control.
+
+- 🌈 **RGB + Dimming + Scenes**  
+  🔹 MiniPLC or MicroPLC + RGB‑620‑R1 + DIM‑420‑R1  
+  👉 Create scenes with ESPHome automations and HA dashboards.
+
+---
+
+### 2.4 First-Time Flashing
+
+1. Power the controller (see [Appendix A](#appendix-a-miniplc-power-supply-and-protection)).
+2. Use **ESPHome Web Flasher** via USB‑C, or use **Improv Wi‑Fi** (MicroPLC).
+3. Open the WebConfig tool to assign Modbus address and baud rate to each module.
+4. Copy example YAML config from the [Firmware](https://github.com/isystemsautomation/HOMEMASTER/tree/main/Firmware) folder and adjust as needed.
+
+---
+
+### 2.5 ESPHome Example (Modbus Controller Setup)
 ```yaml
 esphome:
   name: homemaster-microplc
@@ -278,16 +332,10 @@ modbus_controller:
     address: 0x01
     modbus_id: mbus
     update_interval: 3s
-# Use packages/ or sensors: blocks per module (see Downloads).
 ```
-
-### 2.4 Verify in Home Assistant
-- Add the ESPHome device; confirm sensors/switches appear.
-- Create a test dashboard card (e.g., relay toggle or power reading).
 
 [Back to top ↑](#-quick-navigation)
 
----
 
 ## 3. Safety information
 
