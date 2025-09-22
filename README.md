@@ -137,7 +137,7 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
   <tr>
     <td align="center" valign="top">
       <a href="./RGB-621-R1/Images/photo1.png">
-        <img src="./RGB-621-R1/Images/photo1.png" alt="RGB‑620‑R1" width="260">
+        <img src="./RGB-621-R1/Images/photo1.png" alt="RGB‑621‑R1" width="260">
       </a>
       <br/><sub><b>RGB‑620‑R1 — RGBCCT LED Control</b></sub>
     </td>
@@ -195,6 +195,55 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
 4. **Configure each module** — Connect via **USB‑C** and use **WebConfig** to set **Modbus address and module settings** (calibration, mapping, rules).  
 5. **Open Home Assistant** — Add the ESPHome controller; modules appear as entities via the controller config.
 ---
+## 3 Choosing the Right PLC and Modules
+
+### 3.1 MiniPLC vs MicroPLC – Selection Guide
+
+| Feature / Use Case             | 🟢 **MiniPLC**                                   | 🔵 **MicroPLC**                               |
+|-------------------------------|--------------------------------------------------|-----------------------------------------------|
+| Size                          | Full-width DIN enclosure                         | Compact DIN enclosure                         |
+| Onboard I/O                   | 6x Relays, 4x DI, 2x RTD, 2x AI/O, Display, RTC  | 1x Relay, 1x DI, 1-Wire, RTC                   |
+| Connectivity                  | Ethernet, USB‑C, Wi‑Fi, BLE + Improv             | USB‑C, Wi‑Fi, BLE + Improv                    |
+| Storage                       | microSD card slot                                | Internal flash only                           |
+| Ideal for                     | Full homes, labs, HVAC/solar, automation pros    | Makers, room‑level, modular expansion setups  |
+| Power input                   | AC/DC wide range or 24 VDC                       | 24 VDC only                                   |
+| ESPHome integration           | Yes, with rich entity exposure                   | Yes, ideal for modular configs                |
+| Installation type             | Standalone or central controller                 | Distributed or compact systems                |
+
+### 3.2 Module Comparison Table
+
+| Module Code     | Digital Inputs | Analog / RTD      | Relay Outputs | Special Features                          | Typical Use Cases                         |
+|-----------------|----------------|-------------------|----------------|--------------------------------------------|-------------------------------------------|
+| **ENM‑223‑R1**  | —              | Voltage + CTs     | 2 relays       | 3‑phase metering, power KPIs              | Grid, solar, energy sub-metering          |
+| **ALM‑173‑R1**  | 17 DI          | —                 | 3 relays       | Sensor AUX power, alarm logic             | Security, panic, tamper, window contacts  |
+| **DIM‑420‑R1**  | 4 DI           | —                 | 2 dim outputs  | AC dimming, press logic, LED feedback     | Room lighting, stair lighting             |
+| **AIO‑422‑R1**  | —              | 4 AI + 2 RTD      | 2 AO           | 0–10 V input/output, PT100/PT1000         | HVAC, environmental sensors               |
+| **DIO‑430‑R1**  | 4 DI           | —                 | 3 relays       | Logic mapping, override buttons           | Generic input/output, control boards      |
+| **RGB‑620‑R1**  | 2 DI           | —                 | 1 relay        | 5x PWM (RGB+CCT), LED fades               | RGB lighting, wall-switch control         |
+| **STR‑3221‑R1** | 3 DI           | —                 | —              | 32-channel LED sequencing (TLC59208F)      | Stair lights, animation control           |
+| **WLD‑521‑R1**  | 5 DI           | 1‑Wire Temp       | 2 relays       | Leak detection, pulse metering            | Bathrooms, kitchens, utility rooms        |
+
+### 3.3 Recommended Setups
+
+- 🏠 **Starter Setup (Lighting + I/O)**  
+  🔹 MicroPLC + DIO‑430‑R1 + RGB‑620‑R1  
+  👉 For basic lighting control, wall switch input, RGB strip control.
+
+- ⚡ **Energy Monitoring Setup**  
+  🔹 MicroPLC + ENM‑223‑R1  
+  👉 For tracking grid power, solar production, or 3-phase loads.
+
+- 🧪 **Lab / Professional Setup**  
+  🔹 MiniPLC + any mix of modules  
+  👉 Best for complex automation with analog, temperature, safety logic.
+
+- 💧 **Safety & Leak Detection**  
+  🔹 MicroPLC + WLD‑521‑R1 + ALM‑173‑R1  
+  👉 Secure your home with leak sensors, alarm inputs, and auto-valve control.
+
+- 🌈 **RGB + Dimming + Scenes**  
+  🔹 MiniPLC or MicroPLC + RGB‑620‑R1 + DIM‑420‑R1  
+  👉 Create scenes with ESPHome automations and HA dashboards.
 
 
 ## 5. Networking & communication
