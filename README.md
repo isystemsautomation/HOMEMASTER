@@ -136,8 +136,8 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
 
   <tr>
     <td align="center" valign="top">
-      <a href="./RGB-620-R1/Images/photo1.png">
-        <img src="./RGB-620-R1/Images/photo1.png" alt="RGB‑620‑R1" width="260">
+      <a href="./RGB-621-R1/Images/photo1.png">
+        <img src="./RGB-621-R1/Images/photo1.png" alt="RGB‑620‑R1" width="260">
       </a>
       <br/><sub><b>RGB‑620‑R1 — RGBCCT LED Control</b></sub>
     </td>
