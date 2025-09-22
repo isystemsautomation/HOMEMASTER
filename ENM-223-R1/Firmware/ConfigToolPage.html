@@ -52,7 +52,7 @@
     <div>
       <label><strong>Baud Rate</strong></label>
       <select id="modbus-baud" class="enm-input">
-        <option>9600</option><option selected>19200</option><option>38400</option><option>57600</option><option>115200</option>
+        <option>9600</option><option selected="">19200</option><option>38400</option><option>57600</option><option>115200</option>
       </select>
     </div>
     <div style="grid-column:span 2;display:flex;justify-content:flex-end;">
@@ -71,13 +71,13 @@
       <div>
         <label><strong>Line Frequency (Hz)</strong></label>
         <select id="opt-lineHz" class="enm-input">
-          <option value="50" selected>50</option><option value="60">60</option>
+          <option value="50" selected="">50</option><option value="60">60</option>
         </select>
       </div>
       <div>
         <label><strong>Sum Mode</strong> <small class="muted">(0=alg, 1=abs)</small></label>
         <select id="opt-sumAbs" class="enm-input">
-          <option value="0">0</option><option value="1" selected>1</option>
+          <option value="0">0</option><option value="1" selected="">1</option>
         </select>
       </div>
       <div>
@@ -139,7 +139,7 @@
   </section>
 </section>
 
-<script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
 <script>
 (function(){
   /* ===== Helpers ===== */
