@@ -302,40 +302,6 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
 
 ---
 
-### 2.4 First-Time Flashing
-
-1. Power the controller (see [Appendix A](#appendix-a-miniplc-power-supply-and-protection)).
-2. Use **ESPHome Web Flasher** via USB‑C, or use **Improv Wi‑Fi** (MicroPLC).
-3. Open the WebConfig tool to assign Modbus address and baud rate to each module.
-4. Copy example YAML config from the [Firmware](https://github.com/isystemsautomation/HOMEMASTER/tree/main/Firmware) folder and adjust as needed.
-
----
-
-### 2.5 ESPHome Example (Modbus Controller Setup)
-```yaml
-esphome:
-  name: homemaster-microplc
-
-uart:
-  id: rs485
-  tx_pin: GPIO17
-  rx_pin: GPIO16
-  baud_rate: 19200
-  stop_bits: 1
-
-modbus:
-  id: mbus
-  uart_id: rs485
-
-modbus_controller:
-  - id: enm223
-    address: 0x01
-    modbus_id: mbus
-    update_interval: 3s
-```
-
-[Back to top ↑](#-quick-navigation)
-
 
 ## 3. Safety information
 
