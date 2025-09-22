@@ -194,45 +194,8 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
 3. **Wire RS‑485** — A/B differential pair; **120 Ω termination** at both bus ends.  
 4. **Configure each module** — Connect via **USB‑C** and use **WebConfig** to set **Modbus address and module settings** (calibration, mapping, rules).  
 5. **Open Home Assistant** — Add the ESPHome controller; modules appear as entities via the controller config.
-
 ---
 
-## 3. Safety information
-
-### 3.1 General electrical safety
-- Only trained personnel should install or service modules.
-- Disconnect all power sources before wiring or reconfiguring.
-- Always follow local electrical codes and standards.
-
-### 3.2 Handling & installation
-- Mount on 35 mm DIN rails inside protective enclosures.
-- Separate low‑voltage and high‑voltage wiring paths.
-- Avoid exposure to moisture, chemicals, or extreme temperatures.
-
-### 3.3 Device‑specific warnings
-- Connect PE/N properly for metering modules.
-- Use correct CTs (1 V or 333 mV) — never connect 5 A CTs directly.
-- Avoid reverse polarity on RS‑485 lines.
-
-[Back to top ↑](#-quick-navigation)
-
----
-
-## 4. System overview
-
-### 4.1 Topology diagram
-> **Diagram placeholder:** include an `Images/system_topology.svg` illustrating:  
-> Home Assistant ↔ (Wi‑Fi/Ethernet) ↔ **MiniPLC/MicroPLC** ↔ (RS‑485 Modbus RTU) ↔ **Extension Modules** (ENM/DIO/DIM/…);  
-> Local logic highlighted inside each module.
-
-### 4.2 Integration with Home Assistant
-- Controllers ship with **ESPHome pre‑installed**.
-- ESPHome exposes connected modules (via `modbus_controller:`) as sensors/switches/alarms.
-- Use **YAML packages** to add ENM, ALM, DIM, etc., quickly in the controller config.
-
-[Back to top ↑](#-quick-navigation)
-
----
 
 ## 5. Networking & communication
 
@@ -261,7 +224,21 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
 
 ## 6. Software & UI configuration
 
-### 6.1 Web Config Tool (USB Web Serial)
+### 6.1 Controller ESPHome Setup 
+
+All HomeMaster controllers come with **ESPHome pre-installed** and support **Improv onboarding** over **USB or Bluetooth** — no flashing required.
+
+Once powered on:
+
+- Connect via [improv-wifi.com](https://improv-wifi.com) to enter your Wi‑Fi credentials  
+- The controller appears in **ESPHome Dashboard** or **Home Assistant**, ready to use  
+- Add connected modules using `modbus_controller:` and per-module `packages:`  
+
+Each controller supports automatic discovery and YAML import for easy customization. Full setup guides and YAML templates are available on each module's page.
+
+> 💡 For advanced users, manual flashing via USB‑C is also supported — with no need for reset buttons.
+
+### 6.2 Web Config Tool (USB Web Serial)
 
 All HomeMaster extension modules include a built-in **USB WebConfig interface** — a single HTML file that runs in your browser (no install, no drivers).
 
@@ -277,19 +254,11 @@ Each module has its own version of the tool with tailored panels, but the interf
 
 > 💡 WebConfig works in Chrome or Edge via USB‑C — just plug in and click “Connect”. Full details live in each module’s manual.
 
-### 6.2 ESPHome Setup (via Controller)
+### 6.3 Integration with Home Assistant
+- Controllers ship with **ESPHome pre‑installed**.
+- ESPHome exposes connected modules (via `modbus_controller:`) as sensors/switches/alarms.
+- Use **YAML packages** to add ENM, ALM, DIM, etc., quickly in the controller config.
 
-All HomeMaster controllers come with **ESPHome pre-installed** and support **Improv onboarding** over **USB or Bluetooth** — no flashing required.
-
-Once powered on:
-
-- Connect via [improv-wifi.com](https://improv-wifi.com) to enter your Wi‑Fi credentials  
-- The controller appears in **ESPHome Dashboard** or **Home Assistant**, ready to use  
-- Add connected modules using `modbus_controller:` and per-module `packages:`  
-
-Each controller supports automatic discovery and YAML import for easy customization. Full setup guides and YAML templates are available on each module's page.
-
-> 💡 For advanced users, manual flashing via USB‑C is also supported — with no need for reset buttons.
 
 [Back to top ↑](#-quick-navigation)
 
@@ -329,12 +298,24 @@ Flashing is only required for advanced users who want to replace default firmwar
 
 ---
 
-## 8. Troubleshooting & FAQ
+## 3. Safety information
 
-- **ESPHome adoption fails** → Re‑run **Improv** and ensure 2.4 GHz Wi‑Fi is available.
-- **No module entities** → Check RS‑485 A/B polarity and **120 Ω termination**; verify each module’s **Modbus address** in WebConfig.
-- **Metering wrong** → Confirm CT type (333 mV/1 V) and phase mapping in WebConfig.
-- Need help? See the **Support Portal** or open a GitHub issue.
+### 3.1 General electrical safety
+- Only trained personnel should install or service modules.
+- Disconnect all power sources before wiring or reconfiguring.
+- Always follow local electrical codes and standards.
+
+### 3.2 Handling & installation
+- Mount on 35 mm DIN rails inside protective enclosures.
+- Separate low‑voltage and high‑voltage wiring paths.
+- Avoid exposure to moisture, chemicals, or extreme temperatures.
+
+### 3.3 Device‑specific warnings
+- Connect PE/N properly for metering modules.
+- Use correct CTs (1 V or 333 mV) — never connect 5 A CTs directly.
+- Avoid reverse polarity on RS‑485 lines.
+
+[Back to top ↑](#-quick-navigation)
 
 ---
 
