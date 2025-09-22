@@ -709,21 +709,61 @@ Reset & Factory Restore: write to holding register `499` with value `1`, or use 
 
 ## 13. Technical Specifications (Electrical & external)
 
-| Parameter        | Value                                |
-|------------------|--------------------------------------|
-| Voltage Inputs   | 3‑phase, **85–265 VAC**              |
-| Current Inputs   | External CTs (**1 V** or **333 mV** RMS) |
-| Relay Outputs    | **2× SPDT (NO/NC)**, up to **5 A**   |
-| Communication    | **RS‑485 (Modbus RTU)**              |
-| Programming      | MicroPython / C++ / Arduino IDE      |
-| Power Supply     | **24 V DC** (interface)              |
-| Mounting         | **DIN rail**                         |
-| Accuracy         | Active **0.5S**, Reactive **1** (typ.) |
-| Indicators       | Status, **CF** (1000 pulses = 1 kWh) |
+## 13. Technical Specifications (Electrical & external)
 
-> Measurement metrics include RMS & peak U/I; P, Q, S, N; PF; phase angles; frequency; per‑phase and totals.
+### Power Supply
+- 24 VDC (standard interface power)
+- 120 VDC – 370 VDC
+- 85 VAC – 265 VAC @ 47–63 Hz
+- USB‑C female (5 V DC via USB‑C) — for programming/config only
 
----
+### Power Consumption
+- Typical: **1.85 W**
+- Max: **3 W**
+
+### Microcontroller
+- **RP2350**
+
+### Ambient Conditions
+- Operating Temperature: **0 … 50 °C / 32 … 122 °F**
+- Humidity: Max **95% r.H.**, non‑condensing
+
+### USB Interface
+- USB‑C (USB 2.0 compliant, ESD protected)
+- CP2102N USB‑UART bridge (Virtual COM Port)
+- Compatible with: **Windows, macOS, Linux**
+- Driverless operation with Web Serial tool
+
+### Digital Outputs
+- **2× Relays**, SPDT dry contact
+- Relay Ratings:
+  - 250 VAC 16 A @ cosφ=1
+  - 250 VAC 9 A @ cosφ=0.4
+  - 30 VDC 10 A
+- Opto-isolated with varistor surge protection
+
+### Current Inputs
+- **3× channels** via external CTs:
+  - 1 V RMS or 333 mV RMS CTs
+  - Up to **60 mA RMS** into input
+- Measures **RMS + peak current**
+- Calculates **P / Q / S** (active/reactive/apparent power)
+- CT ratio + phase shift configurable via software
+
+### Voltage Inputs
+- 3‑Phase (L1, L2, L3–N)
+- **85 … 265 VAC**, 50/60 Hz
+- Measures **RMS + peak voltage**
+- **Min pulse: 300 μs**
+- Fully **galvanically isolated**
+
+### RS‑485 Interface
+- **Half-duplex**, 115.2 kbps
+- Short-circuit current limited
+- Protected against:
+  - Excessive power dissipation
+  - Open circuit (fail‑safe)
+  - Surge (TVS diodes)
 
 ## 14. Open Source & Licensing
 
