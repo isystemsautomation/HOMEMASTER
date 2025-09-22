@@ -17,6 +17,7 @@
 ## 🧠 Core Controllers
 
 ### 🟢 MiniPLC
+![MiniPLC](./MiniPLC/Images/MiniPLC2.png)
 
 DIN-rail mountable flagship controller for advanced installations.
 
@@ -33,6 +34,7 @@ DIN-rail mountable flagship controller for advanced installations.
 ---
 
 ### 🔵 MicroPLC
+![MicroPLC](./MicroPLC/Images/MicroPLC.png)
 
 Compact controller for distributed or basic setups.
 
@@ -48,7 +50,6 @@ Compact controller for distributed or basic setups.
 ## 🔌 Expansion Modules
 
 All modules communicate via **RS‑485 (Modbus RTU)** and support **local logic**. Configurable via **WebConfig**, each module continues to operate autonomously even if the controller goes offline.
-
 
 ### AIO-422-R1
 ![AIO-422-R1](./AIO-422-R1/Images/photo1.png)
