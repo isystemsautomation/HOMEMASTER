@@ -1,3 +1,4 @@
+
 # HOMEMASTER – Modular, Resilient Smart Automation System
 
 ![License: CERN-OHL-W v2 + GPLv3 + MIT](https://img.shields.io/badge/license-CERN--OHL--W_v2%20%7C%20GPLv3%20%7C%20MIT-informational)
@@ -16,17 +17,17 @@ Fully open‑source hardware, firmware, and configuration tools.
   - [1.3 Use cases](#13-use-cases)
   - [1.4 Why HomeMaster? (Mission)](#14-why-homemaster-mission)
 - [2. Quick start](#2-quick-start)
-- [3. Safety information](#3-safety-information)
-- [4. System overview](#4-system-overview)
-  - [4.1 Topology diagram](#41-topology-diagram)
-  - [4.2 Integration with Home Assistant](#42-integration-with-home-assistant)
-- [5. Networking & communication](#5-networking--communication)
-- [6. Software & UI configuration](#6-software--ui-configuration)
-- [7. Programming & customization](#7-programming--customization)
-- [8. Troubleshooting & FAQ](#8-troubleshooting--faq)
-- [9. Open source & licensing](#9-open-source--licensing)
-- [10. Downloads](#10-downloads)
-- [11. Support](#11-support)
+- [3. Choosing the Right PLC and Modules](#3-choosing-the-right-plc-and-modules)
+  - [3.1 MiniPLC vs MicroPLC – Selection Guide](#31-miniplc-vs-microplc--selection-guide)
+  - [3.2 Module Comparison Table](#32-module-comparison-table)
+  - [3.3 Recommended Setups](#33-recommended-setups)
+- [4. Networking & communication](#4-networking--communication)
+- [5. Software & UI configuration](#5-software--ui-configuration)
+- [6. Programming & customization](#6-programming--customization)
+- [7. Safety information](#7-safety-information)
+- [8. Open source & licensing](#8-open-source--licensing)
+- [9. Downloads](#9-downloads)
+- [10. Support](#10-support)
 
 ---
 
@@ -106,7 +107,7 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
       <br/><sub><b>DIM‑420‑R1 — Dual‑Channel AC Dimmer</b></sub>
     </td>
     <td valign="top">
-      **2‑ch phase‑cut dimming** (per‑channel leading/trailing), **4 DIs** with rich press logic, dual zero‑cross sensing. RS‑485 + WebConfig.
+      **2‑ch phase‑cut dimming** (per‑channel leading/trailing), **4 DIs** with multi‑mode button logic, dual zero‑cross sensing. RS‑485 + WebConfig.
     </td>
   </tr>
 
@@ -139,10 +140,10 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
       <a href="./RGB-621-R1/Images/photo1.png">
         <img src="./RGB-621-R1/Images/photo1.png" alt="RGB‑621‑R1" width="260">
       </a>
-      <br/><sub><b>RGB‑620‑R1 — RGBCCT LED Control</b></sub>
+      <br/><sub><b>RGB‑621‑R1 — RGBCCT LED Control</b></sub>
     </td>
     <td valign="top">
-      **5‑ch PWM** (RGB+CCT) with smooth fades, **2 DIs**, **1× relay**. RS‑485 + USB‑C; ESPHome‑ready. 24 VDC DIN‑rail.
+      **5× PWM** (RGB+CCT) with smooth fades, **2 DIs**, **1× relay**. RS‑485 + USB‑C; ESPHome‑ready. 24 VDC DIN‑rail.
     </td>
   </tr>
 
@@ -194,44 +195,46 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
 3. **Wire RS‑485** — A/B differential pair; **120 Ω termination** at both bus ends.  
 4. **Configure each module** — Connect via **USB‑C** and use **WebConfig** to set **Modbus address and module settings** (calibration, mapping, rules).  
 5. **Open Home Assistant** — Add the ESPHome controller; modules appear as entities via the controller config.
+
 ---
-## 3 Choosing the Right PLC and Modules
+
+## 3. Choosing the Right PLC and Modules
 
 ### 3.1 MiniPLC vs MicroPLC – Selection Guide
 
 | Feature / Use Case             | 🟢 **MiniPLC**                                   | 🔵 **MicroPLC**                               |
 |-------------------------------|--------------------------------------------------|-----------------------------------------------|
 | Size                          | Full-width DIN enclosure                         | Compact DIN enclosure                         |
-| Onboard I/O                   | 6x Relays, 4x DI, 2x RTD, 2x AI/O, Display, RTC  | 1x Relay, 1x DI, 1-Wire, RTC                   |
+| Onboard I/O                   | 6× Relays, 4× DI, 2× RTD, 2× AI/O, Display, RTC  | 1× Relay, 1× DI, 1‑Wire, RTC                  |
 | Connectivity                  | Ethernet, USB‑C, Wi‑Fi, BLE + Improv             | USB‑C, Wi‑Fi, BLE + Improv                    |
 | Storage                       | microSD card slot                                | Internal flash only                           |
 | Ideal for                     | Full homes, labs, HVAC/solar, automation pros    | Makers, room‑level, modular expansion setups  |
 | Power input                   | AC/DC wide range or 24 VDC                       | 24 VDC only                                   |
 | ESPHome integration           | Yes, with rich entity exposure                   | Yes, ideal for modular configs                |
-| Installation type             | Works as a standalone PLC and also expands via RS‑485 modules.                 | Designed to be affordable and used primarily with extension modules.systems                |
+| Installation type             | Works as a standalone PLC and also expands via RS‑485 modules. | Designed to be affordable and used primarily with extension modules. |
 
 ### 3.2 Module Comparison Table
 
 | Module Code     | Digital Inputs | Analog / RTD      | Relay Outputs | Special Features                          | Typical Use Cases                         |
-|-----------------|----------------|-------------------|----------------|--------------------------------------------|-------------------------------------------|
-| **ENM‑223‑R1**  | —              | Voltage + CTs     | 2 relays       | 3‑phase metering, power KPIs              | Grid, solar, energy sub-metering          |
-| **ALM‑173‑R1**  | 17 DI          | —                 | 3 relays       | Sensor AUX power, alarm logic             | Security, panic, tamper, window contacts  |
-| **DIM‑420‑R1**  | 4 DI           | —                 | 2 dim outputs  | AC dimming, press logic, LED feedback     | Room lighting, stair lighting             |
-| **AIO‑422‑R1**  | —              | 4 AI + 2 RTD      | 2 AO           | 0–10 V input/output, PT100/PT1000         | HVAC, environmental sensors               |
-| **DIO‑430‑R1**  | 4 DI           | —                 | 3 relays       | Logic mapping, override buttons           | Generic input/output, control boards      |
-| **RGB‑620‑R1**  | 2 DI           | —                 | 1 relay        | 5x PWM (RGB+CCT), LED fades               | RGB lighting, wall-switch control         |
-| **STR‑3221‑R1** | 3 DI           | —                 | —              | 32-channel LED sequencing (TLC59208F)      | Stair lights, animation control           |
-| **WLD‑521‑R1**  | 5 DI           | 1‑Wire Temp       | 2 relays       | Leak detection, pulse metering            | Bathrooms, kitchens, utility rooms        |
+|-----------------|----------------|-------------------|---------------|-------------------------------------------|-------------------------------------------|
+| **ENM‑223‑R1**  | —              | Voltage + CTs     | 2 relays      | 3‑phase metering, power KPIs              | Grid, solar, energy sub‑metering          |
+| **ALM‑173‑R1**  | 17 DI          | —                 | 3 relays      | AUX power rails (5 V / 12 V), alarm logic | Security, panic, tamper, window contacts  |
+| **DIM‑420‑R1**  | 4 DI           | —                 | 2× dimming outputs | AC dimming, button logic, LED feedback     | Room lighting, stair lighting             |
+| **AIO‑422‑R1**  | —              | 4 AI + 2 RTD      | 2 AO          | 0–10 V input/output, PT100/PT1000         | HVAC, environmental sensors               |
+| **DIO‑430‑R1**  | 4 DI           | —                 | 3 relays      | Logic mapping, override buttons           | Generic input/output, control boards      |
+| **RGB‑621‑R1**  | 2 DI           | —                 | 1 relay       | 5× PWM (RGB+CCT), smooth fades            | RGB lighting, wall‑switch control         |
+| **STR‑3221‑R1** | 3 DI           | —                 | —             | 32‑channel LED sequencing (TLC59208F)     | Stair lights, animation control           |
+| **WLD‑521‑R1**  | 5 DI           | 1‑Wire Temp       | 2 relays      | Leak detection, pulse metering            | Bathrooms, kitchens, utility rooms        |
 
 ### 3.3 Recommended Setups
 
 - 🏠 **Starter Setup (Lighting + I/O)**  
-  🔹 MicroPLC + DIO‑430‑R1 + RGB‑620‑R1  
+  🔹 MicroPLC + DIO‑430‑R1 + RGB‑621‑R1  
   👉 For basic lighting control, wall switch input, RGB strip control.
 
 - ⚡ **Energy Monitoring Setup**  
   🔹 MicroPLC + ENM‑223‑R1  
-  👉 For tracking grid power, solar production, or 3-phase loads.
+  👉 For tracking grid power, solar production, or 3‑phase loads.
 
 - 🧪 **Lab / Professional Setup**  
   🔹 MiniPLC + any mix of modules  
@@ -239,31 +242,32 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
 
 - 💧 **Safety & Leak Detection**  
   🔹 MicroPLC + WLD‑521‑R1 + ALM‑173‑R1  
-  👉 Secure your home with leak sensors, alarm inputs, and auto-valve control.
+  👉 Secure your home with leak sensors, alarm inputs, and auto‑valve control.
 
 - 🌈 **RGB + Dimming + Scenes**  
-  🔹 MiniPLC or MicroPLC + RGB‑620‑R1 + DIM‑420‑R1  
+  🔹 MiniPLC or MicroPLC + RGB‑621‑R1 + DIM‑420‑R1  
   👉 Create scenes with ESPHome automations and HA dashboards.
 
+---
 
-## 5. Networking & communication
+## 4. Networking & communication
 
-### 5.1 RS‑485 Modbus
+### 4.1 RS‑485 Modbus
 - All modules use Modbus RTU (slave) over RS‑485.
 - Default: `19200 8N1` (configurable).
 - Bus topology supported; use **120 Ω termination** at ends; observe biasing.
 
-### 5.2 USB‑C configuration
+### 4.2 USB‑C configuration
 - Use `ConfigToolPage.html` (no drivers needed) in Chrome/Edge.
 - Enables calibration, phase mapping, relay control, alarm config, etc.
 - Available for each module type.
 
-### 5.3 Wi‑Fi and Bluetooth
+### 4.3 Wi‑Fi and Bluetooth
 - Wi‑Fi on **MiniPLC** and **MicroPLC**.
 - **Improv Wi‑Fi** onboarding via **BLE and Serial** on **both controllers**.
 - Once connected, modules communicate over RS‑485; controllers expose them wirelessly.
 
-### 5.4 Ethernet
+### 4.4 Ethernet
 - Available on **MiniPLC** only.
 - Enables fast and stable connection to Home Assistant or MQTT brokers.
 
@@ -271,9 +275,9 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
 
 ---
 
-## 6. Software & UI configuration
+## 5. Software & UI configuration
 
-### 6.1 Controller ESPHome Setup 
+### 5.1 Controller ESPHome Setup 
 
 All HomeMaster controllers come with **ESPHome pre-installed** and support **Improv onboarding** over **USB or Bluetooth** — no flashing required.
 
@@ -287,7 +291,7 @@ Each controller supports automatic discovery and YAML import for easy customizat
 
 > 💡 For advanced users, manual flashing via USB‑C is also supported — with no need for reset buttons.
 
-### 6.2 Web Config Tool (USB Web Serial)
+### 5.2 Web Config Tool (USB Web Serial)
 
 All HomeMaster extension modules include a built-in **USB WebConfig interface** — a single HTML file that runs in your browser (no install, no drivers).
 
@@ -303,19 +307,18 @@ Each module has its own version of the tool with tailored panels, but the interf
 
 > 💡 WebConfig works in Chrome or Edge via USB‑C — just plug in and click “Connect”. Full details live in each module’s manual.
 
-### 6.3 Integration with Home Assistant
+### 5.3 Integration with Home Assistant
 - Controllers ship with **ESPHome pre‑installed**.
 - ESPHome exposes connected modules (via `modbus_controller:`) as sensors/switches/alarms.
 - Use **YAML packages** to add ENM, ALM, DIM, etc., quickly in the controller config.
-
 
 [Back to top ↑](#-quick-navigation)
 
 ---
 
-## 7. Programming & Customization
+## 6. Programming & Customization
 
-### 7.1 Supported Languages
+### 6.1 Supported Languages
 All HomeMaster controllers and modules support firmware customization via **USB‑C**.
 
 - **ESPHome YAML** (pre-installed on controllers)
@@ -325,7 +328,7 @@ All HomeMaster controllers and modules support firmware customization via **USB�
 - **ESP-IDF** (for ESP32-based controllers)
 - **Pico SDK / CircuitPython** (for RP2350-based modules)
 
-### 7.2 USB‑C Developer Flashing (Optional)
+### 6.2 USB‑C Developer Flashing (Optional)
 Both controllers and modules support easy flashing and auto-reset via **USB‑C**, with no need to press BOOT or RESET buttons.
 
 - **ESP32-based controllers** (MiniPLC, MicroPLC): programmable using Arduino IDE, PlatformIO, ESP-IDF, or ESPHome Dashboard.
@@ -337,7 +340,7 @@ Both controllers and modules support easy flashing and auto-reset via **USB‑C*
 
 Flashing is only required for advanced users who want to replace default firmware.
 
-### 7.3 Arduino & PlatformIO Notes
+### 6.3 Arduino & PlatformIO Notes
 - Clone the firmware repository
 - Use the provided `default_xxx.ino` sketches per module or controller
 - Add libraries as needed:  
@@ -347,19 +350,19 @@ Flashing is only required for advanced users who want to replace default firmwar
 
 ---
 
-## 3. Safety information
+## 7. Safety information
 
-### 3.1 General electrical safety
+### 7.1 General electrical safety
 - Only trained personnel should install or service modules.
 - Disconnect all power sources before wiring or reconfiguring.
 - Always follow local electrical codes and standards.
 
-### 3.2 Handling & installation
+### 7.2 Handling & installation
 - Mount on 35 mm DIN rails inside protective enclosures.
 - Separate low‑voltage and high‑voltage wiring paths.
 - Avoid exposure to moisture, chemicals, or extreme temperatures.
 
-### 3.3 Device‑specific warnings
+### 7.3 Device‑specific warnings
 - Connect PE/N properly for metering modules.
 - Use correct CTs (1 V or 333 mV) — never connect 5 A CTs directly.
 - Avoid reverse polarity on RS‑485 lines.
@@ -368,7 +371,7 @@ Flashing is only required for advanced users who want to replace default firmwar
 
 ---
 
-## 9. Open source & licensing
+## 8. Open source & licensing
 
 - **Hardware:** CERN‑OHL‑W v2  
 - **Firmware:** GPLv3  
@@ -377,7 +380,7 @@ See `LICENSE` for full terms.
 
 ---
 
-## 10. Downloads
+## 9. Downloads
 
 - 📥 **Firmware (INO / YAML examples):** <https://github.com/isystemsautomation/HOMEMASTER/tree/main/Firmware>
 - 🛠 **Config Tools (HTML):** <https://github.com/isystemsautomation/HOMEMASTER/tree/main/tools>
@@ -389,7 +392,7 @@ See `LICENSE` for full terms.
 
 ---
 
-## 11. Support
+## 10. Support
 
 - 🌐 **Official Support Portal:** <https://www.home-master.eu/support>  
 - 🧠 **Hackster.io Projects:** <https://www.hackster.io/homemaster>  
