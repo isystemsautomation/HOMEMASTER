@@ -36,12 +36,35 @@ Modules include local logic and continue functioning even without a network.
 </tr>
 </table>
 
-#### Controllers
 
-| Controller  | Description |
-|------------|-------------|
-| **MiniPLC** | Advanced DIN‑rail controller with Ethernet, relays, analog I/O, RTD, display, SD logging |
-| **MicroPLC** | Compact controller with RS‑485, relay, input, 1‑Wire, RTC, USB‑C |
+| Controller | Description |
+|---------------|-------------|
+| **MiniPLC** | Advanced DIN-rail controller with Ethernet, relays, analog I/O, RTD, display, SD logging |
+| **MicroPLC** | Compact controller with RS-485, relay, input, 1-Wire, RTC, USB-C |
+
+| Extension Module | Key Features |
+|------------------|--------------|
+| **ENM-223-R1** | 3-phase energy meter + 2 relays |
+| **ALM-173-R1** | 17 digital inputs + 3 relays |
+| **DIM-420-R1** | 2-channel dimmer + 4 inputs |
+| **AIO-422-R1** | Analog I/O + RTD |
+| **DIO-430-R1** | Digital I/O |
+| **RGB-620-R1** | 6× MOSFET RGB channels |
+| **WLD-521-R1** | Leak detector + valve |
+| **STR-3221-R1** | Staircase LED controller (32 channels) |
+
+### 🧩 Extension Modules
+
+| Module | Image |
+|------------------|-------|
+| ENM-223-R1 | ![ENM](./ENM-223-R1/Images/photo1.png) |
+| ALM-173-R1 | ![ALM](./ALM-173-R1/Images/photo1.png) |
+| DIM-420-R1 | ![DIM](./DIM-420-R1/Images/photo1.png) |
+| AIO-422-R1 | ![AIO](./AIO-422-R1/Images/photo1.png) |
+| DIO-430-R1 | ![DIO](./DIO-430-R1/Images/photo1.png) |
+| RGB-620-R1 | ![RGB](./RGB-620-R1/Images/photo1.png) |
+| STR-3221-R1 | ![STR](./STR-3221-R1/Images/photo1.png) |
+| WLD-521-R1 | ![WLD](./WLD-521-R1/Images/photo1.png) |
 
 ### 1.3 Use Cases
 - Smart energy monitoring and control
