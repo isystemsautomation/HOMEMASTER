@@ -1,34 +1,50 @@
 # HOMEMASTER – Modular, Resilient Smart Automation System
 
+![License: CERN-OHL-W v2 + GPLv3 + MIT](https://img.shields.io/badge/license-CERN--OHL--W_v2%20%7C%20GPLv3%20%7C%20MIT-informational)
+![Status: Open Hardware](https://img.shields.io/badge/hardware-open--source-brightgreen)
+![Works with: ESPHome & Home Assistant](https://img.shields.io/badge/works%20with-ESPHome%20%26%20Home%20Assistant-blue)
+
 **Version: 2025‑09** — Fully open‑source hardware, firmware, and configuration tools.
 
 ---
 
 ## 📑 Quick navigation
 - [1. Introduction](#1-introduction)
-- [2. Safety information](#2-safety-information)
-- [3. System overview](#3-system-overview)
-- [4. Networking & communication](#4-networking--communication)
-- [5. Software & UI configuration](#5-software--ui-configuration)
-- [6. Programming & customization](#6-programming--customization)
-- [7. Open source & licensing](#7-open-source--licensing)
-- [8. Downloads](#8-downloads)
-- [9. Support](#9-support)
+  - [1.1 Overview of the HomeMaster ecosystem](#11-overview-of-the-homemaster-ecosystem)
+  - [1.2 Modules & controllers](#12-modules--controllers)
+  - [1.3 Use cases](#13-use-cases)
+  - [1.4 Why HomeMaster? (Mission)](#14-why-homemaster-mission)
+- [2. Quick start](#2-quick-start)
+- [3. Safety information](#3-safety-information)
+- [4. System overview](#4-system-overview)
+  - [4.1 Topology diagram](#41-topology-diagram)
+  - [4.2 MicroPLC vs MiniPLC](#42-microplc-vs-miniplc)
+  - [4.3 Integration with Home Assistant](#43-integration-with-home-assistant)
+- [5. Networking & communication](#5-networking--communication)
+- [6. Software & UI configuration](#6-software--ui-configuration)
+- [7. Programming & customization](#7-programming--customization)
+- [8. Troubleshooting & FAQ](#8-troubleshooting--faq)
+- [9. Open source & licensing](#9-open-source--licensing)
+- [10. Downloads](#10-downloads)
+- [11. Support](#11-support)
+- [Appendix A. MiniPLC power supply and protection](#appendix-a-miniplc-power-supply-and-protection)
+- [Appendix B. I/O circuitry details](#appendix-b-io-circuitry-details)
+- [Appendix C. Web server and OTA updates](#appendix-c-web-server-and-ota-updates)
 
 ---
 
 ## 1. Introduction
 
 ### 1.1 Overview of the HomeMaster ecosystem
-HomeMaster is an industrial‑grade, modular automation system for smart homes, labs, and professional installations. It features:
+HomeMaster is an **industrial‑grade, modular automation system** for smart homes, labs, and professional installations. It features:
 
-- ESP32‑based PLC controllers (MiniPLC & MicroPLC)
+- ESP32‑based PLC controllers (**MiniPLC & MicroPLC**)
 - A family of smart I/O modules (energy monitoring, lighting, alarms, analog I/O, etc.)
-- RS‑485 Modbus RTU communication
-- ESPHome compatibility for Home Assistant
-- USB‑C & WebConfig UI for driverless configuration
+- **RS‑485 Modbus RTU** communication
+- **ESPHome** compatibility for **Home Assistant**
+- **USB‑C** & **WebConfig** UI for driverless configuration
 
-Modules include local logic and continue functioning even without a network.
+> **Local resilience:** Modules include onboard logic and continue functioning even if the controller or network is offline.
 
 ### 1.2 Modules & controllers
 
@@ -130,23 +146,72 @@ Modules include local logic and continue functioning even without a network.
 - [x] Modbus‑connected distributed systems  
 - [x] Industrial and home lab control  
 
+### 1.4 Why HomeMaster? (Mission)
+- **Resilient by design:** Local logic ensures core functions continue without network/cloud.
+- **Industrial yet maker‑friendly:** DIN‑rail hardware with ESPHome simplicity.
+- **Open & repairable:** Open hardware, firmware, and tools; long‑term maintainability.
+
 [Back to top ↑](#-quick-navigation)
 
 ---
 
-## 2. Safety information
+## 2. Quick start
 
-### 2.1 General electrical safety
+### 2.1 Choose a starting setup
+- **Starter (lighting):** MicroPLC + DIO‑430‑R1 + RGB‑620‑R1  
+- **Energy (monitoring):** MicroPLC + ENM‑223‑R1  
+- **Lab/Pro:** MiniPLC + any modules needed over RS‑485
+
+### 2.2 Flash & connect
+1. Power the controller (see **Appendix A**).
+2. Connect via **ESPHome Web Flasher** (USB‑C) or add the device with **Improv Wi‑Fi** (fallback SSID visible on first boot).
+3. Use **WebConfig** to set each module’s **Modbus address/baud**.
+
+### 2.3 Minimal ESPHome example (via `modbus_controller:`)
+```yaml
+esphome:
+  name: homemaster-microplc
+
+uart:
+  id: rs485
+  tx_pin: GPIO17
+  rx_pin: GPIO16
+  baud_rate: 19200
+  stop_bits: 1
+
+modbus:
+  id: mbus
+  uart_id: rs485
+
+modbus_controller:
+  - id: enm223
+    address: 0x01
+    modbus_id: mbus
+    update_interval: 3s
+# Use packages/ or sensors: blocks per module (see Downloads).
+```
+
+### 2.4 Verify in Home Assistant
+- Add the ESPHome device; confirm sensors/switches appear.
+- Create a test dashboard card (e.g., relay toggle or power reading).
+
+[Back to top ↑](#-quick-navigation)
+
+---
+
+## 3. Safety information
+
+### 3.1 General electrical safety
 - Only trained personnel should install or service modules.
 - Disconnect all power sources before wiring or reconfiguring.
 - Always follow local electrical codes and standards.
 
-### 2.2 Handling & installation
+### 3.2 Handling & installation
 - Mount on 35 mm DIN rails inside protective enclosures.
 - Separate low‑voltage and high‑voltage wiring paths.
 - Avoid exposure to moisture, chemicals, or extreme temperatures.
 
-### 2.3 Device‑specific warnings
+### 3.3 Device‑specific warnings
 - Connect PE/N properly for metering modules.
 - Use correct CTs (1 V or 333 mV) — never connect 5 A CTs directly.
 - Avoid reverse polarity on RS‑485 lines.
@@ -155,14 +220,14 @@ Modules include local logic and continue functioning even without a network.
 
 ---
 
-## 3. System overview
+## 4. System overview
 
-### 3.1 Architecture & modular design
-- Controllers connect to extension modules via RS‑485 Modbus RTU.
-- Each module operates independently using onboard logic.
-- USB‑C and WebConfig allow local driverless setup and diagnostics.
+### 4.1 Topology diagram
+> **Diagram placeholder:** include an `Images/system_topology.svg` illustrating:  
+> Home Assistant ↔ (Wi‑Fi/Ethernet) ↔ **MiniPLC/MicroPLC** ↔ (RS‑485 Modbus RTU) ↔ **Extension Modules** (ENM/DIO/DIM/…);  
+> Local logic highlighted inside each module.
 
-### 3.2 MicroPLC vs MiniPLC
+### 4.2 MicroPLC vs MiniPLC
 
 | Feature      | MiniPLC        | MicroPLC      |
 |--------------|----------------|---------------|
@@ -172,43 +237,43 @@ Modules include local logic and continue functioning even without a network.
 | Expansion    | Modbus RTU     | Modbus RTU    |
 | Target use   | Large systems  | Small systems |
 
-### 3.3 Integration with Home Assistant
+### 4.3 Integration with Home Assistant
 - ESPHome integration: modules appear as devices with sensors, switches, and alarms.
 - Home Assistant can use entities for dashboards, automations, and energy monitoring.
-- Use YAML package files to add ENM, ALM, DIM, etc. easily.
+- Use **YAML packages** to add ENM, ALM, DIM, etc. quickly.
 
 [Back to top ↑](#-quick-navigation)
 
 ---
 
-## 4. Networking & communication
+## 5. Networking & communication
 
-### 4.1 RS‑485 Modbus
+### 5.1 RS‑485 Modbus
 - All modules use Modbus RTU (slave) over RS‑485.
-- Baud rate defaults: `19200 8N1` (configurable).
-- Bus topology supported; use 120 Ω termination at ends.
+- Default: `19200 8N1` (configurable).
+- Bus topology supported; use **120 Ω termination** at ends; observe biasing.
 
-### 4.2 USB‑C configuration
-- Use `ConfigToolPage.html` (no drivers needed) in Chrome or Edge.
+### 5.2 USB‑C configuration
+- Use `ConfigToolPage.html` (no drivers needed) in Chrome/Edge.
 - Enables calibration, phase mapping, relay control, alarm config, etc.
 - Available for each module type.
 
-### 4.3 Wi‑Fi and Bluetooth
-- Wi‑Fi is available on MiniPLC and MicroPLC.
-- Improv Wi‑Fi onboarding via BLE supported (MicroPLC only).
+### 5.3 Wi‑Fi and Bluetooth
+- Wi‑Fi on **MiniPLC** and **MicroPLC**.
+- **Improv Wi‑Fi** onboarding via BLE supported (MicroPLC only).
 - Once connected, modules communicate over RS‑485; controllers expose them wirelessly.
 
-### 4.4 Ethernet
-- Available on MiniPLC only.
+### 5.4 Ethernet
+- Available on **MiniPLC** only.
 - Enables fast and stable connection to Home Assistant or MQTT brokers.
 
 [Back to top ↑](#-quick-navigation)
 
 ---
 
-## 5. Software & UI configuration
+## 6. Software & UI configuration
 
-### 5.1 Web Config Tool (USB Web Serial)
+### 6.1 Web Config Tool (USB Web Serial)
 - HTML file that runs locally in the browser (no install needed).
 - Features per module:
   - Modbus address & baud rate
@@ -218,7 +283,7 @@ Modules include local logic and continue functioning even without a network.
   - LED behavior
   - Calibration / phase mapping
 
-### 5.2 ESPHome Wi‑Fi setup (via controller)
+### 6.2 ESPHome Wi‑Fi setup (via controller)
 - MiniPLC/MicroPLC expose connected modules using `modbus_controller:` in ESPHome.
 - Use `packages:` with variable overrides for each ENM or DIM module.
 - Add ESPHome device to Home Assistant and select energy sensors or switches.
@@ -227,19 +292,19 @@ Modules include local logic and continue functioning even without a network.
 
 ---
 
-## 6. Programming & customization
+## 7. Programming & customization
 
-### 6.1 Supported languages
+### 7.1 Supported languages
 - **Arduino IDE**
 - **PlatformIO**
 - **MicroPython** (via Thonny)
 - **ESPHome YAML** (default config for most users)
 
-### 6.2 Flashing via USB‑C
+### 7.2 Flashing via USB‑C
 - All controllers and modules support auto‑reset via USB‑C.
-- No need to press buttons — supports drag‑and‑drop UF2 (RP2040) or ESPHome Web Flasher.
+- No need to press buttons — supports drag‑and‑drop UF2 (RP2040/RP2350) or ESPHome Web Flasher.
 
-### 6.3 PlatformIO & Arduino
+### 7.3 PlatformIO & Arduino
 - Clone firmware repository.
 - Use `default_xxx.ino` sketches for each module.
 - Add libraries: `ModbusSerial`, `LittleFS`, `Arduino_JSON`, `SimpleWebSerial`.
@@ -248,41 +313,59 @@ Modules include local logic and continue functioning even without a network.
 
 ---
 
-## 7. Open source & licensing
+## 8. Troubleshooting & FAQ
 
-- **Hardware:** CERN‑OHL‑W v2.0 (can be modified; commercial use permitted with open‑source derivative)
-- **Firmware:** GPLv3 (contributions welcome)
-- **Web UI:** MIT (ConfigToolPage.html files for each module)
+**Q1. WebConfig can’t detect my module over USB.**  
+• Try Chrome or Edge (Web Serial API). • Use a known‑good USB‑C cable. • Press reset and reconnect. • Check that the device is not claimed by another serial app.
 
-[Back to top ↑](#-quick-navigation)
+**Q2. Home Assistant doesn’t show my sensors.**  
+• Confirm your ESPHome device is online. • Verify `uart:` pins and baud. • Ensure unique Modbus **addresses** for each module. • Increase `update_interval` temporarily to test.
 
----
+**Q3. RS‑485 bus is unreliable.**  
+• Add 120 Ω termination at both ends. • Ensure proper biasing. • Keep cable lengths reasonable; use twisted pair/shielded cable. • Separate high‑/low‑voltage wiring.
 
-## 8. Downloads
-
-- 📥 [Firmware (INO files)](https://github.com/isystemsautomation/HOMEMASTER/tree/main/Firmware)
-- 🛠 [Config Tools (HTML)](https://github.com/isystemsautomation/HOMEMASTER/tree/main/tools)
-- 📷 [Images & Diagrams](https://github.com/isystemsautomation/HOMEMASTER/tree/main/Images)
-- 📐 [Schematics](https://github.com/isystemsautomation/HOMEMASTER/tree/main/Schematics)
-- 📖 [Manuals (PDF)](https://github.com/isystemsautomation/HOMEMASTER/tree/main/Manuals)
+**Q4. Firmware update failed.**  
+• Try USB flashing with Web Flasher. • Power‑cycle the device. • Check that no other app uses the serial port. • Use a shorter USB cable.
 
 [Back to top ↑](#-quick-navigation)
 
 ---
 
-## 9. Support
+## 9. Open source & licensing
 
-- 🌐 [Official Support Portal](https://www.home-master.eu/support)
-- 🧠 [Hackster.io Projects](https://www.hackster.io/homemaster)
-- 🎥 [YouTube Channel](https://www.youtube.com/channel/UCD_T5wsJrXib3Rd21JPU1dg)
-- 💬 [Reddit /r/HomeMaster](https://www.reddit.com/r/HomeMaster)
-- 📷 [Instagram](https://www.instagram.com/home_master.eu)
+- **Hardware:** **CERN‑OHL‑W v2.0** (modifiable; commercial use permitted with open‑source derivative)  
+- **Firmware:** **GPLv3** (contributions welcome)  
+- **Web UI:** **MIT** (ConfigToolPage.html files for each module)
 
 [Back to top ↑](#-quick-navigation)
 
 ---
 
-## 🔌 MiniPLC power supply and protection
+## 10. Downloads
+
+- 📥 **Firmware (INO / YAML examples):** <https://github.com/isystemsautomation/HOMEMASTER/tree/main/Firmware>
+- 🛠 **Config Tools (HTML):** <https://github.com/isystemsautomation/HOMEMASTER/tree/main/tools>
+- 📷 **Images & Diagrams:** <https://github.com/isystemsautomation/HOMEMASTER/tree/main/Images>
+- 📐 **Schematics:** <https://github.com/isystemsautomation/HOMEMASTER/tree/main/Schematics>
+- 📖 **Manuals (PDF):** <https://github.com/isystemsautomation/HOMEMASTER/tree/main/Manuals>
+
+[Back to top ↑](#-quick-navigation)
+
+---
+
+## 11. Support
+
+- 🌐 **Official Support Portal:** <https://www.home-master.eu/support>  
+- 🧠 **Hackster.io Projects:** <https://www.hackster.io/homemaster>  
+- 🎥 **YouTube Channel:** <https://www.youtube.com/channel/UCD_T5wsJrXib3Rd21JPU1dg>  
+- 💬 **Reddit /r/HomeMaster:** <https://www.reddit.com/r/HomeMaster>  
+- 📷 **Instagram:** <https://www.instagram.com/home_master.eu>
+
+[Back to top ↑](#-quick-navigation)
+
+---
+
+## Appendix A. 🔌 MiniPLC power supply and protection
 
 The **MiniPLC** can be powered in two ways:
 
@@ -299,7 +382,7 @@ The **MiniPLC** can be powered in two ways:
 
 ---
 
-## ⚙️ I/O circuitry details
+## Appendix B. ⚙️ I/O circuitry details
 
 ### 🟥 Relay outputs (6x)
 - Relays: **HF115F/005‑1ZS3** (SPDT, dry contact)
@@ -317,8 +400,7 @@ The **MiniPLC** can be powered in two ways:
   - Logic 1: 15.8–24 VDC
 
 ### 🟦 RTD inputs (2x)
-- **MAX31865‑based**.
-- Supports PT100 / PT1000 (2‑, 3‑, 4‑wire).
+- **MAX31865‑based**. Supports PT100 / PT1000 (2‑, 3‑, 4‑wire).
 - Jumper‑configurable:
   - J1–J8 for RTD type and wire count
   - Factory default: RTD1 = PT100 2‑wire, RTD2 = PT1000 2‑wire
@@ -333,7 +415,6 @@ Jumper Setup:
 ```
 
 #### ESPHome RTD YAML example
-
 ```yaml
 sensor:
   - platform: max31865
@@ -358,7 +439,7 @@ sensor:
 
 ---
 
-## 🌐 Web server and OTA updates
+## Appendix C. 🌐 Web server and OTA updates
 
 The MiniPLC includes a built‑in **ESPHome OTA‑capable web server**.
 
