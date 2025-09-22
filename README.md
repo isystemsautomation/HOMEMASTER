@@ -208,7 +208,7 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
 | Ideal for                     | Full homes, labs, HVAC/solar, automation pros    | Makers, room‑level, modular expansion setups  |
 | Power input                   | AC/DC wide range or 24 VDC                       | 24 VDC only                                   |
 | ESPHome integration           | Yes, with rich entity exposure                   | Yes, ideal for modular configs                |
-| Installation type             | Standalone or central controller                 | Distributed or compact systems                |
+| Installation type             | Works as a standalone PLC and also expands via RS‑485 modules.                 | Designed to be affordable and used primarily with extension modules.systems                |
 
 ### 3.2 Module Comparison Table
 
