@@ -706,9 +706,6 @@ L1/L2/L3 → Attenuation → ATM90E32AS ← CT1/2/3
 Reset & Factory Restore: write to holding register `499` with value `1`, or use the hardware button combination (Buttons 3+4 held at power-up). Energy counters are retained across power cycles.
 
 ---
-
-## 13. Technical Specifications (Electrical & external)
-
 ## 13. Technical Specifications (Electrical & external)
 
 ### Power Supply
