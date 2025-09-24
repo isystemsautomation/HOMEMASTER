@@ -1,27 +1,35 @@
-substitutions:
-  wld_id: wld_ctrl
-  wld_prefix: WLD
-  wld_address: "3"        # default in firmware
+##
+## WLD-521-R1 (MiniPLC/MicroPLC ↔ WLD) — ESPHome Modbus config
+## Mirrors the style/structure of your working ENM/AIO/ALM packages.
+##
 
-# Assumes you already have:
+substitutions:
+  wld_id: wld_1
+  wld_prefix: "WLD#1"
+  wld_address: "3"     # Default Modbus ID in firmware (g_mb_address)
+
+# --- If you don't already have UART/MODBUS defined globally, uncomment & adjust: ---
 # uart:
 #   id: rs485_uart
-#   tx_pin: ...
-#   rx_pin: ...
-#   baud_rate: 19200
+#   tx_pin: GPIO4       # match your hardware
+#   rx_pin: GPIO5
+#   baud_rate: 19200    # firmware default (g_mb_baud)
+#   parity: NONE
+#   stop_bits: 1
+#
 # modbus:
 #   id: modbus_bus
 #   uart_id: rs485_uart
 
 modbus_controller:
   - id: ${wld_id}
-    address: ${wld_address}     # Modbus slave ID (g_mb_address)
+    address: ${wld_address}
     modbus_id: modbus_bus
     update_interval: 1s
     command_throttle: 0ms
 
 # ===================== Discrete Inputs (FC02) =====================
-# DI states: 1..5 | Relay states: 60..61
+# DI states: 1..5 | Relay feedback: 60..61
 binary_sensor:
   # --- Digital Inputs ---
   - platform: modbus_controller
@@ -50,94 +58,98 @@ binary_sensor:
     address: 5
     register_type: discrete_input
 
-  # --- Relay feedback (from ISTS_RLY_BASE=60) ---
+  # --- Relay feedback (ISTS_RLY_BASE = 60) ---
   - platform: modbus_controller
+    id: ${wld_id}_r1_state
     modbus_controller_id: ${wld_id}
     name: "${wld_prefix} R1 state"
     address: 60
     register_type: discrete_input
-    id: ${wld_id}_r1_state
   - platform: modbus_controller
+    id: ${wld_id}_r2_state
     modbus_controller_id: ${wld_id}
     name: "${wld_prefix} R2 state"
     address: 61
     register_type: discrete_input
-    id: ${wld_id}_r2_state
 
-# ===================== Counters (FC03 Holding) =====================
-# DI counters (U32) at HREG_DI_COUNT_BASE=1000, two regs each: [lo, hi]
+# ===================== DI Counters (FC03 Holding) =====================
+# Base = 1000, 2 regs per counter (lo, hi). We expose hidden lo/hi and a combined template U32.
 sensor:
-  # ---- DI1..DI5 lo/hi words (hidden) ----
+  # ---- DI1 lo/hi ----
   - platform: modbus_controller
-    modbus_controller_id: ${wld_id}
     id: ${wld_id}_di1_lo
+    modbus_controller_id: ${wld_id}
     address: 1000
     register_type: holding
     value_type: U_WORD
     internal: true
   - platform: modbus_controller
-    modbus_controller_id: ${wld_id}
     id: ${wld_id}_di1_hi
+    modbus_controller_id: ${wld_id}
     address: 1001
     register_type: holding
     value_type: U_WORD
     internal: true
 
+  # ---- DI2 lo/hi ----
   - platform: modbus_controller
-    modbus_controller_id: ${wld_id}
     id: ${wld_id}_di2_lo
+    modbus_controller_id: ${wld_id}
     address: 1002
     register_type: holding
     value_type: U_WORD
     internal: true
   - platform: modbus_controller
-    modbus_controller_id: ${wld_id}
     id: ${wld_id}_di2_hi
+    modbus_controller_id: ${wld_id}
     address: 1003
     register_type: holding
     value_type: U_WORD
     internal: true
 
+  # ---- DI3 lo/hi ----
   - platform: modbus_controller
-    modbus_controller_id: ${wld_id}
     id: ${wld_id}_di3_lo
+    modbus_controller_id: ${wld_id}
     address: 1004
     register_type: holding
     value_type: U_WORD
     internal: true
   - platform: modbus_controller
-    modbus_controller_id: ${wld_id}
     id: ${wld_id}_di3_hi
+    modbus_controller_id: ${wld_id}
     address: 1005
     register_type: holding
     value_type: U_WORD
     internal: true
 
+  # ---- DI4 lo/hi ----
   - platform: modbus_controller
-    modbus_controller_id: ${wld_id}
     id: ${wld_id}_di4_lo
+    modbus_controller_id: ${wld_id}
     address: 1006
     register_type: holding
     value_type: U_WORD
     internal: true
   - platform: modbus_controller
-    modbus_controller_id: ${wld_id}
     id: ${wld_id}_di4_hi
+    modbus_controller_id: ${wld_id}
     address: 1007
     register_type: holding
     value_type: U_WORD
     internal: true
 
+  # ---- DI5 lo/hi ----
   - platform: modbus_controller
-    modbus_controller_id: ${wld_id}
     id: ${wld_id}_di5_lo
+    modbus_controller_id: ${wld_id}
     address: 1008
     register_type: holding
     value_type: U_WORD
     internal: true
   - platform: modbus_controller
-    modbus_controller_id: ${wld_id}
     id: ${wld_id}_di5_hi
+    modbus_controller_id: ${wld_id}
     address: 1009
     register_type: holding
     value_type: U_WORD
@@ -146,41 +158,116 @@ sensor:
   # ---- Combined U32 counters (template) ----
   - platform: template
     name: "${wld_prefix} DI1 Count"
-    lambda: "return (uint32_t(id(${wld_id}_di1_lo).state) | (uint32_t(id(${wld_id}_di1_hi).state) << 16));"
-    update_interval: 1s
+    unit_of_measurement: "pulses"
     accuracy_decimals: 0
+    update_interval: 1s
+    lambda: |-
+      return (uint32_t(id(${wld_id}_di1_lo).state) | (uint32_t(id(${wld_id}_di1_hi).state) << 16));
 
   - platform: template
     name: "${wld_prefix} DI2 Count"
-    lambda: "return (uint32_t(id(${wld_id}_di2_lo).state) | (uint32_t(id(${wld_id}_di2_hi).state) << 16));"
-    update_interval: 1s
+    unit_of_measurement: "pulses"
     accuracy_decimals: 0
+    update_interval: 1s
+    lambda: |-
+      return (uint32_t(id(${wld_id}_di2_lo).state) | (uint32_t(id(${wld_id}_di2_hi).state) << 16));
 
   - platform: template
     name: "${wld_prefix} DI3 Count"
-    lambda: "return (uint32_t(id(${wld_id}_di3_lo).state) | (uint32_t(id(${wld_id}_di3_hi).state) << 16));"
-    update_interval: 1s
+    unit_of_measurement: "pulses"
     accuracy_decimals: 0
+    update_interval: 1s
+    lambda: |-
+      return (uint32_t(id(${wld_id}_di3_lo).state) | (uint32_t(id(${wld_id}_di3_hi).state) << 16));
 
   - platform: template
     name: "${wld_prefix} DI4 Count"
-    lambda: "return (uint32_t(id(${wld_id}_di4_lo).state) | (uint32_t(id(${wld_id}_di4_hi).state) << 16));"
-    update_interval: 1s
+    unit_of_measurement: "pulses"
     accuracy_decimals: 0
+    update_interval: 1s
+    lambda: |-
+      return (uint32_t(id(${wld_id}_di4_lo).state) | (uint32_t(id(${wld_id}_di4_hi).state) << 16));
 
   - platform: template
     name: "${wld_prefix} DI5 Count"
-    lambda: "return (uint32_t(id(${wld_id}_di5_lo).state) | (uint32_t(id(${wld_id}_di5_hi).state) << 16));"
-    update_interval: 1s
+    unit_of_measurement: "pulses"
     accuracy_decimals: 0
+    update_interval: 1s
+    lambda: |-
+      return (uint32_t(id(${wld_id}_di5_lo).state) | (uint32_t(id(${wld_id}_di5_hi).state) << 16));
 
-# ===================== Relay Control (FC05 single‑coil writes) =====================
+# ===================== Relay Control (FC05) =====================
 # CMD_RLY_ON_BASE=200, CMD_RLY_OFF_BASE=210
-# Provide explicit ON/OFF pulse switches (firmware auto‑clears the coil)
-# ===================== DI enable/disable & counter reset =====================
-# Enable: 300+i | Disable: 320+i | Counter reset: 340+i  (i = 0..4)
+# We use hidden coil helpers (optimistic, internal) and two user-facing template switches.
+switch:
+  # ---- Hidden coil helpers for R1 ----
+  - platform: modbus_controller
+    id: ${wld_id}_r1_on_pulse
+    modbus_controller_id: ${wld_id}
+    address: 200
+    register_type: coil
+    optimistic: true
+    internal: true
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_r1_on_pulse
 
-# Hidden coil helpers (write-only), one per operation
+  - platform: modbus_controller
+    id: ${wld_id}_r1_off_pulse
+    modbus_controller_id: ${wld_id}
+    address: 210
+    register_type: coil
+    optimistic: true
+    internal: true
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_r1_off_pulse
+
+  # ---- Hidden coil helpers for R2 ----
+  - platform: modbus_controller
+    id: ${wld_id}_r2_on_pulse
+    modbus_controller_id: ${wld_id}
+    address: 201
+    register_type: coil
+    optimistic: true
+    internal: true
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_r2_on_pulse
+
+  - platform: modbus_controller
+    id: ${wld_id}_r2_off_pulse
+    modbus_controller_id: ${wld_id}
+    address: 211
+    register_type: coil
+    optimistic: true
+    internal: true
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_r2_off_pulse
+
+  # ---- User-facing relay switches (follow feedback, pulse appropriate coil) ----
+  - platform: template
+    name: "${wld_prefix} Relay 1"
+    lambda: |-
+      return id(${wld_id}_r1_state).state;
+    turn_on_action:
+      - switch.turn_on: ${wld_id}_r1_on_pulse
+    turn_off_action:
+      - switch.turn_on: ${wld_id}_r1_off_pulse
+
+  - platform: template
+    name: "${wld_prefix} Relay 2"
+    lambda: |-
+      return id(${wld_id}_r2_state).state;
+    turn_on_action:
+      - switch.turn_on: ${wld_id}_r2_on_pulse
+    turn_off_action:
+      - switch.turn_on: ${wld_id}_r2_off_pulse
+
+# ===================== DI enable/disable & counter reset (FC05) =====================
+# Enable: 300..304 | Disable: 320..324 | Reset: 340..344
+# Hidden helpers (optimistic coil pulse), then clean template buttons that call them.
 switch:
   # ---- Enable coils (300..304) ----
   - platform: modbus_controller
@@ -188,36 +275,51 @@ switch:
     modbus_controller_id: ${wld_id}
     address: 300
     register_type: coil
-    write_only: true
+    optimistic: true
     internal: true
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di1_enable_coil
   - platform: modbus_controller
     id: ${wld_id}_di2_enable_coil
     modbus_controller_id: ${wld_id}
     address: 301
     register_type: coil
-    write_only: true
+    optimistic: true
     internal: true
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di2_enable_coil
   - platform: modbus_controller
     id: ${wld_id}_di3_enable_coil
     modbus_controller_id: ${wld_id}
     address: 302
     register_type: coil
-    write_only: true
+    optimistic: true
     internal: true
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di3_enable_coil
   - platform: modbus_controller
     id: ${wld_id}_di4_enable_coil
     modbus_controller_id: ${wld_id}
     address: 303
     register_type: coil
-    write_only: true
+    optimistic: true
     internal: true
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di4_enable_coil
   - platform: modbus_controller
     id: ${wld_id}_di5_enable_coil
     modbus_controller_id: ${wld_id}
     address: 304
     register_type: coil
-    write_only: true
+    optimistic: true
     internal: true
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di5_enable_coil
 
   # ---- Disable coils (320..324) ----
   - platform: modbus_controller
@@ -225,36 +327,51 @@ switch:
     modbus_controller_id: ${wld_id}
     address: 320
     register_type: coil
-    write_only: true
+    optimistic: true
     internal: true
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di1_disable_coil
   - platform: modbus_controller
     id: ${wld_id}_di2_disable_coil
     modbus_controller_id: ${wld_id}
     address: 321
     register_type: coil
-    write_only: true
+    optimistic: true
     internal: true
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di2_disable_coil
   - platform: modbus_controller
     id: ${wld_id}_di3_disable_coil
     modbus_controller_id: ${wld_id}
     address: 322
     register_type: coil
-    write_only: true
+    optimistic: true
     internal: true
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di3_disable_coil
   - platform: modbus_controller
     id: ${wld_id}_di4_disable_coil
     modbus_controller_id: ${wld_id}
     address: 323
     register_type: coil
-    write_only: true
+    optimistic: true
     internal: true
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di4_disable_coil
   - platform: modbus_controller
     id: ${wld_id}_di5_disable_coil
     modbus_controller_id: ${wld_id}
     address: 324
     register_type: coil
-    write_only: true
+    optimistic: true
     internal: true
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di5_disable_coil
 
   # ---- Counter reset coils (340..344) ----
   - platform: modbus_controller
@@ -262,111 +379,114 @@ switch:
     modbus_controller_id: ${wld_id}
     address: 340
     register_type: coil
-    write_only: true
+    optimistic: true
     internal: true
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di1_reset_coil
   - platform: modbus_controller
     id: ${wld_id}_di2_reset_coil
     modbus_controller_id: ${wld_id}
     address: 341
     register_type: coil
-    write_only: true
+    optimistic: true
     internal: true
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di2_reset_coil
   - platform: modbus_controller
     id: ${wld_id}_di3_reset_coil
     modbus_controller_id: ${wld_id}
     address: 342
     register_type: coil
-    write_only: true
+    optimistic: true
     internal: true
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di3_reset_coil
   - platform: modbus_controller
     id: ${wld_id}_di4_reset_coil
     modbus_controller_id: ${wld_id}
     address: 343
     register_type: coil
-    write_only: true
+    optimistic: true
     internal: true
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di4_reset_coil
   - platform: modbus_controller
     id: ${wld_id}_di5_reset_coil
     modbus_controller_id: ${wld_id}
     address: 344
     register_type: coil
-    write_only: true
+    optimistic: true
     internal: true
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di5_reset_coil
 
-# ---- Enable buttons ----
 button:
+  # ---- Enable buttons ----
   - platform: template
     name: "${wld_prefix} DI1 Enable"
     on_press:
       - switch.turn_on: ${wld_id}_di1_enable_coil
-
   - platform: template
     name: "${wld_prefix} DI2 Enable"
     on_press:
       - switch.turn_on: ${wld_id}_di2_enable_coil
-
   - platform: template
     name: "${wld_prefix} DI3 Enable"
     on_press:
       - switch.turn_on: ${wld_id}_di3_enable_coil
-
   - platform: template
     name: "${wld_prefix} DI4 Enable"
     on_press:
       - switch.turn_on: ${wld_id}_di4_enable_coil
-
   - platform: template
     name: "${wld_prefix} DI5 Enable"
     on_press:
       - switch.turn_on: ${wld_id}_di5_enable_coil
 
-# ---- Disable buttons ----
+  # ---- Disable buttons ----
   - platform: template
     name: "${wld_prefix} DI1 Disable"
     on_press:
       - switch.turn_on: ${wld_id}_di1_disable_coil
-
   - platform: template
     name: "${wld_prefix} DI2 Disable"
     on_press:
       - switch.turn_on: ${wld_id}_di2_disable_coil
-
   - platform: template
     name: "${wld_prefix} DI3 Disable"
     on_press:
       - switch.turn_on: ${wld_id}_di3_disable_coil
-
   - platform: template
     name: "${wld_prefix} DI4 Disable"
     on_press:
       - switch.turn_on: ${wld_id}_di4_disable_coil
-
   - platform: template
     name: "${wld_prefix} DI5 Disable"
     on_press:
       - switch.turn_on: ${wld_id}_di5_disable_coil
 
-# ---- Counter reset buttons ----
+  # ---- Counter reset buttons ----
   - platform: template
     name: "${wld_prefix} DI1 Counter Reset"
     on_press:
       - switch.turn_on: ${wld_id}_di1_reset_coil
-
   - platform: template
     name: "${wld_prefix} DI2 Counter Reset"
     on_press:
       - switch.turn_on: ${wld_id}_di2_reset_coil
-
   - platform: template
     name: "${wld_prefix} DI3 Counter Reset"
     on_press:
       - switch.turn_on: ${wld_id}_di3_reset_coil
-
   - platform: template
     name: "${wld_prefix} DI4 Counter Reset"
     on_press:
       - switch.turn_on: ${wld_id}_di4_reset_coil
-
   - platform: template
     name: "${wld_prefix} DI5 Counter Reset"
     on_press:
