@@ -1,5 +1,5 @@
 ##
-## WLD-521-R1 — ESPHome Modbus config (single switch: section)
+## WLD-521-R1 — ESPHome Modbus config (MiniPLC/MicroPLC ↔ WLD)
 ##
 
 substitutions:
@@ -7,7 +7,7 @@ substitutions:
   wld_prefix: "WLD#1"
   wld_address: "3"     # firmware default
 
-# If UART/MODBUS aren’t defined globally, uncomment and set pins:
+# If UART/MODBUS aren’t defined globally, uncomment & set pins:
 # uart:
 #   id: rs485_uart
 #   tx_pin: GPIO4
@@ -87,6 +87,7 @@ sensor:
     register_type: holding
     value_type: U_WORD
     internal: true
+
   # DI2 lo/hi
   - platform: modbus_controller
     id: ${wld_id}_di2_lo
@@ -102,6 +103,7 @@ sensor:
     register_type: holding
     value_type: U_WORD
     internal: true
+
   # DI3 lo/hi
   - platform: modbus_controller
     id: ${wld_id}_di3_lo
@@ -117,6 +119,7 @@ sensor:
     register_type: holding
     value_type: U_WORD
     internal: true
+
   # DI4 lo/hi
   - platform: modbus_controller
     id: ${wld_id}_di4_lo
@@ -132,6 +135,7 @@ sensor:
     register_type: holding
     value_type: U_WORD
     internal: true
+
   # DI5 lo/hi
   - platform: modbus_controller
     id: ${wld_id}_di5_lo
@@ -260,7 +264,9 @@ switch:
     register_type: coil
     optimistic: true
     internal: true
-    on_turn_on: [delay: 50ms, switch.turn_off: ${wld_id}_di1_enable_coil]
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di1_enable_coil
   - platform: modbus_controller
     id: ${wld_id}_di2_enable_coil
     modbus_controller_id: ${wld_id}
@@ -268,7 +274,9 @@ switch:
     register_type: coil
     optimistic: true
     internal: true
-    on_turn_on: [delay: 50ms, switch.turn_off: ${wld_id}_di2_enable_coil]
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di2_enable_coil
   - platform: modbus_controller
     id: ${wld_id}_di3_enable_coil
     modbus_controller_id: ${wld_id}
@@ -276,7 +284,9 @@ switch:
     register_type: coil
     optimistic: true
     internal: true
-    on_turn_on: [delay: 50ms, switch.turn_off: ${wld_id}_di3_enable_coil]
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di3_enable_coil
   - platform: modbus_controller
     id: ${wld_id}_di4_enable_coil
     modbus_controller_id: ${wld_id}
@@ -284,7 +294,9 @@ switch:
     register_type: coil
     optimistic: true
     internal: true
-    on_turn_on: [delay: 50ms, switch.turn_off: ${wld_id}_di4_enable_coil]
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di4_enable_coil
   - platform: modbus_controller
     id: ${wld_id}_di5_enable_coil
     modbus_controller_id: ${wld_id}
@@ -292,7 +304,9 @@ switch:
     register_type: coil
     optimistic: true
     internal: true
-    on_turn_on: [delay: 50ms, switch.turn_off: ${wld_id}_di5_enable_coil]
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di5_enable_coil
 
   # --- DI Disable coils (320..324) ---
   - platform: modbus_controller
@@ -302,7 +316,9 @@ switch:
     register_type: coil
     optimistic: true
     internal: true
-    on_turn_on: [delay: 50ms, switch.turn_off: ${wld_id}_di1_disable_coil]
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di1_disable_coil
   - platform: modbus_controller
     id: ${wld_id}_di2_disable_coil
     modbus_controller_id: ${wld_id}
@@ -310,7 +326,9 @@ switch:
     register_type: coil
     optimistic: true
     internal: true
-    on_turn_on: [delay: 50ms, switch.turn_off: ${wld_id}_di2_disable_coil]
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di2_disable_coil
   - platform: modbus_controller
     id: ${wld_id}_di3_disable_coil
     modbus_controller_id: ${wld_id}
@@ -318,7 +336,9 @@ switch:
     register_type: coil
     optimistic: true
     internal: true
-    on_turn_on: [delay: 50ms, switch.turn_off: ${wld_id}_di3_disable_coil]
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di3_disable_coil
   - platform: modbus_controller
     id: ${wld_id}_di4_disable_coil
     modbus_controller_id: ${wld_id}
@@ -326,7 +346,9 @@ switch:
     register_type: coil
     optimistic: true
     internal: true
-    on_turn_on: [delay: 50ms, switch.turn_off: ${wld_id}_di4_disable_coil]
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di4_disable_coil
   - platform: modbus_controller
     id: ${wld_id}_di5_disable_coil
     modbus_controller_id: ${wld_id}
@@ -334,7 +356,9 @@ switch:
     register_type: coil
     optimistic: true
     internal: true
-    on_turn_on: [delay: 50ms, switch.turn_off: ${wld_id}_di5_disable_coil]
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di5_disable_coil
 
   # --- DI Counter reset coils (340..344) ---
   - platform: modbus_controller
@@ -344,7 +368,9 @@ switch:
     register_type: coil
     optimistic: true
     internal: true
-    on_turn_on: [delay: 50ms, switch.turn_off: ${wld_id}_di1_reset_coil]
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di1_reset_coil
   - platform: modbus_controller
     id: ${wld_id}_di2_reset_coil
     modbus_controller_id: ${wld_id}
@@ -352,7 +378,9 @@ switch:
     register_type: coil
     optimistic: true
     internal: true
-    on_turn_on: [delay: 50ms, switch.turn_off: ${wld_id}_di2_reset_coil]
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di2_reset_coil
   - platform: modbus_controller
     id: ${wld_id}_di3_reset_coil
     modbus_controller_id: ${wld_id}
@@ -360,7 +388,9 @@ switch:
     register_type: coil
     optimistic: true
     internal: true
-    on_turn_on: [delay: 50ms, switch.turn_off: ${wld_id}_di3_reset_coil]
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di3_reset_coil
   - platform: modbus_controller
     id: ${wld_id}_di4_reset_coil
     modbus_controller_id: ${wld_id}
@@ -368,7 +398,9 @@ switch:
     register_type: coil
     optimistic: true
     internal: true
-    on_turn_on: [delay: 50ms, switch.turn_off: ${wld_id}_di4_reset_coil]
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di4_reset_coil
   - platform: modbus_controller
     id: ${wld_id}_di5_reset_coil
     modbus_controller_id: ${wld_id}
@@ -376,57 +408,74 @@ switch:
     register_type: coil
     optimistic: true
     internal: true
-    on_turn_on: [delay: 50ms, switch.turn_off: ${wld_id}_di5_reset_coil]
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di5_reset_coil
 
 # ===================== Buttons (nice UI wrappers) =====================
 button:
   # Enable
   - platform: template
     name: "${wld_prefix} DI1 Enable"
-    on_press: [ switch.turn_on: ${wld_id}_di1_enable_coil ]
+    on_press:
+      - switch.turn_on: ${wld_id}_di1_enable_coil
   - platform: template
     name: "${wld_prefix} DI2 Enable"
-    on_press: [ switch.turn_on: ${wld_id}_di2_enable_coil ]
+    on_press:
+      - switch.turn_on: ${wld_id}_di2_enable_coil
   - platform: template
     name: "${wld_prefix} DI3 Enable"
-    on_press: [ switch.turn_on: ${wld_id}_di3_enable_coil ]
+    on_press:
+      - switch.turn_on: ${wld_id}_di3_enable_coil
   - platform: template
     name: "${wld_prefix} DI4 Enable"
-    on_press: [ switch.turn_on: ${wld_id}_di4_enable_coil ]
+    on_press:
+      - switch.turn_on: ${wld_id}_di4_enable_coil
   - platform: template
     name: "${wld_prefix} DI5 Enable"
-    on_press: [ switch.turn_on: ${wld_id}_di5_enable_coil ]
+    on_press:
+      - switch.turn_on: ${wld_id}_di5_enable_coil
 
   # Disable
   - platform: template
     name: "${wld_prefix} DI1 Disable"
-    on_press: [ switch.turn_on: ${wld_id}_di1_disable_coil ]
+    on_press:
+      - switch.turn_on: ${wld_id}_di1_disable_coil
   - platform: template
     name: "${wld_prefix} DI2 Disable"
-    on_press: [ switch.turn_on: ${wld_id}_di2_disable_coil ]
+    on_press:
+      - switch.turn_on: ${wld_id}_di2_disable_coil
   - platform: template
     name: "${wld_prefix} DI3 Disable"
-    on_press: [ switch.turn_on: ${wld_id}_di3_disable_coil ]
+    on_press:
+      - switch.turn_on: ${wld_id}_di3_disable_coil
   - platform: template
     name: "${wld_prefix} DI4 Disable"
-    on_press: [ switch.turn_on: ${wld_id}_di4_disable_coil ]
+    on_press:
+      - switch.turn_on: ${wld_id}_di4_disable_coil
   - platform: template
     name: "${wld_prefix} DI5 Disable"
-    on_press: [ switch.turn_on: ${wld_id}_di5_disable_coil ]
+    on_press:
+      - switch.turn_on: ${wld_id}_di5_disable_coil
 
   # Counter reset
   - platform: template
     name: "${wld_prefix} DI1 Counter Reset"
-    on_press: [ switch.turn_on: ${wld_id}_di1_reset_coil ]
+    on_press:
+      - switch.turn_on: ${wld_id}_di1_reset_coil
   - platform: template
     name: "${wld_prefix} DI2 Counter Reset"
-    on_press: [ switch.turn_on: ${wld_id}_di2_reset_coil ]
+    on_press:
+      - switch.turn_on: ${wld_id}_di2_reset_coil
   - platform: template
     name: "${wld_prefix} DI3 Counter Reset"
-    on_press: [ switch.turn_on: ${wld_id}_di3_reset_coil ]
+    on_press:
+      - switch.turn_on: ${wld_id}_di3_reset_coil
   - platform: template
     name: "${wld_prefix} DI4 Counter Reset"
-    on_press: [ switch.turn_on: ${wld_id}_di4_reset_coil ]
+    on_press:
+      - switch.turn_on: ${wld_id}_di4_reset_coil
   - platform: template
     name: "${wld_prefix} DI5 Counter Reset"
-    on_press: [ switch.turn_on: ${wld_id}_di5_reset_coil ]
+    on_press:
+      - switch.turn_on: ${wld_id}_di5_reset_coil
