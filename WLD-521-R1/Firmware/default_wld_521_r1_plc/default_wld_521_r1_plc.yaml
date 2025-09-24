@@ -1,17 +1,17 @@
 ##
-## WLD-521-R1 — ESPHome Modbus config (MiniPLC/MicroPLC ↔ WLD)
+## WLD-521-R1 — ESPHome Modbus package (MiniPLC/MicroPLC ↔ WLD)
 ##
 
 substitutions:
   wld_id: wld_1
   wld_prefix: "WLD#1"
-  wld_address: "3"     # firmware default
+  wld_address: "3"     # firmware default Modbus ID
 
 # If UART/MODBUS aren’t defined globally, uncomment & set pins:
 # uart:
 #   id: rs485_uart
-#   tx_pin: GPIO4
-#   rx_pin: GPIO5
+#   tx_pin: GPIO4         # set to your RS-485 TX
+#   rx_pin: GPIO5         # set to your RS-485 RX
 #   baud_rate: 19200
 #   parity: NONE
 #   stop_bits: 1
@@ -55,7 +55,7 @@ binary_sensor:
     address: 5
     register_type: discrete_input
 
-  # Relay feedback
+  # Relay feedback (ISTS_RLY_BASE = 60)
   - platform: modbus_controller
     id: ${wld_id}_r1_state
     modbus_controller_id: ${wld_id}
@@ -192,13 +192,12 @@ sensor:
 # ===================== Coils & Relay Control (FC05) =====================
 # ONE consolidated switch: block with all helpers + user-facing template switches.
 switch:
-  # --- Relay pulse helpers (internal, optimistic) ---
+  # --- Relay pulse helpers (internal; pulse & auto-off) ---
   - platform: modbus_controller
     id: ${wld_id}_r1_on_pulse
     modbus_controller_id: ${wld_id}
     address: 200
     register_type: coil
-    optimistic: true
     internal: true
     on_turn_on:
       - delay: 50ms
@@ -209,7 +208,6 @@ switch:
     modbus_controller_id: ${wld_id}
     address: 210
     register_type: coil
-    optimistic: true
     internal: true
     on_turn_on:
       - delay: 50ms
@@ -220,7 +218,6 @@ switch:
     modbus_controller_id: ${wld_id}
     address: 201
     register_type: coil
-    optimistic: true
     internal: true
     on_turn_on:
       - delay: 50ms
@@ -231,7 +228,6 @@ switch:
     modbus_controller_id: ${wld_id}
     address: 211
     register_type: coil
-    optimistic: true
     internal: true
     on_turn_on:
       - delay: 50ms
@@ -262,7 +258,6 @@ switch:
     modbus_controller_id: ${wld_id}
     address: 300
     register_type: coil
-    optimistic: true
     internal: true
     on_turn_on:
       - delay: 50ms
@@ -272,7 +267,6 @@ switch:
     modbus_controller_id: ${wld_id}
     address: 301
     register_type: coil
-    optimistic: true
     internal: true
     on_turn_on:
       - delay: 50ms
@@ -282,7 +276,6 @@ switch:
     modbus_controller_id: ${wld_id}
     address: 302
     register_type: coil
-    optimistic: true
     internal: true
     on_turn_on:
       - delay: 50ms
@@ -292,7 +285,6 @@ switch:
     modbus_controller_id: ${wld_id}
     address: 303
     register_type: coil
-    optimistic: true
     internal: true
     on_turn_on:
       - delay: 50ms
@@ -302,7 +294,6 @@ switch:
     modbus_controller_id: ${wld_id}
     address: 304
     register_type: coil
-    optimistic: true
     internal: true
     on_turn_on:
       - delay: 50ms
@@ -314,7 +305,6 @@ switch:
     modbus_controller_id: ${wld_id}
     address: 320
     register_type: coil
-    optimistic: true
     internal: true
     on_turn_on:
       - delay: 50ms
@@ -324,7 +314,6 @@ switch:
     modbus_controller_id: ${wld_id}
     address: 321
     register_type: coil
-    optimistic: true
     internal: true
     on_turn_on:
       - delay: 50ms
@@ -334,7 +323,6 @@ switch:
     modbus_controller_id: ${wld_id}
     address: 322
     register_type: coil
-    optimistic: true
     internal: true
     on_turn_on:
       - delay: 50ms
@@ -344,7 +332,6 @@ switch:
     modbus_controller_id: ${wld_id}
     address: 323
     register_type: coil
-    optimistic: true
     internal: true
     on_turn_on:
       - delay: 50ms
@@ -354,7 +341,6 @@ switch:
     modbus_controller_id: ${wld_id}
     address: 324
     register_type: coil
-    optimistic: true
     internal: true
     on_turn_on:
       - delay: 50ms
@@ -366,7 +352,6 @@ switch:
     modbus_controller_id: ${wld_id}
     address: 340
     register_type: coil
-    optimistic: true
     internal: true
     on_turn_on:
       - delay: 50ms
@@ -376,7 +361,6 @@ switch:
     modbus_controller_id: ${wld_id}
     address: 341
     register_type: coil
-    optimistic: true
     internal: true
     on_turn_on:
       - delay: 50ms
@@ -386,7 +370,6 @@ switch:
     modbus_controller_id: ${wld_id}
     address: 342
     register_type: coil
-    optimistic: true
     internal: true
     on_turn_on:
       - delay: 50ms
@@ -396,7 +379,6 @@ switch:
     modbus_controller_id: ${wld_id}
     address: 343
     register_type: coil
-    optimistic: true
     internal: true
     on_turn_on:
       - delay: 50ms
@@ -406,7 +388,6 @@ switch:
     modbus_controller_id: ${wld_id}
     address: 344
     register_type: coil
-    optimistic: true
     internal: true
     on_turn_on:
       - delay: 50ms
