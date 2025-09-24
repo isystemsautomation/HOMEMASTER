@@ -75,7 +75,7 @@ uart:
   tx_pin: 17
   rx_pin: 16
   baud_rate: 19200
-  id: mod_uart
+  id: uart_modbus
 
 one_wire:
   - platform: gpio

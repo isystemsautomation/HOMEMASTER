@@ -1,6 +1,6 @@
 modbus_controller:
-  - id: aio422
-    address: 3
+  - id: ${aio_id}
+    address: ${aio_address}
     modbus_id: modbus_bus
     update_interval: 1s
     command_throttle: 0ms
@@ -9,45 +9,45 @@ modbus_controller:
 binary_sensor:
   # LED states 300..303
   - platform: modbus_controller
-    modbus_controller_id: aio422
-    name: "AIO LED1"
+    modbus_controller_id: ${aio_id}
+    name: "${aio_prefix} LED1"
     address: 300
     register_type: discrete_input
   - platform: modbus_controller
-    modbus_controller_id: aio422
-    name: "AIO LED2"
+    modbus_controller_id: ${aio_id}
+    name: "${aio_prefix} LED2"
     address: 301
     register_type: discrete_input
   - platform: modbus_controller
-    modbus_controller_id: aio422
-    name: "AIO LED3"
+    modbus_controller_id: ${aio_id}
+    name: "${aio_prefix} LED3"
     address: 302
     register_type: discrete_input
   - platform: modbus_controller
-    modbus_controller_id: aio422
-    name: "AIO LED4"
+    modbus_controller_id: ${aio_id}
+    name: "${aio_prefix} LED4"
     address: 303
     register_type: discrete_input
 
   # Button states 320..323
   - platform: modbus_controller
-    modbus_controller_id: aio422
-    name: "AIO Button1"
+    modbus_controller_id: ${aio_id}
+    name: "${aio_prefix} Button1"
     address: 320
     register_type: discrete_input
   - platform: modbus_controller
-    modbus_controller_id: aio422
-    name: "AIO Button2"
+    modbus_controller_id: ${aio_id}
+    name: "${aio_prefix} Button2"
     address: 321
     register_type: discrete_input
   - platform: modbus_controller
-    modbus_controller_id: aio422
-    name: "AIO Button3"
+    modbus_controller_id: ${aio_id}
+    name: "${aio_prefix} Button3"
     address: 322
     register_type: discrete_input
   - platform: modbus_controller
-    modbus_controller_id: aio422
-    name: "AIO Button4"
+    modbus_controller_id: ${aio_id}
+    name: "${aio_prefix} Button4"
     address: 323
     register_type: discrete_input
 
@@ -55,39 +55,39 @@ binary_sensor:
 switch:
   - platform: modbus_controller
     id: sw_ledtest
-    modbus_controller_id: aio422
-    name: "AIO LED Test"
+    modbus_controller_id: ${aio_id}
+    name: "${aio_prefix} LED Test"
     address: 400
     register_type: coil
     on_turn_on:
-      - delay: "200ms"
+      - delay: 200ms
       - switch.turn_off: sw_ledtest
 
   - platform: modbus_controller
     id: sw_savecfg
-    modbus_controller_id: aio422
-    name: "AIO Save Config"
+    modbus_controller_id: ${aio_id}
+    name: "${aio_prefix} Save Config"
     address: 401
     register_type: coil
     on_turn_on:
-      - delay: "200ms"
+      - delay: 200ms
       - switch.turn_off: sw_savecfg
 
   - platform: modbus_controller
     id: sw_reboot
-    modbus_controller_id: aio422
-    name: "AIO Reboot"
+    modbus_controller_id: ${aio_id}
+    name: "${aio_prefix} Reboot"
     address: 402
     register_type: coil
     on_turn_on:
-      - delay: "200ms"
+      - delay: 200ms
       - switch.turn_off: sw_reboot
 
 # ------------- Numbers (Holding Registers) -------------
 number:
   - platform: modbus_controller
-    modbus_controller_id: aio422
-    name: "ADS Gain (0..5)"
+    modbus_controller_id: ${aio_id}
+    name: "${aio_prefix} ADS Gain (0..5)"
     address: 200
     register_type: holding
     value_type: U_WORD
@@ -98,8 +98,8 @@ number:
     unit_of_measurement: "index"
 
   - platform: modbus_controller
-    modbus_controller_id: aio422
-    name: "ADS DataRate (0..7)"
+    modbus_controller_id: ${aio_id}
+    name: "${aio_prefix} ADS DataRate (0..7)"
     address: 201
     register_type: holding
     value_type: U_WORD
@@ -110,8 +110,8 @@ number:
     unit_of_measurement: "index"
 
   - platform: modbus_controller
-    modbus_controller_id: aio422
-    name: "ADS Sample ms"
+    modbus_controller_id: ${aio_id}
+    name: "${aio_prefix} ADS Sample ms"
     address: 202
     register_type: holding
     value_type: U_WORD
@@ -125,36 +125,36 @@ number:
 sensor:
   # ADS1115 — mV (U_WORD) @ 120..123
   - platform: modbus_controller
-    modbus_controller_id: aio422
+    modbus_controller_id: ${aio_id}
     id: ch0_mv
-    name: "CH0 mV"
+    name: "${aio_prefix} CH0 mV"
     address: 120
     register_type: read
     value_type: U_WORD
     unit_of_measurement: "mV"
     accuracy_decimals: 0
   - platform: modbus_controller
-    modbus_controller_id: aio422
+    modbus_controller_id: ${aio_id}
     id: ch1_mv
-    name: "CH1 mV"
+    name: "${aio_prefix} CH1 mV"
     address: 121
     register_type: read
     value_type: U_WORD
     unit_of_measurement: "mV"
     accuracy_decimals: 0
   - platform: modbus_controller
-    modbus_controller_id: aio422
+    modbus_controller_id: ${aio_id}
     id: ch2_mv
-    name: "CH2 mV"
+    name: "${aio_prefix} CH2 mV"
     address: 122
     register_type: read
     value_type: U_WORD
     unit_of_measurement: "mV"
     accuracy_decimals: 0
   - platform: modbus_controller
-    modbus_controller_id: aio422
+    modbus_controller_id: ${aio_id}
     id: ch3_mv
-    name: "CH3 mV"
+    name: "${aio_prefix} CH3 mV"
     address: 123
     register_type: read
     value_type: U_WORD
@@ -163,36 +163,36 @@ sensor:
 
   # ADS1115 — raw counts (S_WORD) @ 100..103
   - platform: modbus_controller
-    modbus_controller_id: aio422
+    modbus_controller_id: ${aio_id}
     id: ch0_raw
-    name: "CH0 raw"
+    name: "${aio_prefix} CH0 raw"
     address: 100
     register_type: read
     value_type: S_WORD
     unit_of_measurement: "cnt"
     accuracy_decimals: 0
   - platform: modbus_controller
-    modbus_controller_id: aio422
+    modbus_controller_id: ${aio_id}
     id: ch1_raw
-    name: "CH1 raw"
+    name: "${aio_prefix} CH1 raw"
     address: 101
     register_type: read
     value_type: S_WORD
     unit_of_measurement: "cnt"
     accuracy_decimals: 0
   - platform: modbus_controller
-    modbus_controller_id: aio422
+    modbus_controller_id: ${aio_id}
     id: ch2_raw
-    name: "CH2 raw"
+    name: "${aio_prefix} CH2 raw"
     address: 102
     register_type: read
     value_type: S_WORD
     unit_of_measurement: "cnt"
     accuracy_decimals: 0
   - platform: modbus_controller
-    modbus_controller_id: aio422
+    modbus_controller_id: ${aio_id}
     id: ch3_raw
-    name: "CH3 raw"
+    name: "${aio_prefix} CH3 raw"
     address: 103
     register_type: read
     value_type: S_WORD
@@ -201,9 +201,9 @@ sensor:
 
   # MAX31865 — °C x100 (S_WORD) @ 140..141
   - platform: modbus_controller
-    modbus_controller_id: aio422
+    modbus_controller_id: ${aio_id}
     id: rtd1_cx100
-    name: "RTD1 Temperature"
+    name: "${aio_prefix} RTD1 Temperature"
     address: 140
     register_type: read
     value_type: S_WORD
@@ -212,9 +212,9 @@ sensor:
     filters:
       - multiply: 0.01
   - platform: modbus_controller
-    modbus_controller_id: aio422
+    modbus_controller_id: ${aio_id}
     id: rtd2_cx100
-    name: "RTD2 Temperature"
+    name: "${aio_prefix} RTD2 Temperature"
     address: 141
     register_type: read
     value_type: S_WORD
@@ -225,9 +225,9 @@ sensor:
 
   # MAX31865 — Ohm x100 (U_WORD) @ 150..151
   - platform: modbus_controller
-    modbus_controller_id: aio422
+    modbus_controller_id: ${aio_id}
     id: rtd1_ohmx100
-    name: "RTD1 Resistance"
+    name: "${aio_prefix} RTD1 Resistance"
     address: 150
     register_type: read
     value_type: U_WORD
@@ -236,9 +236,9 @@ sensor:
     filters:
       - multiply: 0.01
   - platform: modbus_controller
-    modbus_controller_id: aio422
+    modbus_controller_id: ${aio_id}
     id: rtd2_ohmx100
-    name: "RTD2 Resistance"
+    name: "${aio_prefix} RTD2 Resistance"
     address: 151
     register_type: read
     value_type: U_WORD
