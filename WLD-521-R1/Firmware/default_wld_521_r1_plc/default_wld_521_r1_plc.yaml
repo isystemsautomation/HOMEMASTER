@@ -177,193 +177,170 @@ sensor:
 # ===================== Relay Control (FC05 single‑coil writes) =====================
 # CMD_RLY_ON_BASE=200, CMD_RLY_OFF_BASE=210
 # Provide explicit ON/OFF pulse switches (firmware auto‑clears the coil)
-switch:
-  # --- Raw pulse coils ---
-  - platform: modbus_controller
-    modbus_controller_id: ${wld_id}
-    name: "${wld_prefix} R1 ON (pulse)"
-    address: 200
-    register_type: coil
-    write_only: true
-  - platform: modbus_controller
-    modbus_controller_id: ${wld_id}
-    name: "${wld_prefix} R1 OFF (pulse)"
-    address: 210
-    register_type: coil
-    write_only: true
-
-  - platform: modbus_controller
-    modbus_controller_id: ${wld_id}
-    name: "${wld_prefix} R2 ON (pulse)"
-    address: 201
-    register_type: coil
-    write_only: true
-  - platform: modbus_controller
-    modbus_controller_id: ${wld_id}
-    name: "${wld_prefix} R2 OFF (pulse)"
-    address: 211
-    register_type: coil
-    write_only: true
-
-  # --- Friendly template switches that follow relay feedback and pulse the right coil ---
-  - platform: template
-    name: "${wld_prefix} Relay 1"
-    lambda: |-
-      return id(${wld_id}_r1_state).state;
-    turn_on_action:
-      - switch.turn_on: ${wld_id}_r1_on_pulse_helper
-    turn_off_action:
-      - switch.turn_on: ${wld_id}_r1_off_pulse_helper
-
-  - platform: template
-    name: "${wld_prefix} Relay 2"
-    lambda: |-
-      return id(${wld_id}_r2_state).state;
-    turn_on_action:
-      - switch.turn_on: ${wld_id}_r2_on_pulse_helper
-    turn_off_action:
-      - switch.turn_on: ${wld_id}_r2_off_pulse_helper
-
-  # Hidden helpers (point to the raw pulse switches above)
-  - platform: modbus_controller
-    id: ${wld_id}_r1_on_pulse_helper
-    modbus_controller_id: ${wld_id}
-    address: 200
-    register_type: coil
-    write_only: true
-    internal: true
-  - platform: modbus_controller
-    id: ${wld_id}_r1_off_pulse_helper
-    modbus_controller_id: ${wld_id}
-    address: 210
-    register_type: coil
-    write_only: true
-    internal: true
-  - platform: modbus_controller
-    id: ${wld_id}_r2_on_pulse_helper
-    modbus_controller_id: ${wld_id}
-    address: 201
-    register_type: coil
-    write_only: true
-    internal: true
-  - platform: modbus_controller
-    id: ${wld_id}_r2_off_pulse_helper
-    modbus_controller_id: ${wld_id}
-    address: 211
-    register_type: coil
-    write_only: true
-    internal: true
-
-# ===================== DI enable/disable & counter reset (FC05 coils) =====================
+# ===================== DI enable/disable & counter reset =====================
 # Enable: 300+i | Disable: 320+i | Counter reset: 340+i  (i = 0..4)
+
+# Hidden coil helpers (write-only), one per operation
+switch:
+  # ---- Enable coils (300..304) ----
+  - platform: modbus_controller
+    id: ${wld_id}_di1_enable_coil
+    modbus_controller_id: ${wld_id}
+    address: 300
+    register_type: coil
+    write_only: true
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_di2_enable_coil
+    modbus_controller_id: ${wld_id}
+    address: 301
+    register_type: coil
+    write_only: true
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_di3_enable_coil
+    modbus_controller_id: ${wld_id}
+    address: 302
+    register_type: coil
+    write_only: true
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_di4_enable_coil
+    modbus_controller_id: ${wld_id}
+    address: 303
+    register_type: coil
+    write_only: true
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_di5_enable_coil
+    modbus_controller_id: ${wld_id}
+    address: 304
+    register_type: coil
+    write_only: true
+    internal: true
+
+  # ---- Disable coils (320..324) ----
+  - platform: modbus_controller
+    id: ${wld_id}_di1_disable_coil
+    modbus_controller_id: ${wld_id}
+    address: 320
+    register_type: coil
+    write_only: true
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_di2_disable_coil
+    modbus_controller_id: ${wld_id}
+    address: 321
+    register_type: coil
+    write_only: true
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_di3_disable_coil
+    modbus_controller_id: ${wld_id}
+    address: 322
+    register_type: coil
+    write_only: true
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_di4_disable_coil
+    modbus_controller_id: ${wld_id}
+    address: 323
+    register_type: coil
+    write_only: true
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_di5_disable_coil
+    modbus_controller_id: ${wld_id}
+    address: 324
+    register_type: coil
+    write_only: true
+    internal: true
+
+  # ---- Counter reset coils (340..344) ----
+  - platform: modbus_controller
+    id: ${wld_id}_di1_reset_coil
+    modbus_controller_id: ${wld_id}
+    address: 340
+    register_type: coil
+    write_only: true
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_di2_reset_coil
+    modbus_controller_id: ${wld_id}
+    address: 341
+    register_type: coil
+    write_only: true
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_di3_reset_coil
+    modbus_controller_id: ${wld_id}
+    address: 342
+    register_type: coil
+    write_only: true
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_di4_reset_coil
+    modbus_controller_id: ${wld_id}
+    address: 343
+    register_type: coil
+    write_only: true
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_di5_reset_coil
+    modbus_controller_id: ${wld_id}
+    address: 344
+    register_type: coil
+    write_only: true
+    internal: true
+
 button:
-  # --- DI1..DI5 Enable ---
+  # ---- Enable buttons ----
   - platform: template
     name: "${wld_prefix} DI1 Enable"
-    on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 300
-          value: true
+    on_press: { then: [ switch.turn_on: ${wld_id}_di1_enable_coil ] }
   - platform: template
     name: "${wld_prefix} DI2 Enable"
-    on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 301
-          value: true
+    on_press: { then: [ switch.turn_on: ${wld_id}_di2_enable_coil ] }
   - platform: template
     name: "${wld_prefix} DI3 Enable"
-    on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 302
-          value: true
+    on_press: { then: [ switch.turn_on: ${wld_id}_di3_enable_coil ] }
   - platform: template
     name: "${wld_prefix} DI4 Enable"
-    on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 303
-          value: true
+    on_press: { then: [ switch.turn_on: ${wld_id}_di4_enable_coil ] }
   - platform: template
     name: "${wld_prefix} DI5 Enable"
-    on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 304
-          value: true
+    on_press: { then: [ switch.turn_on: ${wld_id}_di5_enable_coil ] }
 
-  # --- DI1..DI5 Disable ---
+  # ---- Disable buttons ----
   - platform: template
     name: "${wld_prefix} DI1 Disable"
-    on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 320
-          value: true
+    on_press: { then: [ switch.turn_on: ${wld_id}_di1_disable_coil ] }
   - platform: template
     name: "${wld_prefix} DI2 Disable"
-    on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 321
-          value: true
+    on_press: { then: [ switch.turn_on: ${wld_id}_di2_disable_coil ] }
   - platform: template
     name: "${wld_prefix} DI3 Disable"
-    on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 322
-          value: true
+    on_press: { then: [ switch.turn_on: ${wld_id}_di3_disable_coil ] }
   - platform: template
     name: "${wld_prefix} DI4 Disable"
-    on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 323
-          value: true
+    on_press: { then: [ switch.turn_on: ${wld_id}_di4_disable_coil ] }
   - platform: template
     name: "${wld_prefix} DI5 Disable"
-    on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 324
-          value: true
+    on_press: { then: [ switch.turn_on: ${wld_id}_di5_disable_coil ] }
 
-  # --- DI1..DI5 Counter Reset ---
+  # ---- Counter reset buttons ----
   - platform: template
     name: "${wld_prefix} DI1 Counter Reset"
-    on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 340
-          value: true
+    on_press: { then: [ switch.turn_on: ${wld_id}_di1_reset_coil ] }
   - platform: template
     name: "${wld_prefix} DI2 Counter Reset"
-    on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 341
-          value: true
+    on_press: { then: [ switch.turn_on: ${wld_id}_di2_reset_coil ] }
   - platform: template
     name: "${wld_prefix} DI3 Counter Reset"
-    on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 342
-          value: true
+    on_press: { then: [ switch.turn_on: ${wld_id}_di3_reset_coil ] }
   - platform: template
     name: "${wld_prefix} DI4 Counter Reset"
-    on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 343
-          value: true
+    on_press: { then: [ switch.turn_on: ${wld_id}_di4_reset_coil ] }
   - platform: template
     name: "${wld_prefix} DI5 Counter Reset"
-    on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 344
-          value: true
+    on_press: { then: [ switch.turn_on: ${wld_id}_di5_reset_coil ] }

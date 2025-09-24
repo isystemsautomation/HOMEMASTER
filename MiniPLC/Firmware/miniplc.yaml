@@ -1,167 +1,354 @@
-# ===================== DI enable/disable & counter reset =====================
-# Enable: 300+i | Disable: 320+i | Counter reset: 340+i  (i = 0..4)
+substitutions:
+  name: "miniplc"           # Internal device name (used by ESPHome & hostname)
+  friendly_name: "Homemaster MiniPLC"  # Friendly name (shown in Home Assistant UI)
+  room: ""                              # Optional: assign device to a room in HA
+  device_description: "Homemaster MiniPLC"  # Description for documentation
+  project_name: "Homemaster.MiniPLC"   # Project identifier
+  project_version: "v1.0.0"             # Firmware version
+  update_interval: 60s                  # Default sensor update interval
+  dns_domain: ".local"                  # mDNS domain suffix for network discovery
+  timezone: ""                          # Timezone (can be set if device runs in different region)
+  wifi_fast_connect: "false"            # If true, reconnects faster (skips Wi-Fi scans)
+  log_level: "DEBUG"                    # Logging level (NONE, ERROR, WARN, INFO, DEBUG, VERBOSE)
+  ipv6_enable: "false"                  # Enable IPv6 if supported
 
-# Hidden coil helpers (write-only), one per operation
+esphome:
+  name: "${name}"                       # Uses substitution for device name
+  friendly_name: "${friendly_name}"     # Uses substitution for friendly name
+  comment: "${device_description}"      # Metadata comment
+  area: "${room}"                       # Assign device to a room
+  min_version: 2025.7.0                 # Minimum ESPHome version required
+  name_add_mac_suffix: true             # Append MAC to hostname to avoid duplicates
+  project:
+    name: "${project_name}"             # Project name
+    version: "${project_version}"       # Project version
+
+esp32:
+  board: esp32dev              # Target board type (generic ESP32 DevKit)
+  framework:
+    type: esp-idf                       # Use ESP-IDF (official Espressif framework)
+    version: recommended                # Recommended stable version
+
+logger:
+  baud_rate: 115200                     # Serial logging baud rate
+  level: ${log_level}                   # Logging level from substitutions
+
+mdns:
+  disabled: false                       # Enable mDNS for auto-discovery on the network
+
+#web_server:
+#  port: 80   
+#  version: 3                           # Enables local web server on port 80
+
+api:                                    # Enable ESPHome API for Home Assistant integration
+
+ota:
+  - platform: esphome                   
+
+network:
+  enable_ipv6: ${ipv6_enable}           
+
+wifi:
+  ap: {}                                
+  fast_connect: "${wifi_fast_connect}"  
+  domain: "${dns_domain}"               
+
+captive_portal:                         # Captive portal for fallback hotspot
+
+improv_serial:                          # Allows setup via Improv over Serial
+
+esp32_improv:
+  authorizer: none                      # No additional authorization required for Improv
+
+dashboard_import:
+  package_import_url: github://isystemsautomation/HOMEMASTER/MiniPLC/Firmware/miniplc.yaml@main
+  import_full_config: true   # Allows importing this YAML from GitHub into ESPHome Dashboard
+
+#ethernet:
+#  type: LAN8720
+#  mdc_pin: GPIO23
+#  mdio_pin: GPIO18
+#  clk_mode: GPIO0_OUT
+#  phy_addr: 1
+
+uart:
+  tx_pin: 17
+  rx_pin: 16
+  baud_rate: 19200
+  id: uart_modbus
+
+one_wire:
+  - platform: gpio
+    pin: GPIO05
+    id: hub_1
+  - platform: gpio
+    pin: GPIO04
+    id: hub_2
+
+i2c:
+  - id: bus_a
+    sda: 32
+    scl: 33
+    frequency: 400kHz
+    timeout: 1s
+    scan: true
+
+time:
+  - platform: pcf8563
+    id: pcf8563_time
+    address: 0x51
+  - platform: homeassistant
+    # instead try to synchronize via network repeatedly ...
+    on_time_sync:
+      then:
+        # ... and update the RTC when the synchronization was successful
+        pcf8563.write_time:
+
+pcf8574:
+  - id: 'pcf8574_hub_a'
+    address: 0x38
+    pcf8575: false
+  - id: 'pcf8574_hub_b'
+    address: 0x39
+    pcf8575: false
+
+ads1115:
+  - address: 0x48
+
+# spi:
+#  miso_pin: GPIO12
+#  mosi_pin: GPIO13
+#  clk_pin: GPIO14
+
+text_sensor:
+  - platform: template
+    name: "Current time"
+    id: current_time
+    lambda: |-
+      char str[17];
+      time_t currTime = id(pcf8563_time).now().timestamp;
+      strftime(str, sizeof(str), "%Y-%m-%d %H:%M", localtime(&currTime));
+      return  { str };
+    update_interval: 60s
+
+font:
+  - file: "gfonts://Roboto"
+    id: font1
+    size: 8
+
+  - file: "gfonts://Roboto"
+    id: font2
+    size: 48
+
+  - file: "gfonts://Roboto"
+    id: font3
+    size: 14
+
+display:
+  - platform: ssd1306_i2c
+    model: "SH1106 128x64"
+    address: 0x3C
+    rotation: 180
+    contrast: 100%
+    id: oled_display
+    update_interval: 1s
+    lambda: |-
+       // Print "Mitt Smarta Hus" in top center.
+       it.printf(64, 0, id(font1), TextAlign::TOP_CENTER, "HOMEMASTER");
+
+       // Print time in HH:MM format
+       it.strftime(0, 60, id(font2), TextAlign::BASELINE_LEFT, "%H:%M", id(pcf8563_time).now());
+
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO36
+    name: "DI #1"
+  - platform: gpio
+    pin:
+      number: GPIO39
+    name: "DI #2"
+  - platform: gpio
+    pin:
+      number: GPIO34
+    name: "DI #3"
+  - platform: gpio
+    pin:
+      number: GPIO35
+    name: "DI #4"
+  - platform: gpio
+    name: "Button #1"
+    pin:
+      pcf8574: pcf8574_hub_a
+      number: 0
+      inverted: true
+  - platform: gpio
+    name: "Button #2"
+    pin:
+      pcf8574: pcf8574_hub_a
+      number: 1
+      inverted: true
+  - platform: gpio
+    name: "Button #3"
+    pin:
+      pcf8574: pcf8574_hub_a
+      number: 2
+      inverted: true
+  - platform: gpio
+    name: "Button #4"
+    pin:
+      pcf8574: pcf8574_hub_a
+      number: 3
+      inverted: true
+
 switch:
-  # ---- Enable coils (300..304) ----
-  - platform: modbus_controller
-    id: ${wld_id}_di1_enable_coil
-    modbus_controller_id: ${wld_id}
-    address: 300
-    register_type: coil
-    write_only: true
-    internal: true
-  - platform: modbus_controller
-    id: ${wld_id}_di2_enable_coil
-    modbus_controller_id: ${wld_id}
-    address: 301
-    register_type: coil
-    write_only: true
-    internal: true
-  - platform: modbus_controller
-    id: ${wld_id}_di3_enable_coil
-    modbus_controller_id: ${wld_id}
-    address: 302
-    register_type: coil
-    write_only: true
-    internal: true
-  - platform: modbus_controller
-    id: ${wld_id}_di4_enable_coil
-    modbus_controller_id: ${wld_id}
-    address: 303
-    register_type: coil
-    write_only: true
-    internal: true
-  - platform: modbus_controller
-    id: ${wld_id}_di5_enable_coil
-    modbus_controller_id: ${wld_id}
-    address: 304
-    register_type: coil
-    write_only: true
-    internal: true
+ - platform: gpio
+   name: "RELAY #1"
+   pin:
+      pcf8574: pcf8574_hub_b
+      number: 2
+      mode:
+        output: true
+      inverted: true
+ - platform: gpio
+   name: "RELAY #2"
+   pin:
+      pcf8574: pcf8574_hub_b
+      number: 1
+      mode:
+        output: true
+      inverted: true
+ - platform: gpio
+   name: "RELAY #3"
+   pin:
+      pcf8574: pcf8574_hub_b
+      number: 0
+      mode:
+        output: true
+      inverted: true
 
-  # ---- Disable coils (320..324) ----
-  - platform: modbus_controller
-    id: ${wld_id}_di1_disable_coil
-    modbus_controller_id: ${wld_id}
-    address: 320
-    register_type: coil
-    write_only: true
-    internal: true
-  - platform: modbus_controller
-    id: ${wld_id}_di2_disable_coil
-    modbus_controller_id: ${wld_id}
-    address: 321
-    register_type: coil
-    write_only: true
-    internal: true
-  - platform: modbus_controller
-    id: ${wld_id}_di3_disable_coil
-    modbus_controller_id: ${wld_id}
-    address: 322
-    register_type: coil
-    write_only: true
-    internal: true
-  - platform: modbus_controller
-    id: ${wld_id}_di4_disable_coil
-    modbus_controller_id: ${wld_id}
-    address: 323
-    register_type: coil
-    write_only: true
-    internal: true
-  - platform: modbus_controller
-    id: ${wld_id}_di5_disable_coil
-    modbus_controller_id: ${wld_id}
-    address: 324
-    register_type: coil
-    write_only: true
-    internal: true
+ - platform: gpio
+   name: "RELAY #4"
+   pin:
+      pcf8574: pcf8574_hub_a
+      number: 6
+      mode:
+        output: true
+      inverted: true
+ - platform: gpio
+   name: "RELAY #5"
+   pin:
+      pcf8574: pcf8574_hub_a
+      number: 5
+      mode:
+        output: true
+      inverted: true
+ - platform: gpio
+   name: "RELAY #6"
+   pin:
+      pcf8574: pcf8574_hub_a
+      number: 4
+      mode:
+        output: true
+      inverted: true
+ - platform: gpio
+   name: "LED #2"
+   pin:
+      pcf8574: pcf8574_hub_b
+      number: 3
+      mode:
+        output: true
+      inverted: true
+ - platform: gpio
+   name: "LED #3"
+   pin:
+      pcf8574: pcf8574_hub_b
+      number: 4
+      mode:
+        output: true
+      inverted: true
+ - platform: template
+   name: "Switch buzzer"
+   optimistic: true
+   turn_on_action:
+     - output.turn_on: buzzer_output
+     - output.ledc.set_frequency:
+         id: buzzer_output
+         frequency: "2441Hz"
+     - output.set_level:
+         id: buzzer_output
+         level: "75%"
+   turn_off_action:
+     - output.turn_off: buzzer_output
+     
+fan:
+  - platform: speed
+    output: dac_output
+    name: "DAC 0-10V"
 
-  # ---- Counter reset coils (340..344) ----
-  - platform: modbus_controller
-    id: ${wld_id}_di1_reset_coil
-    modbus_controller_id: ${wld_id}
-    address: 340
-    register_type: coil
-    write_only: true
-    internal: true
-  - platform: modbus_controller
-    id: ${wld_id}_di2_reset_coil
-    modbus_controller_id: ${wld_id}
-    address: 341
-    register_type: coil
-    write_only: true
-    internal: true
-  - platform: modbus_controller
-    id: ${wld_id}_di3_reset_coil
-    modbus_controller_id: ${wld_id}
-    address: 342
-    register_type: coil
-    write_only: true
-    internal: true
-  - platform: modbus_controller
-    id: ${wld_id}_di4_reset_coil
-    modbus_controller_id: ${wld_id}
-    address: 343
-    register_type: coil
-    write_only: true
-    internal: true
-  - platform: modbus_controller
-    id: ${wld_id}_di5_reset_coil
-    modbus_controller_id: ${wld_id}
-    address: 344
-    register_type: coil
-    write_only: true
-    internal: true
+sensor:
+#  - platform: dallas_temp
+#    one_wire_id: hub_1
+#    address: 0x0000000000000000
+#    name: "1-WIRE Dallas temperature BUS1"
+#    update_interval: 60s
+#  - platform: dallas_temp
+#    one_wire_id: hub_2
+#    address: 0x0000000000000000
+#    name: "1-WIRE Dallas temperature BUS2"
+#    update_interval: 60s
+#MAX 31865 RTD 
+#  - platform: max31865
+#    name: "MAX 31856 Temperature 1"
+#    cs_pin: GPIO1
+#    reference_resistance: 400 Ω
+#    rtd_nominal_resistance: 100 Ω
+#    update_interval: 60s
+#  - platform: max31865
+#    name: "MAX 31856 Temperature 2"
+#    cs_pin: GPIO3
+#    reference_resistance: 4000 Ω
+#    rtd_nominal_resistance: 1000 Ω
+#    update_interval: 60s
+  - platform: ads1115
+    multiplexer: 'A0_GND'
+    gain: 6.144
+    name: "ADC AI4"
+    update_interval: 60s
+    filters:
+      - multiply: 3
+  - platform: ads1115
+    multiplexer: 'A1_GND'
+    gain: 6.144
+    name: "ADC AI3"
+    update_interval: 60s
+    filters:
+      - multiply: 3
+  - platform: ads1115
+    multiplexer: 'A2_GND'
+    gain: 6.144
+    name: "ADC AI2"
+    update_interval: 60s
+    filters:
+      - multiply: 3
+  - platform: ads1115
+    multiplexer: 'A3_GND'
+    gain: 6.144
+    name: "ADC AI1"
+    update_interval: 60s
+    filters:
+      - multiply: 3
 
-button:
-  # ---- Enable buttons ----
-  - platform: template
-    name: "${wld_prefix} DI1 Enable"
-    on_press: { then: [ switch.turn_on: ${wld_id}_di1_enable_coil ] }
-  - platform: template
-    name: "${wld_prefix} DI2 Enable"
-    on_press: { then: [ switch.turn_on: ${wld_id}_di2_enable_coil ] }
-  - platform: template
-    name: "${wld_prefix} DI3 Enable"
-    on_press: { then: [ switch.turn_on: ${wld_id}_di3_enable_coil ] }
-  - platform: template
-    name: "${wld_prefix} DI4 Enable"
-    on_press: { then: [ switch.turn_on: ${wld_id}_di4_enable_coil ] }
-  - platform: template
-    name: "${wld_prefix} DI5 Enable"
-    on_press: { then: [ switch.turn_on: ${wld_id}_di5_enable_coil ] }
-
-  # ---- Disable buttons ----
-  - platform: template
-    name: "${wld_prefix} DI1 Disable"
-    on_press: { then: [ switch.turn_on: ${wld_id}_di1_disable_coil ] }
-  - platform: template
-    name: "${wld_prefix} DI2 Disable"
-    on_press: { then: [ switch.turn_on: ${wld_id}_di2_disable_coil ] }
-  - platform: template
-    name: "${wld_prefix} DI3 Disable"
-    on_press: { then: [ switch.turn_on: ${wld_id}_di3_disable_coil ] }
-  - platform: template
-    name: "${wld_prefix} DI4 Disable"
-    on_press: { then: [ switch.turn_on: ${wld_id}_di4_disable_coil ] }
-  - platform: template
-    name: "${wld_prefix} DI5 Disable"
-    on_press: { then: [ switch.turn_on: ${wld_id}_di5_disable_coil ] }
-
-  # ---- Counter reset buttons ----
-  - platform: template
-    name: "${wld_prefix} DI1 Counter Reset"
-    on_press: { then: [ switch.turn_on: ${wld_id}_di1_reset_coil ] }
-  - platform: template
-    name: "${wld_prefix} DI2 Counter Reset"
-    on_press: { then: [ switch.turn_on: ${wld_id}_di2_reset_coil ] }
-  - platform: template
-    name: "${wld_prefix} DI3 Counter Reset"
-    on_press: { then: [ switch.turn_on: ${wld_id}_di3_reset_coil ] }
-  - platform: template
-    name: "${wld_prefix} DI4 Counter Reset"
-    on_press: { then: [ switch.turn_on: ${wld_id}_di4_reset_coil ] }
-  - platform: template
-    name: "${wld_prefix} DI5 Counter Reset"
-    on_press: { then: [ switch.turn_on: ${wld_id}_di5_reset_coil ] }
+output:
+ - platform: ledc
+   pin: GPIO02
+   id: buzzer_output  
+ - platform: mcp4725
+   id: dac_output
+status_led:
+  pin:
+     pcf8574: pcf8574_hub_a
+     number: 7
+     mode:
+       output: true
+     inverted: false
