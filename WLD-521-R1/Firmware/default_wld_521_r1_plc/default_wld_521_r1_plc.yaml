@@ -293,54 +293,81 @@ switch:
     write_only: true
     internal: true
 
+# ---- Enable buttons ----
 button:
-  # ---- Enable buttons ----
   - platform: template
     name: "${wld_prefix} DI1 Enable"
-    on_press: { then: [ switch.turn_on: ${wld_id}_di1_enable_coil ] }
+    on_press:
+      - switch.turn_on: ${wld_id}_di1_enable_coil
+
   - platform: template
     name: "${wld_prefix} DI2 Enable"
-    on_press: { then: [ switch.turn_on: ${wld_id}_di2_enable_coil ] }
+    on_press:
+      - switch.turn_on: ${wld_id}_di2_enable_coil
+
   - platform: template
     name: "${wld_prefix} DI3 Enable"
-    on_press: { then: [ switch.turn_on: ${wld_id}_di3_enable_coil ] }
+    on_press:
+      - switch.turn_on: ${wld_id}_di3_enable_coil
+
   - platform: template
     name: "${wld_prefix} DI4 Enable"
-    on_press: { then: [ switch.turn_on: ${wld_id}_di4_enable_coil ] }
+    on_press:
+      - switch.turn_on: ${wld_id}_di4_enable_coil
+
   - platform: template
     name: "${wld_prefix} DI5 Enable"
-    on_press: { then: [ switch.turn_on: ${wld_id}_di5_enable_coil ] }
+    on_press:
+      - switch.turn_on: ${wld_id}_di5_enable_coil
 
-  # ---- Disable buttons ----
+# ---- Disable buttons ----
   - platform: template
     name: "${wld_prefix} DI1 Disable"
-    on_press: { then: [ switch.turn_on: ${wld_id}_di1_disable_coil ] }
+    on_press:
+      - switch.turn_on: ${wld_id}_di1_disable_coil
+
   - platform: template
     name: "${wld_prefix} DI2 Disable"
-    on_press: { then: [ switch.turn_on: ${wld_id}_di2_disable_coil ] }
+    on_press:
+      - switch.turn_on: ${wld_id}_di2_disable_coil
+
   - platform: template
     name: "${wld_prefix} DI3 Disable"
-    on_press: { then: [ switch.turn_on: ${wld_id}_di3_disable_coil ] }
+    on_press:
+      - switch.turn_on: ${wld_id}_di3_disable_coil
+
   - platform: template
     name: "${wld_prefix} DI4 Disable"
-    on_press: { then: [ switch.turn_on: ${wld_id}_di4_disable_coil ] }
+    on_press:
+      - switch.turn_on: ${wld_id}_di4_disable_coil
+
   - platform: template
     name: "${wld_prefix} DI5 Disable"
-    on_press: { then: [ switch.turn_on: ${wld_id}_di5_disable_coil ] }
+    on_press:
+      - switch.turn_on: ${wld_id}_di5_disable_coil
 
-  # ---- Counter reset buttons ----
+# ---- Counter reset buttons ----
   - platform: template
     name: "${wld_prefix} DI1 Counter Reset"
-    on_press: { then: [ switch.turn_on: ${wld_id}_di1_reset_coil ] }
+    on_press:
+      - switch.turn_on: ${wld_id}_di1_reset_coil
+
   - platform: template
     name: "${wld_prefix} DI2 Counter Reset"
-    on_press: { then: [ switch.turn_on: ${wld_id}_di2_reset_coil ] }
+    on_press:
+      - switch.turn_on: ${wld_id}_di2_reset_coil
+
   - platform: template
     name: "${wld_prefix} DI3 Counter Reset"
-    on_press: { then: [ switch.turn_on: ${wld_id}_di3_reset_coil ] }
+    on_press:
+      - switch.turn_on: ${wld_id}_di3_reset_coil
+
   - platform: template
     name: "${wld_prefix} DI4 Counter Reset"
-    on_press: { then: [ switch.turn_on: ${wld_id}_di4_reset_coil ] }
+    on_press:
+      - switch.turn_on: ${wld_id}_di4_reset_coil
+
   - platform: template
     name: "${wld_prefix} DI5 Counter Reset"
-    on_press: { then: [ switch.turn_on: ${wld_id}_di5_reset_coil ] }
+    on_press:
+      - switch.turn_on: ${wld_id}_di5_reset_coil
