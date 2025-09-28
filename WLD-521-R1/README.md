@@ -98,13 +98,13 @@ The WLD-521-R1 is engineered as an **intelligent expansion module** for the **Ho
 ### MiniPLC / MicroPLC (via Modbus RTU)
 
 | Feature | Specification |
-| :--- | :--- | :--- |
-| **Controller Role** | The module operates as a **Modbus Slave**. The MiniPLC/MicroPLC acts as the **Modbus Master** for network and system logic management. |
+| :--- | :--- |
+| **Controller Role** | Operates as a **Modbus Slave**. The MiniPLC/MicroPLC acts as the **Modbus Master** for network and system logic management. |
 | **Communication** | **Modbus RTU (Serial)** protocol. |
 | **Physical Interface** | **RS-485 bus** (using dedicated UART2 pins). |
 | **Function** | Enables the Master to **read all I/O data** (Flow, Heat, Leak Status) and **write commands** to actuate the two Relays (R1, R2) and control Irrigation zones. |
 | **Modular Design** | The RS-485 architecture facilitates the **daisy-chaining of multiple WLD-521-R1 modules** and other expansion units to the central PLC, allowing for scalable I/O. |
-| **Default ID** | Modbus Slave ID is factory-set to **1**. |
+| **Default ID** | Modbus Slave ID is factory-set to **3**. |
 
 ---
 
