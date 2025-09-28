@@ -2,8 +2,8 @@
 // NOTE: This variant mirrors the LED + Button system used on the DIM-420-R1 module.
 //       - 4 LEDs (pins 18..21) with per-LED {mode, source}
 //       - 4 Buttons (pins 22..25) with per-button {action}
-//       - Blink engine identical (500 ms phase), LED sources adapted to WLD (Relays/DI/Irrigation)
-//       - Button actions mapped to WLD (toggle/pulse relays, start/stop irrigation zones)
+//       - Blink engine identical (500 ms phase), LED sources adapted to WLD (Relays/DI/Irrigation + Override)
+//       - Button actions mapped to WLD (toggle/pulse relays, start/stop irrigation zones, long-press override)
 
 #include <Arduino.h>
 #include <ModbusSerial.h>
@@ -27,7 +27,7 @@ static const uint8_t RELAY_PINS[2] = {0, 1};           // R1..R2
 static const uint8_t ONEWIRE_PIN   = 16;
 OneWire oneWire(ONEWIRE_PIN);
 
-// ---------- NEW: LEDs + Buttons (same physical pins as DIM) ----------
+// ---------- LEDs + Buttons ----------
 static const uint8_t LED_PINS[4]   = {18, 19, 20, 21}; // LED1..LED4
 static const uint8_t BTN_PINS[4]   = {22, 23, 24, 25}; // BTN1..BTN4
 static const uint8_t NUM_LED = 4;
@@ -50,8 +50,17 @@ uint32_t diCounter[NUM_DI]   = {0};
 uint32_t diLastEdgeMs[NUM_DI]= {0};
 const uint32_t CNT_DEBOUNCE_MS = 20;
 
-bool desiredRelay[NUM_RLY] = {false,false};  // manual/Modbus/UI desired
-uint32_t rlyPulseUntil[NUM_RLY] = {0,0};
+// ===== NEW: Relay control source & desired states =====
+enum RlyCtrl : uint8_t { RCTRL_LOCAL=0, RCTRL_MODBUS=1 };
+RlyCtrl rlyCtrlMode[NUM_RLY] = {RCTRL_LOCAL, RCTRL_LOCAL};
+
+bool localDesiredRelay[NUM_RLY]  = {false,false};  // driven by UI/buttons/local logic/irrig/pump
+bool modbusDesiredRelay[NUM_RLY] = {false,false};  // driven only by Modbus coils
+bool overrideLatch[NUM_RLY]      = {false,false};  // operator override latched by long-press
+bool overrideDesiredRelay[NUM_RLY]={false,false};  // desired when override latch is active
+bool physRelayState[NUM_RLY]     = {false,false};  // last physical output (post invert/enable)
+
+uint32_t rlyPulseUntil[NUM_RLY] = {0,0};           // local pulse timing only
 const uint32_t PULSE_MS = 500;
 
 // ===== Flow meter per-DI =====
@@ -83,7 +92,7 @@ JSONVar modbusStatus;
 unsigned long lastSend = 0;
 const unsigned long sendInterval = 250;
 
-// ==== NEW: module time (minute-of-day + day index)
+// ==== module time (minute-of-day + day index)
 uint16_t g_minuteOfDay = 0;      // 0..1439
 uint32_t g_secondsAcc  = 0;      // accum 1s ticks -> minutes
 uint16_t g_dayIndex    = 0;      // increments on midnight pulse or wrap
@@ -96,16 +105,19 @@ uint32_t g_mb_baud    = 19200;
 // LED mode: 0=solid, 1=blink
 // LED source codes (adapted to WLD; mirrors DIM style single-field):
 enum LedSource : uint8_t {
-  LEDSRC_NONE = 0,
-  LEDSRC_R1   = 1,
-  LEDSRC_R2   = 2,
-  LEDSRC_DI1  = 3,
-  LEDSRC_DI2  = 4,
-  LEDSRC_DI3  = 5,
-  LEDSRC_DI4  = 6,
-  LEDSRC_DI5  = 7,
-  LEDSRC_IRR1 = 8,
-  LEDSRC_IRR2 = 9
+  LEDSRC_NONE   = 0,
+  LEDSRC_R1     = 1,
+  LEDSRC_R2     = 2,
+  LEDSRC_DI1    = 3,
+  LEDSRC_DI2    = 4,
+  LEDSRC_DI3    = 5,
+  LEDSRC_DI4    = 6,
+  LEDSRC_DI5    = 7,
+  LEDSRC_IRR1   = 8,
+  LEDSRC_IRR2   = 9,
+  // NEW: override indicators (ON only if override active AND relay ON)
+  LEDSRC_R1_OVR = 10,
+  LEDSRC_R2_OVR = 11
 };
 struct LedCfg { uint8_t mode; uint8_t source; };
 
@@ -119,7 +131,10 @@ enum BtnAction : uint8_t {
   BTN_IRR1_START = 5,
   BTN_IRR1_STOP  = 6,
   BTN_IRR2_START = 7,
-  BTN_IRR2_STOP  = 8
+  BTN_IRR2_STOP  = 8,
+  // NEW: long-press override latch/toggle
+  BTN_OVERRIDE_R1 = 9,
+  BTN_OVERRIDE_R2 = 10
 };
 struct BtnCfg { uint8_t action; };
 
@@ -128,26 +143,26 @@ BtnCfg btnCfg[NUM_BTN];
 
 bool  buttonState[NUM_BTN] = {false,false,false,false};
 bool  buttonPrev[NUM_BTN]  = {false,false,false,false};
-struct BtnRuntime { bool pressed=false; uint32_t pressStart=0; };
+struct BtnRuntime { bool pressed=false; uint32_t pressStart=0; bool handledLong=false; };
 BtnRuntime btnRt[NUM_BTN];
-const uint32_t SHORT_MAX_MS=350, LONG_MIN_MS=700; // reserved if needed later
+const uint32_t SHORT_MAX_MS=350;
+const uint32_t LONG_MIN_MS=700;
+const uint32_t LONG_OVERRIDE_MS=3000; // 3s as requested
 
-// Blink engine (same cadence/phase approach as DIM)
+// Blink engine
 bool blinkPhase=false;
 uint32_t lastBlinkToggle=0;
 const uint32_t blinkPeriodMs=500;
 
 // ================== Persistence (LittleFS) ==================
-// Legacy V1..V4 kept to support old flashes (unchanged from your prior code)
-// (V1..V4 structs omitted here to save space — if you truly have V1..V4 devices in the field,
-// paste your original V1..V4 structs + migrators back. V5 from your current firmware is included.)
+// Legacy V5/V6 kept so we can migrate forward to V7 (current)
 
 struct PersistConfigV5 {
   uint32_t magic;  uint16_t version;  uint16_t size;
 
   InCfg   diCfg[NUM_DI];
   RlyCfg  rlyCfg[NUM_RLY];
-  bool    desiredRelay[NUM_RLY];
+  bool    desiredRelay[NUM_RLY]; // legacy -> maps to localDesiredRelay
 
   uint8_t  mb_address;
   uint32_t mb_baud;
@@ -174,7 +189,7 @@ struct PersistConfigV6 {
 
   InCfg   diCfg[NUM_DI];
   RlyCfg  rlyCfg[NUM_RLY];
-  bool    desiredRelay[NUM_RLY];
+  bool    desiredRelay[NUM_RLY]; // legacy -> maps to localDesiredRelay
 
   uint8_t  mb_address;
   uint32_t mb_baud;
@@ -192,18 +207,53 @@ struct PersistConfigV6 {
   float    heatCalib[NUM_DI];
   double   heatEnergyJ[NUM_DI];
 
-  // NEW: LEDs + Buttons
+  // LEDs + Buttons
   LedCfg   ledCfg[NUM_LED];
   BtnCfg   btnCfg[NUM_BTN];
 
   uint32_t crc32;
 } __attribute__((packed));
 
-using PersistConfig = PersistConfigV6;
+// V7: add relay control mode (Local/Modbus) and store localDesiredRelay
+struct PersistConfigV7 {
+  uint32_t magic;  uint16_t version;  uint16_t size;
+
+  InCfg   diCfg[NUM_DI];
+  RlyCfg  rlyCfg[NUM_RLY];
+  bool    localDesiredRelay[NUM_RLY];
+
+  uint8_t  mb_address;
+  uint32_t mb_baud;
+
+  uint32_t flowPPL[NUM_DI];
+  float    flowCalibRate[NUM_DI];
+  float    flowCalibAccum[NUM_DI];
+  uint32_t flowCounterBase[NUM_DI];
+
+  bool     heatEnabled[NUM_DI];
+  uint64_t heatAddrA[NUM_DI];
+  uint64_t heatAddrB[NUM_DI];
+  float    heatCp[NUM_DI];
+  float    heatRho[NUM_DI];
+  float    heatCalib[NUM_DI];
+  double   heatEnergyJ[NUM_DI];
+
+  // LEDs + Buttons
+  LedCfg   ledCfg[NUM_LED];
+  BtnCfg   btnCfg[NUM_BTN];
+
+  // NEW: per-relay control selection
+  uint8_t  relayCtrlMode[NUM_RLY]; // 0=Local,1=Modbus
+
+  uint32_t crc32;
+} __attribute__((packed));
+
+using PersistConfig = PersistConfigV7;
 
 static const uint32_t CFG_MAGIC       = 0x31524C57UL; // 'WLR1'
 static const uint16_t CFG_VERSION_V5  = 0x0005;
-static const uint16_t CFG_VERSION     = 0x0006;  // <— bumped
+static const uint16_t CFG_VERSION_V6  = 0x0006;
+static const uint16_t CFG_VERSION     = 0x0007;  // <— bumped to V7
 static const char*    CFG_PATH        = "/cfg.bin";
 
 // ---- 1-Wire DB ----
@@ -350,7 +400,12 @@ static bool jsonGetPos(JSONVar obj, const char* key, uint32_t &out){
 void setDefaults() {
   for (int i=0;i<NUM_DI;i++)  diCfg[i]  = (InCfg){ true, false, 0, 0, IT_WATER };
   for (int i=0;i<NUM_RLY;i++) rlyCfg[i] = (RlyCfg){ true, false };
-  for (int i=0;i<NUM_RLY;i++){ desiredRelay[i]=false; rlyPulseUntil[i]=0; }
+
+  for (int i=0;i<NUM_RLY;i++){
+    localDesiredRelay[i]=false; modbusDesiredRelay[i]=false; overrideLatch[i]=false; rlyPulseUntil[i]=0;
+    rlyCtrlMode[i]=RCTRL_LOCAL;
+  }
+
   for (int i=0;i<NUM_DI;i++){
     diCounter[i]=0; diLastEdgeMs[i]=0;
     flowPulsesPerL[i] = 450;
@@ -383,7 +438,7 @@ void setDefaults() {
   nextRateTickMs = millis() + 1000;
   g_mb_address=3; g_mb_baud=19200;
 
-  // NEW time defaults
+  // time defaults
   g_minuteOfDay = 0;
   g_secondsAcc  = 0;
   g_dayIndex    = 0;
@@ -392,7 +447,7 @@ void setDefaults() {
 void captureToPersist(PersistConfig &pc){
   pc.magic=CFG_MAGIC; pc.version=CFG_VERSION; pc.size=sizeof(PersistConfig);
   memcpy(pc.diCfg,diCfg,sizeof(diCfg)); memcpy(pc.rlyCfg,rlyCfg,sizeof(rlyCfg));
-  memcpy(pc.desiredRelay,desiredRelay,sizeof(desiredRelay));
+  memcpy(pc.localDesiredRelay,localDesiredRelay,sizeof(localDesiredRelay));
   pc.mb_address=g_mb_address; pc.mb_baud=g_mb_baud;
   for (int i=0;i<NUM_DI;i++){
     pc.flowPPL[i]        = flowPulsesPerL[i];
@@ -408,15 +463,18 @@ void captureToPersist(PersistConfig &pc){
     pc.heatCalib[i]   = heatCalib[i];
     pc.heatEnergyJ[i] = heatEnergyJ[i];
   }
-  // NEW: leds + buttons
+  // leds + buttons
   memcpy(pc.ledCfg, ledCfg, sizeof(ledCfg));
   memcpy(pc.btnCfg, btnCfg, sizeof(btnCfg));
+
+  // relay control mode
+  for (int i=0;i<NUM_RLY;i++) pc.relayCtrlMode[i] = (uint8_t)rlyCtrlMode[i];
 
   pc.crc32=0;
   pc.crc32=crc32_update(0,(const uint8_t*)&pc,sizeof(PersistConfig));
 }
 
-// ----- legacy apply V5 -> migrate to V6 -----
+// ----- migrate V5 -> RAM -----
 bool applyFromPersistV5(const PersistConfigV5 &pc){
   if (pc.magic!=CFG_MAGIC || pc.size!=sizeof(PersistConfigV5)) return false;
   PersistConfigV5 tmp=pc; uint32_t crc=tmp.crc32; tmp.crc32=0;
@@ -425,7 +483,11 @@ bool applyFromPersistV5(const PersistConfigV5 &pc){
 
   memcpy(diCfg, pc.diCfg, sizeof(diCfg));
   memcpy(rlyCfg, pc.rlyCfg, sizeof(rlyCfg));
-  memcpy(desiredRelay, pc.desiredRelay, sizeof(desiredRelay));
+  // legacy desired -> localDesired
+  memcpy(localDesiredRelay, pc.desiredRelay, sizeof(localDesiredRelay));
+  modbusDesiredRelay[0]=modbusDesiredRelay[1]=false;
+  rlyCtrlMode[0]=rlyCtrlMode[1]=RCTRL_LOCAL;
+
   g_mb_address=pc.mb_address; g_mb_baud=pc.mb_baud;
 
   for (int i=0;i<NUM_DI;i++){
@@ -452,15 +514,20 @@ bool applyFromPersistV5(const PersistConfigV5 &pc){
   nextRateTickMs = millis() + 1000;
   return true;
 }
-bool applyFromPersist(const PersistConfig &pc){
-  if (pc.magic!=CFG_MAGIC || pc.size!=sizeof(PersistConfig)) return false;
-  PersistConfig tmp=pc; uint32_t crc=tmp.crc32; tmp.crc32=0;
+
+// ----- migrate V6 -> RAM (adds ctrl mode; map desired->local) -----
+bool applyFromPersistV6(const PersistConfigV6 &pc){
+  if (pc.magic!=CFG_MAGIC || pc.size!=sizeof(PersistConfigV6)) return false;
+  PersistConfigV6 tmp=pc; uint32_t crc=tmp.crc32; tmp.crc32=0;
   if (crc32_update(0,(const uint8_t*)&tmp,sizeof(tmp))!=crc) return false;
-  if (pc.version!=CFG_VERSION) return false;
+  if (pc.version!=CFG_VERSION_V6) return false;
 
   memcpy(diCfg, pc.diCfg, sizeof(diCfg));
   memcpy(rlyCfg, pc.rlyCfg, sizeof(rlyCfg));
-  memcpy(desiredRelay, pc.desiredRelay, sizeof(desiredRelay));
+  memcpy(localDesiredRelay, pc.desiredRelay, sizeof(localDesiredRelay));
+  modbusDesiredRelay[0]=modbusDesiredRelay[1]=false;
+  rlyCtrlMode[0]=rlyCtrlMode[1]=RCTRL_LOCAL;
+
   g_mb_address=pc.mb_address; g_mb_baud=pc.mb_baud;
 
   for (int i=0;i<NUM_DI;i++){
@@ -481,6 +548,43 @@ bool applyFromPersist(const PersistConfig &pc){
   }
   memcpy(ledCfg, pc.ledCfg, sizeof(ledCfg));
   memcpy(btnCfg, pc.btnCfg, sizeof(btnCfg));
+
+  nextRateTickMs = millis() + 1000;
+  return true;
+}
+
+bool applyFromPersist(const PersistConfig &pc){
+  if (pc.magic!=CFG_MAGIC || pc.size!=sizeof(PersistConfig)) return false;
+  PersistConfig tmp=pc; uint32_t crc=tmp.crc32; tmp.crc32=0;
+  if (crc32_update(0,(const uint8_t*)&tmp,sizeof(tmp))!=crc) return false;
+  if (pc.version!=CFG_VERSION) return false;
+
+  memcpy(diCfg, pc.diCfg, sizeof(diCfg));
+  memcpy(rlyCfg, pc.rlyCfg, sizeof(rlyCfg));
+  memcpy(localDesiredRelay, pc.localDesiredRelay, sizeof(localDesiredRelay));
+  modbusDesiredRelay[0]=modbusDesiredRelay[1]=false;
+
+  g_mb_address=pc.mb_address; g_mb_baud=pc.mb_baud;
+
+  for (int i=0;i<NUM_DI;i++){
+    flowPulsesPerL[i] = pc.flowPPL[i] ? pc.flowPPL[i] : 1;
+    flowCalibRate[i]  = (isnan(pc.flowCalibRate[i]) || pc.flowCalibRate[i]<=0) ? 1.0f : pc.flowCalibRate[i];
+    flowCalibAccum[i] = (isnan(pc.flowCalibAccum[i])|| pc.flowCalibAccum[i]<=0)? 1.0f : pc.flowCalibAccum[i];
+    flowCounterBase[i]= pc.flowCounterBase[i];
+    flowRateLmin[i]   = 0.0f;
+    lastPulseSnapshot[i] = 0;
+
+    heatEnabled[i] = pc.heatEnabled[i];
+    heatAddrA[i]   = pc.heatAddrA[i];
+    heatAddrB[i]   = pc.heatAddrB[i];
+    heatCp[i]      = (isnan(pc.heatCp[i]) || pc.heatCp[i]<=0) ? 4186.0f : pc.heatCp[i];
+    heatRho[i]     = (isnan(pc.heatRho[i])|| pc.heatRho[i]<=0)? 1.0f    : pc.heatRho[i];
+    heatCalib[i]   = (isnan(pc.heatCalib[i])||pc.heatCalib[i]<=0)?1.0f  : pc.heatCalib[i];
+    heatEnergyJ[i] = isfinite(pc.heatEnergyJ[i]) ? pc.heatEnergyJ[i] : 0.0;
+  }
+  memcpy(ledCfg, pc.ledCfg, sizeof(ledCfg));
+  memcpy(btnCfg, pc.btnCfg, sizeof(btnCfg));
+  for (int i=0;i<NUM_RLY;i++) rlyCtrlMode[i] = (pc.relayCtrlMode[i]==1)?RCTRL_MODBUS:RCTRL_LOCAL;
 
   nextRateTickMs = millis() + 1000;
   return true;
@@ -506,12 +610,18 @@ bool loadConfigFS(){
     PersistConfigV5 pc{}; size_t n=f.read((uint8_t*)&pc,sizeof(pc)); f.close();
     if(n!=sizeof(pc)){ WebSerial.send("message","load: short read (v5)"); return false; }
     if(!applyFromPersistV5(pc)){ WebSerial.send("message","load: v5 magic/version/crc mismatch"); return false; }
-    WebSerial.send("message","Loaded legacy config v5 → migrated to v6 (LED/BTN defaults).");
+    WebSerial.send("message","Loaded legacy config v5 → migrated to v7 (LED/BTN defaults + Local control).");
+    return true;
+  } else if (sz==sizeof(PersistConfigV6)){
+    PersistConfigV6 pc{}; size_t n=f.read((uint8_t*)&pc,sizeof(pc)); f.close();
+    if(n!=sizeof(pc)){ WebSerial.send("message","load: short read (v6)"); return false; }
+    if(!applyFromPersistV6(pc)){ WebSerial.send("message","load: v6 magic/version/crc mismatch"); return false; }
+    WebSerial.send("message","Loaded legacy config v6 → migrated to v7 (relay control mode defaults to Local).");
     return true;
   } else if (sz==sizeof(PersistConfig)){
     PersistConfig pc{}; size_t n=f.read((uint8_t*)&pc,sizeof(pc)); f.close();
-    if(n!=sizeof(pc)){ WebSerial.send("message","load: short read (v6)"); return false; }
-    if(!applyFromPersist(pc)){ WebSerial.send("message","load: v6 magic/version/crc mismatch"); return false; }
+    if(n!=sizeof(pc)){ WebSerial.send("message","load: short read (v7)"); return false; }
+    if(!applyFromPersist(pc)){ WebSerial.send("message","load: v7 magic/version/crc mismatch"); return false; }
     return true;
   } else {
     WebSerial.send("message",String("load: unexpected size ")+sz); f.close(); return false;
@@ -540,16 +650,42 @@ inline void setSlaveIdIfAvailable(...){}
 
 // ================== Modbus maps ==================
 enum : uint16_t { ISTS_DI_BASE=1, ISTS_RLY_BASE=60 };
-// NEW mirrors (read-only ISTS) for LEDs & Buttons like DIM:
+// mirrors (read-only ISTS) for LEDs & Buttons
 enum : uint16_t { ISTS_LED_BASE=90, ISTS_BTN_BASE=100 };
 
-enum : uint16_t { HREG_DI_COUNT_BASE=1000 };
-// ==== NEW: time exposure + midnight pulse
+// NOTE: HREG_DI_COUNT_BASE removed from map (no longer exported over Modbus)
+
+// time exposure + midnight pulse
 enum : uint16_t { HREG_TIME_MINUTE=1100, HREG_DAY_INDEX=1101 };
 enum : uint16_t {
   CMD_RLY_ON_BASE=200, CMD_RLY_OFF_BASE=210,
   CMD_DI_EN_BASE=300,  CMD_DI_DIS_BASE=320, CMD_CNT_RST_BASE=340,
   CMD_TIME_MIDNIGHT=360   // pulse at 00:00 from HA
+};
+
+// Flow/Heat/Irrigation/1-Wire (Holding Registers)
+enum : uint16_t {
+  HREG_FLOW_RATE_BASE   = 1120, // 5×(U32)  L/min ×1000  (2 regs each)
+  HREG_FLOW_ACCUM_BASE  = 1140, // 5×(U32)  L ×1000      (2 regs each)
+  HREG_HEAT_POWER_BASE  = 1200, // 5×(S32)  W            (2 regs each)
+  HREG_HEAT_EN_WH_BASE  = 1220, // 5×(U32)  Wh ×1000     (2 regs each)
+  HREG_HEAT_DT_BASE     = 1240, // 5×(S32)  °C ×1000     (2 regs each)
+
+  HREG_IRR_STATE_BASE   = 1300, // 2×U16 (state enum)
+  HREG_IRR_LITERS_BASE  = 1310, // 2×U32 L ×1000 (2 regs each)
+  HREG_IRR_ELAPSED_BASE = 1320, // 2×U32 seconds (2 regs each)
+  HREG_IRR_RATE_BASE    = 1330, // 2×U32 L/min ×1000 (2 regs each)
+  HREG_IRR_WINDOW_BASE  = 1340, // 2×U16 windowOpen flags
+  HREG_IRR_SENSOK_BASE  = 1342, // 2×U16 sensorsOK flags
+
+  HREG_OW_TEMP_BASE     = 1500  // first 10 sensors, 10×(S32) °C ×1000 (2 regs each)
+};
+
+// Irrigation command coils (pulse)
+enum : uint16_t {
+  CMD_IRR_START_BASE = 370, // coils z1,z2
+  CMD_IRR_STOP_BASE  = 380,
+  CMD_IRR_RESET_BASE = 390
 };
 
 // ================== 1-Wire DB helpers ==================
@@ -643,7 +779,7 @@ struct IrrigZone {
   uint32_t timeoutSec;
   double   targetLiters;
 
-  // ==== NEW: extra sensors and pump + window/schedule
+  // extra sensors and pump + window/schedule
   int8_t   di_moist;     // -1 disabled, else 1..5
   int8_t   di_rain;      // -1 disabled, else 1..5
   int8_t   di_tank;      // -1 disabled, else 1..5
@@ -665,14 +801,14 @@ struct IrrigZone {
 };
 
 IrrigZone g_irrig[NUM_RLY];  // 2 zones
-bool      irrigDemand[NUM_RLY] = {false,false}; // OR'ed with desiredRelay
-// ==== NEW: pump reference counting per relay index
+bool      irrigDemand[NUM_RLY] = {false,false}; // OR'ed with localDesiredRelay when in Local mode
+// pump reference counting per relay index
 uint16_t  pumpRefCount[NUM_RLY] = {0,0};
 
 static inline bool isValidDI(int8_t d) { return d>=1 && d<= (int8_t)NUM_DI; }
 static inline bool isValidR(int8_t r)  { return r>=1 && r<= (int8_t)NUM_RLY; }
 
-// ---- prototypes for helpers that use IrrigZone (bodies are placed AFTER the struct)
+// ---- prototypes
 static bool zoneWindowOpen(const IrrigZone& Z);
 static bool zoneSensorsOK(const IrrigZone& Z);
 
@@ -689,7 +825,7 @@ JSONVar irrigBuildConfigJson(){
     o["timeout"] = (double)g_irrig[i].timeoutSec;
     o["targetL"] = (double)g_irrig[i].targetLiters;
 
-    // NEW: extra fields
+    // extra fields
     o["DI_moist"] = (double)g_irrig[i].di_moist;
     o["DI_rain"]  = (double)g_irrig[i].di_rain;
     o["DI_tank"]  = (double)g_irrig[i].di_tank;
@@ -833,7 +969,7 @@ void irrigSendStatus(){
     o["targetL"]  = (double)g_irrig[i].targetLiters;
     o["timeout"]  = (double)g_irrig[i].timeoutSec;
 
-    // NEW diagnostics
+    // diagnostics
     o["minuteOfDay"] = (double)g_minuteOfDay;
     o["windowEnable"]= g_irrig[i].windowEnable;
     o["winStartMin"] = (double)g_irrig[i].winStartMin;
@@ -893,13 +1029,12 @@ void irrigStartZone(int z, double litersOverride){
 }
 // Called each second in the 1s tick
 void irrigTick1s(){
-  // Auto-start pass: start at window open if configured and not yet started today
+  // Auto-start pass
   for (int i=0;i<NUM_RLY;i++){
     IrrigZone &Z = g_irrig[i];
     if (!Z.enabled || !Z.autoStart) continue;
     if (!zoneWindowOpen(Z)) continue;
     if (Z.lastAutoDay == g_dayIndex) continue;
-    // Only kick exactly at the start minute (best-effort)
     if ((g_minuteOfDay % 1440) == (Z.winStartMin % 1440)) {
       if (zoneSensorsOK(Z)) {
         irrigStartZone(i, 0.0);
@@ -914,20 +1049,16 @@ void irrigTick1s(){
     Z.secondsInState++;
 
     if (Z.state==IRR_STATE_RUN){
-      // Window still open?
       if (Z.windowEnable && !zoneWindowOpen(Z)){
         Z.state=IRR_STATE_DONE;
         irrigStopZone(i,"window");
         continue;
       }
-      // Sensors still OK?
       if (!zoneSensorsOK(Z)){
         Z.state=IRR_STATE_FAULT;
         irrigStopZone(i,"sensor");
         continue;
       }
-
-      // Timeout?
       if (Z.timeoutSec>0 && Z.secondsInState>=Z.timeoutSec){
         Z.state=IRR_STATE_FAULT;
         irrigStopZone(i,"timeout");
@@ -968,7 +1099,7 @@ void irrigTick1s(){
         continue;
       }
 
-      // keep valve demand
+      // keep valve demand (only matters in Local mode)
       if (Z.relay>=1 && Z.relay<=NUM_RLY) irrigDemand[Z.relay-1]=true;
     }
   }
@@ -1067,7 +1198,6 @@ void setup(){
   for(uint8_t i=0;i<NUM_RLY;i++){ pinMode(RELAY_PINS[i], OUTPUT); digitalWrite(RELAY_PINS[i], LOW); }
   pinMode(ONEWIRE_PIN, INPUT_PULLUP);
 
-  // NEW: LEDs/Buttons like DIM
   for(uint8_t i=0;i<NUM_LED;i++){ pinMode(LED_PINS[i], OUTPUT); digitalWrite(LED_PINS[i], LOW); }
   for(uint8_t i=0;i<NUM_BTN;i++) pinMode(BTN_PINS[i], INPUT); // HIGH=pressed
 
@@ -1092,9 +1222,10 @@ void setup(){
 
   for(uint16_t i=0;i<NUM_DI;i++)  mb.addIsts(ISTS_DI_BASE + i);
   for(uint16_t i=0;i<NUM_RLY;i++) mb.addIsts(ISTS_RLY_BASE + i);
-  for(uint16_t i=0;i<NUM_LED;i++) mb.addIsts(ISTS_LED_BASE + i);  // NEW
-  for(uint16_t i=0;i<NUM_BTN;i++) mb.addIsts(ISTS_BTN_BASE + i);  // NEW
-  for(uint16_t i=0;i<NUM_DI;i++){ mb.addHreg(HREG_DI_COUNT_BASE+(i*2)+0,0); mb.addHreg(HREG_DI_COUNT_BASE+(i*2)+1,0); }
+  for(uint16_t i=0;i<NUM_LED;i++) mb.addIsts(ISTS_LED_BASE + i);
+  for(uint16_t i=0;i<NUM_BTN;i++) mb.addIsts(ISTS_BTN_BASE + i);
+
+  // NOTE: DI counters NOT exported to Modbus anymore (removed addHreg 1000…1009)
 
   for(uint16_t i=0;i<NUM_RLY;i++){ mb.addCoil(CMD_RLY_ON_BASE+i);  mb.setCoil(CMD_RLY_ON_BASE+i,false); }
   for (uint16_t i=0; i<NUM_RLY; i++) { mb.addCoil(CMD_RLY_OFF_BASE+i); mb.setCoil(CMD_RLY_OFF_BASE+i,false); }
@@ -1102,10 +1233,52 @@ void setup(){
   for(uint16_t i=0;i<NUM_DI;i++){  mb.addCoil(CMD_DI_DIS_BASE+i);  mb.setCoil(CMD_DI_DIS_BASE+i,false); }
   for(uint16_t i=0;i<NUM_DI;i++){  mb.addCoil(CMD_CNT_RST_BASE+i); mb.setCoil(CMD_CNT_RST_BASE+i,false); }
 
-  // NEW: time regs + midnight pulse coil
+  // time regs + midnight pulse coil
   mb.addHreg(HREG_TIME_MINUTE, g_minuteOfDay);
   mb.addHreg(HREG_DAY_INDEX,   g_dayIndex);
   mb.addCoil(CMD_TIME_MIDNIGHT); mb.setCoil(CMD_TIME_MIDNIGHT,false);
+
+  // ===== Holding Registers for Flow/Heat/Irrigation/1-Wire =====
+  for (uint8_t i=0;i<NUM_DI;i++){
+    uint16_t b1 = HREG_FLOW_RATE_BASE  + (i*2);
+    uint16_t b2 = HREG_FLOW_ACCUM_BASE + (i*2);
+    mb.addHreg(b1+0,0); mb.addHreg(b1+1,0);
+    mb.addHreg(b2+0,0); mb.addHreg(b2+1,0);
+  }
+  for (uint8_t i=0;i<NUM_DI;i++){
+    uint16_t p = HREG_HEAT_POWER_BASE + (i*2);
+    uint16_t e = HREG_HEAT_EN_WH_BASE + (i*2);
+    uint16_t d = HREG_HEAT_DT_BASE    + (i*2);
+    mb.addHreg(p+0,0); mb.addHreg(p+1,0);
+    mb.addHreg(e+0,0); mb.addHreg(e+1,0);
+    mb.addHreg(d+0,0); mb.addHreg(d+1,0);
+  }
+  for (uint8_t z=0; z<NUM_RLY; z++){
+    mb.addHreg(HREG_IRR_STATE_BASE + z, 0);
+    uint16_t l = HREG_IRR_LITERS_BASE  + (z*2);
+    uint16_t s = HREG_IRR_ELAPSED_BASE + (z*2);
+    uint16_t r = HREG_IRR_RATE_BASE    + (z*2);
+    mb.addHreg(l+0,0); mb.addHreg(l+1,0);
+    mb.addHreg(s+0,0); mb.addHreg(s+1,0);
+    mb.addHreg(r+0,0); mb.addHreg(r+1,0);
+  }
+  mb.addHreg(HREG_IRR_WINDOW_BASE + 0, 0);
+  mb.addHreg(HREG_IRR_WINDOW_BASE + 1, 0);
+  mb.addHreg(HREG_IRR_SENSOK_BASE + 0, 0);
+  mb.addHreg(HREG_IRR_SENSOK_BASE + 1, 0);
+
+  // Irrigation command coils
+  for (uint8_t z=0; z<NUM_RLY; z++){
+    mb.addCoil(CMD_IRR_START_BASE+z); mb.setCoil(CMD_IRR_START_BASE+z,false);
+    mb.addCoil(CMD_IRR_STOP_BASE +z); mb.setCoil(CMD_IRR_STOP_BASE +z,false);
+    mb.addCoil(CMD_IRR_RESET_BASE+z); mb.setCoil(CMD_IRR_RESET_BASE+z,false);
+  }
+
+  // 1-Wire quick telemetry (first 10 sensors)
+  for (uint8_t i=0;i<10;i++){
+    uint16_t b = HREG_OW_TEMP_BASE + (i*2);
+    mb.addHreg(b+0,0); mb.addHreg(b+1,0);
+  }
 
   modbusStatus["address"]=g_mb_address; modbusStatus["baud"]=g_mb_baud; modbusStatus["state"]=0;
 
@@ -1114,7 +1287,7 @@ void setup(){
   WebSerial.on("command", handleCommand);
   WebSerial.on("onewire", handleOneWire);
 
-  WebSerial.send("message","Boot OK (Flow + Heat + Irrigation + LEDs+Buttons like DIM + Windows+Sensors+Pump).");
+  WebSerial.send("message","Boot OK (Flow + Heat + Irrigation + LEDs+Buttons + Windows+Sensors+Pump + Local/Modbus relay control + Override).");
   sendAllEchoesOnce();
 }
 
@@ -1133,7 +1306,7 @@ void handleValues(JSONVar values){
   cfgDirty=true; lastCfgTouchMs=millis();
 }
 
-// ===== NEW: apply heat config (posA/posB or explicit addresses) =====
+// ===== apply heat config (posA/posB or explicit addresses) =====
 bool applyHeatCfgObjectToIndex(int idx, JSONVar o){
   if (idx < 0 || idx >= (int)NUM_DI) return false;
   if (o.hasOwnProperty("enabled"))
@@ -1231,6 +1404,14 @@ void handleUnifiedConfig(JSONVar obj){
       rlyCfg[i].inverted= (bool)list[i]["inverted"];
     }
     WebSerial.send("message","Relay Configuration updated");
+    changed = true;
+  }
+  else if (type=="relayCtrlMode"){
+    for (int i=0;i<NUM_RLY && i<list.length(); i++){
+      int v = (int)list[i];
+      rlyCtrlMode[i] = (v==1)?RCTRL_MODBUS:RCTRL_LOCAL;
+    }
+    WebSerial.send("message","Relay Control Mode updated (0=Local,1=Modbus)");
     changed = true;
   }
   else if (type=="flowPPL"){
@@ -1344,7 +1525,7 @@ void handleUnifiedConfig(JSONVar obj){
       if (o.hasOwnProperty("timeout"))  g_irrig[i].timeoutSec   = (uint32_t)(int)o["timeout"];
       if (o.hasOwnProperty("targetL"))  g_irrig[i].targetLiters = (double)o["targetL"];
 
-      // NEW fields (accept -1)
+      // extra fields (accept -1)
       if (o.hasOwnProperty("DI_moist")) g_irrig[i].di_moist = (int8_t)(int)o["DI_moist"];
       if (o.hasOwnProperty("DI_rain"))  g_irrig[i].di_rain  = (int8_t)(int)o["DI_rain"];
       if (o.hasOwnProperty("DI_tank"))  g_irrig[i].di_tank  = (int8_t)(int)o["DI_tank"];
@@ -1367,20 +1548,20 @@ void handleUnifiedConfig(JSONVar obj){
     irrigSendConfig();
     WebSerial.send("message","Irrigation config updated");
   }
-  // -------- NEW: LED/Buttons CONFIG --------
+  // -------- LED/Buttons CONFIG --------
   else if (type=="led"){
     for(int i=0;i<NUM_LED && i<list.length(); i++){
       JSONVar o = list[i];
       if (JSON.typeof(o)!="object") continue;
       if (o.hasOwnProperty("mode"))   ledCfg[i].mode   = (uint8_t)constrain((int)o["mode"],0,1);
-      if (o.hasOwnProperty("source")) ledCfg[i].source = (uint8_t)constrain((int)o["source"],0,(int)LEDSRC_IRR2);
+      if (o.hasOwnProperty("source")) ledCfg[i].source = (uint8_t)constrain((int)o["source"],0,(int)LEDSRC_R2_OVR);
     }
     WebSerial.send("message","LED config updated"); changed=true;
   }
   else if (type=="buttons"){
     for(int i=0;i<NUM_BTN && i<list.length(); i++){
       int act=(int)list[i];
-      btnCfg[i].action = (uint8_t)constrain(act,0,(int)BTN_IRR2_STOP);
+      btnCfg[i].action = (uint8_t)constrain(act,0,(int)BTN_OVERRIDE_R2);
     }
     WebSerial.send("message","Buttons config updated"); changed=true;
   }
@@ -1420,7 +1601,7 @@ void handleCommand(JSONVar obj){
   }
   if (act=="scan"||act=="scan1wire"||act=="scan_1wire"||act=="scan1w"){ doOneWireScan(); return; }
 
-  // ==== NEW: set current time (minute-of-day)
+  // set current time (minute-of-day)
   if (act=="set_time"){
     int mod = -1;
     if (obj.hasOwnProperty("minuteOfDay")) mod = (int)obj["minuteOfDay"];
@@ -1435,7 +1616,7 @@ void handleCommand(JSONVar obj){
     return;
   }
 
-  // ===== flow & heat helpers kept from your base code =====
+  // flow/heat helpers kept
   if (act=="flow_calculate"){
     int di = -1;
     if (obj.hasOwnProperty("di")) di = (int)obj["di"];
@@ -1489,7 +1670,7 @@ void handleCommand(JSONVar obj){
     return;
   }
 
-  // -------- IRRIGATION COMMANDS --------
+  // IRRIGATION COMMANDS
   if (act=="irrig_start"){
     int z = -1; if (obj.hasOwnProperty("zone")) z=(int)obj["zone"];
     if (z>=1 && z<=NUM_RLY) z-=1;
@@ -1549,26 +1730,38 @@ void handleOneWire(JSONVar obj){
       WebSerial.send("message","onewire: address not found"); owdbSendList();
     }
   } else {
-    WebSerial.send("message", String("onewire: unknown action '")+act+"'");
+    WebSerial.send("message", String("onewire: unknown action '")+act+"'"); 
   }
+}
+
+// ================== Modbus helpers ==================
+inline void setHreg32(uint16_t base, uint32_t v){
+  mb.setHreg(base+0,(uint16_t)(v & 0xFFFF));
+  mb.setHreg(base+1,(uint16_t)((v>>16)&0xFFFF));
+}
+inline void setHreg32s(uint16_t base, int32_t v){
+  setHreg32(base, (uint32_t)v);
 }
 
 // ================== Modbus pulses / time pulse ==================
 void processModbusCommandPulses(){
+  // Relay controls (affect ONLY modbusDesiredRelay[])
   for(int r=0;r<NUM_RLY;r++){
-    if (mb.Coil(CMD_RLY_ON_BASE+r))  { mb.setCoil(CMD_RLY_ON_BASE+r,false); desiredRelay[r]=true;  rlyPulseUntil[r]=0; cfgDirty=true; lastCfgTouchMs=millis(); }
-    if (mb.Coil(CMD_RLY_OFF_BASE+r)) { mb.setCoil(CMD_RLY_OFF_BASE+r,false); desiredRelay[r]=false; rlyPulseUntil[r]=0; cfgDirty=true; lastCfgTouchMs=millis(); }
+    if (mb.Coil(CMD_RLY_ON_BASE+r))  { mb.setCoil(CMD_RLY_ON_BASE+r,false); modbusDesiredRelay[r]=true; }
+    if (mb.Coil(CMD_RLY_OFF_BASE+r)) { mb.setCoil(CMD_RLY_OFF_BASE+r,false); modbusDesiredRelay[r]=false; }
   }
+  // DI enables/disables
   for(int i=0;i<NUM_DI;i++){
     if (mb.Coil(CMD_DI_EN_BASE+i))  { mb.setCoil(CMD_DI_EN_BASE+i,false); if(!diCfg[i].enabled){ diCfg[i].enabled=true; cfgDirty=true; lastCfgTouchMs=millis(); } }
     if (mb.Coil(CMD_DI_DIS_BASE+i)) { mb.setCoil(CMD_DI_DIS_BASE+i,false); if( diCfg[i].enabled){ diCfg[i].enabled=false; cfgDirty=true; lastCfgTouchMs=millis(); } }
   }
+  // Counter resets (internal only)
   for(int i=0;i<NUM_DI;i++){
     if (mb.Coil(CMD_CNT_RST_BASE+i)) { mb.setCoil(CMD_CNT_RST_BASE+i,false);
       diCounter[i]=0; diLastEdgeMs[i]=millis(); lastPulseSnapshot[i]=0; flowCounterBase[i]=0;
     }
   }
-  // NEW: midnight pulse from HA
+  // Midnight pulse from HA
   if (mb.Coil(CMD_TIME_MIDNIGHT)){
     mb.setCoil(CMD_TIME_MIDNIGHT,false);
     g_minuteOfDay = 0;
@@ -1578,15 +1771,42 @@ void processModbusCommandPulses(){
     mb.setHreg(HREG_DAY_INDEX,   g_dayIndex);
     WebSerial.send("message","time: midnight pulse");
   }
+
+  // Irrigation coils
+  for (int z=0; z<NUM_RLY; z++){
+    if (mb.Coil(CMD_IRR_START_BASE+z)){
+      mb.setCoil(CMD_IRR_START_BASE+z,false);
+      irrigStartZone(z, 0.0);
+      irrigSendStatus();
+    }
+    if (mb.Coil(CMD_IRR_STOP_BASE+z)){
+      mb.setCoil(CMD_IRR_STOP_BASE+z,false);
+      irrigStopZone(z,"mb");
+      irrigSendStatus();
+    }
+    if (mb.Coil(CMD_IRR_RESET_BASE+z)){
+      mb.setCoil(CMD_IRR_RESET_BASE+z,false);
+      g_irrig[z].state=IRR_STATE_IDLE;
+      g_irrig[z].secondsInState=0;
+      g_irrig[z].litersDone=0.0;
+      irrigDemand[(g_irrig[z].relay>=1 && g_irrig[z].relay<=NUM_RLY)?(g_irrig[z].relay-1):0]=false;
+      irrigSendStatus();
+    }
+  }
 }
+
+// Apply local action to target (buttons/DI)
 void applyActionToTarget(uint8_t tgt, uint8_t action, uint32_t now){
-  auto doRelay = [&](int rIdx){ if(rIdx<0||rIdx>=NUM_RLY) return; if(action==1){ desiredRelay[rIdx]=!desiredRelay[rIdx]; rlyPulseUntil[rIdx]=0; } else if(action==2){ desiredRelay[rIdx]=true; rlyPulseUntil[rIdx]=now+PULSE_MS; } };
+  auto doRelay = [&](int rIdx){
+    if(rIdx<0||rIdx>=NUM_RLY) return;
+    if(action==1){ localDesiredRelay[rIdx]=!localDesiredRelay[rIdx]; rlyPulseUntil[rIdx]=0; }
+    else if(action==2){ localDesiredRelay[rIdx]=true; rlyPulseUntil[rIdx]=now+PULSE_MS; }
+  };
   if(action==0 || tgt==4) return;
   if(tgt==0){ for(int r=0;r<NUM_RLY;r++) doRelay(r); }
   else if(tgt>=1 && tgt<=2) doRelay(tgt-1);
   cfgDirty=true; lastCfgTouchMs=now;
 }
-inline void setHreg32(uint16_t base, uint32_t v){ mb.setHreg(base+0,(uint16_t)(v & 0xFFFF)); mb.setHreg(base+1,(uint16_t)((v>>16)&0xFFFF)); }
 
 // ================== Loop ==================
 void loop(){
@@ -1619,7 +1839,8 @@ void loop(){
 
     if (diCfg[i].type==IT_WCOUNTER){
       if (rising && (now - diLastEdgeMs[i] >= CNT_DEBOUNCE_MS)){
-        diCounter[i]++; diLastEdgeMs[i]=now; setHreg32(HREG_DI_COUNT_BASE + (i*2), diCounter[i]);
+        diCounter[i]++; diLastEdgeMs[i]=now;
+        // NOTE: Modbus HREG counters removed; keep internal/WebSerial only
       }
     } else {
       uint8_t act=diCfg[i].action;
@@ -1630,20 +1851,22 @@ void loop(){
     counters[i]=(double)diCounter[i];
   }
 
-  // Buttons (DIM-like edge logic; actions on rising edge)
+  // Buttons (rising-edge actions + long-press override handling)
   JSONVar btnStates;
   for(int i=0;i<NUM_BTN;i++){
     bool pressed=(digitalRead(BTN_PINS[i])==HIGH);
     buttonPrev[i]=buttonState[i];
     buttonState[i]=pressed;
     btnStates[i]=pressed;
-    if(!buttonPrev[i] && buttonState[i]){ btnRt[i].pressed=true; btnRt[i].pressStart=now; // rising
-      // Apply configured action:
+
+    // rising edge => immediate short action types
+    if(!buttonPrev[i] && buttonState[i]){
+      btnRt[i].pressed=true; btnRt[i].pressStart=now; btnRt[i].handledLong=false;
       switch(btnCfg[i].action){
-        case BTN_TOGGLE_R1: desiredRelay[0] = !desiredRelay[0]; rlyPulseUntil[0]=0; cfgDirty=true; lastCfgTouchMs=now; WebSerial.send("message","button: toggle R1"); break;
-        case BTN_TOGGLE_R2: desiredRelay[1] = !desiredRelay[1]; rlyPulseUntil[1]=0; cfgDirty=true; lastCfgTouchMs=now; WebSerial.send("message","button: toggle R2"); break;
-        case BTN_PULSE_R1:  desiredRelay[0] = true; rlyPulseUntil[0]= now + PULSE_MS; cfgDirty=true; lastCfgTouchMs=now; WebSerial.send("message","button: pulse R1"); break;
-        case BTN_PULSE_R2:  desiredRelay[1] = true; rlyPulseUntil[1]= now + PULSE_MS; cfgDirty=true; lastCfgTouchMs=now; WebSerial.send("message","button: pulse R2"); break;
+        case BTN_TOGGLE_R1: localDesiredRelay[0] = !localDesiredRelay[0]; rlyPulseUntil[0]=0; cfgDirty=true; lastCfgTouchMs=now; WebSerial.send("message","button: toggle R1"); break;
+        case BTN_TOGGLE_R2: localDesiredRelay[1] = !localDesiredRelay[1]; rlyPulseUntil[1]=0; cfgDirty=true; lastCfgTouchMs=now; WebSerial.send("message","button: toggle R2"); break;
+        case BTN_PULSE_R1:  localDesiredRelay[0] = true; rlyPulseUntil[0]= now + PULSE_MS; cfgDirty=true; lastCfgTouchMs=now; WebSerial.send("message","button: pulse R1"); break;
+        case BTN_PULSE_R2:  localDesiredRelay[1] = true; rlyPulseUntil[1]= now + PULSE_MS; cfgDirty=true; lastCfgTouchMs=now; WebSerial.send("message","button: pulse R2"); break;
         case BTN_IRR1_START: irrigStartZone(0,0.0); WebSerial.send("message","button: irrig z1 start"); break;
         case BTN_IRR1_STOP:  irrigStopZone(0,"button"); WebSerial.send("message","button: irrig z1 stop"); break;
         case BTN_IRR2_START: irrigStartZone(1,0.0); WebSerial.send("message","button: irrig z2 start"); break;
@@ -1651,34 +1874,69 @@ void loop(){
         default: break;
       }
     }
+
+    // long-press override handling (3s)
+    uint8_t act = btnCfg[i].action;
+    bool isOverrideBtn = (act==BTN_OVERRIDE_R1 || act==BTN_OVERRIDE_R2);
+    if (isOverrideBtn && buttonState[i] && !btnRt[i].handledLong &&
+        timeAfter32(now, btnRt[i].pressStart + LONG_OVERRIDE_MS)) {
+      int r = (act==BTN_OVERRIDE_R1)?0:1;
+      if (!overrideLatch[r]) {
+        // enter override and toggle immediately
+        overrideLatch[r] = true;
+        overrideDesiredRelay[r] = !physRelayState[r]; // toggle from current physical
+        WebSerial.send("message", String("override: R")+String(r+1)+" entered, toggled");
+      } else {
+        // exit override
+        overrideLatch[r] = false;
+        WebSerial.send("message", String("override: R")+String(r+1)+" exited");
+      }
+      btnRt[i].handledLong = true;
+    }
+
     if(buttonPrev[i] && !buttonState[i]){ btnRt[i].pressed=false; }
     mb.setIsts(ISTS_BTN_BASE + i, pressed);
   }
 
   JSONVar relayStateList;
-  // compute relay state = desiredRelay OR irrigDemand OR pumpDemand, then invert/enable
+  // compute relay state with precedence: Override > Selected source (Modbus or Local)
   for (int i=0;i<NUM_RLY;i++){
     bool pumpDemand = (pumpRefCount[i] > 0);
-    bool combined = desiredRelay[i] || irrigDemand[i] || pumpDemand;
-    bool outVal=combined; if(!rlyCfg[i].enabled) outVal=false; if(rlyCfg[i].inverted) outVal=!outVal;
+    bool selectedCmd = false;
+
+    if (overrideLatch[i]) {
+      selectedCmd = overrideDesiredRelay[i];
+    } else if (rlyCtrlMode[i] == RCTRL_MODBUS) {
+      selectedCmd = modbusDesiredRelay[i];
+    } else {
+      selectedCmd = localDesiredRelay[i] || irrigDemand[i] || pumpDemand;
+    }
+
+    bool outVal=selectedCmd; if(!rlyCfg[i].enabled) outVal=false; if(rlyCfg[i].inverted) outVal=!outVal;
     digitalWrite(RELAY_PINS[i], outVal?HIGH:LOW);
+    physRelayState[i]=outVal;
+
     relayStateList[i]=outVal; mb.setIsts(ISTS_RLY_BASE+i,outVal);
-    if (rlyPulseUntil[i] && timeAfter32(now, rlyPulseUntil[i])){ desiredRelay[i]=false; rlyPulseUntil[i]=0; cfgDirty=true; lastCfgTouchMs=now; }
+
+    // expire local pulse
+    if (rlyPulseUntil[i] && timeAfter32(now, rlyPulseUntil[i])){ localDesiredRelay[i]=false; rlyPulseUntil[i]=0; cfgDirty=true; lastCfgTouchMs=now; }
   }
 
-  // LEDs (like DIM: srcActive + optional blink gating)
+  // LEDs (srcActive + optional blink)
   JSONVar ledStates, ledConfigArray;
   auto ledSrcActive = [&](uint8_t src)->bool{
     switch(src){
-      case LEDSRC_R1:   return (digitalRead(RELAY_PINS[0])==HIGH) ^ rlyCfg[0].inverted;
-      case LEDSRC_R2:   return (digitalRead(RELAY_PINS[1])==HIGH) ^ rlyCfg[1].inverted;
-      case LEDSRC_DI1:  return diState[0];
-      case LEDSRC_DI2:  return diState[1];
-      case LEDSRC_DI3:  return diState[2];
-      case LEDSRC_DI4:  return diState[3];
-      case LEDSRC_DI5:  return diState[4];
-      case LEDSRC_IRR1: return (g_irrig[0].state==IRR_STATE_RUN);
-      case LEDSRC_IRR2: return (g_irrig[1].state==IRR_STATE_RUN);
+      case LEDSRC_R1:     return physRelayState[0];
+      case LEDSRC_R2:     return physRelayState[1];
+      case LEDSRC_DI1:    return diState[0];
+      case LEDSRC_DI2:    return diState[1];
+      case LEDSRC_DI3:    return diState[2];
+      case LEDSRC_DI4:    return diState[3];
+      case LEDSRC_DI5:    return diState[4];
+      case LEDSRC_IRR1:   return (g_irrig[0].state==IRR_STATE_RUN);
+      case LEDSRC_IRR2:   return (g_irrig[1].state==IRR_STATE_RUN);
+      case LEDSRC_R1_OVR: return (overrideLatch[0] && physRelayState[0]);
+      case LEDSRC_R2_OVR: return (overrideLatch[1] && physRelayState[1]);
       default: return false;
     }
   };
@@ -1760,6 +2018,61 @@ void loop(){
 
     // Irrigation tick (after flow rates updated)
     irrigTick1s();
+  }
+
+  // ===== Update Modbus Holding Registers =====
+  // Flow per DI
+  for (int i=0;i<NUM_DI;i++){
+    uint32_t rate_milli = (flowRateLmin[i] <= 0.0f) ? 0u : (uint32_t)llround((double)flowRateLmin[i]*1000.0);
+    setHreg32(HREG_FLOW_RATE_BASE + (i*2), rate_milli);
+
+    uint32_t ppl = flowPulsesPerL[i] ? flowPulsesPerL[i] : 1;
+    uint32_t pulses_since = (diCounter[i] >= flowCounterBase[i]) ? (diCounter[i] - flowCounterBase[i]) : 0;
+    double accumL = ((double)pulses_since / (double)ppl) * (double)flowCalibAccum[i];
+    uint32_t accum_milli = (accumL <= 0.0) ? 0u : (uint32_t)llround(accumL*1000.0);
+    setHreg32(HREG_FLOW_ACCUM_BASE + (i*2), accum_milli);
+
+    int32_t P = (int32_t)llround(heatPowerW[i]);
+    setHreg32s(HREG_HEAT_POWER_BASE + (i*2), P);
+
+    double wh = heatEnergyJ[i] / 3600.0;
+    uint32_t wh_milli = (wh <= 0.0) ? 0u : (uint32_t)llround(wh*1000.0);
+    setHreg32(HREG_HEAT_EN_WH_BASE + (i*2), wh_milli);
+
+    int32_t dt_milli = (int32_t)llround(heatDT[i]*1000.0);
+    setHreg32s(HREG_HEAT_DT_BASE + (i*2), dt_milli);
+  }
+
+  // Irrigation per zone
+  for (int z=0; z<NUM_RLY; z++){
+    IrrigZone &Z = g_irrig[z];
+    mb.setHreg(HREG_IRR_STATE_BASE + z, (uint16_t)Z.state);
+
+    uint32_t l_milli = (Z.litersDone <= 0.0) ? 0u : (uint32_t)llround(Z.litersDone*1000.0);
+    setHreg32(HREG_IRR_LITERS_BASE + (z*2), l_milli);
+
+    setHreg32(HREG_IRR_ELAPSED_BASE + (z*2), (uint32_t)Z.secondsInState);
+
+    double zr = 0.0;
+    if (Z.di>=1 && Z.di<=NUM_DI) zr = flowRateLmin[Z.di-1];
+    uint32_t zr_milli = (zr <= 0.0) ? 0u : (uint32_t)llround(zr*1000.0);
+    setHreg32(HREG_IRR_RATE_BASE + (z*2), zr_milli);
+
+    mb.setHreg(HREG_IRR_WINDOW_BASE + z, (uint16_t)(zoneWindowOpen(Z) ? 1 : 0));
+    mb.setHreg(HREG_IRR_SENSOK_BASE + z, (uint16_t)(zoneSensorsOK(Z) ? 1 : 0));
+  }
+
+  // 1-Wire quick telemetry (first 10 sensors)
+  for (int i=0;i<10;i++){
+    int32_t temp_milli = 0;
+    if (i < (int)g_owCount){
+      uint32_t ms = owLastGoodMs[i];
+      if (ms != 0 && timeAfter32(millis(), ms) && (millis() - ms) <= OW_FAIL_HIDE_MS){
+        double t = owLastGoodTemp[i];
+        if (isfinite(t)) temp_milli = (int32_t)llround(t*1000.0);
+      }
+    }
+    setHreg32s(HREG_OW_TEMP_BASE + (i*2), temp_milli);
   }
 
   if (millis()-lastSend>=sendInterval){
@@ -1853,7 +2166,7 @@ void loop(){
 
     WebSerial.send("relayStateList", relayStateList);
 
-    // NEW LED/BTN echoes (names aligned with DIM UI)
+    // LED/BTN echoes (names aligned with DIM UI)
     WebSerial.send("led", ledConfigArray);
     WebSerial.send("ledStateList", ledStates);
     WebSerial.send("buttonStateList", btnStates);
@@ -1861,9 +2174,15 @@ void loop(){
     // irrigation live
     irrigSendStatus();
 
-    // NEW: also broadcast time
+    // time
     JSONVar timeObj; timeObj["minuteOfDay"]=(double)g_minuteOfDay; timeObj["dayIndex"]=(double)g_dayIndex;
     WebSerial.send("timeStatus", timeObj);
+
+    // NEW: relay control & override status
+    JSONVar rcList, ovList;
+    for (int i=0;i<NUM_RLY;i++){ rcList[i]=(double)((rlyCtrlMode[i]==RCTRL_MODBUS)?1:0); ovList[i]=overrideLatch[i]; }
+    WebSerial.send("relayCtrlMode", rcList);
+    WebSerial.send("overrideActive", ovList);
 
     owdbSendList();
   }
@@ -1954,17 +2273,23 @@ void sendAllEchoesOnce(){
   irrigSendConfig();
   irrigSendStatus();
 
-  // NEW: broadcast time once
+  // time once
   JSONVar timeObj; timeObj["minuteOfDay"]=(double)g_minuteOfDay; timeObj["dayIndex"]=(double)g_dayIndex;
   WebSerial.send("timeStatus", timeObj);
 
-  // NEW: LEDs + Buttons echo once
+  // LEDs + Buttons echo once
   JSONVar ledArr;
   for(int i=0;i<NUM_LED;i++){ JSONVar L; L["mode"]=(double)ledCfg[i].mode; L["source"]=(double)ledCfg[i].source; ledArr[i]=L; }
   WebSerial.send("led", ledArr);
   JSONVar btnArr;
   for(int i=0;i<NUM_BTN;i++){ btnArr[i]=(double)btnCfg[i].action; }
   WebSerial.send("buttons", btnArr);
+
+  // relay control + override once
+  JSONVar rcList, ovList;
+  for (int i=0;i<NUM_RLY;i++){ rcList[i]=(double)((rlyCtrlMode[i]==RCTRL_MODBUS)?1:0); ovList[i]=overrideLatch[i]; }
+  WebSerial.send("relayCtrlMode", rcList);
+  WebSerial.send("overrideActive", ovList);
 
   {
     JSONVar owTemps, owErrs;
