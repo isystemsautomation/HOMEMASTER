@@ -12,10 +12,10 @@ The **WLD-521-R1** is a smart and reliable input/control module designed for **l
 
 ## 📑 Table of Contents
 
-### 1. [Introduction](#1-introduction)
-- [1.1 Overview of the HOMEMASTER Ecosystem](#11-overview-of-the-homemaster-ecosystem)  
-- [1.2 Supported Modules & Controllers](#12-supported-modules--controllers)  
-- [1.3 Use Cases](#13-use-cases)  
+### 1. [Introduction]
+- [1.1 Overview of the WLD-521-R1 Module]
+- [1.2 Supported Modules & Controllers]
+- [1.3 Use Cases]  
 
 ### 2. [Safety Information](#2-safety-information)
 - [2.1 General Electrical Safety](#21-general-electrical-safety)  
@@ -78,7 +78,7 @@ The **WLD-521-R1** is a smart and reliable input/control module designed for **l
 ### 17. [ESPHome Integration Guide (MicroPLC/MiniPLC + ENM)](#17-esphome-integration-guide-microplcminiplc--enm)
 
 ---
-
+### 1. [Introduction]
 ## 1.1 Overview of the WLD-521-R1 Module 💧
 
 The WLD-521-R1 is a highly specialized Industrial I/O module designed primarily for **Water Flow, Heat Energy (Calorimetry), and Irrigation/Leak Detection** applications. It functions as an intelligent Modbus slave device that processes local sensor data and executes commands from a master controller.
@@ -94,21 +94,17 @@ The WLD-521-R1 is a highly specialized Industrial I/O module designed primarily 
 
 ## 1.2 Supported Controllers 🔌
 
-The module supports an industrial communication standard for primary control and a web-based interface for local setup and diagnostics.
+The WLD-521-R1 is engineered as an **intelligent expansion module** for the **HomeMaster MicroPLC/MiniPLC Modular Smart Control System**. 
+### MiniPLC / MicroPLC (via Modbus RTU)
 
-### Primary Controller (Modbus)
-* **Protocol:** **Modbus RTU (Serial)** via RS-485.
-* **Interface:** Operates as a **Modbus Slave** on `Serial2` (typically TX2/RX2 pins).
-* **Purpose:** The external master controller (MicroPLC, MiniPLC, or Gateway) reads all sensor data, flow metrics, and calculated values via Modbus registers, and writes commands to control the relays and irrigation cycles.
-* **Default Settings:** Supports configurable Slave IDs (default 1) and standard Baud Rates (**19200 bps** default).
-
-### Configuration & Local Controller
-* **Interface:** **SimpleWebSerial** via a virtual COM port (e.g., USB-C).
-* **Purpose:** Allows an operator to use the attached `ConfigToolPage.html` UI for easy setup of parameters, including:
-    * Modbus Slave ID and Baud Rate.
-    * Configuration of the 5 Digital Inputs (Input Type: Flow, Water, Humidity, Counter).
-    * Configuration of the 2 Relays (Control Mode: Local or Modbus).
-    * Setup of **Irrigation Zone** run times.
+| Feature | Specification | Source |
+| :--- | :--- | :--- |
+| **Controller Role** | The module operates as a **Modbus Slave**. The MiniPLC/MicroPLC acts as the **Modbus Master** for network and system logic management. |
+| **Communication** | **Modbus RTU (Serial)** protocol. |
+| **Physical Interface** | **RS-485 bus** (using dedicated UART2 pins). |
+| **Function** | Enables the Master to **read all I/O data** (Flow, Heat, Leak Status) and **write commands** to actuate the two Relays (R1, R2) and control Irrigation zones. |
+| **Modular Design** | The RS-485 architecture facilitates the **daisy-chaining of multiple WLD-521-R1 modules** and other expansion units to the central PLC, allowing for scalable I/O. |
+| **Default ID** | Modbus Slave ID is factory-set to **1**. |
 
 ---
 
