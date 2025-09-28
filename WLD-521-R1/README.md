@@ -79,6 +79,58 @@ The **WLD-521-R1** is a smart and reliable input/control module designed for **l
 
 ---
 
+## 1.1 Overview of the WLD-521-R1 Module 💧
+
+The WLD-521-R1 is a highly specialized Industrial I/O module designed primarily for **Water Flow, Heat Energy (Calorimetry), and Irrigation/Leak Detection** applications. It functions as an intelligent Modbus slave device that processes local sensor data and executes commands from a master controller.
+
+| Component | Quantity | Key Functionality |
+| :--- | :--- | :--- |
+| **Digital Inputs (DI)** | 5 (DI1-DI5) | **Opto-isolated** inputs used for pulse counting (Flow Meters) or reading dry-contact status (Leak Sensors, Buttons, General Status). |
+| **Relays (RLY)** | 2 (R1, R2) | **High-performance industrial relays** for switching external loads, most commonly used for **pumps** or **shut-off valves**. |
+| **1-Wire Bus (OW)** | 1 | Dedicated bus supporting up to 32 **DS18B20 temperature sensors** for accurate temperature monitoring and heat energy calculation. |
+| **Local Interface** | 4 LEDs, 4 Buttons | Provides local status indication, manual control, and **override functions**. |
+
+---
+
+## 1.2 Supported Controllers 🔌
+
+The module supports an industrial communication standard for primary control and a web-based interface for local setup and diagnostics.
+
+### Primary Controller (Modbus)
+* **Protocol:** **Modbus RTU (Serial)** via RS-485.
+* **Interface:** Operates as a **Modbus Slave** on `Serial2` (typically TX2/RX2 pins).
+* **Purpose:** The external master controller (MicroPLC, MiniPLC, or Gateway) reads all sensor data, flow metrics, and calculated values via Modbus registers, and writes commands to control the relays and irrigation cycles.
+* **Default Settings:** Supports configurable Slave IDs (default 1) and standard Baud Rates (**19200 bps** default).
+
+### Configuration & Local Controller
+* **Interface:** **SimpleWebSerial** via a virtual COM port (e.g., USB-C).
+* **Purpose:** Allows an operator to use the attached `ConfigToolPage.html` UI for easy setup of parameters, including:
+    * Modbus Slave ID and Baud Rate.
+    * Configuration of the 5 Digital Inputs (Input Type: Flow, Water, Humidity, Counter).
+    * Configuration of the 2 Relays (Control Mode: Local or Modbus).
+    * Setup of **Irrigation Zone** run times.
+
+---
+
+## 1.3 Use Cases 🛠️
+
+### A. Water Flow & Leak Detection
+* **Flow Metering:** Configures DIs as **pulse counters** (`IT_WFLOW`) to track cumulative volume and calculate instantaneous **flow rates** (`flowRateLmin`).
+* **Leak Detection & Shut-off:** DIs can be configured for water sensing (`IT_WATER`). Upon detecting a leak, the module's logic can be configured to automatically trigger an **action** on a target relay (R1 or R2) to **close a main shut-off valve**.
+* **General Sensing:** DIs can be used for general purpose counting (`IT_WCOUNTER`) or humidity sensing (`IT_HUMIDITY`).
+
+### B. Heat Energy Monitoring (Calorimetry)
+* The module performs specialized calculations when an input is set to **Heat Energy Mode** (`IT_WHEAT`).
+* Requires a **Flow Meter** and two dedicated **1-Wire temperature sensors** (T_A and T_B) to measure the temperature differential ($\Delta$T).
+* The module autonomously calculates and reports **heat power** (`heatPowerW`) and **accumulated heat energy** (`heatEnergyJ`).
+
+### C. Irrigation Control
+* The module provides native, dedicated logic for managing **two independent Irrigation Zones** (Zone 1 and Zone 2).
+* Relays are mapped to the physical irrigation valves.
+* The system allows for scheduling (not fully detailed in code snippets but inferred from time logic) and manual/remote commands to control **Start**, **Stop**, and **Reset** of the zones.
+* Local buttons can be mapped to trigger specific irrigation actions (e.g., `BTN_IRR1_START`).
+
+
 ## 🔧 Key Features
 
 - **5 Opto-isolated digital inputs**
