@@ -1,6 +1,81 @@
+**Firmware Version:** 2025-09 snapshot
+
 # WLD-521-R1 – Water Meter & Leak Detection Module
 
+**HOMEMASTER – Modular control. Custom logic.**
+
+<img src="Images/photo1.png" align="left" width="220" alt="WLD-521-R1 module photo">
+
 The **WLD-521-R1** is a smart and reliable input/control module designed for **leak detection** and **water flow monitoring** in residential, commercial, and industrial environments. It connects easily to **MicroPLC** or **MiniPLC** systems via **RS-485 (Modbus RTU)** and offers seamless integration with **ESPHome** and **Home Assistant** for advanced automation.
+
+<br clear="left"/>
+
+## 📑 Table of Contents
+
+### 1. [Introduction](#1-introduction)
+- [1.1 Overview of the HOMEMASTER Ecosystem](#11-overview-of-the-homemaster-ecosystem)  
+- [1.2 Supported Modules & Controllers](#12-supported-modules--controllers)  
+- [1.3 Use Cases](#13-use-cases)  
+
+### 2. [Safety Information](#2-safety-information)
+- [2.1 General Electrical Safety](#21-general-electrical-safety)  
+- [2.2 Handling & Installation](#22-handling--installation)  
+- [2.3 Device-Specific Warnings](#23-device-specific-warnings)  
+
+### 3. [System Overview](#3-system-overview)
+- [3.1 Architecture & Modular Design](#31-architecture--modular-design)  
+- [3.2 MicroPLC vs MiniPLC](#32-microplc-vs-miniplc)  
+- [3.3 Integration with Home Assistant](#33-integration-with-home-assistant)  
+- [3.4 Diagrams & Pinouts](#34-diagrams--pinouts)  
+- [3.5 Technical Specifications](#35-technical-specifications-module-internals)  
+
+### 4. [Getting Started](#4-getting-started)
+- [4.1 What You Need](#41-what-you-need)  
+- [4.2 Quick Setup Checklist](#42-quick-setup-checklist)  
+
+### 5. [Powering the Devices](#5-powering-the-devices)
+- [5.1 Power Supply Types](#51-power-supply-types)  
+- [5.2 Current Consumption](#52-current-consumption)  
+- [5.3 Power Safety Tips](#53-power-safety-tips)  
+
+### 6. [Networking & Communication](#6-networking--communication)
+- [6.1 RS-485 Modbus](#61-rs-485-modbus)  
+- [6.2 USB-C Configuration](#62-usb-c-configuration)  
+
+### 7. [Installation & Wiring](#7-installation--wiring)
+- [7.1 ENM-223-R1 Wiring](#71-enm-223-r1-wiring)  
+
+### 8. [Software & UI Configuration](#8-software--ui-configuration)
+- [8.1 Web Config Tool (USB Web Serial)](#81-web-config-tool-usb-web-serial)  
+- [8.2 ESPHome / Home Assistant](#82-esphome--home-assistant)  
+- [8.3 Meter Options & Calibration](#83-meter-options--calibration)  
+- [8.4 Alarms](#84-alarms)  
+- [8.5 Relays & Overrides](#85-relays--overrides)  
+- [8.6 Buttons](#86-buttons)  
+- [8.7 User LEDs, Energies & Live Meter](#87-user-leds-energies--live-meter)  
+
+### 9. [Modbus RTU Communication](#9-modbus-rtu-communication)
+- [9.1 Input Registers (Read-Only)](#91-input-registers-read-only)  
+- [9.2 Holding Registers (Read/Write)](#92-holding-registers-readwrite)  
+- [9.3 Discrete Inputs & Coils](#93-discrete-inputs--coils)  
+- [9.4 Scaling Summary](#scaling-summary)  
+- [9.5 Basics & Function Codes](#basics--function-codes)  
+- [9.6 Register Map (Summary)](#register-map-summary)  
+- [9.7 Override Priority](#override-priority)  
+
+### 10. [Programming & Customization](#10-programming--customization)
+- [10.1 Supported Languages](#101-supported-languages)  
+- [10.2 Flashing via USB-C](#102-flashing-via-usb-c)  
+- [10.3 PlatformIO & Arduino](#103-platformio--arduino)  
+
+### 11. [Diagrams & Pinouts](#11-diagrams--pinouts)  
+### 12. [Maintenance & Troubleshooting](#12-maintenance--troubleshooting)  
+### 13. [Technical Specifications](#13-technical-specifications-electrical--external)  
+### 14. [Open Source & Licensing](#14-open-source--licensing)  
+### 15. [Downloads](#15-downloads)  
+### 16. [Support](#16-support)
+
+### 17. [ESPHome Integration Guide (MicroPLC/MiniPLC + ENM)](#17-esphome-integration-guide-microplcminiplc--enm)
 
 ---
 
