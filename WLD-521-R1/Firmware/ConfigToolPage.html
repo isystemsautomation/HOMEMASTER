@@ -25,7 +25,7 @@
     .card{border:1px solid #e4e4e7;border-radius:12px;background:#fff;padding:1rem;}
     .card.hi{background:#f6fbff;}
     .state-dot{width:10px;height:10px;border-radius:50%;display:inline-block;vertical-align:middle;margin-left:.4rem;}
-    .dot-on{background:#28a745}.dot-off{background:#bbb}
+    .dot-on{background:#22c55e}.dot-off{background:#bbb}
     .warn{color:#b45309}
     .table{width:100%;border-collapse:separate;border-spacing:0;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden}
     .table th,.table td{padding:.5rem .6rem;border-bottom:1px solid #eef0f3;text-align:left;font-size:.9rem}
@@ -38,6 +38,8 @@
     .switch input:checked::after{transform:translateX(20px)}
     .tag{font-size:.75rem;color:#334155}
     .section-title{font-size:1.2rem;margin:.1rem 0 .5rem}
+    .led-row,.btn-row{display:grid;grid-template-columns:76px 1fr 1fr auto;gap:.5rem;align-items:center;border-bottom:1px dashed #eef2f7;padding:.35rem 0}
+    .btn-row{grid-template-columns:76px 1fr auto}
   </style>
 
   <div style="text-align:center;margin-bottom:1.5rem;">
@@ -135,7 +137,30 @@
     <div id="relays-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;"></div>
   </section>
 
-  <!-- ===== Irrigation: Zones (per-zone sensors, pump, windows) ===== -->
+  <!-- ===== NEW: LEDs & Buttons ===== -->
+  <section style="margin-bottom:1.25rem;">
+    <h2 class="section-title">LEDs &amp; Buttons</h2>
+
+    <div class="grid-2" style="gap:1rem;">
+      <!-- LEDs -->
+      <div class="card">
+        <div style="font-weight:600;margin-bottom:.35rem;">LEDs (4)</div>
+        <div class="led-row"><strong>LED</strong><strong>Mode</strong><strong>Source</strong><strong>State</strong></div>
+        <div id="leds-config"></div>
+        <small class="muted">Mode: Solid or Blink when source is active. Sources: R1/R2, DI1..DI5, IRR1/IRR2.</small>
+      </div>
+
+      <!-- Buttons -->
+      <div class="card">
+        <div style="font-weight:600;margin-bottom:.35rem;">Buttons (4)</div>
+        <div class="btn-row"><strong>BTN</strong><strong>Action</strong><strong>Pressed</strong></div>
+        <div id="buttons-config"></div>
+        <small class="muted">Actions: Toggle/Pulse relays, Irrigation start/stop.</small>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Irrigation ===== -->
   <section style="margin-bottom:1.25rem;">
     <h2 class="section-title">Irrigation</h2>
 
@@ -614,9 +639,12 @@
         }
       });
       conn.on('onewireTempsList', rows=>{ renderOwTempsTable(toArray(rows)); });
+
+      // Also accept index map (positions) if sent
+      conn.on('onewireIndex', _map=>{ /* positions reflected via *_PosList already; no-op */ });
     }
 
-    // ===== Inputs / Relays / Flow / Heat (unchanged core UI) =====
+    // ===== Inputs / Relays =====
     (function buildInputs(){
       const c=$('inputs-config'); if(!c) return;
       const ACTIONS=[{v:0,l:'None'},{v:1,l:'Toggle'},{v:2,l:'Pulse'}];
@@ -758,6 +786,49 @@
       }
     })();
 
+    // ===== NEW: LEDs & Buttons UIs =====
+    (function buildLEDsAndButtons(){
+      const LC=$('leds-config'), BC=$('buttons-config'); if(!LC||!BC) return;
+
+      const ledModeOpts = [{v:0,l:'Solid'},{v:1,l:'Blink'}]
+        .map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
+
+      const ledSrcOpts = [
+        {v:0,l:'(none)'},{v:1,l:'Relay 1'},{v:2,l:'Relay 2'},
+        {v:3,l:'DI1'},{v:4,l:'DI2'},{v:5,l:'DI3'},{v:6,l:'DI4'},{v:7,l:'DI5'},
+        {v:8,l:'Irrig 1'},{v:9,l:'Irrig 2'}
+      ].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
+
+      for(let i=1;i<=4;i++){
+        const row=document.createElement('div');
+        row.className='led-row';
+        row.innerHTML=`
+          <div><strong>LED ${i}</strong></div>
+          <div><select id="led-mode-${i}" class="hm-input">${ledModeOpts}</select></div>
+          <div><select id="led-src-${i}" class="hm-input">${ledSrcOpts}</select></div>
+          <div style="text-align:right;"><span id="led-state-${i}" class="state-dot dot-off" title="live"></span></div>`;
+        LC.appendChild(row);
+      }
+
+      const btnActOpts = [
+        {v:0,l:'(none)'},
+        {v:1,l:'Toggle R1'},{v:2,l:'Toggle R2'},
+        {v:3,l:'Pulse R1'},{v:4,l:'Pulse R2'},
+        {v:5,l:'Irrig1 Start'},{v:6,l:'Irrig1 Stop'},
+        {v:7,l:'Irrig2 Start'},{v:8,l:'Irrig2 Stop'}
+      ].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
+
+      for(let i=1;i<=4;i++){
+        const row=document.createElement('div');
+        row.className='btn-row';
+        row.innerHTML=`
+          <div><strong>BTN ${i}</strong></div>
+          <div><select id="btn-act-${i}" class="hm-input">${btnActOpts}</select></div>
+          <div style="text-align:right;"><span id="btn-state-${i}" class="state-dot dot-off" title="pressed"></span></div>`;
+        BC.appendChild(row);
+      }
+    })();
+
     function showTypeBoxes(){
       for(let i=1;i<=5;i++){
         const ts=$('type-in'+i);
@@ -888,6 +959,31 @@
 
       // time
       conn.on('timeStatus', obj=>applyTimeStatus(obj));
+
+      // ===== NEW: LEDs/Buttons echoes =====
+      conn.on('led', arr=>{
+        const a = toArray(arr);
+        for(let i=1;i<=4;i++){
+          const o = a[i-1]||{};
+          const mEl=$('led-mode-'+i), sEl=$('led-src-'+i);
+          if(mEl && mEl!==document.activeElement && o && o.mode!=null) mEl.value=String(o.mode);
+          if(sEl && sEl!==document.activeElement && o && o.source!=null) sEl.value=String(o.source);
+        }
+      });
+      conn.on('ledStateList', list=>{
+        toArray(list).forEach((v,i)=>{ const el=$('led-state-'+(i+1)); if(el) el.className='state-dot '+(v?'dot-on':'dot-off'); });
+      });
+      conn.on('buttons', arr=>{
+        const a = toArray(arr);
+        for(let i=1;i<=4;i++){
+          const val = a[i-1];
+          const sel=$('btn-act-'+i);
+          if(sel && sel!==document.activeElement && val!=null) sel.value=String(val);
+        }
+      });
+      conn.on('buttonStateList', list=>{
+        toArray(list).forEach((pressed,i)=>{ const el=$('btn-state-'+(i+1)); if(el) el.className='state-dot '+(pressed?'dot-on':'dot-off'); });
+      });
     }
 
     // senders (inputs/relays/flow/heat)
@@ -1101,7 +1197,7 @@
       box.querySelectorAll('[data-irrig-reset]').forEach(b=>b.addEventListener('click',()=>irrigReset(parseInt(b.getAttribute('data-irrig-reset'),10))));
     }
 
-    // Heat config senders (per input) – unchanged
+    // Heat config senders (per input)
     function readHeatCfgFor(di){
       const enabled = !!$('heat-enable-'+di)?.checked;
       const posA = parseInt(($('heat-addrA-'+di)?.value||''), 10) || 0;
@@ -1139,6 +1235,43 @@
       $('heat-reset-'+i)?.addEventListener('click',  ((n)=>()=>resetHeatEnergy(n))(i));
     }
 
+    // ===== NEW: LED/Buttons senders =====
+    function readLedCfgList(){
+      const list=[];
+      for(let i=1;i<=4;i++){
+        const m=parseInt(($('led-mode-'+i)?.value||'0'),10);
+        const s=parseInt(($('led-src-'+i)?.value||'0'),10);
+        list.push({mode: (Number.isFinite(m)?m:0), source: (Number.isFinite(s)?s:0)});
+      }
+      return list;
+    }
+    function sendLedCfg(){
+      const packet={t:'led', list: readLedCfgList()};
+      logTx('Config', packet);
+      conn.send('Config', packet).catch(err=>log('Error','LED config failed: '+(err?.message||err)));
+    }
+    for(let i=1;i<=4;i++){
+      $('led-mode-'+i)?.addEventListener('change', sendLedCfg);
+      $('led-src-'+i )?.addEventListener('change', sendLedCfg);
+    }
+
+    function readBtnCfgList(){
+      const list=[];
+      for(let i=1;i<=4;i++){
+        const v=parseInt(($('btn-act-'+i)?.value||'0'),10);
+        list.push(Number.isFinite(v)?v:0);
+      }
+      return list;
+    }
+    function sendBtnCfg(){
+      const packet={t:'buttons', list: readBtnCfgList()};
+      logTx('Config', packet);
+      conn.send('Config', packet).catch(err=>log('Error','Buttons config failed: '+(err?.message||err)));
+    }
+    for(let i=1;i<=4;i++){
+      $('btn-act-'+i)?.addEventListener('change', sendBtnCfg);
+    }
+
     // ===== Module time (minute-of-day) =====
     function applyTimeStatus(o){
       const min = (o && typeof o.minuteOfDay==='number') ? Math.max(0,Math.min(1439, Math.floor(o.minuteOfDay))) : null;
@@ -1170,11 +1303,8 @@
       setMinute(d.getHours()*60 + d.getMinutes());
     });
 
-    // ===== util =====
-    function requestTimeOnce(){ /* timeStatus is pushed periodically; nothing needed */ }
-
     // ===== init cosmetics =====
-    showTypeBoxes(); updateButtons(); requestTimeOnce();
+    showTypeBoxes(); updateButtons();
 
   })();
   </script>
