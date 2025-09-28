@@ -115,8 +115,154 @@ The **WLD-521-R1** is a smart and reliable input/control module designed for **l
 - Temperature-aware pipe protection logic
 - Manual override buttons for maintenance
 
+## What this does (in super simple terms)
+
+- You have **2 irrigation zones** (Zone 1 & Zone 2).  
+- Each zone opens a **valve relay** (Relay 1 or Relay 2).  
+- A zone can **watch a flow sensor** on one input (**DI1..DI5**) to be sure water actually moves and to **count liters**.  
+- Optional **sensors** can **block watering**:
+  - **Moisture**: wet = block
+  - **Rain**: raining = block
+  - **Tank level**: empty = block
+- Optional **pump** can run automatically while a zone is watering.
+- You can limit watering to a daily **time window** and even **auto‑start** at the window start.
+- You can set a **target liters** to stop automatically when that much water has passed.
+
+> This README focuses only on irrigation (the firmware also supports flow, heat energy, 1‑Wire etc.).
+
 ---
 
+### Before you start (1 minute)
+
+1. **Wire things**
+   - Valve(s) → **Relay 1/2**  
+   - Flow sensor → one of **DI1..DI5**  
+   - Optional: **moisture / rain / tank** sensors → free DI pins  
+   - Optional: **pump** → one of the relays
+2. **Power on** the module.
+3. Open the **Configuration UI** (the web page for the device) and click **Connect**.
+
+---
+
+### Step 1 — Set the module clock (so windows & auto‑start make sense)
+
+- Go to **“Module Time & Modbus Sync”**.  
+- Click **Set from browser time**. Done.
+
+*(Advanced: Home Assistant can send a “midnight pulse” via Modbus; totally optional.)*
+
+---
+
+### Step 2 — Tell the device which input is your flow sensor
+
+- In **“Digital Inputs (5)”**, on the DI that has your **flow meter**, set **Type = Water counter**.  
+- Leave regular sensors (moisture/rain/tank) as **Water sensor** (default).
+
+*(Calibration can wait; defaults work.)*
+
+---
+
+### Step 3 — Configure a zone (repeat for both zones if needed)
+
+Open **Irrigation → Zone 1**:
+
+1. **Enable** the zone.
+2. **Valve relay** → choose **Relay 1** (or 2), matching your wiring.
+3. **Flow DI (1..5)** → pick the DI where your **flow sensor** is connected.
+4. Keep **Use flow supervision** **ON** (recommended).  
+   - **Min rate (L/min)**: start with **0.20**  
+   - **Grace (s)**: **8** (lets pipes pressurize)  
+   - **Target liters**: set a number (e.g. **50**). **0** = unlimited  
+   - **Timeout (s)**: **3600** (1 hour safety)
+5. **Sensors & Pump (optional)**
+   - **DI_moist (needs water when OFF)** → pick your soil sensor DI  
+     - *Dry (OFF) = watering allowed; Wet (ON) = block*
+   - **DI_rain (block when ON)** → pick your rain sensor DI  
+     - *Raining (ON) = block*
+   - **DI_tank (OK when ON)** → pick your tank level DI  
+     - *Tank OK (ON) = allowed; OFF = block*
+   - **R_pump** → pick the relay that powers your pump (**(none)** if you don’t use a pump).  
+     *The pump runs automatically only while the zone runs.*
+6. **Irrigation Window (optional)**
+   - **Enforce window** → ON if you only want watering during certain hours
+   - **Start** / **End** → e.g. **06:00 → 09:00** (*cross‑midnight works, e.g. 22:00 → 06:00*)
+   - **Auto‑start at window open** → ON if you want **daily automatic start** at the **start** time
+7. Click **Save Zone 1**. Repeat for Zone 2 if used.
+
+---
+
+### Step 4 — Water!
+
+- **Manual**: Press **Start** on the zone. It will run until you **Stop**, or:
+  - **Target liters** is reached, or
+  - **Timeout** hits, or
+  - a **sensor blocks** it, or
+  - the **window closes** (if enforced).
+- **Automatic**: If **Auto‑start** is ON, the zone starts **once per day** at the **window start** time.
+
+---
+
+### What “Live Status” tells you
+
+Each zone shows:
+- **State**: `idle` / `run` / `pause` / `done` / `fault`  
+- **Rate**: L/min (from your flow DI)  
+- **Accum**: liters done so far  
+- **Elapsed**: seconds since start  
+- **Target** & **Timeout** (if set)  
+- **Time now**: module clock (HH:MM)  
+- **Window**: `OPEN` or `CLOSED`  
+- **Sensors**: `OK` or `BLOCK`
+
+If a start is refused, check **Window** and **Sensors** (they reveal the reason).
+
+---
+
+### Suggested starter settings
+
+- **Use flow supervision**: ON  
+- **Min rate**: `0.20 L/min`  
+- **Grace**: `8 s`  
+- **Timeout**: `3600 s`  
+- **Target liters**: set what you want (or `0` for unlimited)  
+- **Window**: `06:00–09:00` with **Auto‑start** ON (if you want daily watering)
+
+---
+
+### Common actions
+
+- **Start / Stop / Reset** → buttons on each **Zone** card and in **Live Status**  
+- **Shared pump for multiple zones** → set **R_pump** to the same relay in each zone; the firmware handles it (pump runs if any zone needs it)  
+- **Only water when soil is dry** → set **DI_moist**; Dry (OFF) = allowed, Wet (ON) = block  
+- **Skip when raining** → set **DI_rain**; ON = block  
+- **Block if tank empty** → set **DI_tank**; ON = ok, OFF = block
+
+---
+
+### Troubleshooting (fast)
+
+- **Won’t start** → check the zone is **Enabled**, **Window = OPEN**, **Sensors = OK**  
+- **Stops with “low flow”** → increase **Grace**, lower **Min rate** a little, or check flow wiring  
+- **Stops immediately** → **Target liters** is tiny, or a **sensor** is blocking  
+- **Pump doesn’t run** → set **R_pump** to your pump’s relay and make sure that relay is **Enabled**  
+- **Time looks wrong** → click **Set from browser time** again
+
+---
+
+### Optional: Midnight sync from Home Assistant (Modbus)
+
+If you want the module clock to reset at midnight (00:00) via Modbus:
+
+- Write `TRUE` then immediately `FALSE` to **coil 360** at 00:00 (daily).  
+  The firmware will set minute‑of‑day to `0` and increment day‑index.
+
+> This is optional. Most users can ignore it and just use “Set from browser time”.
+
+---
+
+### That’s it ✅
+
+Use **Save** after changes, **Start** to test, watch **Rate** and **Accum** increase, and adjust **Target liters** and **Window** to suit your garden.
 
 
 ## ⚙️ Specifications

@@ -1,32 +1,52 @@
-<section style="font-family:'Segoe UI',sans-serif;padding:2rem;max-width:960px;margin:auto;">
+<section style="font-family:'Segoe UI',sans-serif;padding:2rem;max-width:1200px;margin:auto;">
   <style>
-    .hm-input{padding:6px 8px;border:1px solid #ccc;border-radius:4px;width:100%;box-sizing:border-box}
-    .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:.75rem;background:#e9ecef}
+    .hm-input{padding:6px 8px;border:1px solid #ccc;border-radius:6px;width:100%;box-sizing:border-box}
+    .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:.75rem;background:#eef2f7;border:1px solid #d8e1ee}
     .pill.mono{font-family:monospace;background:#eef6ff;border:1px solid #cfe2ff}
     .pill.pos{background:#ffe9cc;border:1px solid #ffd39b}
     .ow-row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;padding:.45rem .3rem;border-bottom:1px dashed #e5e5e5}
     .ow-rom{min-width:230px;display:inline-block}
-    #log-box{margin-bottom:1.25rem;padding:1rem;background:#f9f9f9;border:1px solid #ccc;border-radius:6px;font-size:0.9rem;color:#333;}
-    #log-content{white-space:pre-wrap;font-family:monospace;line-height:1.25em;margin:0;margin-top:.5rem;height:calc(1.25em * 8);overflow-y:auto;background:#fff;border:1px solid #e5e5e5;border-radius:4px;padding:.5rem;}
-    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;}
+    #log-box{margin-bottom:1.25rem;padding:1rem;background:#f9f9f9;border:1px solid #ccc;border-radius:10px;font-size:0.9rem;color:#333;}
+    #log-content{white-space:pre-wrap;font-family:monospace;line-height:1.25em;margin:0;margin-top:.5rem;height:calc(1.25em * 8);overflow-y:auto;background:#fff;border:1px solid #e5e5e5;border-radius:6px;padding:.6rem;}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;}
+    .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem;}
+    .grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;}
     .muted{color:#666;}
     .row{display:flex;align-items:center;gap:.5rem;}
-    .btn{padding:6px 10px;border:none;border-radius:4px;cursor:pointer}
+    .btn{padding:6px 10px;border:none;border-radius:6px;cursor:pointer}
     .btn-green{background:#28a745;color:#fff}
     .btn-outline-green{border:1px solid #28a745;background:#eaffea}
     .btn-blue{background:#007bff;color:#fff}
     .btn-red{background:#dc3545;color:#fff}
+    .btn-amber{background:#ff8c00;color:#fff}
+    .btn-slate{background:#475569;color:#fff}
     .mono{font-family:monospace}
     .kpi{font-weight:600}
+    .card{border:1px solid #e4e4e7;border-radius:12px;background:#fff;padding:1rem;}
+    .card.hi{background:#f6fbff;}
+    .state-dot{width:10px;height:10px;border-radius:50%;display:inline-block;vertical-align:middle;margin-left:.4rem;}
+    .dot-on{background:#28a745}.dot-off{background:#bbb}
+    .warn{color:#b45309}
+    .table{width:100%;border-collapse:separate;border-spacing:0;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden}
+    .table th,.table td{padding:.5rem .6rem;border-bottom:1px solid #eef0f3;text-align:left;font-size:.9rem}
+    .table thead th{background:#f8fafc;font-weight:600}
+    .chip{display:inline-flex;align-items:center;gap:.35rem;padding:.2rem .5rem;border:1px solid #dbe3ef;border-radius:999px;font-size:.8rem;background:#f3f7fc}
+    .switch{display:inline-flex;align-items:center;gap:.4rem}
+    .switch input{width:42px;height:22px;appearance:none;background:#cbd5e1;border-radius:999px;position:relative;outline:none;cursor:pointer;transition:.15s}
+    .switch input:checked{background:#22c55e}
+    .switch input::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;background:#fff;border-radius:50%;transition:.15s}
+    .switch input:checked::after{transform:translateX(20px)}
+    .tag{font-size:.75rem;color:#334155}
+    .section-title{font-size:1.2rem;margin:.1rem 0 .5rem}
   </style>
 
   <div style="text-align:center;margin-bottom:1.5rem;">
-    <img src="https://www.home-master.eu/web/image/product.image/14/image_1024/Untitled-2.webp?unique=1d6564f" alt="WLD-521-R1" style="max-width:260px;border-radius:8px;" loading="lazy">
+    <img src="https://www.home-master.eu/web/image/product.image/14/image_1024/Untitled-2.webp?unique=1d6564f" alt="WLD-521-R1" style="max-width:260px;border-radius:12px;" loading="lazy">
     <h2 style="margin:.5rem 0 0;">WLD-521-R1 Module Configuration</h2>
-    <p style="margin:.25rem 0 0;color:#333;">Modbus, Inputs (5), Relays (2), 1-Wire — Flow Meter &amp; Heat Energy (ΔT from two 1-Wire sensors).</p>
+    <p style="margin:.25rem 0 0;color:#333;">Modbus, Inputs (5), Relays (2), 1-Wire — Flow, Heat Energy &amp; Irrigation.</p>
   </div>
 
-  <div style="background:#f1f1f1;padding:1rem 1.25rem;margin-bottom:1rem;border-radius:6px;border-left:4px solid #007bff;">
+  <div style="background:#f1f5f9;padding:1rem 1.25rem;margin-bottom:1rem;border-radius:10px;border-left:4px solid #007bff;">
     <strong>Active Modbus Configuration</strong><br>
     Address: <span id="live-address" style="font-weight:600;">--</span> |
     Baud Rate: <span id="live-baud" style="font-weight:600;">--</span>
@@ -46,7 +66,7 @@
     </div>
   </form>
 
-  <dialog id="reset-dialog" style="border:none;border-radius:10px;padding:0;max-width:420px;width:90%;box-shadow:0 10px 30px rgba(0,0,0,.2);">
+  <dialog id="reset-dialog" style="border:none;border-radius:12px;padding:0;max-width:420px;width:90%;box-shadow:0 10px 30px rgba(0,0,0,.2);">
     <form method="dialog" style="padding:1rem 1.25rem;">
       <h3 style="margin:.25rem 0 .5rem;">Confirm reset</h3>
       <p style="margin:.25rem 0 1rem;color:#444;">Reset the module now? The serial connection will be interrupted.</p>
@@ -62,38 +82,305 @@
     <pre id="log-content"></pre>
   </div>
 
+  <!-- ===== 1-Wire ===== -->
   <section style="margin-bottom:1.25rem;">
-    <h2 style="font-size:1.2rem;margin-bottom:.5rem;">1-Wire (GPIO16) Devices</h2>
+    <h2 class="section-title">1-Wire (GPIO16) Devices</h2>
     <div class="row" style="margin:.25rem 0 1rem;">
       <button id="scan-button" type="button" class="btn" style="background:#17a2b8;color:#fff;" disabled>Scan 1-Wire</button>
       <span id="scan-status" class="muted">Not scanned yet.</span>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr;gap:1rem;">
+    <div class="grid-2" style="gap:1rem;">
       <div>
         <div style="font-weight:600;margin-bottom:.35rem;">Discovered devices</div>
-        <div id="ow-discovered" style="border:1px solid #ccc;border-radius:6px;padding:.75rem;background:#fafafa;">
+        <div id="ow-discovered" class="card">
           <em>Click “Scan 1-Wire” to list devices.</em>
         </div>
       </div>
 
       <div>
         <div style="font-weight:600;margin-bottom:.35rem;">Stored sensors (flash)</div>
-        <div id="ow-stored" style="border:1px solid #ccc;border-radius:6px;padding:.75rem;background:#fff;">
+        <div id="ow-stored" class="card">
           <em>Waiting for device list…</em>
         </div>
       </div>
     </div>
+
+    <!-- Temps + errors table -->
+    <div class="card" style="margin-top:1rem;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;">
+        <div style="font-weight:600;">1-Wire Live Temperatures</div>
+        <small class="muted">Auto-refreshes from <code class="mono">onewireTempsList</code>.</small>
+      </div>
+      <div style="overflow:auto;">
+        <table class="table" id="ow-temps-table">
+          <thead>
+            <tr><th>#</th><th>Address</th><th>Name</th><th>Temp (°C)</th><th>Errors</th></tr>
+          </thead>
+          <tbody><tr><td colspan="5" class="muted">Waiting for data…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
   </section>
 
+  <!-- ===== Inputs ===== -->
   <section style="margin-bottom:1.25rem;">
-    <h2 style="font-size:1.2rem;">Digital Inputs (5)</h2>
+    <h2 class="section-title">Digital Inputs (5)</h2>
     <div id="inputs-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem;"></div>
   </section>
 
+  <!-- ===== Relays ===== -->
   <section style="margin-bottom:1.25rem;">
-    <h2 style="font-size:1.2rem;">Relays (2)</h2>
+    <h2 class="section-title">Relays (2)</h2>
     <div id="relays-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;"></div>
+  </section>
+
+  <!-- ===== Irrigation: Zones (per-zone sensors, pump, windows) ===== -->
+  <section style="margin-bottom:1.25rem;">
+    <h2 class="section-title">Irrigation</h2>
+
+    <div id="irrig-zones" class="card hi" style="margin-bottom:1rem;">
+      <div style="font-weight:600;margin-bottom:.5rem;">Zones (2)</div>
+
+      <div class="grid-2" style="gap:1rem;">
+        <!-- Zone 1 -->
+        <div class="card" id="zone1-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.35rem;">
+            <div style="font-weight:600;">Zone 1</div>
+            <div class="row">
+              <button type="button" class="btn btn-green" data-irrig-start="1">Start</button>
+              <button type="button" class="btn btn-amber" data-irrig-stop="1">Stop</button>
+              <button type="button" class="btn" data-irrig-reset="1">Reset</button>
+            </div>
+          </div>
+
+          <label><input type="checkbox" id="ir1-enabled"> Enabled</label>
+
+          <div class="grid-2" style="margin-top:.35rem;">
+            <label>Valve relay
+              <select class="hm-input" id="ir1-relay">
+                <option value="0">(none)</option><option value="1">Relay 1</option><option value="2">Relay 2</option>
+              </select>
+            </label>
+            <label>Flow DI (1..5)
+              <select class="hm-input" id="ir1-di">
+                <option value="0">(none)</option><option value="1">DI1</option><option value="2">DI2</option><option value="3">DI3</option><option value="4">DI4</option><option value="5">DI5</option>
+              </select>
+            </label>
+          </div>
+
+          <label style="margin-top:.35rem;"><input type="checkbox" id="ir1-useflow" checked> Use flow supervision</label>
+
+          <div class="grid-2" style="margin-top:.35rem;">
+            <label>Min rate (L/min)
+              <input class="hm-input" id="ir1-minrate" type="number" min="0" step="0.01" placeholder="0.2">
+            </label>
+            <label>Grace (s)
+              <input class="hm-input" id="ir1-grace" type="number" min="1" step="1" placeholder="8">
+            </label>
+          </div>
+
+          <div class="grid-2" style="margin-top:.35rem;">
+            <label>Timeout (s)
+              <input class="hm-input" id="ir1-timeout" type="number" min="1" step="1" placeholder="3600">
+            </label>
+            <label>Target liters (0 = none)
+              <input class="hm-input" id="ir1-targetL" type="number" min="0" step="0.001" placeholder="0">
+            </label>
+          </div>
+
+          <hr style="border:none;border-top:1px dashed #e5e7eb;margin:.6rem 0">
+          <div style="font-weight:600;margin-bottom:.25rem;">Sensors &amp; Pump</div>
+          <div class="grid-2">
+            <label>DI_moist (needs water when OFF)
+              <select id="ir1-moist" class="hm-input">
+                <option value="-1">(disabled)</option><option value="1">DI1</option><option value="2">DI2</option><option value="3">DI3</option><option value="4">DI4</option><option value="5">DI5</option>
+              </select>
+            </label>
+            <label>DI_rain (block when ON)
+              <select id="ir1-rain" class="hm-input">
+                <option value="-1">(disabled)</option><option value="1">DI1</option><option value="2">DI2</option><option value="3">DI3</option><option value="4">DI4</option><option value="5">DI5</option>
+              </select>
+            </label>
+            <label>DI_tank (OK when ON)
+              <select id="ir1-tank" class="hm-input">
+                <option value="-1">(disabled)</option><option value="1">DI1</option><option value="2">DI2</option><option value="3">DI3</option><option value="4">DI4</option><option value="5">DI5</option>
+              </select>
+            </label>
+            <label>R_pump
+              <select id="ir1-pump" class="hm-input">
+                <option value="-1">(none)</option><option value="1">Relay 1</option><option value="2">Relay 2</option>
+              </select>
+            </label>
+          </div>
+
+          <hr style="border:none;border-top:1px dashed #e5e7eb;margin:.6rem 0">
+          <div style="font-weight:600;margin-bottom:.25rem;">Irrigation Window (Local HH:MM)</div>
+          <div class="row switch" style="margin-bottom:.35rem;">
+            <label class="switch"><input id="ir1-win-en" type="checkbox"><span class="tag">Enforce window</span></label>
+            <label class="switch"><input id="ir1-auto" type="checkbox"><span class="tag">Auto-start at window open</span></label>
+          </div>
+          <div class="grid-2">
+            <label>Start
+              <input id="ir1-win-start" type="time" class="hm-input" value="06:00">
+            </label>
+            <label>End
+              <input id="ir1-win-end" type="time" class="hm-input" value="09:00">
+            </label>
+          </div>
+
+          <div class="row" style="margin-top:.5rem;justify-content:flex-end;">
+            <button type="button" class="btn btn-blue" data-irrig-save="1">Save Zone 1</button>
+          </div>
+        </div>
+
+        <!-- Zone 2 -->
+        <div class="card" id="zone2-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.35rem;">
+            <div style="font-weight:600;">Zone 2</div>
+            <div class="row">
+              <button type="button" class="btn btn-green" data-irrig-start="2">Start</button>
+              <button type="button" class="btn btn-amber" data-irrig-stop="2">Stop</button>
+              <button type="button" class="btn" data-irrig-reset="2">Reset</button>
+            </div>
+          </div>
+
+          <label><input type="checkbox" id="ir2-enabled"> Enabled</label>
+
+          <div class="grid-2" style="margin-top:.35rem;">
+            <label>Valve relay
+              <select class="hm-input" id="ir2-relay">
+                <option value="0">(none)</option><option value="1">Relay 1</option><option value="2">Relay 2</option>
+              </select>
+            </label>
+            <label>Flow DI (1..5)
+              <select class="hm-input" id="ir2-di">
+                <option value="0">(none)</option><option value="1">DI1</option><option value="2">DI2</option><option value="3">DI3</option><option value="4">DI4</option><option value="5">DI5</option>
+              </select>
+            </label>
+          </div>
+
+          <label style="margin-top:.35rem;"><input type="checkbox" id="ir2-useflow" checked> Use flow supervision</label>
+
+          <div class="grid-2" style="margin-top:.35rem;">
+            <label>Min rate (L/min)
+              <input class="hm-input" id="ir2-minrate" type="number" min="0" step="0.01" placeholder="0.2">
+            </label>
+            <label>Grace (s)
+              <input class="hm-input" id="ir2-grace" type="number" min="1" step="1" placeholder="8">
+            </label>
+          </div>
+
+          <div class="grid-2" style="margin-top:.35rem;">
+            <label>Timeout (s)
+              <input class="hm-input" id="ir2-timeout" type="number" min="1" step="1" placeholder="3600">
+            </label>
+            <label>Target liters (0 = none)
+              <input class="hm-input" id="ir2-targetL" type="number" min="0" step="0.001" placeholder="0">
+            </label>
+          </div>
+
+          <hr style="border:none;border-top:1px dashed #e5e7eb;margin:.6rem 0">
+          <div style="font-weight:600;margin-bottom:.25rem;">Sensors &amp; Pump</div>
+          <div class="grid-2">
+            <label>DI_moist (needs water when OFF)
+              <select id="ir2-moist" class="hm-input">
+                <option value="-1">(disabled)</option><option value="1">DI1</option><option value="2">DI2</option><option value="3">DI3</option><option value="4">DI4</option><option value="5">DI5</option>
+              </select>
+            </label>
+            <label>DI_rain (block when ON)
+              <select id="ir2-rain" class="hm-input">
+                <option value="-1">(disabled)</option><option value="1">DI1</option><option value="2">DI2</option><option value="3">DI3</option><option value="4">DI4</option><option value="5">DI5</option>
+              </select>
+            </label>
+            <label>DI_tank (OK when ON)
+              <select id="ir2-tank" class="hm-input">
+                <option value="-1">(disabled)</option><option value="1">DI1</option><option value="2">DI2</option><option value="3">DI3</option><option value="4">DI4</option><option value="5">DI5</option>
+              </select>
+            </label>
+            <label>R_pump
+              <select id="ir2-pump" class="hm-input">
+                <option value="-1">(none)</option><option value="1">Relay 1</option><option value="2">Relay 2</option>
+              </select>
+            </label>
+          </div>
+
+          <hr style="border:none;border-top:1px dashed #e5e7eb;margin:.6rem 0">
+          <div style="font-weight:600;margin-bottom:.25rem;">Irrigation Window (Local HH:MM)</div>
+          <div class="row switch" style="margin-bottom:.35rem;">
+            <label class="switch"><input id="ir2-win-en" type="checkbox"><span class="tag">Enforce window</span></label>
+            <label class="switch"><input id="ir2-auto" type="checkbox"><span class="tag">Auto-start at window open</span></label>
+          </div>
+          <div class="grid-2">
+            <label>Start
+              <input id="ir2-win-start" type="time" class="hm-input" value="06:00">
+            </label>
+            <label>End
+              <input id="ir2-win-end" type="time" class="hm-input" value="09:00">
+            </label>
+          </div>
+
+          <div class="row" style="margin-top:.5rem;justify-content:flex-end;">
+            <button type="button" class="btn btn-blue" data-irrig-save="2">Save Zone 2</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="muted" style="margin-top:.5rem;">
+        Each zone drives one relay. Flow supervision uses the selected DI’s live rate and accumulated liters from firmware.
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;">
+        <div style="font-weight:600;">Live Status</div>
+        <small class="muted">Auto-refreshes from <code class="mono">irrigStatus</code> and <code class="mono">timeStatus</code>.</small>
+      </div>
+      <div id="irrig-status" class="grid-2"></div>
+    </div>
+  </section>
+
+  <!-- ===== Module Time & Modbus Sync ===== -->
+  <section style="margin-bottom:1.25rem;">
+    <h2 class="section-title">Module Time &amp; Modbus Sync</h2>
+
+    <div class="grid-2" style="gap:1rem;">
+      <div class="card">
+        <div style="font-weight:600;margin-bottom:.5rem;">Module Clock (firmware minute-of-day)</div>
+        <div class="grid-3" style="margin-bottom:.5rem;">
+          <div>Minute of day: <span id="tm-min" class="kpi">--</span></div>
+          <div>Local HH:MM: <span id="tm-hhmm" class="kpi">--</span></div>
+          <div>Day index: <span id="tm-day" class="kpi">--</span></div>
+        </div>
+        <div class="grid-3" style="margin-bottom:.5rem;">
+          <label>Set minute (0..1439)
+            <input id="tm-min-input" type="number" min="0" max="1439" class="hm-input" placeholder="e.g. 360">
+          </label>
+          <label>Or set by HH:MM
+            <input id="tm-hhmm-input" type="time" class="hm-input">
+          </label>
+          <div style="display:flex;align-items:flex-end;gap:.5rem;">
+            <button id="btn-set-minute" type="button" class="btn btn-green">Set minute</button>
+            <button id="btn-set-now" type="button" class="btn btn-slate">Set from browser time</button>
+          </div>
+        </div>
+        <small class="muted">This uses <code class="mono">{ action:"set_time", minuteOfDay }</code> in firmware.</small>
+      </div>
+
+      <div class="card">
+        <div style="font-weight:600;margin-bottom:.5rem;">Home Assistant → Modbus time sync (00:00)</div>
+        <div class="grid-2" style="margin-bottom:.35rem;">
+          <div>HREG_TIME_MINUTE: <code class="mono">1100</code></div>
+          <div>HREG_DAY_INDEX: <code class="mono">1101</code></div>
+        </div>
+        <div style="margin-bottom:.5rem;">Coil pulse at midnight (set TRUE then immediately FALSE):</div>
+        <div><code class="mono">CMD_TIME_MIDNIGHT = 360</code></div>
+        <p class="muted" style="margin-top:.5rem;">
+          In HA, schedule a service at 00:00 that writes coil <code class="mono">360</code> = TRUE, then FALSE.
+          Firmware will zero minute-of-day and increment day-index.
+        </p>
+      </div>
+    </div>
   </section>
 
   <script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
@@ -102,29 +389,9 @@
     const $ = id => document.getElementById(id);
     const toArray = x => (Array.isArray(x) ? x : (x && typeof x==='object' ? Object.keys(x).sort((a,b)=>(+a)-(+b)).map(k=>x[k]) : []));
     const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+    const pad2 = n => String(n).padStart(2,'0');
 
-    // 64-bit helpers (still used for add/remove of 1-Wire records)
-    function romHexToHiLo(hex){
-      try{
-        let s=String(hex||'').trim();
-        if(s.startsWith('0x')||s.startsWith('0X')) s=s.slice(2);
-        if(!s) return {hi:0,lo:0};
-        const v = BigInt('0x'+s);
-        const lo = Number(v & 0xffffffffn);
-        const hi = Number((v >> 32n) & 0xffffffffn);
-        return {hi,lo};
-      }catch{ return {hi:0,lo:0}; }
-    }
-    function romHexToU64DecStr(hex){
-      try{
-        let s=String(hex||'').trim();
-        if(s.startsWith('0x')||s.startsWith('0X')) s=s.slice(2);
-        if(!s) return '0';
-        return (BigInt('0x'+s)).toString(10);
-      }catch{ return '0'; }
-    }
-
-    // logging
+    // ========== logging ==========
     const LOG_MAX=500, buf=[];
     function log(label,data){
       const el=$('log-content'); if(!el) return;
@@ -137,13 +404,9 @@
     function logTx(channel, packet){ try{ log('TX', {channel, ...packet}); }catch{ log('TX', String(channel)+' '+String(packet)); } }
 
     // Modbus addresses
-    (function(){
-      const sel=$('modbus-address'); if(!sel) return;
-      for(let i=1;i<=255;i++){ const o=document.createElement('option'); o.value=i; o.textContent=i; sel.appendChild(o); }
-      sel.value='3';
-    })();
+    (function(){ const sel=$('modbus-address'); if(!sel) return; for(let i=1;i<=255;i++){ const o=document.createElement('option'); o.value=i; o.textContent=i; sel.appendChild(o); } sel.value='3'; })();
 
-    // Serial
+    // ========== Serial ==========
     let conn;
     try{
       conn = SimpleWebSerial.setupSerialConnection({ requestAccessOnPageLoad:false, requestElement:'connect-button' });
@@ -155,7 +418,7 @@
     function updateButtons(){ const en=isOpen(); $('reset-button').disabled=!en; $('scan-button').disabled=!en; }
 
     if(conn.on){
-      conn.on('open', ()=>{ log('port','open'); updateButtons(); conn.send('onewire',{action:'list'}).catch(()=>{}); });
+      conn.on('open', ()=>{ log('port','open'); updateButtons(); conn.send('onewire',{action:'list'}).catch(()=>{}); requestIrrigGet(); });
       conn.on('close',()=>{ log('port','close'); updateButtons(); });
       conn.on('message', m=>log('log', m));
       conn.on('status',  st=>{
@@ -172,9 +435,7 @@
       const mb_baud   =parseInt($('modbus-baud')?.value||'19200',10);
       const packet = {mb_address,mb_baud};
       logTx('values', packet);
-      conn.send('values', packet)
-        .then(()=>log('values',{mb_address,mb_baud}))
-        .catch(()=>log('Error','Failed to send Modbus values'));
+      conn.send('values', packet).catch(()=>log('Error','Failed to send Modbus values'));
     }
     $('modbus-address')?.addEventListener('input', pushModbus);
     $('modbus-baud')?.addEventListener('input',    pushModbus);
@@ -195,24 +456,28 @@
       dlg?.addEventListener('click', ev=>{ const r=dlg.getBoundingClientRect(); const inside = ev.clientX>=r.left && ev.clientX<=r.right && ev.clientY>=r.top && ev.clientY<=r.bottom; if(!inside && dlg.open) dlg.close('backdrop'); });
     })();
 
-    // 1-Wire UI
+    // ===== 1-Wire helpers =====
+    function romHexToHiLo(hex){
+      try{ let s=String(hex||'').trim(); if(/^0x/i.test(s)) s=s.slice(2); const v=BigInt('0x'+s); return {hi:Number((v>>32n)&0xffffffffn), lo:Number(v&0xffffffffn)}; }catch{ return {hi:0,lo:0}; }
+    }
+    function romHexToU64DecStr(hex){
+      try{ let s=String(hex||'').trim(); if(/^0x/i.test(s)) s=s.slice(2); return s? (BigInt('0x'+s)).toString(10) : '0'; }catch{ return '0'; }
+    }
+
     const scanBtn=$('scan-button'), scanStatus=$('scan-status');
     const owDisc=$('ow-discovered'), owStore=$('ow-stored');
-
-    let owStoredCache = []; // [{addr,name,pos}]
-    let owAddrKey = '';
+    let owStoredCache=[]; let owAddrKey='';
 
     function renderDiscovered(list){
       const a=toArray(list);
       if(!a.length){ owDisc.innerHTML='<em>No devices found.</em>'; return; }
       let html='';
       for(const rom of a){
-        const s=String(rom||'');
-        const isTest=(s==='0x0000000000000001'||s==='0x0000000000000002');
+        const s=String(rom||''); const isTest=(s==='0x0000000000000001'||s==='0x0000000000000002');
         html += `
           <div class="ow-row" data-rom="${esc(s)}">
             <code class="ow-rom">${esc(s)}</code>
-            ${isTest?'<span class="pill" title="Added by firmware for testing">test</span>':''}
+            ${isTest?'<span class="pill" title="Test addr from firmware">test</span>':''}
             <input type="text" class="hm-input" placeholder="Name…" style="flex:1;min-width:180px;">
             <button type="button" class="btn btn-green ow-add">Add</button>
           </div>`;
@@ -220,9 +485,8 @@
       owDisc.innerHTML=html;
     }
 
-    // Build dropdowns with VALUE = pos (1-based)
-    function makeSensorOptions(selectedPos){
-      const none = `<option value="">(none)</option>`;
+    function heatOptionsFromStored(selectedPos){
+      const none = '<option value="">(none)</option>';
       const body = owStoredCache.map(r=>{
         const labelBase = r.name ? `${esc(r.name)} — ${esc(r.addr)}` : esc(r.addr);
         const label = r.pos ? `#${r.pos} · ${labelBase}` : labelBase;
@@ -231,24 +495,20 @@
       }).join('');
       return none + body;
     }
-    function refreshHeatDropdown(n){
-      const aSel = $('heat-addrA-'+n), bSel = $('heat-addrB-'+n);
-      if(!aSel || !bSel) return;
-      const curA = aSel.value, curB = bSel.value; // pos strings
-      aSel.innerHTML = makeSensorOptions(curA);
-      bSel.innerHTML = makeSensorOptions(curB);
-      aSel.value = curA; bSel.value = curB;
+    function populateHeatSelects(){
+      for(let i=1;i<=5;i++){
+        const a=$('heat-addrA-'+i), b=$('heat-addrB-'+i);
+        if(a) a.innerHTML = heatOptionsFromStored(a.value);
+        if(b) b.innerHTML = heatOptionsFromStored(b.value);
+      }
     }
-    function refreshAllHeatDropdowns(){ for(let i=1;i<=5;i++) refreshHeatDropdown(i); }
 
     function renderStored(payload){
       const arr=toArray(payload);
       const nextCache = arr.map(r=>({ addr: String(r?.addr||''), name: String(r?.name||''), pos: parseInt(r?.pos||0,10)||0 }));
       const newKey = JSON.stringify(nextCache.map(x=>x.addr+':'+x.pos));
       if (newKey === owAddrKey) return;
-
-      owStoredCache = nextCache;
-      owAddrKey = newKey;
+      owStoredCache = nextCache; owAddrKey = newKey;
 
       if(!arr.length){ owStore.innerHTML='<em>No sensors stored.</em>'; }
       else{
@@ -256,7 +516,7 @@
         for(const rec of nextCache){
           const addr=esc(rec.addr);
           const name=(rec.name)?esc(rec.name):'<em style="color:#777">(no name)</em>';
-          const pos = rec.pos ? `<span class="pill pos" title="Position in list">#${rec.pos}</span>` : '';
+          const pos = rec.pos ? `<span class="pill pos" title="Position">#${rec.pos}</span>` : '';
           html += `
             <div class="ow-row" data-rom="${addr}">
               <code class="ow-rom">${addr}</code>
@@ -268,7 +528,24 @@
         }
         owStore.innerHTML=html;
       }
-      refreshAllHeatDropdowns();
+      populateHeatSelects();
+    }
+
+    function renderOwTempsTable(rows){
+      const tb = document.querySelector('#ow-temps-table tbody');
+      if(!tb) return;
+      if(!rows || !rows.length){ tb.innerHTML = '<tr><td colspan="5" class="muted">No sensors.</td></tr>'; return; }
+      tb.innerHTML = rows.map(r=>{
+        const pos = Number(r.pos)||'';
+        const addr = esc(String(r.addr||''));
+        const name = esc(String(r.name||''));
+        const t = (typeof r.temp==='number' && isFinite(r.temp)) ? r.temp.toFixed(2) : '—';
+        const errs = (typeof r.errs==='number') ? r.errs : '—';
+        return `<tr>
+          <td>${pos}</td><td><code class="mono">${addr}</code></td><td>${name||'<span class="muted">(unnamed)</span>'}</td>
+          <td>${t}</td><td>${errs}</td>
+        </tr>`;
+      }).join('');
     }
 
     owDisc?.addEventListener('click', ev=>{
@@ -278,10 +555,9 @@
       const romHex=row.getAttribute('data-rom')||'';
       const name=(row.querySelector('input.hm-input')?.value||'').trim();
       if(!name){ alert('Please enter a name'); row.querySelector('input.hm-input')?.focus(); return; }
-      const {hi,lo} = romHexToHiLo(romHex);
-      const decStr  = romHexToU64DecStr(romHex);
+      const {hi,lo} = romHexToHiLo(romHex); const decStr  = romHexToU64DecStr(romHex);
       btn.disabled=true;
-      const packet = { action:'add', addr:romHex, rom_hex:romHex, addr_u64_str:decStr, addr_hi:hi, addr_lo:lo, name };
+      const packet = { action:'add', rom_hex:romHex, addr_u64_str:decStr, addr_hi:hi, addr_lo:lo, name };
       logTx('onewire', packet);
       conn.send('onewire', packet)
         .then(()=>log('1-Wire',`Added ${romHex} as "${name}"`))
@@ -296,9 +572,8 @@
       const addr=row.getAttribute('data-rom')||'';
       if(!confirm(`Remove ${addr} from stored sensors?`)) return;
       btn.disabled=true;
-      const {hi,lo} = romHexToHiLo(addr);
-      const decStr  = romHexToU64DecStr(addr);
-      const packet = { action:'remove', addr, rom_hex:addr, addr_u64_str:decStr, addr_hi:hi, addr_lo:lo };
+      const {hi,lo} = romHexToHiLo(addr); const decStr  = romHexToU64DecStr(addr);
+      const packet = { action:'remove', rom_hex:addr, addr_u64_str:decStr, addr_hi:hi, addr_lo:lo };
       logTx('onewire', packet);
       conn.send('onewire', packet)
         .then(()=>log('1-Wire',`Removed ${addr}`))
@@ -325,8 +600,6 @@
         if(scanStatus) scanStatus.textContent = `Found ${a.length} device(s)` + (tests?` — ${tests} test`:``);
       });
       conn.on('onewireDb', payload=>{ renderStored(payload); });
-
-      // temps by addr (just for UI pills)
       conn.on('onewireTemps', obj=>{
         if(!obj) return;
         const keys = Object.keys(obj);
@@ -337,12 +610,14 @@
             : [...document.querySelectorAll('[data-ow-temp]')].find(n=>n.getAttribute('data-ow-temp')===k);
           if(!el) continue;
           if (typeof v === 'number' && isFinite(v)) el.textContent = v.toFixed(2)+' °C';
+          if (typeof v !== 'number' || !isFinite(v)) el.textContent = '—';
         }
       });
+      conn.on('onewireTempsList', rows=>{ renderOwTempsTable(toArray(rows)); });
     }
 
-    // Inputs / Flow / Heat UI build
-    (function(){
+    // ===== Inputs / Relays / Flow / Heat (unchanged core UI) =====
+    (function buildInputs(){
       const c=$('inputs-config'); if(!c) return;
       const ACTIONS=[{v:0,l:'None'},{v:1,l:'Toggle'},{v:2,l:'Pulse'}];
       const TARGETS=[{v:4,l:'None'},{v:0,l:'Control all'},{v:1,l:'Control relay 1'},{v:2,l:'Control relay 2'}];
@@ -353,9 +628,9 @@
       for(let i=1;i<=5;i++){
         const d=document.createElement('div');
         d.innerHTML = `
-          <div style="border:1px solid #ccc;border-radius:6px;background:#e6f7e8;padding:1rem;">
+          <div class="card" style="background:#e6f7e8;">
             <div style="display:flex;justify-content:space-between;align-items:center;font-weight:600;margin-bottom:.25rem;">
-              IN${i}<span id="state-in${i}" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;"></span>
+              IN${i}<span id="state-in${i}" class="state-dot dot-off"></span>
             </div>
 
             <div class="grid-2">
@@ -367,14 +642,14 @@
               <select id="type-in${i}" class="hm-input">${typeOpts}</select>
             </label>
 
-            <div id="counter-box-${i}" style="display:none;margin-top:.5rem;background:#fff;padding:.5rem;border:1px dashed #9ad09a;border-radius:6px;">
+            <div id="counter-box-${i}" style="display:none;margin-top:.5rem;background:#fff;padding:.5rem;border:1px dashed #9ad09a;border-radius:8px;">
               <div class="row" style="justify-content:space-between;">
                 <span>Pulses: <strong id="counter-in${i}" class="mono"></strong></span>
                 <button type="button" id="resetcnt-in${i}" class="btn btn-outline-green">Reset pulses</button>
               </div>
             </div>
 
-            <div id="flow-box-${i}" style="display:none;margin-top:.5rem;background:#fff;padding:.6rem;border:1px dashed #5bb3ff;border-radius:6px;">
+            <div id="flow-box-${i}" style="display:none;margin-top:.5rem;background:#fff;padding:.6rem;border:1px dashed #5bb3ff;border-radius:8px;">
               <div class="grid-2" style="margin-bottom:.4rem;">
                 <label>Pulses per liter
                   <input id="ppl-in${i}" type="number" class="hm-input" min="1" step="1" placeholder="450">
@@ -406,7 +681,7 @@
               </small>
             </div>
 
-            <div id="heat-box-${i}" style="display:none;margin-top:.6rem;background:#fff;padding:.6rem;border:1px dashed #f39c12;border-radius:6px;">
+            <div id="heat-box-${i}" style="display:none;margin-top:.6rem;background:#fff;padding:.6rem;border:1px dashed #f39c12;border-radius:8px;">
               <div class="row" style="justify-content:space-between;margin-bottom:.35rem;">
                 <label><input type="checkbox" id="heat-enable-${i}"> <strong>Enable heat</strong></label>
                 <button type="button" id="heat-reset-${i}" class="btn btn-outline-green">Reset energy</button>
@@ -416,13 +691,13 @@
                 <label>Sensor A (supply)
                   <div class="row" style="gap:.4rem;">
                     <select id="heat-addrA-${i}" class="hm-input" style="flex:1;"></select>
-                    <span id="heat-addrA-pos-${i}" class="pill pos" title="Position in stored list">#–</span>
+                    <span id="heat-addrA-pos-${i}" class="pill pos" title="Position">#–</span>
                   </div>
                 </label>
                 <label>Sensor B (return)
                   <div class="row" style="gap:.4rem;">
                     <select id="heat-addrB-${i}" class="hm-input" style="flex:1;"></select>
-                    <span id="heat-addrB-pos-${i}" class="pill pos" title="Position in stored list">#–</span>
+                    <span id="heat-addrB-pos-${i}" class="pill pos" title="Position">#–</span>
                   </div>
                 </label>
               </div>
@@ -442,11 +717,11 @@
                 <div></div>
               </div>
 
-              <div class="grid-2" style="margin-bottom:.25rem%;">
+              <div class="grid-2" style="margin-bottom:.25rem;">
                 <div>TA: <span id="heat-ta-${i}" class="kpi">--</span> <span class="muted">°C</span></div>
                 <div>TB: <span id="heat-tb-${i}" class="kpi">--</span> <span class="muted">°C</span></div>
               </div>
-              <div class="grid-2" style="margin-bottom:.25rem%;">
+              <div class="grid-2" style="margin-bottom:.25rem;">
                 <div>ΔT: <span id="heat-dt-${i}" class="kpi">--</span> <span class="muted">°C</span></div>
                 <div>Power: <span id="heat-p-${i}" class="kpi">--</span> <span class="muted">W</span></div>
               </div>
@@ -467,13 +742,12 @@
       }
     })();
 
-    // Relays UI build
-    (function(){
+    (function buildRelays(){
       const c=$('relays-config'); if(!c) return;
       for(let i=1;i<=2;i++){
         const d=document.createElement('div');
         d.innerHTML = `
-          <div style="border:1px solid #ccc;border-radius:6px;background:#f1f1f1;padding:1rem;">
+          <div class="card" style="background:#f8fafc;">
             <div style="font-weight:600;">Relay ${i}
               <span style="float:right;"><input type="checkbox" id="state-relay${i}" disabled></span>
             </div>
@@ -484,7 +758,6 @@
       }
     })();
 
-    // show/hide boxes
     function showTypeBoxes(){
       for(let i=1;i<=5;i++){
         const ts=$('type-in'+i);
@@ -496,14 +769,13 @@
       }
     }
 
-    // receive lists
+    // ---------- live lists from device ----------
     let lastFlowPPL  = [450,450,450,450,450];
     let lastCalRate  = [1,1,1,1,1];
     let lastCalAccum = [1,1,1,1,1];
     let gotRate=false, gotAccum=false;
 
     const heatSnapshot = { addrA: [], addrB: [], TA: [], TB: [] };
-
     const HEAT_LOCK_MS = 2000;
     const heatLockA = [0,0,0,0,0];
     const heatLockB = [0,0,0,0,0];
@@ -516,8 +788,7 @@
       for(let i=0;i<5;i++){
         const a = String(heatSnapshot.addrA[i]||'');
         const b = String(heatSnapshot.addrB[i]||'');
-        const ta = heatSnapshot.TA[i];
-        const tb = heatSnapshot.TB[i];
+        const ta = heatSnapshot.TA[i]; const tb = heatSnapshot.TB[i];
         if (a && typeof ta === 'number' && isFinite(ta)) map[a] = ta;
         if (b && typeof tb === 'number' && isFinite(tb)) map[b] = tb;
       }
@@ -538,7 +809,8 @@
     }
 
     if(conn.on){
-      conn.on('inputs',          list=>toArray(list).forEach((v,i)=>{ const d=$('state-in'+(i+1)); if(d) d.style.background=v?'#4caf50':'#ccc'; }));
+      // inputs
+      conn.on('inputs',          list=>toArray(list).forEach((v,i)=>{ const d=$('state-in'+(i+1)); if(d) d.className = 'state-dot '+(v?'dot-on':'dot-off'); }));
       conn.on('enableList',      list=>toArray(list).forEach((v,i)=>{ const el=$('enable-in'+(i+1)); if(el) el.checked=!!v; }));
       conn.on('invertList',      list=>toArray(list).forEach((v,i)=>{ const el=$('invert-in'+(i+1)); if(el) el.checked=!!v; }));
       conn.on('inputActionList', list=>toArray(list).forEach((v,i)=>{ const el=$('action-in'+(i+1)); if(el) el.value=String(v??0); }));
@@ -549,6 +821,7 @@
       });
       conn.on('counterList',     list=>toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('counter-in'+(i+1)); if(el) el.textContent=Math.floor(v); } }));
 
+      // flow
       conn.on('flowPPLList', list=>{
         const arr=toArray(list);
         arr.forEach((v,i)=>{ const num = Math.max(1, Math.floor(v||1)); lastFlowPPL[i] = num; const el=$('ppl-in'+(i+1)); if(el && (el!==document.activeElement)) el.value = String(num); });
@@ -574,21 +847,20 @@
       conn.on('flowAccumList', list=>toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('accum-in'+(i+1)); if(el) el.textContent = v.toFixed(3); }}));
       conn.on('flowRateList',  list=>toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('rate-in'+(i+1));  if(el) el.textContent = v.toFixed(3); }}));
 
+      // relays
       conn.on('relayStateList',  list=>toArray(list).forEach((v,i)=>{ const el=$('state-relay'+(i+1)); if(el) el.checked=!!v; }));
       conn.on('relayEnableList', list=>toArray(list).forEach((v,i)=>{ const el=$('enable-relay'+(i+1)); if(el) el.checked=!!v; }));
       conn.on('relayInvertList', list=>toArray(list).forEach((v,i)=>{ const el=$('invert-relay'+(i+1)); if(el) el.checked=!!v; }));
 
+      // heat
       conn.on('heatEnabledList', list=>toArray(list).forEach((v,i)=>{ const el=$('heat-enable-'+(i+1)); if(el) el.checked=!!v; }));
-
-      // keep for temp pills only (no select changes here)
       conn.on('heatAddrAList', list=>{ heatSnapshot.addrA = toArray(list).map(v=>String(v||'')); updatePillsFromHeat(); });
       conn.on('heatAddrBList', list=>{ heatSnapshot.addrB = toArray(list).map(v=>String(v||'')); updatePillsFromHeat(); });
-
-      // use POS lists to drive UI selects and the #pos pills
       conn.on('heatAddrAPosList', list=>{
         toArray(list).forEach((v,i)=>{
           setHeatPosPill(i+1,'A', (typeof v==='number')?v:NaN);
           const n=i+1, el=$('heat-addrA-'+n);
+          if (el && !el.options.length) populateHeatSelects();
           if (el && document.activeElement !== el && !isLockedA(n)) el.value = String(v||'');
         });
       });
@@ -596,30 +868,35 @@
         toArray(list).forEach((v,i)=>{
           setHeatPosPill(i+1,'B', (typeof v==='number')?v:NaN);
           const n=i+1, el=$('heat-addrB-'+n);
+          if (el && !el.options.length) populateHeatSelects();
           if (el && document.activeElement !== el && !isLockedB(n)) el.value = String(v||'');
         });
       });
-
       conn.on('heatCpList', list=>{ toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const n=i+1, el=$('heat-cp-'+n);   if(el && document.activeElement!==el) el.value=String(v); } }); });
       conn.on('heatRhoList', list=>{ toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const n=i+1, el=$('heat-rho-'+n);  if(el && document.activeElement!==el) el.value=String(v); } }); });
       conn.on('heatCalibList', list=>{ toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const n=i+1, el=$('heat-calib-'+n);if(el && document.activeElement!==el) el.value=String(v); } }); });
-
       conn.on('heatTAList', list=>{ heatSnapshot.TA = toArray(list); toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('heat-ta-'+(i+1));   if(el) el.textContent=v.toFixed(2); }}); updatePillsFromHeat(); });
       conn.on('heatTBList', list=>{ heatSnapshot.TB = toArray(list); toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('heat-tb-'+(i+1));   if(el) el.textContent=v.toFixed(2); }}); updatePillsFromHeat(); });
       conn.on('heatDTList',        list=>toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('heat-dt-'+(i+1));   if(el) el.textContent=v.toFixed(2); }}));
       conn.on('heatPowerList',     list=>toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('heat-p-'+(i+1));    if(el) el.textContent=v.toFixed(1); }}));
       conn.on('heatEnergyJList',   list=>toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('heat-ej-'+(i+1));   if(el) el.textContent=v.toFixed(0); }}));
       conn.on('heatEnergyKWhList', list=>toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('heat-ekwh-'+(i+1)); if(el) el.textContent=v.toFixed(5); }}));
+
+      // irrigation (FW: irrigConfig / irrigStatus / irrigGet)
+      conn.on('irrigConfig', arr=>applyIrrigConfigFromArray(toArray(arr)));
+      conn.on('irrigStatus', payload=>renderIrrigStatus(payload));
+
+      // time
+      conn.on('timeStatus', obj=>applyTimeStatus(obj));
     }
 
-    // senders
+    // senders (inputs/relays/flow/heat)
     function sendInputEnable(){ const l=[]; for(let i=1;i<=5;i++) l.push(!!$('enable-in'+i).checked); const packet={t:'inputEnable',list:l}; logTx('Config',packet); conn.send('Config',packet); }
     function sendInputInvert(){ const l=[]; for(let i=1;i<=5;i++) l.push(!!$('invert-in'+i).checked); const packet={t:'inputInvert',list:l}; logTx('Config',packet); conn.send('Config',packet); }
     function sendInputAction(){ const l=[]; for(let i=1;i<=5;i++) l.push(parseInt($('action-in'+i).value||'0',10)); const packet={t:'inputAction',list:l}; logTx('Config',packet); conn.send('Config',packet); }
     function sendInputTarget(){ const l=[]; for(let i=1;i<=5;i++) l.push(parseInt($('target-in'+i).value||'0',10)); const packet={t:'inputTarget',list:l}; logTx('Config',packet); conn.send('Config',packet); }
     function sendInputType(){   const l=[]; for(let i=1;i<=5;i++) l.push(parseInt($('type-in'+i).value||'0',10)); const packet={t:'inputType',list:l}; logTx('Config',packet); conn.send('Config',packet); showTypeBoxes(); }
     function resetSingleCounter(n){ const l=[]; for(let i=1;i<=5;i++) l.push(i===n); const packet={t:'counterResetList',list:l}; logTx('Config',packet); conn.send('Config',packet); }
-
     for(let i=1;i<=5;i++){
       $('enable-in'+i)?.addEventListener('change', sendInputEnable);
       $('invert-in'+i)?.addEventListener('change', sendInputInvert);
@@ -638,38 +915,18 @@
     for(let i=1;i<=2;i++){ $('enable-relay'+i)?.addEventListener('change', sendRelayCfg); $('invert-relay'+i)?.addEventListener('change', sendRelayCfg); }
 
     function sendFlowPPL(){
-      const list=[]; for(let i=1;i<=5;i++){
-        const raw=$('ppl-in'+i)?.value; const v=parseInt(raw,10);
-        list.push(Number.isFinite(v) && v>0 ? v : lastFlowPPL[i-1]);
-      }
-      const packet={t:'flowPPL',list};
-      logTx('Config',packet);
-      conn.send('Config',packet).then(()=>log('flow','PPL updated'));
+      const list=[]; for(let i=1;i<=5;i++){ const raw=$('ppl-in'+i)?.value; const v=parseInt(raw,10); list.push(Number.isFinite(v) && v>0 ? v : lastFlowPPL[i-1]); }
+      const packet={t:'flowPPL',list}; logTx('Config',packet); conn.send('Config',packet).then(()=>log('flow','PPL updated'));
     }
     function sendFlowCalibRate(){
-      const list=[]; for(let i=1;i<=5;i++){
-        const raw=$('calr-in'+i)?.value; const v=parseFloat(raw);
-        list.push((Number.isFinite(v) && v>0) ? v : lastCalRate[i-1]);
-      }
-      const packet={t:'flowCalibRate',list};
-      logTx('Config',packet);
-      conn.send('Config',packet).then(()=>log('flow','Rate calibration updated'));
+      const list=[]; for(let i=1;i<=5;i++){ const raw=$('calr-in'+i)?.value; const v=parseFloat(raw); list.push((Number.isFinite(v) && v>0) ? v : lastCalRate[i-1]); }
+      const packet={t:'flowCalibRate',list}; logTx('Config',packet); conn.send('Config',packet).then(()=>log('flow','Rate calibration updated'));
     }
     function sendFlowCalibAccum(){
-      const list=[]; for(let i=1;i<=5;i++){
-        const raw=$('calt-in'+i)?.value; const v=parseFloat(raw);
-        list.push((Number.isFinite(v) && v>0) ? v : lastCalAccum[i-1]);
-      }
-      const packet={t:'flowCalibAccum',list};
-      logTx('Config',packet);
-      conn.send('Config',packet).then(()=>log('flow','Total calibration updated'));
+      const list=[]; for(let i=1;i<=5;i++){ const raw=$('calt-in'+i)?.value; const v=parseFloat(raw); list.push((Number.isFinite(v) && v>0) ? v : lastCalAccum[i-1]); }
+      const packet={t:'flowCalibAccum',list}; logTx('Config',packet); conn.send('Config',packet).then(()=>log('flow','Total calibration updated'));
     }
-    function resetFlowAccum(di){
-      const list=[]; for(let i=1;i<=5;i++) list.push(i===di);
-      const packet={t:'flowResetAccumList',list};
-      logTx('Config',packet);
-      conn.send('Config',packet).then(()=>log('flow',`Baseline moved (Total reset) for IN${di}`));
-    }
+    function resetFlowAccum(di){ const list=[]; for(let i=1;i<=5;i++) list.push(i===di); const packet={t:'flowResetAccumList',list}; logTx('Config',packet); conn.send('Config',packet).then(()=>log('flow',`Baseline moved (Total reset) for IN${di}`)); }
     for(let i=1;i<=5;i++){
       $('ppl-in'+i)?.addEventListener('change', sendFlowPPL);
       $('calr-in'+i)?.addEventListener('change', sendFlowCalibRate);
@@ -688,12 +945,167 @@
         .catch(err=>log('Error','flow_calculate failed: '+(err?.message||err)));
     }
 
-    // Heat config sender — ONLY NUMBERS (positions)
+    // ===== IRRIGATION (per-zone) =====
+    function hhmmToMin(hhmm){
+      const [h,m] = String(hhmm||'').split(':').map(Number);
+      if(!Number.isFinite(h) || !Number.isFinite(m)) return 0;
+      return (Math.max(0,Math.min(23,h))*60) + Math.max(0,Math.min(59,m));
+    }
+    function minToHHMM(mins){
+      mins = Math.max(0, Math.min(1439, Number(mins)||0));
+      const h = Math.floor(mins/60), m = mins%60;
+      return pad2(h)+':'+pad2(m);
+    }
+
+    function readZone(n){
+      return {
+        enabled:   !!$(`ir${n}-enabled`)?.checked,
+        relay:     parseInt($(`ir${n}-relay`)?.value||'0',10)||0,
+        di:        parseInt($(`ir${n}-di`)?.value||'0',10)||0,
+        useFlow:   !!$(`ir${n}-useflow`)?.checked,
+        minRate:   parseFloat($(`ir${n}-minrate`)?.value||'0')||0,
+        grace:     parseInt($(`ir${n}-grace`)?.value||'0',10)||0,
+        timeout:   parseInt($(`ir${n}-timeout`)?.value||'0',10)||0,
+        targetL:   parseFloat($(`ir${n}-targetL`)?.value||'0')||0,
+
+        // NEW: sensors + pump
+        DI_moist:  parseInt($(`ir${n}-moist`)?.value||'-1',10),
+        DI_rain:   parseInt($(`ir${n}-rain`) ?.value||'-1',10),
+        DI_tank:   parseInt($(`ir${n}-tank`) ?.value||'-1',10),
+        R_pump:    parseInt($(`ir${n}-pump`) ?.value||'-1',10),
+
+        // NEW: window
+        windowEnable: !!$(`ir${n}-win-en`)?.checked,
+        winStartMin:  hhmmToMin($(`ir${n}-win-start`)?.value || '00:00'),
+        winEndMin:    hhmmToMin($(`ir${n}-win-end`)?.value   || '01:00'),
+        autoStart:    !!$(`ir${n}-auto`)?.checked,
+      };
+    }
+    function applyZone(n, z){
+      const set = (id,val)=>{ const el=$(id); if(!el) return; if(el===document.activeElement) return; if(el.type==='checkbox') el.checked=!!val; else el.value=String(val??''); };
+      set(`ir${n}-enabled`, z?.enabled);
+      set(`ir${n}-relay`,   z?.relay);
+      set(`ir${n}-di`,      z?.di);
+      set(`ir${n}-useflow`, z?.useFlow);
+      set(`ir${n}-minrate`, z?.minRate);
+      set(`ir${n}-grace`,   z?.grace);
+      set(`ir${n}-timeout`, z?.timeout);
+      set(`ir${n}-targetL`, z?.targetL);
+
+      // sensors + pump
+      set(`ir${n}-moist`,   z?.DI_moist ?? -1);
+      set(`ir${n}-rain`,    z?.DI_rain ?? -1);
+      set(`ir${n}-tank`,    z?.DI_tank ?? -1);
+      set(`ir${n}-pump`,    z?.R_pump ?? -1);
+
+      // window
+      set(`ir${n}-win-en`,  z?.windowEnable);
+      set(`ir${n}-auto`,    z?.autoStart);
+      const s = (z?.winStartMin!=null)? minToHHMM(z.winStartMin) : '00:00';
+      const e = (z?.winEndMin  !=null)? minToHHMM(z.winEndMin)   : '01:00';
+      set(`ir${n}-win-start`, s);
+      set(`ir${n}-win-end`,   e);
+    }
+    function sendIrrigConfig(zoneIdx){
+      if(!isOpen()){ log('System','Connect first.'); return; }
+      const list=[ readZone(1), readZone(2) ];
+      if (zoneIdx===1) list[1] = undefined;
+      if (zoneIdx===2) list[0] = undefined;
+      const packet={ t:'irrigConfig', list };
+      logTx('Config', packet);
+      conn.send('Config', packet)
+        .then(()=>log('irrig','config saved'))
+        .catch(err=>log('Error','irrigConfig failed: '+(err?.message||err)));
+    }
+    function applyIrrigConfigFromArray(arr){
+      applyZone(1, arr[0]||{});
+      applyZone(2, arr[1]||{});
+      log('irrig','config applied');
+    }
+    function requestIrrigGet(){
+      if(!isOpen()) return;
+      const packet = { t:'irrigGet' };
+      logTx('Config', packet);
+      conn.send('Config', packet).catch(()=>{});
+    }
+    function irrigStart(zone){
+      const packet = { action:'irrig_start', zone };
+      logTx('command', packet);
+      conn.send('command', packet).catch(err=>log('Error','start failed: '+(err?.message||err)));
+    }
+    function irrigStop(zone){
+      const packet = { action:'irrig_stop', zone };
+      logTx('command', packet);
+      conn.send('command', packet).catch(err=>log('Error','stop failed: '+(err?.message||err)));
+    }
+    function irrigReset(zone){
+      const packet = { action:'irrig_reset', zone };
+      logTx('command', packet);
+      conn.send('command', packet).catch(err=>log('Error','reset failed: '+(err?.message||err)));
+    }
+
+    // buttons
+    document.querySelectorAll('[data-irrig-save]').forEach(b=>b.addEventListener('click', ()=>sendIrrigConfig(parseInt(b.getAttribute('data-irrig-save'),10))));
+    document.querySelectorAll('[data-irrig-start]').forEach(b=>b.addEventListener('click', ()=>irrigStart(parseInt(b.getAttribute('data-irrig-start'),10))));
+    document.querySelectorAll('[data-irrig-stop]').forEach(b=>b.addEventListener('click',  ()=>irrigStop(parseInt(b.getAttribute('data-irrig-stop'),10))));
+    document.querySelectorAll('[data-irrig-reset]').forEach(b=>b.addEventListener('click', ()=>irrigReset(parseInt(b.getAttribute('data-irrig-reset'),10))));
+
+    function renderIrrigStatus(list){
+      const box=$('irrig-status'); if(!box) return;
+      const arr = toArray(list);
+      const card = (idx, s) => {
+        const z = idx+1;
+        const running = !!s.running;
+        const st = esc(String(s.state||'idle'));
+        const rate = (typeof s.rate==='number') ? s.rate.toFixed(3) : '--';
+        const liters = (typeof s.liters==='number') ? s.liters.toFixed(3) : '--';
+        const elapsed = (typeof s.elapsed==='number') ? s.elapsed.toFixed(0) : '--';
+        const tgt = (typeof s.targetL==='number' && s.targetL>0) ? s.targetL.toFixed(3) : '—';
+        const timeout = (typeof s.timeout==='number' && s.timeout>0) ? s.timeout : '—';
+        const sensorsOK = (s.sensorsOK===true) ? 'OK' : 'BLOCK';
+        const windowOpen = (s.windowOpen===true) ? 'OPEN' : 'CLOSED';
+        const minOfDay = (typeof s.minuteOfDay==='number') ? s.minuteOfDay : null;
+        const hhmm = (minOfDay!=null) ? (pad2(Math.floor(minOfDay/60))+':'+pad2(minOfDay%60)) : '--:--';
+        return `
+          <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div><strong>Zone ${z}</strong>
+                <span class="state-dot ${running?'dot-on':'dot-off'}" title="running"></span>
+                <span class="pill" style="margin-left:.35rem;">${st}</span>
+              </div>
+              <div class="row">
+                <button class="btn btn-green" onclick="return false" data-irrig-start="${z}">Start</button>
+                <button class="btn btn-amber" onclick="return false" data-irrig-stop="${z}">Stop</button>
+                <button class="btn" onclick="return false" data-irrig-reset="${z}">Reset</button>
+              </div>
+            </div>
+            <div class="grid-3" style="margin-top:.4rem;">
+              <div>Rate: <span class="kpi">${rate}</span> <span class="muted">L/min</span></div>
+              <div>Elapsed: <span class="kpi">${elapsed}</span> <span class="muted">s</span></div>
+              <div>Accum: <span class="kpi">${liters}</span> <span class="muted">L</span></div>
+            </div>
+            <div class="grid-3" style="margin-top:.2rem;">
+              <div>Target: <span class="kpi">${tgt}</span> <span class="muted">L</span></div>
+              <div>Timeout: <span class="kpi">${timeout}</span> <span class="muted">s</span></div>
+              <div>Time now: <span class="kpi">${hhmm}</span></div>
+            </div>
+            <div class="grid-2" style="margin-top:.2rem;">
+              <div>Window: <span class="kpi">${windowOpen}</span></div>
+              <div>Sensors: <span class="kpi">${sensorsOK}</span></div>
+            </div>
+          </div>`;
+      };
+      box.innerHTML = [0,1].map(i=>card(i, arr[i]||{})).join('');
+      box.querySelectorAll('[data-irrig-start]').forEach(b=>b.addEventListener('click',()=>irrigStart(parseInt(b.getAttribute('data-irrig-start'),10))));
+      box.querySelectorAll('[data-irrig-stop]').forEach(b=>b.addEventListener('click',()=>irrigStop(parseInt(b.getAttribute('data-irrig-stop'),10))));
+      box.querySelectorAll('[data-irrig-reset]').forEach(b=>b.addEventListener('click',()=>irrigReset(parseInt(b.getAttribute('data-irrig-reset'),10))));
+    }
+
+    // Heat config senders (per input) – unchanged
     function readHeatCfgFor(di){
       const enabled = !!$('heat-enable-'+di)?.checked;
       const posA = parseInt(($('heat-addrA-'+di)?.value||''), 10) || 0;
       const posB = parseInt(($('heat-addrB-'+di)?.value||''), 10) || 0;
-
       const cpRaw    = parseFloat(($('heat-cp-'+di)?.value||'').trim());
       const rhoRaw   = parseFloat(($('heat-rho-'+di)?.value||'').trim());
       const calibRaw = parseFloat(($('heat-calib-'+di)?.value||'').trim());
@@ -709,19 +1121,14 @@
       const cfg = readHeatCfgFor(di);
       const packet = { t:'heatConfigSingle', di, cfg };
       logTx('Config', packet);
-      conn.send('Config', packet)
-        .then(()=>log('heat',`DI${di} config updated`))
-        .catch(err=>log('Error','Heat DI'+di+' config failed: '+(err?.message||err)));
+      conn.send('Config', packet).catch(err=>log('Error','Heat DI'+di+' config failed: '+(err?.message||err)));
     }
     function resetHeatEnergy(di){
       const list=[]; for(let i=1;i<=5;i++) list.push(i===di);
       const packet = { t:'heatResetEnergyList', list };
       logTx('Config', packet);
-      conn.send('Config', packet)
-        .then(()=>log('heat',`Energy reset for IN${di}`))
-        .catch(err=>log('Error','Heat reset failed: '+(err?.message||err)));
+      conn.send('Config', packet).catch(err=>log('Error','Heat reset failed: '+(err?.message||err)));
     }
-
     for(let i=1;i<=5;i++){
       $('heat-enable-'+i)?.addEventListener('change', ()=>sendHeatConfigSingle(i));
       $('heat-addrA-'+i)?.addEventListener('change', ((di)=>()=>{ heatLockA[di-1] = nowMs() + HEAT_LOCK_MS; sendHeatConfigSingle(di); })(i));
@@ -732,8 +1139,43 @@
       $('heat-reset-'+i)?.addEventListener('click',  ((n)=>()=>resetHeatEnergy(n))(i));
     }
 
-    refreshAllHeatDropdowns();
-    updateButtons();
+    // ===== Module time (minute-of-day) =====
+    function applyTimeStatus(o){
+      const min = (o && typeof o.minuteOfDay==='number') ? Math.max(0,Math.min(1439, Math.floor(o.minuteOfDay))) : null;
+      const day = (o && typeof o.dayIndex==='number') ? Math.max(0, Math.floor(o.dayIndex)) : null;
+      if (min!=null){ $('tm-min').textContent = String(min); $('tm-hhmm').textContent = pad2(Math.floor(min/60))+':'+pad2(min%60); }
+      if (day!=null){ $('tm-day').textContent = String(day); }
+    }
+    function setMinute(minute){
+      if(!isOpen()){ log('System','Connect first.'); return; }
+      minute = Math.max(0, Math.min(1439, Math.floor(minute||0)));
+      const packet = { action:'set_time', minuteOfDay: minute };
+      logTx('command', packet);
+      conn.send('command', packet)
+        .then(()=>log('time', 'minuteOfDay set to '+minute))
+        .catch(err=>log('Error','set_time failed: '+(err?.message||err)));
+    }
+    $('btn-set-minute')?.addEventListener('click', ()=>{
+      const raw = $('tm-min-input')?.value;
+      const hhmm = $('tm-hhmm-input')?.value;
+      let minute = null;
+      if (hhmm && hhmm.includes(':')) minute = hhmmToMin(hhmm);
+      else if (raw !== '' && raw != null) minute = parseInt(raw,10);
+      else minute = null;
+      if (minute==null || !Number.isFinite(minute)){ alert('Enter minute (0..1439) or HH:MM'); return; }
+      setMinute(minute);
+    });
+    $('btn-set-now')?.addEventListener('click', ()=>{
+      const d = new Date();
+      setMinute(d.getHours()*60 + d.getMinutes());
+    });
+
+    // ===== util =====
+    function requestTimeOnce(){ /* timeStatus is pushed periodically; nothing needed */ }
+
+    // ===== init cosmetics =====
+    showTypeBoxes(); updateButtons(); requestTimeOnce();
+
   })();
   </script>
 </section>

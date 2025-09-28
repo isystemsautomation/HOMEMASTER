@@ -1,4 +1,4 @@
-// ================== WLD-521-R1 — Flow + Heat (pos-based sensor selection) ==================
+// ================== WLD-521-R1 — Flow + Heat + Irrigation (+ windows + extra sensors) ==================
 #include <Arduino.h>
 #include <ModbusSerial.h>
 #include <SimpleWebSerial.h>
@@ -6,7 +6,7 @@
 #include <LittleFS.h>
 #include <OneWire.h>
 #include <utility>
-#include "hardware/watchdog.h"
+#include "hardware/watchdog.h"   // NOTE: keep it if your board supports it
 
 // ================== UART2 (RS-485 / Modbus) ==================
 #define TX2 4
@@ -38,7 +38,7 @@ uint32_t diCounter[NUM_DI]   = {0};
 uint32_t diLastEdgeMs[NUM_DI]= {0};
 const uint32_t CNT_DEBOUNCE_MS = 20;
 
-bool desiredRelay[NUM_RLY] = {false,false};
+bool desiredRelay[NUM_RLY] = {false,false};  // manual/Modbus/UI desired
 uint32_t rlyPulseUntil[NUM_RLY] = {0,0};
 const uint32_t PULSE_MS = 500;
 
@@ -70,6 +70,11 @@ JSONVar modbusStatus;
 // ================== Timing ==================
 unsigned long lastSend = 0;
 const unsigned long sendInterval = 250;
+
+// ==== NEW: module time (minute-of-day + day index)
+uint16_t g_minuteOfDay = 0;      // 0..1439
+uint32_t g_secondsAcc  = 0;      // accum 1s ticks -> minutes
+uint16_t g_dayIndex    = 0;      // increments on midnight pulse or wrap
 
 // ================== Modbus persisted ==================
 uint8_t  g_mb_address = 3;
@@ -185,8 +190,7 @@ uint32_t crc32_update(uint32_t crc, const uint8_t* data, size_t len) {
 inline bool timeAfter32(uint32_t a, uint32_t b) { return (int32_t)(a - b) >= 0; }
 
 String hex64(uint64_t v) {
-  char buf[19]; buf[0]='0'; buf[1]='1'==0 ? 'x' : 'x'; // keep compiler happy
-  buf[1]='x';
+  char buf[19]; buf[0]='0'; buf[1]='x';
   for (int i=0;i<16;i++) { uint8_t nib=(v >> ((15-i)*4)) & 0xF; buf[2+i]=(nib<10)?('0'+nib):('A'+(nib-10)); }
   buf[18]=0; return String(buf);
 }
@@ -277,15 +281,12 @@ static bool jsonGetAddr64(JSONVar obj, const char* baseKey, uint64_t &out) {
 }
 
 // ======= NEW: position helpers =======
-// 1-based position -> ROM address (0 if invalid/out of range)
 inline uint64_t owdbAddrAtPos(uint32_t pos){
   if (pos == 0) return 0;
   size_t i = (pos - 1);
   if (i < g_owCount) return g_owDb[i].addr;
   return 0;
 }
-
-// Try to read a numeric 'pos' (accept number or numeric string)
 static bool jsonGetPos(JSONVar obj, const char* key, uint32_t &out){
   if (!obj.hasOwnProperty(key)) return false;
   JSONVar v = obj[key];
@@ -327,6 +328,11 @@ void setDefaults() {
   oneWireBusy=false; nextOneWireConvertMs=millis();
   nextRateTickMs = millis() + 1000;
   g_mb_address=3; g_mb_baud=19200;
+
+  // NEW time defaults
+  g_minuteOfDay = 0;
+  g_secondsAcc  = 0;
+  g_dayIndex    = 0;
 }
 
 void captureToPersist(PersistConfig &pc){
@@ -363,7 +369,6 @@ bool applyFromPersistV1(const PersistConfigV1 &v1){
   memcpy(rlyCfg, v1.rlyCfg, sizeof(rlyCfg));
   memcpy(desiredRelay, v1.desiredRelay, sizeof(desiredRelay));
   g_mb_address=v1.mb_address; g_mb_baud=v1.mb_baud;
-
   for (int i=0;i<NUM_DI;i++){
     flowPulsesPerL[i]=450; flowCalibRate[i]=1.0f; flowCalibAccum[i]=1.0f; flowCounterBase[i]=diCounter[i];
     flowRateLmin[i]=0.0f; lastPulseSnapshot[i]=0;
@@ -383,7 +388,6 @@ bool applyFromPersistV2(const PersistConfigV2 &v2){
   memcpy(rlyCfg, v2.rlyCfg, sizeof(rlyCfg));
   memcpy(desiredRelay, v2.desiredRelay, sizeof(desiredRelay));
   g_mb_address=v2.mb_address; g_mb_baud=v2.mb_baud;
-
   for (int i=0;i<NUM_DI;i++){
     flowPulsesPerL[i]=450; flowCalibRate[i]=1.0f; flowCalibAccum[i]=1.0f; flowCounterBase[i]=diCounter[i];
     flowRateLmin[i]=0.0f; lastPulseSnapshot[i]=0;
@@ -398,12 +402,10 @@ bool applyFromPersistV3(const PersistConfigV3 &pc){
   PersistConfigV3 tmp=pc; uint32_t crc=tmp.crc32; tmp.crc32=0;
   if (crc32_update(0,(const uint8_t*)&tmp,sizeof(tmp))!=crc) return false;
   if (pc.version!=CFG_VERSION_V3) return false;
-
   memcpy(diCfg, pc.diCfg, sizeof(diCfg));
   memcpy(rlyCfg, pc.rlyCfg, sizeof(rlyCfg));
   memcpy(desiredRelay, pc.desiredRelay, sizeof(desiredRelay));
   g_mb_address=pc.mb_address; g_mb_baud=pc.mb_baud;
-
   for (int i=0;i<NUM_DI;i++){
     flowPulsesPerL[i]= pc.flowPPL[i] ? pc.flowPPL[i] : 450;
     float seedCal = (isnan(pc.flowCalib[i])||pc.flowCalib[i]<=0) ? 1.0f : pc.flowCalib[i];
@@ -412,7 +414,6 @@ bool applyFromPersistV3(const PersistConfigV3 &pc){
     flowCounterBase[i]= diCounter[i];
     flowRateLmin[i]   = 0.0f;
     lastPulseSnapshot[i] = 0;
-
     heatEnabled[i]=false; heatAddrA[i]=0; heatAddrB[i]=0;
     heatCp[i]=4186.0f; heatRho[i]=1.0f; heatCalib[i]=1.0f; heatEnergyJ[i]=0.0;
   }
@@ -536,21 +537,20 @@ inline void setSlaveIdIfAvailable(...){}
 // ================== Modbus maps ==================
 enum : uint16_t { ISTS_DI_BASE=1, ISTS_RLY_BASE=60 };
 enum : uint16_t { HREG_DI_COUNT_BASE=1000 };
+// ==== NEW: time exposure + midnight pulse
+enum : uint16_t { HREG_TIME_MINUTE=1100, HREG_DAY_INDEX=1101 };
 enum : uint16_t {
   CMD_RLY_ON_BASE=200, CMD_RLY_OFF_BASE=210,
-  CMD_DI_EN_BASE=300,  CMD_DI_DIS_BASE=320, CMD_CNT_RST_BASE=340
+  CMD_DI_EN_BASE=300,  CMD_DI_DIS_BASE=320, CMD_CNT_RST_BASE=340,
+  CMD_TIME_MIDNIGHT=360   // pulse at 00:00 from HA
 };
 
 // ================== 1-Wire DB helpers ==================
 int owdbIndexOf(uint64_t addr){ for(size_t i=0;i<g_owCount;i++) if(g_owDb[i].addr==addr) return (int)i; return -1; }
-
-// === NEW: 1-based position of an address (0 if not found)
 inline uint32_t owdbPosOf(uint64_t addr){
   int idx = owdbIndexOf(addr);
   return (idx >= 0) ? (uint32_t)(idx + 1) : 0;
 }
-
-// === UPDATED: include position in each record
 JSONVar owdbBuildArray(){
   JSONVar arr;
   for(size_t i=0;i<g_owCount;i++){
@@ -562,8 +562,6 @@ JSONVar owdbBuildArray(){
   }
   return arr;
 }
-
-// === NEW: map of addrHex -> position
 JSONVar owdbBuildIndexMap(){
   JSONVar map;
   for(size_t i=0;i<g_owCount;i++){
@@ -593,7 +591,6 @@ bool owdbLoad(){
   for (size_t i=0;i<MAX_OW_SENSORS;i++){ owLastGoodTemp[i]=NAN; owLastGoodMs[i]=0; owErrCount[i]=0; }
   return true;
 }
-// Saves to flash and re-sends the DB if successful.
 bool owdbAddOrUpdate(uint64_t addr, const char* name){
   if (!name) return false;
   int idx = owdbIndexOf(addr);
@@ -611,9 +608,6 @@ bool owdbAddOrUpdate(uint64_t addr, const char* name){
   if (ok) owdbSendList();
   return ok;
 }
-
-// Remove a sensor by ROM from the DB.
-// Saves to flash and re-sends the DB if successful.
 bool owdbRemove(uint64_t addr){
   int idx = owdbIndexOf(addr);
   if (idx < 0) return false;
@@ -623,10 +617,355 @@ bool owdbRemove(uint64_t addr){
   if (ok) owdbSendList();
   return ok;
 }
-// === UPDATED: send both the array (with pos) and the index map
 void owdbSendList(){
   WebSerial.send("onewireDb",    owdbBuildArray());
   WebSerial.send("onewireIndex", owdbBuildIndexMap());
+}
+
+// ================== Irrigation (stored separately) ==================
+static const char* IRRIG_PATH = "/irrig.json";
+
+enum : uint8_t { IRR_STATE_IDLE=0, IRR_STATE_RUN=1, IRR_STATE_PAUSE=2, IRR_STATE_DONE=3, IRR_STATE_FAULT=4 };
+
+struct IrrigZone {
+  bool     enabled;
+  uint8_t  relay;        // 1..2 (0=none)
+  uint8_t  di;           // 1..5 for flow reference (0=none)
+  bool     useFlow;
+  float    minRateLmin;
+  uint32_t graceSec;
+  uint32_t timeoutSec;
+  double   targetLiters;
+
+  // ==== NEW: extra sensors and pump + window/schedule
+  int8_t   di_moist;     // -1 disabled, else 1..5
+  int8_t   di_rain;      // -1 disabled, else 1..5
+  int8_t   di_tank;      // -1 disabled, else 1..5
+  int8_t   rpump;        // -1 disabled, else 1..2
+
+  bool     windowEnable; // enforce window
+  uint16_t winStartMin;  // 0..1439
+  uint16_t winEndMin;    // 0..1439
+  bool     autoStart;    // auto-start at window open (once/day)
+  uint16_t lastAutoDay;  // runtime: last dayIndex when auto-started
+
+  // runtime
+  uint8_t  state;
+  uint32_t startMs;
+  uint32_t lastRunMs;
+  uint32_t pulsesBase;
+  double   litersDone;
+  uint32_t secondsInState;
+};
+
+IrrigZone g_irrig[NUM_RLY];  // 2 zones
+bool      irrigDemand[NUM_RLY] = {false,false}; // OR'ed with desiredRelay
+// ==== NEW: pump reference counting per relay index
+uint16_t  pumpRefCount[NUM_RLY] = {0,0};
+
+static inline bool isValidDI(int8_t d) { return d>=1 && d<= (int8_t)NUM_DI; }
+static inline bool isValidR(int8_t r)  { return r>=1 && r<= (int8_t)NUM_RLY; }
+
+// ---- prototypes for helpers that use IrrigZone (bodies are placed AFTER the struct)
+static bool zoneWindowOpen(const IrrigZone& Z);
+static bool zoneSensorsOK(const IrrigZone& Z);
+
+JSONVar irrigBuildConfigJson(){
+  JSONVar arr;
+  for (int i=0;i<NUM_RLY;i++){
+    JSONVar o;
+    o["enabled"] = g_irrig[i].enabled;
+    o["relay"]   = (double)g_irrig[i].relay;
+    o["di"]      = (double)g_irrig[i].di;
+    o["useFlow"] = g_irrig[i].useFlow;
+    o["minRate"] = (double)g_irrig[i].minRateLmin;
+    o["grace"]   = (double)g_irrig[i].graceSec;
+    o["timeout"] = (double)g_irrig[i].timeoutSec;
+    o["targetL"] = (double)g_irrig[i].targetLiters;
+
+    // NEW: extra fields
+    o["DI_moist"] = (double)g_irrig[i].di_moist;
+    o["DI_rain"]  = (double)g_irrig[i].di_rain;
+    o["DI_tank"]  = (double)g_irrig[i].di_tank;
+    o["R_pump"]   = (double)g_irrig[i].rpump;
+
+    o["windowEnable"] = g_irrig[i].windowEnable;
+    o["winStartMin"]  = (double)g_irrig[i].winStartMin;
+    o["winEndMin"]    = (double)g_irrig[i].winEndMin;
+    o["autoStart"]    = g_irrig[i].autoStart;
+
+    arr[i] = o;
+  }
+  return arr;
+}
+void irrigDefault(){
+  for (int i=0;i<NUM_RLY;i++){
+    g_irrig[i].enabled      = false;
+    g_irrig[i].relay        = i+1;
+    g_irrig[i].di           = 0;
+    g_irrig[i].useFlow      = true;
+    g_irrig[i].minRateLmin  = 0.2f;
+    g_irrig[i].graceSec     = 8;
+    g_irrig[i].timeoutSec   = 3600;
+    g_irrig[i].targetLiters = 0.0;
+
+    g_irrig[i].di_moist = -1;
+    g_irrig[i].di_rain  = -1;
+    g_irrig[i].di_tank  = -1;
+    g_irrig[i].rpump    = -1;
+
+    g_irrig[i].windowEnable = false;
+    g_irrig[i].winStartMin  = 0;      // midnight
+    g_irrig[i].winEndMin    = 60;     // 00:00..01:00
+    g_irrig[i].autoStart    = false;
+    g_irrig[i].lastAutoDay  = 0;
+
+    g_irrig[i].state        = IRR_STATE_IDLE;
+    g_irrig[i].startMs      = 0;
+    g_irrig[i].lastRunMs    = 0;
+    g_irrig[i].pulsesBase   = 0;
+    g_irrig[i].litersDone   = 0.0;
+    g_irrig[i].secondsInState=0;
+  }
+  pumpRefCount[0]=pumpRefCount[1]=0;
+}
+bool irrigSave(){
+  String s = JSON.stringify(irrigBuildConfigJson());
+  File f = LittleFS.open(IRRIG_PATH,"w");
+  if(!f){ WebSerial.send("message","irrig: save open failed"); return false; }
+  size_t n=f.print(s); f.flush(); f.close();
+  if (n!=s.length()){ WebSerial.send("message","irrig: short write"); return false; }
+  return true;
+}
+bool irrigLoad(){
+  File f = LittleFS.open(IRRIG_PATH,"r");
+  if(!f) return false;
+  String s; while (f.available()) s += (char)f.read(); f.close();
+  JSONVar arr = JSON.parse(s);
+  if (JSON.typeof(arr)!="array"){ WebSerial.send("message","irrig: invalid JSON"); return false; }
+  for (int i=0;i<NUM_RLY && i<arr.length(); i++){
+    JSONVar o=arr[i];
+    if (JSON.typeof(o)!="object") continue;
+    g_irrig[i].enabled      = (bool)o["enabled"];
+    g_irrig[i].relay        = (uint8_t)(int)o["relay"];
+    g_irrig[i].di           = (uint8_t)(int)o["di"];
+    g_irrig[i].useFlow      = (bool)o["useFlow"];
+    g_irrig[i].minRateLmin  = (double)o["minRate"];
+    g_irrig[i].graceSec     = (uint32_t)(int)o["grace"];
+    g_irrig[i].timeoutSec   = (uint32_t)(int)o["timeout"];
+    g_irrig[i].targetLiters = (double)o["targetL"];
+
+    // NEW fields (accept -1)
+    g_irrig[i].di_moist     = (int8_t)(int)o["DI_moist"];
+    g_irrig[i].di_rain      = (int8_t)(int)o["DI_rain"];
+    g_irrig[i].di_tank      = (int8_t)(int)o["DI_tank"];
+    g_irrig[i].rpump        = (int8_t)(int)o["R_pump"];
+
+    g_irrig[i].windowEnable = (bool)o["windowEnable"];
+    g_irrig[i].winStartMin  = (uint16_t)(int)o["winStartMin"];
+    g_irrig[i].winEndMin    = (uint16_t)(int)o["winEndMin"];
+    g_irrig[i].autoStart    = (bool)o["autoStart"];
+  }
+  return true;
+}
+const char* irrigStateName(uint8_t s){
+  switch(s){
+    case IRR_STATE_IDLE: return "idle";
+    case IRR_STATE_RUN:  return "run";
+    case IRR_STATE_PAUSE:return "pause";
+    case IRR_STATE_DONE: return "done";
+    case IRR_STATE_FAULT:return "fault";
+  }
+  return "?";
+}
+
+// --- helper bodies AFTER struct IrrigZone so the type is complete
+static bool zoneWindowOpen(const IrrigZone& Z){
+  if (!Z.windowEnable) return true;
+  uint16_t start = (uint16_t)(Z.winStartMin % 1440);
+  uint16_t end   = (uint16_t)(Z.winEndMin   % 1440);
+  uint16_t now   = (uint16_t)(g_minuteOfDay % 1440);
+  if (start == end) return false;          // degenerate -> closed
+  if (start < end)  return (now >= start) && (now < end);
+  // wrapped across midnight
+  return (now >= start) || (now < end);
+}
+static bool zoneSensorsOK(const IrrigZone& Z){
+  auto diActive = [&](int8_t diIdx)->bool{
+    if (diIdx < 1 || diIdx > (int8_t)NUM_DI) return false;
+    int i = diIdx - 1;
+    if (!diCfg[i].enabled) return false;
+    return diState[i]; // logical state (inversion already applied)
+  };
+
+  // Moisture: HIGH means soil wet -> block irrigation
+  if (Z.di_moist >= 1 && Z.di_moist <= (int8_t)NUM_DI && diActive(Z.di_moist)) return false;
+
+  // Rain: HIGH means raining -> block irrigation
+  if (Z.di_rain  >= 1 && Z.di_rain  <= (int8_t)NUM_DI && diActive(Z.di_rain))  return false;
+
+  // Tank: require HIGH == OK (LOW blocks)
+  if (Z.di_tank >= 1 && Z.di_tank <= (int8_t)NUM_DI){
+    int i = Z.di_tank - 1;
+    if (diCfg[i].enabled && !diState[i]) return false;
+  }
+  return true;
+}
+
+void irrigSendStatus(){
+  JSONVar arr;
+  for (int i=0;i<NUM_RLY;i++){
+    JSONVar o;
+    o["enabled"]  = g_irrig[i].enabled;
+    o["relay"]    = (double)g_irrig[i].relay;
+    o["di"]       = (double)g_irrig[i].di;
+    o["state"]    = irrigStateName(g_irrig[i].state);
+    o["running"]  = (g_irrig[i].state==IRR_STATE_RUN);
+    o["liters"]   = (double)g_irrig[i].litersDone;
+    o["rate"]     = (double)((g_irrig[i].di>=1 && g_irrig[i].di<=NUM_DI)?flowRateLmin[g_irrig[i].di-1]:0.0);
+    o["elapsed"]  = (double)g_irrig[i].secondsInState;
+    o["targetL"]  = (double)g_irrig[i].targetLiters;
+    o["timeout"]  = (double)g_irrig[i].timeoutSec;
+
+    // NEW diagnostics
+    o["minuteOfDay"] = (double)g_minuteOfDay;
+    o["windowEnable"]= g_irrig[i].windowEnable;
+    o["winStartMin"] = (double)g_irrig[i].winStartMin;
+    o["winEndMin"]   = (double)g_irrig[i].winEndMin;
+    o["autoStart"]   = g_irrig[i].autoStart;
+    o["DI_moist"]    = (double)g_irrig[i].di_moist;
+    o["DI_rain"]     = (double)g_irrig[i].di_rain;
+    o["DI_tank"]     = (double)g_irrig[i].di_tank;
+    o["R_pump"]      = (double)g_irrig[i].rpump;
+    o["sensorsOK"]   = zoneSensorsOK(g_irrig[i]);
+    o["windowOpen"]  = zoneWindowOpen(g_irrig[i]);
+
+    arr[i] = o;
+  }
+  WebSerial.send("irrigStatus", arr);
+}
+void irrigSendConfig(){ WebSerial.send("irrigConfig", irrigBuildConfigJson()); }
+
+void irrigStopZone(int z, const char* why){
+  if (z<0 || z>=NUM_RLY) return;
+  IrrigZone &Z = g_irrig[z];
+  // clear valve demand
+  if (Z.relay>=1 && Z.relay<=NUM_RLY) irrigDemand[Z.relay-1] = false;
+  // pump ref--
+  if (isValidR(Z.rpump) && pumpRefCount[Z.rpump-1]>0) pumpRefCount[Z.rpump-1]--;
+
+  if (why && *why) WebSerial.send("message", String("irrig: stop z")+String(z+1)+" ("+why+")");
+  Z.state = (Z.state==IRR_STATE_FAULT)?IRR_STATE_FAULT:IRR_STATE_IDLE;
+  Z.secondsInState = 0;
+}
+void irrigStartZone(int z, double litersOverride){
+  if (z<0 || z>=NUM_RLY) return;
+  IrrigZone &Z = g_irrig[z];
+  if (!Z.enabled || Z.relay<1 || Z.relay>NUM_RLY){ WebSerial.send("message", String("irrig: zone ")+String(z+1)+" not configured"); return; }
+
+  // Gate on sensors + window
+  if (!zoneSensorsOK(Z)){ WebSerial.send("message", String("irrig: z")+String(z+1)+" blocked by sensors"); return; }
+  if (!zoneWindowOpen(Z)){ WebSerial.send("message", String("irrig: z")+String(z+1)+" blocked by window"); return; }
+
+  Z.targetLiters = (litersOverride>0.0)?litersOverride:Z.targetLiters;
+  Z.state     = IRR_STATE_RUN;
+  Z.startMs   = millis();
+  Z.lastRunMs = Z.startMs;
+  Z.secondsInState = 0;
+  Z.litersDone = 0.0;
+
+  if (Z.di>=1 && Z.di<=NUM_DI) {
+    int di = Z.di-1;
+    Z.pulsesBase = diCounter[di];
+  } else {
+    Z.pulsesBase = 0;
+  }
+  irrigDemand[Z.relay-1] = true;
+  if (isValidR(Z.rpump)) pumpRefCount[Z.rpump-1]++;
+
+  WebSerial.send("message", String("irrig: start z")+String(z+1)+" targetL="+String(Z.targetLiters,3));
+}
+// Called each second in the 1s tick
+void irrigTick1s(){
+  // Auto-start pass: start at window open if configured and not yet started today
+  for (int i=0;i<NUM_RLY;i++){
+    IrrigZone &Z = g_irrig[i];
+    if (!Z.enabled || !Z.autoStart) continue;
+    if (!zoneWindowOpen(Z)) continue;
+    if (Z.lastAutoDay == g_dayIndex) continue;
+    // Only kick exactly at the start minute (best-effort)
+    if ((g_minuteOfDay % 1440) == (Z.winStartMin % 1440)) {
+      if (zoneSensorsOK(Z)) {
+        irrigStartZone(i, 0.0);
+        Z.lastAutoDay = g_dayIndex;
+      }
+    }
+  }
+
+  // Runtime/guarding pass
+  for (int i=0;i<NUM_RLY;i++){
+    IrrigZone &Z = g_irrig[i];
+    Z.secondsInState++;
+
+    if (Z.state==IRR_STATE_RUN){
+      // Window still open?
+      if (Z.windowEnable && !zoneWindowOpen(Z)){
+        Z.state=IRR_STATE_DONE;
+        irrigStopZone(i,"window");
+        continue;
+      }
+      // Sensors still OK?
+      if (!zoneSensorsOK(Z)){
+        Z.state=IRR_STATE_FAULT;
+        irrigStopZone(i,"sensor");
+        continue;
+      }
+
+      // Timeout?
+      if (Z.timeoutSec>0 && Z.secondsInState>=Z.timeoutSec){
+        Z.state=IRR_STATE_FAULT;
+        irrigStopZone(i,"timeout");
+        continue;
+      }
+
+      // Flow / liters
+      double rate = 0.0;
+      if (Z.di>=1 && Z.di<=NUM_DI){
+        int di = Z.di-1;
+        rate = flowRateLmin[di]; // L/min
+        uint32_t ppl = flowPulsesPerL[di] ? flowPulsesPerL[di] : 1;
+        uint32_t pulses_since = (diCounter[di] >= Z.pulsesBase)?(diCounter[di]-Z.pulsesBase):0;
+        double accumL = ((double)pulses_since / (double)ppl) * (double)flowCalibAccum[di];
+        Z.litersDone = accumL;
+      }
+
+      // Flow supervision
+      if (Z.useFlow && Z.minRateLmin>0.0){
+        static uint16_t belowCnt[NUM_RLY] = {0,0};
+        if (rate < Z.minRateLmin) {
+          belowCnt[i]++;
+          if (belowCnt[i] >= (Z.graceSec ? Z.graceSec : 1)){
+            Z.state=IRR_STATE_FAULT;
+            irrigStopZone(i,"low flow");
+            belowCnt[i]=0;
+            continue;
+          }
+        } else {
+          belowCnt[i]=0;
+        }
+      }
+
+      // Target liters reached?
+      if (Z.targetLiters>0.0 && Z.litersDone >= Z.targetLiters){
+        Z.state = IRR_STATE_DONE;
+        irrigStopZone(i,"target");
+        continue;
+      }
+
+      // keep valve demand
+      if (Z.relay>=1 && Z.relay<=NUM_RLY) irrigDemand[Z.relay-1]=true;
+    }
+  }
 }
 
 // ================== Decls ==================
@@ -682,7 +1021,7 @@ bool ds18b20ReadTempC(uint64_t rom, double &outC){
   return false;
 }
 void publishOneWireTemps(){
-  JSONVar owTemps, owErrs, owTempsList; // include ordered list with pos
+  JSONVar owTemps, owErrs, owTempsList;
   uint32_t now = millis();
   for (size_t i=0; i<g_owCount; i++){
     bool fresh = (owLastGoodMs[i] != 0) && (now - owLastGoodMs[i] <= OW_FAIL_HIDE_MS);
@@ -702,7 +1041,7 @@ void publishOneWireTemps(){
   }
   WebSerial.send("onewireTemps", owTemps);
   WebSerial.send("onewireErrs",  owErrs);
-  WebSerial.send("onewireTempsList", owTempsList); // NEW: ordered table
+  WebSerial.send("onewireTempsList", owTempsList);
 }
 void buildCachedOwTemps(JSONVar &owTemps, JSONVar &owErrs){
   uint32_t now = millis();
@@ -727,6 +1066,14 @@ void setup(){
   if(!initFilesystemAndConfig()){ WebSerial.send("message","FATAL: Filesystem/config init failed"); }
   if(owdbLoad()) WebSerial.send("message","1-Wire DB loaded from flash");
   else           WebSerial.send("message","1-Wire DB missing/invalid (will create on first save)");
+
+  // Irrigation
+  irrigDefault();
+  if (irrigLoad()) WebSerial.send("message","Irrigation config loaded");
+  else             WebSerial.send("message","Irrigation config defaulted");
+  irrigSendConfig();
+  irrigSendStatus();
+
   publishOneWireTemps();
 
   Serial2.setTX(TX2); Serial2.setRX(RX2);
@@ -736,11 +1083,17 @@ void setup(){
   for(uint16_t i=0;i<NUM_DI;i++)  mb.addIsts(ISTS_DI_BASE + i);
   for(uint16_t i=0;i<NUM_RLY;i++) mb.addIsts(ISTS_RLY_BASE + i);
   for(uint16_t i=0;i<NUM_DI;i++){ mb.addHreg(HREG_DI_COUNT_BASE+(i*2)+0,0); mb.addHreg(HREG_DI_COUNT_BASE+(i*2)+1,0); }
+
   for(uint16_t i=0;i<NUM_RLY;i++){ mb.addCoil(CMD_RLY_ON_BASE+i);  mb.setCoil(CMD_RLY_ON_BASE+i,false); }
   for (uint16_t i=0; i<NUM_RLY; i++) { mb.addCoil(CMD_RLY_OFF_BASE+i); mb.setCoil(CMD_RLY_OFF_BASE+i,false); }
   for(uint16_t i=0;i<NUM_DI;i++){  mb.addCoil(CMD_DI_EN_BASE+i);   mb.setCoil(CMD_DI_EN_BASE+i,false); }
   for(uint16_t i=0;i<NUM_DI;i++){  mb.addCoil(CMD_DI_DIS_BASE+i);  mb.setCoil(CMD_DI_DIS_BASE+i,false); }
   for(uint16_t i=0;i<NUM_DI;i++){  mb.addCoil(CMD_CNT_RST_BASE+i); mb.setCoil(CMD_CNT_RST_BASE+i,false); }
+
+  // NEW: time regs + midnight pulse coil
+  mb.addHreg(HREG_TIME_MINUTE, g_minuteOfDay);
+  mb.addHreg(HREG_DAY_INDEX,   g_dayIndex);
+  mb.addCoil(CMD_TIME_MIDNIGHT); mb.setCoil(CMD_TIME_MIDNIGHT,false);
 
   modbusStatus["address"]=g_mb_address; modbusStatus["baud"]=g_mb_baud; modbusStatus["state"]=0;
 
@@ -749,7 +1102,7 @@ void setup(){
   WebSerial.on("command", handleCommand);
   WebSerial.on("onewire", handleOneWire);
 
-  WebSerial.send("message","Boot OK (Flow + Heat). DS18B20 hardened (retry, cache).");
+  WebSerial.send("message","Boot OK (Flow + Heat + Irrigation + Windows+Sensors+Pump).");
   sendAllEchoesOnce();
 }
 
@@ -768,34 +1121,25 @@ void handleValues(JSONVar values){
   cfgDirty=true; lastCfgTouchMs=millis();
 }
 
-// ===== NEW: apply heat config that may contain posA/posB or full addresses =====
+// ===== NEW: apply heat config (posA/posB or explicit addresses) =====
 bool applyHeatCfgObjectToIndex(int idx, JSONVar o){
   if (idx < 0 || idx >= (int)NUM_DI) return false;
-
   if (o.hasOwnProperty("enabled"))
     heatEnabled[idx] = (bool)o["enabled"];
 
-  // Prefer positions if provided
   bool setA = false, setB = false;
   uint32_t posA = 0, posB = 0;
 
-  // Accept keys: posA / posB (primary), and addrA_pos / addrB_pos (compat)
   if (jsonGetPos(o, "posA", posA) || jsonGetPos(o, "addrA_pos", posA)) {
     uint64_t a = owdbAddrAtPos(posA);
-    heatAddrA[idx] = a;
-    setA = true;
-    WebSerial.send("message", String("Heat: DI")+String(idx+1)+
-                               " A set by posA="+String(posA)+" -> "+(a?hex64(a):String("''")));
+    heatAddrA[idx] = a; setA = true;
+    WebSerial.send("message", String("Heat: DI")+String(idx+1)+" A set by posA="+String(posA)+" -> "+(a?hex64(a):String("''")));
   }
   if (jsonGetPos(o, "posB", posB) || jsonGetPos(o, "addrB_pos", posB)) {
     uint64_t b = owdbAddrAtPos(posB);
-    heatAddrB[idx] = b;
-    setB = true;
-    WebSerial.send("message", String("Heat: DI")+String(idx+1)+
-                               " B set by posB="+String(posB)+" -> "+(b?hex64(b):String("''")));
+    heatAddrB[idx] = b; setB = true;
+    WebSerial.send("message", String("Heat: DI")+String(idx+1)+" B set by posB="+String(posB)+" -> "+(b?hex64(b):String("''")));
   }
-
-  // Fallback: accept explicit addresses (old UI)
   if (!setA) {
     uint64_t a=0;
     if (jsonGetAddr64(o,"addrA_u64_str", a)) heatAddrA[idx]=a;
@@ -807,7 +1151,6 @@ bool applyHeatCfgObjectToIndex(int idx, JSONVar o){
     else if (jsonGetAddr64(o,"addrB", b))    heatAddrB[idx]=b;
   }
 
-  // Scalars
   double dv;
   if (jsonGetDouble(o,"cp",dv)  && dv>0) heatCp[idx]=(float)dv;
   if (jsonGetDouble(o,"rho",dv) && dv>0) heatRho[idx]=(float)dv;
@@ -975,6 +1318,47 @@ void handleUnifiedConfig(JSONVar obj){
     WebSerial.send("message", line);
     changed = true;
   }
+  // -------- IRRIGATION CONFIG --------
+  else if (type=="irrigConfig"){
+    for (int i=0;i<NUM_RLY && i<list.length(); i++){
+      JSONVar o = list[i];
+      if (JSON.typeof(o)!="object") continue;
+      g_irrig[i].enabled      = (bool)o["enabled"];
+      g_irrig[i].relay        = (uint8_t)max(0, (int)o["relay"]);
+      g_irrig[i].di           = (uint8_t)max(0, (int)o["di"]);
+      g_irrig[i].useFlow      = (bool)o["useFlow"];
+      if (o.hasOwnProperty("minRate"))  g_irrig[i].minRateLmin  = (double)o["minRate"];
+      if (o.hasOwnProperty("grace"))    g_irrig[i].graceSec     = (uint32_t)(int)o["grace"];
+      if (o.hasOwnProperty("timeout"))  g_irrig[i].timeoutSec   = (uint32_t)(int)o["timeout"];
+      if (o.hasOwnProperty("targetL"))  g_irrig[i].targetLiters = (double)o["targetL"];
+
+      // NEW fields (accept -1)
+      if (o.hasOwnProperty("DI_moist")) g_irrig[i].di_moist = (int8_t)(int)o["DI_moist"];
+      if (o.hasOwnProperty("DI_rain"))  g_irrig[i].di_rain  = (int8_t)(int)o["DI_rain"];
+      if (o.hasOwnProperty("DI_tank"))  g_irrig[i].di_tank  = (int8_t)(int)o["DI_tank"];
+      if (o.hasOwnProperty("R_pump"))   g_irrig[i].rpump    = (int8_t)(int)o["R_pump"];
+
+      if (o.hasOwnProperty("windowEnable")) g_irrig[i].windowEnable = (bool)o["windowEnable"];
+      if (o.hasOwnProperty("winStartMin"))  g_irrig[i].winStartMin  = (uint16_t)(int)o["winStartMin"];
+      if (o.hasOwnProperty("winEndMin"))    g_irrig[i].winEndMin    = (uint16_t)(int)o["winEndMin"];
+      if (o.hasOwnProperty("autoStart"))    g_irrig[i].autoStart    = (bool)o["autoStart"];
+
+      // sanitize
+      if (g_irrig[i].relay>NUM_RLY) g_irrig[i].relay=0;
+      if (g_irrig[i].di>NUM_DI)     g_irrig[i].di=0;
+      if (!isValidR(g_irrig[i].rpump)) g_irrig[i].rpump = -1;
+      if (g_irrig[i].di_moist<-1 || g_irrig[i].di_moist>NUM_DI) g_irrig[i].di_moist=-1;
+      if (g_irrig[i].di_rain <-1 || g_irrig[i].di_rain >NUM_DI) g_irrig[i].di_rain =-1;
+      if (g_irrig[i].di_tank <-1 || g_irrig[i].di_tank >NUM_DI) g_irrig[i].di_tank =-1;
+    }
+    irrigSave();
+    irrigSendConfig();
+    WebSerial.send("message","Irrigation config updated");
+  }
+  else if (type=="irrigGet"){
+    irrigSendConfig();
+    irrigSendStatus();
+  }
   else {
     WebSerial.send("message","Unknown Config type");
   }
@@ -992,16 +1376,35 @@ void handleCommand(JSONVar obj){
   if (act=="reset"||act=="reboot"){
     bool ok=saveConfigFS();
     WebSerial.send("message", ok ? "Saved. Rebooting…" : "WARNING: Save verify FAILED. Rebooting anyway…");
+    irrigSave();
     delay(400); performReset(); return;
   }
-  if (act=="save"){ if (saveConfigFS()) WebSerial.send("message","Configuration saved"); else WebSerial.send("message","ERROR: Save failed"); return; }
+  if (act=="save"){ if (saveConfigFS()) WebSerial.send("message","Configuration saved"); else WebSerial.send("message","ERROR: Save failed"); irrigSave(); return; }
   if (act=="load"){ if (loadConfigFS()){ WebSerial.send("message","Configuration loaded"); sendAllEchoesOnce(); applyModbusSettings(g_mb_address,g_mb_baud); }
                     else WebSerial.send("message","ERROR: Load failed/invalid"); return; }
   if (act=="factory"){
-    setDefaults(); if (saveConfigFS()){ WebSerial.send("message","Factory defaults restored & saved"); sendAllEchoesOnce(); applyModbusSettings(g_mb_address,g_mb_baud); }
-    else WebSerial.send("message","ERROR: Save after factory reset failed"); return;
+    setDefaults(); saveConfigFS();
+    irrigDefault(); irrigSave();
+    WebSerial.send("message","Factory defaults restored & saved");
+    sendAllEchoesOnce(); applyModbusSettings(g_mb_address,g_mb_baud);
+    return;
   }
   if (act=="scan"||act=="scan1wire"||act=="scan_1wire"||act=="scan1w"){ doOneWireScan(); return; }
+
+  // ==== NEW: set current time (minute-of-day)
+  if (act=="set_time"){
+    int mod = -1;
+    if (obj.hasOwnProperty("minuteOfDay")) mod = (int)obj["minuteOfDay"];
+    if (mod>=0 && mod<1440){
+      g_minuteOfDay = (uint16_t)mod;
+      g_secondsAcc  = 0;
+      mb.setHreg(HREG_TIME_MINUTE, g_minuteOfDay);
+      WebSerial.send("message", String("time: minuteOfDay set to ")+String(mod));
+    } else {
+      WebSerial.send("message","time: missing/invalid 'minuteOfDay' (0..1439)");
+    }
+    return;
+  }
 
   if (act=="flow_calculate"){
     int di = -1;
@@ -1010,7 +1413,6 @@ void handleCommand(JSONVar obj){
     else if (obj.hasOwnProperty("index")) di = (int)obj["index"];
     if (di >= 1 && di <= (int)NUM_DI) di -= 1;
     if (di < 0 || di >= (int)NUM_DI) { WebSerial.send("message","flow_calculate: invalid 'di'"); return; }
-
     double extLit = 0.0;
     if (!jsonGetDouble(obj,"external", extLit) &&
         !jsonGetDouble(obj,"external_liters", extLit) &&
@@ -1018,17 +1420,13 @@ void handleCommand(JSONVar obj){
       WebSerial.send("message","flow_calculate: missing 'external' liters"); return;
     }
     if (extLit <= 0.0) { WebSerial.send("message","flow_calculate: external must be > 0"); return; }
-
     uint32_t ppl = flowPulsesPerL[di] ? flowPulsesPerL[di] : 1;
     uint32_t pulses_since = (diCounter[di] >= flowCounterBase[di]) ? (diCounter[di] - flowCounterBase[di]) : 0;
     if (pulses_since == 0) { WebSerial.send("message","flow_calculate: no pulses in current window (reset total, run flow)"); return; }
-
     double liters_no_cal = (double)pulses_since / (double)ppl;
     double newCal = extLit / liters_no_cal;
-
     flowCalibAccum[di] = (float)((newCal>0.0)?newCal:1.0);
     cfgDirty = true; lastCfgTouchMs = millis();
-
     String msg; msg.reserve(128);
     msg += "flow_calculate: DI"; msg += String(di+1);
     msg += " pulses_since="; msg += String(pulses_since);
@@ -1060,6 +1458,37 @@ void handleCommand(JSONVar obj){
     if (di>=1 && di<=NUM_DI) di-=1;
     if (di>=0 && di<NUM_DI){ heatEnergyJ[di]=0.0; WebSerial.send("message", String("heat_reset: DI")+String(di+1)); }
     else WebSerial.send("message","heat_reset: invalid 'di'");
+    return;
+  }
+
+  // -------- IRRIGATION COMMANDS --------
+  if (act=="irrig_start"){
+    int z = -1; if (obj.hasOwnProperty("zone")) z=(int)obj["zone"];
+    if (z>=1 && z<=NUM_RLY) z-=1;
+    if (z<0 || z>=NUM_RLY){ WebSerial.send("message","irrig_start: invalid zone"); return; }
+    double litersOverride=0.0; jsonGetDouble(obj,"liters", litersOverride);
+    irrigStartZone(z, litersOverride);
+    irrigSendStatus();
+    return;
+  }
+  if (act=="irrig_stop"){
+    int z = -1; if (obj.hasOwnProperty("zone")) z=(int)obj["zone"];
+    if (z>=1 && z<=NUM_RLY) z-=1;
+    if (z<0 || z>=NUM_RLY){ WebSerial.send("message","irrig_stop: invalid zone"); return; }
+    irrigStopZone(z,"user");
+    irrigSendStatus();
+    return;
+  }
+  if (act=="irrig_reset"){
+    int z = -1; if (obj.hasOwnProperty("zone")) z=(int)obj["zone"];
+    if (z>=1 && z<=NUM_RLY) z-=1;
+    if (z<0 || z>=NUM_RLY){ WebSerial.send("message","irrig_reset: invalid zone"); return; }
+    g_irrig[z].state=IRR_STATE_IDLE;
+    g_irrig[z].secondsInState=0;
+    g_irrig[z].litersDone=0.0;
+    if (isValidR(g_irrig[z].rpump) && pumpRefCount[g_irrig[z].rpump-1]>0) pumpRefCount[g_irrig[z].rpump-1]--;
+    irrigDemand[(g_irrig[z].relay>=1 && g_irrig[z].relay<=NUM_RLY)?(g_irrig[z].relay-1):0]=false;
+    irrigSendStatus();
     return;
   }
 
@@ -1096,7 +1525,7 @@ void handleOneWire(JSONVar obj){
   }
 }
 
-// ================== Modbus pulses ==================
+// ================== Modbus pulses / time pulse ==================
 void processModbusCommandPulses(){
   for(int r=0;r<NUM_RLY;r++){
     if (mb.Coil(CMD_RLY_ON_BASE+r))  { mb.setCoil(CMD_RLY_ON_BASE+r,false); desiredRelay[r]=true;  rlyPulseUntil[r]=0; cfgDirty=true; lastCfgTouchMs=millis(); }
@@ -1110,6 +1539,16 @@ void processModbusCommandPulses(){
     if (mb.Coil(CMD_CNT_RST_BASE+i)) { mb.setCoil(CMD_CNT_RST_BASE+i,false);
       diCounter[i]=0; diLastEdgeMs[i]=millis(); lastPulseSnapshot[i]=0; flowCounterBase[i]=0;
     }
+  }
+  // NEW: midnight pulse from HA
+  if (mb.Coil(CMD_TIME_MIDNIGHT)){
+    mb.setCoil(CMD_TIME_MIDNIGHT,false);
+    g_minuteOfDay = 0;
+    g_secondsAcc  = 0;
+    g_dayIndex++;
+    mb.setHreg(HREG_TIME_MINUTE, g_minuteOfDay);
+    mb.setHreg(HREG_DAY_INDEX,   g_dayIndex);
+    WebSerial.send("message","time: midnight pulse");
   }
 }
 void applyActionToTarget(uint8_t tgt, uint8_t action, uint32_t now){
@@ -1131,6 +1570,10 @@ void loop(){
     else WebSerial.send("message","ERROR: Save failed");
     cfgDirty=false;
   }
+
+  // ===== module time tick (1s->minutes)
+  // g_secondsAcc increased in 1s tick section (below)
+  // HREGs mirrored in send section
 
   JSONVar inputs; JSONVar counters;
   for (int i=0;i<NUM_DI;i++){
@@ -1165,18 +1608,31 @@ void loop(){
   }
 
   JSONVar relayStateList;
+  // compute relay state = desiredRelay OR irrigDemand OR pumpDemand, then invert/enable
   for (int i=0;i<NUM_RLY;i++){
-    bool outVal=desiredRelay[i]; if(!rlyCfg[i].enabled) outVal=false; if(rlyCfg[i].inverted) outVal=!outVal;
+    bool pumpDemand = (pumpRefCount[i] > 0);
+    bool combined = desiredRelay[i] || irrigDemand[i] || pumpDemand;
+    bool outVal=combined; if(!rlyCfg[i].enabled) outVal=false; if(rlyCfg[i].inverted) outVal=!outVal;
     digitalWrite(RELAY_PINS[i], outVal?HIGH:LOW);
     relayStateList[i]=outVal; mb.setIsts(ISTS_RLY_BASE+i,outVal);
     if (rlyPulseUntil[i] && timeAfter32(now, rlyPulseUntil[i])){ desiredRelay[i]=false; rlyPulseUntil[i]=0; cfgDirty=true; lastCfgTouchMs=now; }
   }
 
-  // ===== 1-Wire schedule: Convert then Read+Cache =====
+  // ===== 1s tick =====
   if (timeAfter32(now, nextRateTickMs)) {
     uint32_t dt_ms = 1000;
     nextRateTickMs = now + 1000;
 
+    // Time progression
+    g_secondsAcc += 1;
+    if (g_secondsAcc >= 60){
+      g_secondsAcc -= 60;
+      if (++g_minuteOfDay >= 1440){ g_minuteOfDay = 0; g_dayIndex++; }
+      mb.setHreg(HREG_TIME_MINUTE, g_minuteOfDay);
+      mb.setHreg(HREG_DAY_INDEX,   g_dayIndex);
+    }
+
+    // OneWire convert / read / cache
     if (!oneWireBusy) {
       ds18b20StartConvertAll();
       oneWireBusy = true;
@@ -1226,6 +1682,9 @@ void loop(){
       }
       heatDT[i]=dT; heatPowerW[i]=P;
     }
+
+    // Irrigation tick (after flow rates updated)
+    irrigTick1s();
   }
 
   if (millis()-lastSend>=sendInterval){
@@ -1264,7 +1723,6 @@ void loop(){
       heatAddrAList[i]= (heatAddrA[i] ? hex64(heatAddrA[i]) : "");
       heatAddrBList[i]= (heatAddrB[i] ? hex64(heatAddrB[i]) : "");
 
-      // Positions (1-based; 0 if not found)
       heatAddrAPosList[i] = (double)owdbPosOf(heatAddrA[i]);
       heatAddrBPosList[i] = (double)owdbPosOf(heatAddrB[i]);
 
@@ -1306,8 +1764,8 @@ void loop(){
     WebSerial.send("heatEnabledList",   heatEnabledList);
     WebSerial.send("heatAddrAList",     heatAddrAList);
     WebSerial.send("heatAddrBList",     heatAddrBList);
-    WebSerial.send("heatAddrAPosList",  heatAddrAPosList);  // NEW
-    WebSerial.send("heatAddrBPosList",  heatAddrBPosList);  // NEW
+    WebSerial.send("heatAddrAPosList",  heatAddrAPosList);
+    WebSerial.send("heatAddrBPosList",  heatAddrBPosList);
     WebSerial.send("heatCpList",        heatCpList);
     WebSerial.send("heatRhoList",       heatRhoList);
     WebSerial.send("heatCalibList",     heatCalibList);
@@ -1321,6 +1779,13 @@ void loop(){
     WebSerial.send("relayStateList", relayStateList);
     WebSerial.send("relayEnableList", relayEnableList);
     WebSerial.send("relayInvertList", relayInvertList);
+
+    // irrigation live
+    irrigSendStatus();
+
+    // NEW: also broadcast time
+    JSONVar timeObj; timeObj["minuteOfDay"]=(double)g_minuteOfDay; timeObj["dayIndex"]=(double)g_dayIndex;
+    WebSerial.send("timeStatus", timeObj);
 
     owdbSendList();
   }
@@ -1373,7 +1838,6 @@ void sendAllEchoesOnce(){
     heatAddrAList[i]= (heatAddrA[i] ? hex64(heatAddrA[i]) : "");
     heatAddrBList[i]= (heatAddrB[i] ? hex64(heatAddrB[i]) : "");
 
-    // Positions (1-based; 0 if not found)
     heatAddrAPosList[i] = (double)owdbPosOf(heatAddrA[i]);
     heatAddrBPosList[i] = (double)owdbPosOf(heatAddrB[i]);
 
@@ -1391,8 +1855,8 @@ void sendAllEchoesOnce(){
   WebSerial.send("heatEnabledList",   heatEnabledList);
   WebSerial.send("heatAddrAList",     heatAddrAList);
   WebSerial.send("heatAddrBList",     heatAddrBList);
-  WebSerial.send("heatAddrAPosList",  heatAddrAPosList); // NEW
-  WebSerial.send("heatAddrBPosList",  heatAddrBPosList); // NEW
+  WebSerial.send("heatAddrAPosList",  heatAddrAPosList);
+  WebSerial.send("heatAddrBPosList",  heatAddrBPosList);
   WebSerial.send("heatCpList", heatCpList);
   WebSerial.send("heatRhoList", heatRhoList);
   WebSerial.send("heatCalibList", heatCalibList);
@@ -1402,6 +1866,13 @@ void sendAllEchoesOnce(){
   WebSerial.send("heatPowerList", heatPowerList);
   WebSerial.send("heatEnergyJList", heatEnergyJList);
   WebSerial.send("heatEnergyKWhList", heatEnergyKWhList);
+
+  irrigSendConfig();
+  irrigSendStatus();
+
+  // NEW: broadcast time once
+  JSONVar timeObj; timeObj["minuteOfDay"]=(double)g_minuteOfDay; timeObj["dayIndex"]=(double)g_dayIndex;
+  WebSerial.send("timeStatus", timeObj);
 
   {
     JSONVar owTemps, owErrs;
