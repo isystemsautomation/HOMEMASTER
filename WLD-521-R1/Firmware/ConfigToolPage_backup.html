@@ -1,0 +1,362 @@
+<section style="font-family:'Segoe UI',sans-serif;padding:2rem;max-width:960px;margin:auto;">
+  <style>
+    .hm-input{padding:6px 8px;border:1px solid #ccc;border-radius:4px;width:100%;box-sizing:border-box}
+    .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:.75rem;background:#e9ecef}
+    .ow-row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;padding:.45rem .3rem;border-bottom:1px dashed #e5e5e5}
+    .ow-rom{min-width:230px;display:inline-block}
+    #log-box{margin-bottom:1.25rem;padding:1rem;background:#f9f9f9;border:1px solid #ccc;border-radius:6px;font-size:0.9rem;color:#333;}
+    #log-content{white-space:pre-wrap;font-family:monospace;line-height:1.25em;margin:0;margin-top:.5rem;height:calc(1.25em * 8);overflow-y:auto;background:#fff;border:1px solid #e5e5e5;border-radius:4px;padding:.5rem;}
+  </style>
+
+  <div style="text-align:center;margin-bottom:1.5rem;">
+    <img src="https://www.home-master.eu/web/image/product.image/14/image_1024/Untitled-2.webp?unique=1d6564f" alt="WLD-521-R1" style="max-width:260px;border-radius:8px;" loading="lazy">
+    <h2 style="margin:.5rem 0 0;">WLD-521-R1 Module Configuration</h2>
+    <p style="margin:.25rem 0 0;color:#333;">Configure Modbus, Inputs (5), Relays (2), run 1-Wire scan, and monitor live state via Web Serial.</p>
+  </div>
+
+  <div style="background:#f1f1f1;padding:1rem 1.25rem;margin-bottom:1rem;border-radius:6px;border-left:4px solid #007bff;">
+    <strong>Active Modbus Configuration</strong><br>
+    Address: <span id="live-address" style="font-weight:600;">--</span> |
+    Baud Rate: <span id="live-baud" style="font-weight:600;">--</span>
+  </div>
+
+  <form id="modbus-config" style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:.75rem;">
+    <div><label><strong>Modbus Address</strong></label><select id="modbus-address" class="hm-input"></select></div>
+    <div>
+      <label><strong>Baud Rate</strong></label>
+      <select id="modbus-baud" class="hm-input">
+        <option>9600</option><option selected="">19200</option><option>38400</option><option>57600</option><option>115200</option>
+      </select>
+    </div>
+    <div style="grid-column:span 2;display:flex;justify-content:flex-end;gap:.5rem;">
+      <button id="connect-button" type="button" style="padding:10px 20px;background:#007bff;color:#fff;border:none;border-radius:4px;">Connect</button>
+      <button id="reset-button" type="button" style="padding:10px 20px;background:#dc3545;color:#fff;border:none;border-radius:4px;" disabled="">Reset Device</button>
+    </div>
+  </form>
+
+  <dialog id="reset-dialog" style="border:none;border-radius:10px;padding:0;max-width:420px;width:90%;box-shadow:0 10px 30px rgba(0,0,0,.2);">
+    <form method="dialog" style="padding:1rem 1.25rem;">
+      <h3 style="margin:.25rem 0 .5rem;">Confirm reset</h3>
+      <p style="margin:.25rem 0 1rem;color:#444;">Are you sure you want to reset the module? The serial connection will be temporarily interrupted.</p>
+      <div style="display:flex;justify-content:flex-end;gap:.5rem;">
+        <button id="dlg-cancel" value="cancel" style="padding:.5rem .9rem;border-radius:6px;border:1px solid #ccc;background:#fff;">Cancel</button>
+        <button id="dlg-confirm" value="confirm" style="padding:.5rem .9rem;border:none;border-radius:6px;background:#dc3545;color:#fff;">Reset</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="log-box">
+    <strong>Serial Log:</strong>
+    <pre id="log-content"></pre>
+  </div>
+
+  <section style="margin-bottom:1.25rem;">
+    <h2 style="font-size:1.2rem;margin-bottom:.5rem;">1-Wire (GPIO16) Devices</h2>
+    <div style="display:flex;align-items:center;gap:.5rem;margin:.25rem 0 1rem;">
+      <button id="scan-button" type="button" style="padding:8px 14px;background:#17a2b8;color:#fff;border:none;border-radius:4px;" disabled="">Scan 1-Wire</button>
+      <span id="scan-status" style="color:#555;">Not scanned yet.</span>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr;gap:1rem;">
+      <div>
+        <div style="font-weight:600;margin-bottom:.35rem;">Discovered devices</div>
+        <div id="ow-discovered" style="border:1px solid #ccc;border-radius:6px;padding:.75rem;background:#fafafa;">
+          <em>Click “Scan 1-Wire” to list devices.</em>
+        </div>
+      </div>
+
+      <div>
+        <div style="font-weight:600;margin-bottom:.35rem;">Stored sensors (flash)</div>
+        <div id="ow-stored" style="border:1px solid #ccc;border-radius:6px;padding:.75rem;background:#fff;">
+          <em>Waiting for device list…</em>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section style="margin-bottom:1.25rem;">
+    <h2 style="font-size:1.2rem;">Digital Inputs (5)</h2>
+    <div id="inputs-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem;"></div>
+  </section>
+
+  <section style="margin-bottom:1.25rem;">
+    <h2 style="font-size:1.2rem;">Relays (2)</h2>
+    <div id="relays-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;"></div>
+  </section>
+
+  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
+  <script>
+  (function(){
+    const $ = id => document.getElementById(id);
+    const toArray = x => (Array.isArray(x) ? x : (x && typeof x==='object' ? Object.keys(x).sort((a,b)=>(+a)-(+b)).map(k=>x[k]) : []));
+    const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+
+    // ===== Log =====
+    const LOG_MAX=400, buf=[];
+    function log(label,data){
+      const el=$('log-content'); if(!el) return;
+      const t=new Date().toLocaleTimeString();
+      const body=(typeof data==='string')?data:JSON.stringify(data);
+      buf.push(`[${t}] ${label}: ${body}`); if(buf.length>LOG_MAX) buf.shift();
+      el.textContent=buf.join('\n'); el.scrollTop=el.scrollHeight;
+    }
+    window.addEventListener('error', e=>log('JS Error', e.message||e));
+
+    // ===== Populate Modbus addresses =====
+    (function(){
+      const sel=$('modbus-address'); if(!sel) return;
+      for(let i=1;i<=255;i++){ const o=document.createElement('option'); o.value=i; o.textContent=i; sel.appendChild(o); }
+      sel.value='3';
+    })();
+
+    // ===== Serial =====
+    let conn;
+    try{
+      conn = SimpleWebSerial.setupSerialConnection({ requestAccessOnPageLoad:false, requestElement:'connect-button' });
+    }catch(e){
+      log('Error','SimpleWebSerial init failed: '+(e?.message||e));
+      conn = { on:()=>{}, isOpen:()=>false, send:()=>Promise.reject(new Error('SWS not ready')) };
+    }
+    const isOpen = ()=>{ try{ return (typeof conn.isOpen==='function') ? conn.isOpen() : !!conn.port; }catch{ return false; } };
+    function updateButtons(){ const en=isOpen(); $('reset-button').disabled=!en; $('scan-button').disabled=!en; }
+
+    if(conn.on){
+      conn.on('open', ()=>{ log('port','open'); updateButtons(); conn.send('onewire',{action:'list'}).catch(()=>{}); });
+      conn.on('close',()=>{ log('port','close'); updateButtons(); });
+      conn.on('message', m=>log('log', m));
+      conn.on('status',  st=>{
+        $('live-address').textContent = (st&&st.address!=null)?st.address:'--';
+        $('live-baud').textContent    = (st&&st.baud!=null)?st.baud:'--';
+        if(st&&st.address!=null) $('modbus-address').value=String(st.address);
+        if(st&&st.baud!=null)    $('modbus-baud').value   =String(st.baud);
+        updateButtons();
+      });
+    }
+
+    // ===== Modbus push on change =====
+    function pushModbus(){
+      const mb_address=parseInt($('modbus-address')?.value||'3',10);
+      const mb_baud   =parseInt($('modbus-baud')?.value||'19200',10);
+      conn.send('values',{mb_address,mb_baud}).then(()=>log('values',{mb_address,mb_baud}))
+        .catch(()=>log('Error','Failed to send Modbus values'));
+    }
+    $('modbus-address')?.addEventListener('input', pushModbus);
+    $('modbus-baud')?.addEventListener('input',    pushModbus);
+
+    // ===== Reset dialog =====
+    (function(){
+      const dlg=$('reset-dialog'), btn=$('reset-button'), cancel=$('dlg-cancel'), ok=$('dlg-confirm');
+      function doReset(){
+        conn.send('command',{action:'reset'}).then(()=>{ log('System','Reset command sent'); btn.disabled=true; setTimeout(updateButtons,2500); })
+          .catch(err=>log('Error','Reset failed: '+(err?.message||err)));
+      }
+      btn?.addEventListener('click', ()=>{
+        if(btn.disabled){ log('System','Connect first.'); return; }
+        if(dlg&&dlg.showModal){ if(!dlg.open) dlg.showModal(); } else if(confirm('Reset device now?')) doReset();
+      });
+      cancel?.addEventListener('click', e=>{ e.preventDefault(); dlg?.close('cancel'); });
+      ok?.addEventListener('click',     e=>{ e.preventDefault(); dlg?.close('confirm'); doReset(); });
+      dlg?.addEventListener('click', ev=>{
+        const r=dlg.getBoundingClientRect(); const inside = ev.clientX>=r.left && ev.clientX<=r.right && ev.clientY>=r.top && ev.clientY<=r.bottom;
+        if(!inside && dlg.open) dlg.close('backdrop');
+      });
+    })();
+
+    // ===== 1-Wire UI =====
+    const scanBtn=$('scan-button'), scanStatus=$('scan-status');
+    const owDisc=$('ow-discovered'), owStore=$('ow-stored');
+
+    function romHexToU64Dec(hex){
+      try{
+        let s=String(hex||'').trim();
+        if(s.startsWith('0x')||s.startsWith('0X')) s=s.slice(2);
+        if(!s) return '0';
+        return (BigInt('0x'+s)).toString(10);   // decimal string
+      }catch{ return '0'; }
+    }
+
+    function renderDiscovered(list){
+      if(!owDisc) return;
+      const a=toArray(list);
+      if(!a.length){ owDisc.innerHTML='<em>No devices found.</em>'; return; }
+      let html='';
+      for(const rom of a){
+        const s=String(rom||'');
+        const isTest=(s==='0x0000000000000001'||s==='0x0000000000000002');
+        html += `
+          <div class="ow-row" data-rom="${esc(s)}">
+            <code class="ow-rom">${esc(s)}</code>
+            ${isTest?'<span class="pill" title="Added by firmware for testing">test</span>':''}
+            <input type="text" class="ow-name hm-input" placeholder="Name…" style="flex:1;min-width:180px;">
+            <button type="button" class="ow-add" style="padding:6px 10px;border:none;border-radius:4px;background:#28a745;color:#fff;">Add</button>
+          </div>`;
+      }
+      owDisc.innerHTML=html;
+    }
+
+    function renderStored(payload){
+      if(!owStore) return;
+      const arr=toArray(payload);
+      if(!arr.length){ owStore.innerHTML='<em>No sensors stored.</em>'; return; }
+      let html='';
+      for(const rec of arr){
+        const addr=esc(rec?.addr ?? '');
+        const name=(rec?.name)?esc(rec.name):'<em style="color:#777">(no name)</em>';
+        html += `
+          <div class="ow-row" data-rom="${addr}">
+            <code class="ow-rom">${addr}</code>
+            <span style="flex:1;min-width:120px;">${name}</span>
+            <button type="button" class="ow-remove" style="padding:6px 10px;border:1px solid #dc3545;border-radius:4px;background:#fff;color:#dc3545;">Remove</button>
+          </div>`;
+      }
+      owStore.innerHTML=html;
+    }
+
+    // Add discovered
+    owDisc?.addEventListener('click', ev=>{
+      const btn=ev.target.closest('.ow-add'); if(!btn) return;
+      if(!isOpen()){ log('System','Connect first.'); return; }
+      const row=btn.closest('.ow-row'); if(!row) return;
+      const romHex=row.getAttribute('data-rom')||'';
+      const name=(row.querySelector('.ow-name')?.value||'').trim();
+      if(!name){ alert('Please enter a name'); row.querySelector('.ow-name')?.focus(); return; }
+      const u64 = romHexToU64Dec(romHex);
+      btn.disabled=true;
+      conn.send('onewire', { action:'add', addr:romHex, rom_hex:romHex, addr_u64:u64, name })
+        .then(()=>log('1-Wire',`Added ${romHex} as "${name}"`))
+        .catch(err=>log('Error','Add failed: '+(err?.message||err)))
+        .finally(()=>{ btn.disabled=!isOpen(); });
+    });
+
+    // Remove stored
+    owStore?.addEventListener('click', ev=>{
+      const btn=ev.target.closest('.ow-remove'); if(!btn) return;
+      if(!isOpen()){ log('System','Connect first.'); return; }
+      const row=btn.closest('.ow-row'); if(!row) return;
+      const addr=row.getAttribute('data-rom')||'';
+      if(!confirm(`Remove ${addr} from stored sensors?`)) return;
+      btn.disabled=true;
+      const u64 = romHexToU64Dec(addr);
+      conn.send('onewire', { action:'remove', addr, rom_hex:addr, addr_u64:u64 })
+        .then(()=>log('1-Wire',`Removed ${addr}`))
+        .catch(err=>log('Error','Remove failed: '+(err?.message||err)))
+        .finally(()=>{ btn.disabled=!isOpen(); });
+    });
+
+    // Scan
+    scanBtn?.addEventListener('click', ()=>{
+      if(!isOpen()){ log('System','Connect first.'); return; }
+      if(scanStatus) scanStatus.textContent='Scanning...';
+      scanBtn.disabled=true;
+      conn.send('command',{action:'scan'})
+        .catch(err=>{ log('Error','Scan failed: '+(err?.message||err)); if(scanStatus) scanStatus.textContent='Scan failed.'; })
+        .finally(()=>{ scanBtn.disabled=!isOpen(); });
+    });
+
+    // Incoming
+    if(conn.on){
+      conn.on('onewireScan', list=>{
+        const a=toArray(list);
+        renderDiscovered(a);
+        const tests=a.filter(s=>s==='0x0000000000000001'||s==='0x0000000000000002').length;
+        if(scanStatus) scanStatus.textContent = `Found ${a.length} device(s)` + (tests?` — ${tests} test`:'');
+      });
+      // quiet (no log spam)
+      conn.on('onewireDb', payload=>{ renderStored(payload); });
+    }
+
+    // ===== Build Inputs UI =====
+    (function(){
+      const c=$('inputs-config'); if(!c) return;
+      const ACTIONS=[{v:0,l:'None'},{v:1,l:'Toggle'},{v:2,l:'Pulse'}];
+      const TARGETS=[{v:4,l:'None'},{v:0,l:'Control all'},{v:1,l:'Control relay 1'},{v:2,l:'Control relay 2'}];
+      const TYPES  =[{v:0,l:'Water sensor'},{v:1,l:'Humidity sensor'},{v:2,l:'Water counter'}];
+      const opts=a=>a.map(x=>`<option value="${x.v}">${x.l}</option>`).join('');
+      const actionOpts=opts(ACTIONS), targetOpts=opts(TARGETS), typeOpts=opts(TYPES);
+      for(let i=1;i<=5;i++){
+        const d=document.createElement('div');
+        d.innerHTML = `
+          <div style="border:1px solid #ccc;border-radius:6px;background:#e6f7e8;padding:1rem;">
+            <div style="display:flex;justify-content:space-between;align-items:center;font-weight:600;margin-bottom:.25rem;">
+              IN${i}<span id="state-in${i}" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;"></span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;">
+              <label><input type="checkbox" id="enable-in${i}"> Enabled</label>
+              <label><input type="checkbox" id="invert-in${i}"> Inverted</label>
+            </div>
+            <label style="display:block;margin-top:.5rem;">Type:
+              <select id="type-in${i}" class="hm-input">${typeOpts}</select>
+            </label>
+            <div id="counter-box-${i}" style="display:none;margin-top:.5rem;background:#fff;padding:.5rem;border:1px dashed #9ad09a;border-radius:6px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span>Counter: <strong id="counter-in${i}">0</strong></span>
+                <button type="button" id="resetcnt-in${i}" style="padding:4px 10px;border:1px solid #28a745;border-radius:4px;background:#eaffea;">Reset</button>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-top:.5rem;">
+              <label>Action: <select id="action-in${i}" class="hm-input">${actionOpts}</select></label>
+              <label>Control target: <select id="target-in${i}" class="hm-input">${targetOpts}</select></label>
+            </div>
+            <small style="color:#3a7;">For "Water counter" action/target are ignored; input counts rising edges.</small>
+          </div>`;
+        c.appendChild(d);
+      }
+    })();
+
+    // ===== Build Relays UI =====
+    (function(){
+      const c=$('relays-config'); if(!c) return;
+      for(let i=1;i<=2;i++){
+        const d=document.createElement('div');
+        d.innerHTML = `
+          <div style="border:1px solid #ccc;border-radius:6px;background:#f1f1f1;padding:1rem;">
+            <div style="font-weight:600;">Relay ${i}
+              <span style="float:right;"><input type="checkbox" id="state-relay${i}" disabled></span>
+            </div>
+            <label><input type="checkbox" id="enable-relay${i}"> Enabled</label><br>
+            <label><input type="checkbox" id="invert-relay${i}"> Inverted</label>
+          </div>`;
+        c.appendChild(d);
+      }
+    })();
+
+    // ===== RECEIVE: Inputs/Relays =====
+    if(conn.on){
+      conn.on('inputs',          list=>toArray(list).forEach((v,i)=>{ const d=$('state-in'+(i+1)); if(d) d.style.background=v?'#4caf50':'#ccc'; }));
+      conn.on('enableList',      list=>toArray(list).forEach((v,i)=>{ const el=$('enable-in'+(i+1)); if(el) el.checked=!!v; }));
+      conn.on('invertList',      list=>toArray(list).forEach((v,i)=>{ const el=$('invert-in'+(i+1)); if(el) el.checked=!!v; }));
+      conn.on('inputActionList', list=>toArray(list).forEach((v,i)=>{ const el=$('action-in'+(i+1)); if(el) el.value=String(v??0); }));
+      conn.on('inputTargetList', list=>toArray(list).forEach((v,i)=>{ const el=$('target-in'+(i+1)); if(el) el.value=String(typeof v==='number'?v:0); }));
+      conn.on('inputTypeList',   list=>{
+        toArray(list).forEach((v,i)=>{ const el=$('type-in'+(i+1)); if(el) el.value=String(typeof v==='number'?v:0); });
+        for(let i=1;i<=5;i++){ const ts=$('type-in'+i), box=$('counter-box-'+i); if(ts&&box) box.style.display=(parseInt(ts.value,10)===2)?'block':'none'; }
+      });
+      conn.on('counterList',     list=>toArray(list).forEach((v,i)=>{ const el=$('counter-in'+(i+1)); if(el) el.textContent=(typeof v==='number')?Math.floor(v):'0'; }));
+      conn.on('relayStateList',  list=>toArray(list).forEach((v,i)=>{ const el=$('state-relay'+(i+1)); if(el) el.checked=!!v; }));
+      conn.on('relayEnableList', list=>toArray(list).forEach((v,i)=>{ const el=$('enable-relay'+(i+1)); if(el) el.checked=!!v; }));
+      conn.on('relayInvertList', list=>toArray(list).forEach((v,i)=>{ const el=$('invert-relay'+(i+1)); if(el) el.checked=!!v; }));
+    }
+
+    // ===== SEND: Inputs/Relays =====
+    function sendInputEnable(){ const l=[]; for(let i=1;i<=5;i++) l.push(!!$('enable-in'+i).checked); conn.send('Config',{t:'inputEnable',list:l}); }
+    function sendInputInvert(){ const l=[]; for(let i=1;i<=5;i++) l.push(!!$('invert-in'+i).checked); conn.send('Config',{t:'inputInvert',list:l}); }
+    function sendInputAction(){ const l=[]; for(let i=1;i<=5;i++) l.push(parseInt($('action-in'+i).value||'0',10)); conn.send('Config',{t:'inputAction',list:l}); }
+    function sendInputTarget(){ const l=[]; for(let i=1;i<=5;i++) l.push(parseInt($('target-in'+i).value||'0',10)); conn.send('Config',{t:'inputTarget',list:l}); }
+    function sendInputType(){   const l=[]; for(let i=1;i<=5;i++) l.push(parseInt($('type-in'+i).value||'0',10)); conn.send('Config',{t:'inputType',list:l});
+                                 for(let i=1;i<=5;i++){ const ts=$('type-in'+i), box=$('counter-box-'+i); if(ts&&box) box.style.display=(parseInt(ts.value,10)===2)?'block':'none'; } }
+    function resetSingleCounter(n){ const l=[]; for(let i=1;i<=5;i++) l.push(i===n); conn.send('Config',{t:'counterResetList',list:l}); }
+    for(let i=1;i<=5;i++){
+      $('enable-in'+i)?.addEventListener('change', sendInputEnable);
+      $('invert-in'+i)?.addEventListener('change', sendInputInvert);
+      $('action-in'+i)?.addEventListener('change', sendInputAction);
+      $('target-in'+i)?.addEventListener('change', sendInputTarget);
+      $('type-in'+i)?.addEventListener('change',   sendInputType);
+      $('resetcnt-in'+i)?.addEventListener('click', ((n)=>()=>resetSingleCounter(n))(i));
+    }
+    function sendRelayCfg(){ const l=[]; for(let i=1;i<=2;i++) l.push({enabled:$('enable-relay'+i).checked, inverted:$('invert-relay'+i).checked}); conn.send('Config',{t:'relays',list:l}); }
+    for(let i=1;i<=2;i++){ $('enable-relay'+i)?.addEventListener('change', sendRelayCfg); $('invert-relay'+i)?.addEventListener('change', sendRelayCfg); }
+
+    updateButtons();
+  })();
+  </script>
+</section>
