@@ -97,7 +97,7 @@ The WLD-521-R1 is a highly specialized Industrial I/O module designed primarily 
 The WLD-521-R1 is engineered as an **intelligent expansion module** for the **HomeMaster MicroPLC/MiniPLC Modular Smart Control System**. 
 ### MiniPLC / MicroPLC (via Modbus RTU)
 
-| Feature | Specification | Source |
+| Feature | Specification |
 | :--- | :--- | :--- |
 | **Controller Role** | The module operates as a **Modbus Slave**. The MiniPLC/MicroPLC acts as the **Modbus Master** for network and system logic management. |
 | **Communication** | **Modbus RTU (Serial)** protocol. |
