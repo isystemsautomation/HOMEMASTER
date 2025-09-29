@@ -18,9 +18,9 @@ The **WLD-521-R1** is a smart and reliable input/control module designed for **l
 - [1.3 Use Cases]  
 
 ### 2. [Safety Information](#2-safety-information)
-- [2.1 General Electrical Safety](#21-general-electrical-safety)  
-- [2.2 Handling & Installation](#22-handling--installation)  
-- [2.3 Device-Specific Warnings](#23-device-specific-warnings)  
+- [2.1 General Electrical Safety] 
+- [2.2 Handling & Installation] 
+- [2.3 Device-Specific Warnings]
 
 ### 3. [System Overview](#3-system-overview)
 - [3.1 Architecture & Modular Design](#31-architecture--modular-design)  
@@ -78,7 +78,7 @@ The **WLD-521-R1** is a smart and reliable input/control module designed for **l
 ### 17. [ESPHome Integration Guide (MicroPLC/MiniPLC + ENM)](#17-esphome-integration-guide-microplcminiplc--enm)
 
 ---
-### 1. [Introduction]
+# 1. [Introduction]
 ## 1.1 Overview of the WLD-521-R1 Module 💧
 
 The WLD-521-R1 is a highly specialized I/O module designed primarily for **Water Flow, Heat Energy (Calorimetry), and Irrigation/Leak Detection** applications. It functions as an intelligent Modbus slave device that processes local sensor data and executes commands from a master controller.
@@ -134,6 +134,35 @@ Below are practical ways to deploy the **WLD-521-R1** with the HomeMaster Mini/M
 - **Goal:** Track instantaneous heat power and energy per loop.
 - **How:** For a DI configured as **Water counter**, open its **Heat** panel and enable **Heat**. Assign **Sensor A (supply)** and **Sensor B (return)** from stored **1-Wire** devices, then set **cp (J/kg·°C)**, **ρ (kg/L)**, and **Calibration (×)** as needed. The UI shows **TA**, **TB**, **ΔT**, **Power (W)**, **Energy (J / kWh)**. Use **Reset energy** to zero totals; manage sensors from **1-Wire** (scan, name, view live temperatures).
 
+# 2. Safety Information
+
+This section outlines essential safety guidelines. Failure to adhere to these warnings may result in equipment damage, system failure, or personal injury.
+
+## 2.1 General Electrical Safety
+
+| Warning | Requirement |
+| :--- | :--- |
+| **Professional Service** | Installation and maintenance must be performed exclusively by **qualified personnel** familiar with electrical codes. |
+| **Power Isolation** | **ALWAYS** disconnect the primary **24VDC** power supply and all connected loads before performing any wiring, installation, or maintenance. |
+| **Voltage Verification** | Ensure the power source strictly adheres to the **24VDC** primary supply voltage. |
+| **Grounding** | Ensure all field wiring and system components are properly grounded. |
+
+## 2.2 Handling & Installation
+
+| Requirement | Detail |
+| :--- | :--- |
+| **ESD Protection** | Handle the module by its casing or edges and observe **Electrostatic Discharge (ESD)** precautions when handling the bare printed circuit boards (PCBs). |
+| **Wiring** | Use insulated wires of the appropriate gauge for the connected loads. **Secure all wires firmly** to the screw terminals; loose connections pose a fire and arcing risk. |
+| **Mounting** | The module is designed for **DIN-rail mounting** . It must be secured within a protective enclosure to shield it from moisture, dust, and mechanical damage. |
+
+## 2.3 Device-Specific Warnings
+
+| Component | Warning |
+| :--- | :--- |
+| **Relays (R1, R2)** | Do not exceed the **maximum voltage and current ratings** of the dry-contact relay outputs. Overloading the relays will cause permanent device damage and is a fire hazard. |
+| **Digital Inputs (DI1-DI5)** | Inputs are opto-isolated. Only connect **dry-contact** or **low-voltage, isolated** signals. Connecting high AC or DC voltages will compromise the internal isolation barrier. |
+| **Power Outputs (+5V / +12V)** | Do not exceed the specified power budget for the isolated +5VDC and +12VDC sensor supply outputs. |
+| **1-Wire Bus (OW)** | Use this interface only for low-voltage digital sensors (e.g., DS18B20). |
 
 ## 🔧 Key Features
 
