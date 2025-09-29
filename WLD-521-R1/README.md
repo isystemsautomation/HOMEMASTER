@@ -198,7 +198,7 @@ This section outlines essential safety guidelines. Failure to adhere to these wa
 
 <img src="Images/photo1.png" align="left" width="660" alt="WLD-521-R1 module photo">
 
-## Connector Map (front label reference)
+#### Connector Map (front label reference)
 
 - **Top**: `V+`, `0V` (Power) • `I1..I5`, `GND` (Inputs) • `+5V`, `D`, `GND` (1-Wire) • `A`, `B`, `COM` (RS-485)  
 - **Bottom**: `R1: NO, C, NC` • `R2: NO, C, NC` • `5/12 Vdc` sensor supply outputs. :contentReference[oaicite:27]{index=27}
