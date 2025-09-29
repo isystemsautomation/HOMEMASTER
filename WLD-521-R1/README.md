@@ -28,7 +28,7 @@ The **WLD-521-R1** is a smart and reliable input/control module designed for **l
 - [3.3 Diagrams & Pinouts] 
 - [3.4 WLD-521-R1 — Technical Specification]
 
-### 4. [Getting Started](#4-getting-started)
+### 4. [Getting Started]
 - [4.1 What You Need] 
 - [4.2 Quick Setup]
 
@@ -318,6 +318,16 @@ Integration of the WLD-521-R1 into Home Assistant (HA) is achieved via the **ESP
 - USB-based **Config UI**, **Modbus RTU** register map, and override priority for local/manual control.
 
 ---
+
+# 4. Getting Started
+
+## 4.1 What You Need
+
+
+
+## 4.2 Quick Setup
+
+
 
 ## Key Ratings (from prior release)
 
