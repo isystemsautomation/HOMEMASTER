@@ -321,13 +321,58 @@ Integration of the WLD-521-R1 into Home Assistant (HA) is achieved via the **ESP
 
 # 4. Getting Started
 
+The **WLD-521-R1** integrates into the HomeMaster system over the **RS-485 Modbus** bus. Initial setup has two parts: **physical wiring** and **digital configuration** (WebConfig + ESPHome). :contentReference[oaicite:0]{index=0}
+
+---
+
 ## 4.1 What You Need
 
+| Category | Item | Details | Source Reference |
+|---|---|---|---|
+| **Hardware** | **WLD-521-R1 Module** | DIN-rail I/O module with **5× DI**, **2× relays**, and **1-Wire** (for DS18B20, etc.). | :contentReference[oaicite:1]{index=1} |
+|  | **HomeMaster Controller** | MiniPLC/MicroPLC acting as **Modbus master** and network gateway; ESPHome YAML template includes `wld_address: "3"` by default. | :contentReference[oaicite:2]{index=2} |
+|  | **Power Supply** | **24 VDC** to module power terminals (on-board 5 V/3.3 V rails derived). | :contentReference[oaicite:3]{index=3} |
+|  | **RS-485 Cabling** | Two-wire **A/B** plus **COM/GND**; use **120 Ω** termination at bus ends. | :contentReference[oaicite:4]{index=4} |
+|  | **USB-C Cable** | Connects the **module** to your computer to run WebConfig via Web Serial. | :contentReference[oaicite:5]{index=5} |
+| **Software** | **WebConfig Tool** | Browser page to set **Modbus Address & Baud**, see **Active Modbus Configuration**, reset device, and configure Inputs/Relays/Irrigation. | :contentReference[oaicite:6]{index=6} |
+|  | **ESPHome YAML** | Controller config declaring the WLD on RS-485 (`modbus_controller:` + entities). | :contentReference[oaicite:7]{index=7} |
+| **I/O** | **Sensors / Actuators** | Leak/moisture/rain probes & **pulse flow meters** on DIs; **DS18B20** on **1-Wire (GPIO16)**; valves/pumps on **R1/R2**. |  |
 
+---
 
 ## 4.2 Quick Setup
 
+**Phase 1 — Physical Wiring**
 
+- **Power:** connect **24 VDC** to V+ / 0 V on the module.
+- **RS-485:** wire **A → A**, **B → B**, and **COM/GND** between the WLD-521-R1 and the controller; keep polarity consistent. Terminate the two bus ends with **120 Ω**.
+- **I/O:**  
+  - Relays: wire your **valves/pumps** to **R1/R2 (NO/NC/COM)**. 
+  - Digital inputs: connect **leak sensors / flow meters / buttons** to **DI1…DI5**.
+  - 1-Wire: connect **DS18B20** sensors to **1WIRE_5V / 1WIRE_DATA / 1WIRE_GND** (GPIO16). 
+
+**Phase 2 — Module Configuration (WebConfig)**
+
+- **Connect:** plug **USB-C** into the module; open [ConfigToolPage.html](https://www.home-master.eu/configtool-wld-521-r1) in a Chromium browser and click **Connect**.
+- **Set Modbus:** choose a unique **Modbus Address (1–255)** and **Baud** (default list includes **19200**). The header shows the **Active Modbus Configuration**.
+- **Configure I/O:**  
+  - **Digital Inputs:** set role per DI (e.g., flow meter vs. leak sensor); counters show **Rate (L/min)** / **Total (L)**, with **Pulses-per-liter** and **Rate×/Total×** calibration, plus **Reset** tools.
+  - **Irrigation (2 zones, optional):** map **Valve relay** and **Flow DI**; set **Min rate**, **Grace**, **Timeout**, **Target liters**; add interlocks (**DI_moist / DI_rain / DI_tank / R_pump**) and an **Irrigation Window** (Start/End, Enforce, Auto-start).
+  - **1-Wire:** scan, store, and name sensors for temperature/heat features.
+- (Optional) **Reset Device** from the dialog if you need to restart; the serial link will reconnect.
+
+**Phase 3 — Controller Integration (ESPHome)**
+
+- **Update YAML:** In the ESPHome YAML configuration file for your MiniPLC/MicroPLC (using the provided template, **`default_wld_521_r1_plc.yaml`**):  
+  - Verify the **`uart`** settings match your controller’s **RS-485 pins**.  
+  - Add a new **`modbus_controller:`** entry, ensuring the **`wld_address`** substitution matches the Modbus Address set in Step 3 of Phase 2 (e.g., `wld_address: "3"`).
+- **Compile & Upload:** Build and upload the updated ESPHome config to the controller. After reboot, the controller will poll the WLD-521-R1 and expose **DI states/counters**, **1-Wire temperatures**, **relay controls**, and **irrigation status** as HA entities.   
+
+**Timekeeping (recommended for local schedules)**  
+If you use the module’s **Irrigation Window** or daily counters, schedule a Home Assistant automation at **00:00** to pulse the **time-sync coil** and keep the module’s minute/day registers aligned with HA. (See the **Module Time & Modbus Sync** area in the UI and your controller automations.)
+
+**Verify**  
+Use WebConfig’s **Serial Log** and live status panels to confirm DI changes, flow **rate/total**, relay actions, and irrigation state.
 
 ## Key Ratings (from prior release)
 
