@@ -68,10 +68,9 @@ The **WLD-521-R1** is a smart and reliable input/control module designed for **l
 - [9.3 PlatformIO & Arduino]
 
 ### 10. [Maintenance & Troubleshooting] 
-### 11. [Technical Specifications]
-### 12. [Open Source & Licensing]
-### 13. [Downloads] 
-### 14. [Support]
+### 11. [Open Source & Licensing]
+### 12. [Downloads] 
+### 13. [Support]
 
 ---
 # 1. [Introduction]
