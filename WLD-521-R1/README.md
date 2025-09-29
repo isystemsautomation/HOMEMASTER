@@ -40,7 +40,7 @@ The **WLD-521-R1** is a smart and reliable input/control module designed for **l
 - [4.4 Quick Setup]
 
 ### 5. [Installation & Wiring]
-- [5.1 ENM-223-R1 Wiring]
+- [5.1 WLD-521-R1 Wiring]
 
 ### 6. [Software & UI Configuration]
 - [6.1 Web Config Tool (USB Web Serial)] 
@@ -60,7 +60,7 @@ The **WLD-521-R1** is a smart and reliable input/control module designed for **l
 - [7.6 Register Map (Summary)]
 - [7.7 Override Priority] 
 
-### 8. [ESPHome Integration Guide (MicroPLC/MiniPLC + ENM)]
+### 8. [ESPHome Integration Guide (MicroPLC/MiniPLC + WLD-521-R1)]
 
 ### 9. [Programming & Customization]
 - [9.1 Supported Languages] 
