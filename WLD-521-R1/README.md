@@ -198,6 +198,8 @@ This section outlines essential safety guidelines. Failure to adhere to these wa
 
 <img src="Images/photo1.png" align="left" width="220" alt="WLD-521-R1 module photo">
 
+---
+
 - **Power**: `24VDC` and `0V` (primary supply). 
 - **Inputs**: `I1..I5` and **GND_ISO** (return for input side). Each DI has opto-isolation and input conditioning.  
 - **Relays**:  
