@@ -196,8 +196,11 @@ This section outlines essential safety guidelines. Failure to adhere to these wa
 
 ### Terminals & Pinout (field side)
 
-<img src="Images/photo1.png" align="center" width="660" alt="WLD-521-R1 module photo">
+<img src="Images/photo1.png" align="left" width="660" alt="WLD-521-R1 module photo">
+## Connector Map (front label reference)
 
+- **Top**: `V+`, `0V` (Power) • `I1..I5`, `GND` (Inputs) • `+5V`, `D`, `GND` (1-Wire) • `A`, `B`, `COM` (RS-485)  
+- **Bottom**: `R1: NO, C, NC` • `R2: NO, C, NC` • `5/12 Vdc` sensor supply outputs. :contentReference[oaicite:27]{index=27}
 ---
 
 - **Power**: `24VDC` and `0V` (primary supply). 
@@ -273,13 +276,6 @@ This section outlines essential safety guidelines. Failure to adhere to these wa
 | Sensor power | **+5 V / +12 V** isolated, up to **~50 mA** combined budget (guideline) |
 | Firmware update | **USB-C** (Web Serial / DFU) |
 | Mounting | **DIN-rail**, ~3-module width | :contentReference[oaicite:26]{index=26}
-
----
-
-## Connector Map (front label reference)
-
-- **Top**: `V+`, `0V` (Power) • `I1..I5`, `GND` (Inputs) • `+5V`, `D`, `GND` (1-Wire) • `A`, `B`, `COM` (RS-485)  
-- **Bottom**: `R1: NO, C, NC` • `R2: NO, C, NC` • `5/12 Vdc` sensor supply outputs. :contentReference[oaicite:27]{index=27}
 
 ---
 
