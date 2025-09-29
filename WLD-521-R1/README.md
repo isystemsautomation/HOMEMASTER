@@ -22,12 +22,12 @@ The **WLD-521-R1** is a smart and reliable input/control module designed for **l
 - [2.2 Handling & Installation] 
 - [2.3 Device-Specific Warnings]
 
-### 3. [System Overview](#3-system-overview)
-- [3.1 Architecture & Modular Design](#31-architecture--modular-design)  
-- [3.2 MicroPLC vs MiniPLC](#32-microplc-vs-miniplc)  
-- [3.3 Integration with Home Assistant](#33-integration-with-home-assistant)  
-- [3.4 Diagrams & Pinouts](#34-diagrams--pinouts)  
-- [3.5 Technical Specifications](#35-technical-specifications-module-internals)  
+### 3. [System Overview]
+- [3.1 Architecture & Modular Design]
+- [3.2 MicroPLC vs MiniPLC]
+- [3.3 Integration with Home Assistant]
+- [3.4 Diagrams & Pinouts] 
+- [3.5 WLD-521-R1 — Technical Specification]
 
 ### 4. [Getting Started](#4-getting-started)
 - [4.1 What You Need](#41-what-you-need)  
@@ -163,6 +163,134 @@ This section outlines essential safety guidelines. Failure to adhere to these wa
 | **Digital Inputs (DI1-DI5)** | Inputs are opto-isolated. Only connect **dry-contact** or **low-voltage, isolated** signals. Connecting high AC or DC voltages will compromise the internal isolation barrier. |
 | **Power Outputs (+5V / +12V)** | Do not exceed the specified power budget for the isolated +5VDC and +12VDC sensor supply outputs. |
 | **1-Wire Bus (OW)** | Use this interface only for low-voltage digital sensors (e.g., DS18B20). |
+
+
+# 3. System Overview
+## 3.1 Architecture & Modular Design
+## 3.2 MicroPLC vs MiniPLC
+## 3.3 Integration with Home Assistant
+## 3.4 Diagrams & Pinouts
+## 3.5 Technical Specifications
+
+## 3.5 WLD-521-R1 — Technical Specification
+
+This specification consolidates details from the current hardware schematics, product photo, and the previous README.
+
+---
+
+### Overview
+
+- **Function**: Water leak detection, pulse water metering, irrigation control, and optional heat (ΔT) calculations  
+- **System role**: RS-485 **Modbus RTU** slave; integrates with MicroPLC/MiniPLC and home automation stacks  
+- **Form factor**: DIN-rail module, ~3M wide (approx. “3-gang” footprint). :contentReference[oaicite:0]{index=0}
+
+---
+
+### I/O Summary
+
+| Interface | Qty | Electrical / Notes |
+|---|---:|---|
+| **Digital Inputs (DI1..DI5)** | 5 | **Opto-isolated**; supports dry-contact and pulse meters. Typical trigger ≈ **14 V**, ≈ **6 mA** input current; up to **~9 Hz** (firmware supports higher with configuration). :contentReference[oaicite:1]{index=1} |
+| **Relays (R1, R2)** | 2 | SPDT (NO/NC/COM) dry contacts for valves/pumps; max **3 A @ 250 VAC**. Hardware uses **HF115F/005-1ZS3** relays with opto-isolated drivers. :contentReference[oaicite:2]{index=2} |
+| **1-Wire bus** | 1 | 3-pin header: **+5 V / DATA / GND**. Protected by **DS9503** and MOSFET level shifting. Designed for DS18B20-class sensors. :contentReference[oaicite:3]{index=3} |
+| **User buttons** | 4 | Panel buttons (SW1..SW4) routed to MCU GPIO; used for local control/overrides. :contentReference[oaicite:4]{index=4} |
+| **User LEDs** | 4 + status | Front LEDs for status/override indication; driven via transistor stages from MCU GPIO. :contentReference[oaicite:5]{index=5} |
+
+---
+
+### Terminals & Pinout (field side)
+
+- **Power**: `24VDC` and `0V` (primary supply). :contentReference[oaicite:6]{index=6}  
+- **Inputs**: `I1..I5` and **GND_ISO** (return for input side). Each DI has opto-isolation and input conditioning. :contentReference[oaicite:7]{index=7}  
+- **Relays**:  
+  - **Relay 1**: `R1_NO`, `R1_C`, `R1_NC`  
+  - **Relay 2**: `R2_NO`, `R2_C`, `R2_NC`  :contentReference[oaicite:8]{index=8}  
+- **RS-485**: `A`, `B`, `COM` (shield/earth reference). :contentReference[oaicite:9]{index=9}  
+- **1-Wire**: `+5V`, `D`, `GND` (isolated 5 V sourced). :contentReference[oaicite:10]{index=10}  
+- **Aux sensor power**: **+5 V** and **+12 V** isolated rails available for external sensors (fuse-protected). :contentReference[oaicite:11]{index=11}
+
+> The front-label silkscreen in the product photo aligns with the terminals above (Inputs, RS-485, Relays, +5/12 V sensor supply).
+
+---
+
+### Electrical
+
+#### Power & Regulation
+- **Primary input**: **24 VDC** nominal. On-board protection includes input fuse, reverse protection diode, and surge suppression. A synchronous buck (**AP64501**) generates +5 V, followed by **AMS1117-3.3** for +3.3 V logic. :contentReference[oaicite:12]{index=12}
+- **Isolated sensor rails**:  
+  - **+12 V iso**: **B2412S-2WR3** DC-DC  
+  - **+5 V iso**: **B2405S-2WR3** DC-DC  
+  Both rails are LC-filtered and fuse-limited for field use. :contentReference[oaicite:13]{index=13}
+
+#### Digital Inputs
+- Opto-couplers **SFH6156-3** with series resistors and MOSFET front-ends for pulse handling and noise immunity. Pull-downs and Schmitt-style shaping provided per channel. :contentReference[oaicite:14]{index=14}
+
+#### Relay Outputs
+- **HF115F/005-1ZS3** SPDT relays with transistor drivers and opto-isolated control; RC snubbers/EMI parts on contacts for suppression. :contentReference[oaicite:15]{index=15}
+
+#### 1-Wire Interface
+- **DS9503** ESD/short protection and **BSS138** level translation between 3V3 MCU and 5 V field bus. Schottky clamp on +5 V. :contentReference[oaicite:16]{index=16}
+
+#### RS-485 (Modbus RTU)
+- Transceiver **MAX485** with DE/RE control, series/TVS protection (**SMAJ6.8CA**), polyfuses on A/B, and bias/termination network. Level-shifted between 3V3 MCU UART and 5 V transceiver. TX/RX activity LEDs present. :contentReference[oaicite:17]{index=17}
+
+#### USB-C (service/config)
+- **Type-C** receptacle with ESD array (**PRTR5V0U2X**), CC pull-downs, series resistors on D±, and reverse-polarity protection to +5 V rail (Schottky). Used for firmware and the Web Config Tool. :contentReference[oaicite:18]{index=18}
+
+---
+
+### MCU & Storage
+
+- **MCU**: **Raspberry Pi RP2350A** (dual-core; RP2 family) with external QSPI flash. :contentReference[oaicite:19]{index=19}  
+- **Boot/Flash**: **W25Q32JV** 32-Mbit QSPI NOR. :contentReference[oaicite:20]{index=20}  
+- **Clocks**: 12 MHz crystal with load network; SWD header exposed for debug. :contentReference[oaicite:21]{index=21}
+
+---
+
+### Protections & Compliance-Oriented Features
+
+- Input surge/ESD: TVS on RS-485 lines, ESD arrays on USB, series resistors and RC on data lines. Polyfuses on field buses. :contentReference[oaicite:22]{index=22}  
+- Galvanic isolation: Separate **GND_ISO** domain for field inputs/power; isolated +5 V/+12 V DC-DC modules for sensors. :contentReference[oaicite:23]{index=23}  
+- Relay contact suppression and snubbers to reduce EMI and contact wear. :contentReference[oaicite:24]{index=24}
+
+---
+
+### Firmware / Function (high-level)
+
+- **Leak & irrigation logic**, pulse-based **flow** and **totalization**, optional **heat power/energy** using dual 1-Wire temps and pulse-derived flow.  
+- USB-based **Config UI**, **Modbus RTU** register map, and override priority for local/manual control. :contentReference[oaicite:25]{index=25}
+
+---
+
+## Key Ratings (from prior release)
+
+| Parameter | Typical / Max |
+|---|---|
+| Supply voltage | **24 VDC** |
+| DI trigger level / current | ≈ **14 V** / ≈ **6 mA** |
+| DI frequency | **~9 Hz** default (higher configurable) |
+| Relay contacts | **3 A @ 250 VAC** (per relay) |
+| Sensor power | **+5 V / +12 V** isolated, up to **~50 mA** combined budget (guideline) |
+| Firmware update | **USB-C** (Web Serial / DFU) |
+| Mounting | **DIN-rail**, ~3-module width | :contentReference[oaicite:26]{index=26}
+
+---
+
+## Connector Map (front label reference)
+
+- **Top**: `V+`, `0V` (Power) • `I1..I5`, `GND` (Inputs) • `+5V`, `D`, `GND` (1-Wire) • `A`, `B`, `COM` (RS-485)  
+- **Bottom**: `R1: NO, C, NC` • `R2: NO, C, NC` • `5/12 Vdc` sensor supply outputs. :contentReference[oaicite:27]{index=27}
+
+---
+
+### Notes
+
+- Actual enclosure dimensions and environmental limits (temperature, humidity, IP rating) should be confirmed with the latest mechanical drawing—values are not specified in the current schematics.  
+- For multi-module RS-485 networks, assign unique Modbus addresses and observe proper termination and biasing per segment. :contentReference[oaicite:28]{index=28}
+
+
+
+
 
 ## 🔧 Key Features
 
