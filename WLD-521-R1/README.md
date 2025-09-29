@@ -196,7 +196,7 @@ This section outlines essential safety guidelines. Failure to adhere to these wa
 
 ### Terminals & Pinout (field side)
 
-<img src="Images/photo1.png" align="left" width="220" alt="WLD-521-R1 module photo">
+<img src="Images/photo1.png" align="center" width="220" alt="WLD-521-R1 module photo">
 
 ---
 
