@@ -17,7 +17,7 @@ The **WLD-521-R1** is a smart and reliable input/control module designed for **l
 - [1.2 Supported Modules & Controllers]
 - [1.3 Use Cases]  
 
-### 2. [Safety Information](#2-safety-information)
+### 2. [Safety Information]
 - [2.1 General Electrical Safety] 
 - [2.2 Handling & Installation] 
 - [2.3 Device-Specific Warnings]
@@ -29,15 +29,15 @@ The **WLD-521-R1** is a smart and reliable input/control module designed for **l
 - [3.4 WLD-521-R1 — Technical Specification]
 
 ### 4. [Getting Started]
-- [4.1 What You Need](#41-what-you-need)
-- [4.2 Powering the Devices](#42-powering-the-devices)
-  - [4.2.1 Power Supply Types](#421-power-supply-types)
-  - [4.2.2 Current Consumption](#422-current-consumption)
-  - [4.2.3 Power Safety Tips](#423-power-safety-tips)
-- [4.3 Networking & Communication](#43-networking--communication)
-  - [4.3.1 RS-485 Modbus](#431-rs-485-modbus)
-  - [4.3.2 USB-C Configuration](#432-usb-c-configuration)
-- [4.4 Quick Setup](#44-quick-setup)
+- [4.1 What You Need]
+- [4.2 Powering the Devices]
+  - [4.2.1 Power Supply Types]
+  - [4.2.2 Current Consumption]
+  - [4.2.3 Power Safety Tips]
+- [4.3 Networking & Communication]
+  - [4.3.1 RS-485 Modbus]
+  - [4.3.2 USB-C Configuration]
+- [4.4 Quick Setup]
 
 ### 5. [Installation & Wiring]
 - [5.1 ENM-223-R1 Wiring]
