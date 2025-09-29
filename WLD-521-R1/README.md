@@ -170,8 +170,30 @@ This section outlines essential safety guidelines. Failure to adhere to these wa
 ## 3.2 MicroPLC vs MiniPLC
 ## 3.3 Integration with Home Assistant
 ## 3.4 Diagrams & Pinouts
-## 3.5 Technical Specifications
-
+<div align="center">
+  <table>
+    <tr>
+      <td align="center">
+        <strong>ENM System Diagram</strong><br>
+        <img src="Images/WLD_Diagram.png" alt="ENM System Diagram" width="360">
+      </td>
+      <td align="center">
+        <strong>RP2350 MCU Pinout</strong><br>
+        <img src="Images/WLD_MCU_Pinouts.png" alt="MCU Pinouts" width="360">
+      </td>
+    </tr>
+    <tr>
+      <td align="center">
+        <strong>Field Board Layout</strong><br>
+        <img src="Images/FieldBoard_Diagram.png" alt="Field Board Diagram" width="360">
+      </td>
+      <td align="center">
+        <strong>MCU Board Layout</strong><br>
+        <img src="Images/MCUBoard_Diagram.png" alt="MCU Board Diagram" width="360">
+      </td>
+    </tr>
+  </table>
+</div>
 ## 3.5 WLD-521-R1 — Technical Specification
 
 ### Overview
