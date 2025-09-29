@@ -2,7 +2,7 @@
   <div style="text-align:center;margin-bottom:2rem;">
     <img src="https://www.home-master.eu/web/image/product.product/719/image_1024/ALM-173-R1%20Module%20for%20Alarm%20Systems?unique=f079b61" alt="AIO-422-R1" style="max-width:300px;border-radius:8px;opacity:.9;" loading="lazy">
     <h2 style="margin:.5rem 0 0;">AIO-422-R1 Module Configuration</h2>
-    <p style="margin:.25rem 0 0;color:#333;">Configure Modbus, ADS1115 (gain / data-rate / sample interval), view 4 analog channels, test LEDs, and manage device via Web Serial.</p>
+    <p style="margin:.25rem 0 0;color:#333;">Configure Modbus, ADS1115 (gain / data-rate / sample interval), view 4 analog channels, set 2× DAC outputs, test LEDs, and manage device via Web Serial.</p>
   </div>
 
   <div style="background:#f1f1f1;padding:1rem 1.5rem;margin-bottom:2rem;border-radius:6px;border-left:4px solid #007bff;">
@@ -19,14 +19,14 @@
     <div>
       <label for="modbus-baud"><strong>Baud Rate</strong></label>
       <select id="modbus-baud" style="width:100%;padding:10px;border-radius:4px;">
-        <option>9600</option><option selected="">19200</option><option>38400</option><option>57600</option><option>115200</option>
+        <option>9600</option><option selected>19200</option><option>38400</option><option>57600</option><option>115200</option>
       </select>
     </div>
     <div style="grid-column:span 2;display:flex;justify-content:flex-end;gap:.75rem;">
       <button id="connect-button" type="button" style="padding:10px 20px;background:#007bff;color:#fff;border:none;border-radius:4px;">Connect</button>
-      <button id="savecfg-button" type="button" style="padding:10px 20px;background:#198754;color:#fff;border:none;border-radius:4px;" disabled="">Save to Flash</button>
-      <button id="ledtest-button" type="button" style="padding:10px 20px;background:#6c757d;color:#fff;border:none;border-radius:4px;" disabled="">LED Test</button>
-      <button id="reset-button" type="button" style="padding:10px 20px;background:#dc3545;color:#fff;border:none;border-radius:4px;" disabled="">Reset Device</button>
+      <button id="savecfg-button" type="button" style="padding:10px 20px;background:#198754;color:#fff;border:none;border-radius:4px;" disabled>Save to Flash</button>
+      <button id="ledtest-button" type="button" style="padding:10px 20px;background:#6c757d;color:#fff;border:none;border-radius:4px;" disabled>LED Test</button>
+      <button id="reset-button" type="button" style="padding:10px 20px;background:#dc3545;color:#fff;border:none;border-radius:4px;" disabled>Reset Device</button>
     </div>
   </form>
 
@@ -74,9 +74,38 @@
       </div>
     </div>
     <div style="text-align:right;margin-top:.75rem;">
-      <button id="apply-ads" type="button" style="padding:10px 16px;background:#0d6efd;color:#fff;border:none;border-radius:6px;" disabled="">Apply ADS Settings</button>
+      <button id="apply-ads" type="button" style="padding:10px 16px;background:#0d6efd;color:#fff;border:none;border-radius:6px;" disabled>Apply ADS Settings</button>
     </div>
   </section>
+
+  <!-- ============== NEW: Dual DAC section ============== -->
+  <section style="margin-bottom:1.75rem;">
+    <h2 style="font-size:1.2rem;margin-bottom:.75rem;">DAC Outputs (x2)</h2>
+    <div id="dac-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem;">
+      <!-- AO0 / 0x60 -->
+      <div style="border:1px solid #ddd;border-radius:8px;padding:1rem;background:#fff;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.25rem;">
+          <strong>AO0 (U13, 0x60)</strong>
+          <small id="dac0-mv" style="color:#555;">-- mV</small>
+        </div>
+        <input id="dac0-raw" type="number" min="0" max="4095" step="1" value="0" style="width:100%;padding:8px;border-radius:6px;border:1px solid #ccc;margin-bottom:.5rem;">
+        <input id="dac0-slider" type="range" min="0" max="4095" step="1" value="0" style="width:100%;">
+        <div style="margin-top:.4rem;color:#666;font-size:.9rem;">Raw: <span id="dac0-raw-label">0</span> / 4095 &nbsp;•&nbsp; Vref 5000 mV</div>
+      </div>
+      <!-- AO1 / 0x61 -->
+      <div style="border:1px solid #ddd;border-radius:8px;padding:1rem;background:#fff;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.25rem;">
+          <strong>AO1 (U12, 0x61)</strong>
+          <small id="dac1-mv" style="color:#555;">-- mV</small>
+        </div>
+        <input id="dac1-raw" type="number" min="0" max="4095" step="1" value="0" style="width:100%;padding:8px;border-radius:6px;border:1px solid #ccc;margin-bottom:.5rem;">
+        <input id="dac1-slider" type="range" min="0" max="4095" step="1" value="0" style="width:100%;">
+        <div style="margin-top:.4rem;color:#666;font-size:.9rem;">Raw: <span id="dac1-raw-label">0</span> / 4095 &nbsp;•&nbsp; Vref 5000 mV</div>
+      </div>
+    </div>
+    <small style="color:#666;">Firmware echoes <code>DAC</code> as <code>{ raw:[r0,r1], mv:[m0,m1] }</code>. Changes are sent as <code>Config</code> → <code>{ t:"dac", cfg:{ idx, raw } }</code>.</small>
+  </section>
+  <!-- ============== /Dual DAC section ============== -->
 
   <section style="margin-bottom:1.5rem;">
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Live Channels</h2>
@@ -100,25 +129,24 @@
   </div>
 </section>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
+<script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
 <script>
 (function () {
   // ---------- Helpers ----------
   const LOG_MAX = 200;
   const logBuffer = [];
+  const VREF_MV = 5000; // matches firmware constant
   const $ = (id) => document.getElementById(id);
 
   function appendLog(label, data) {
     const el = $("log-content"); if (!el) return;
     const time = new Date().toLocaleTimeString();
     let body = (typeof data === 'string') ? data : JSON.stringify(data);
-    // normalize escaped vs real newlines
-    body = String(body)
-      .replace(/\r\n?|\n/g, '\n')          // real CR/LF -> \n
-      .replace(/\\r\\n|\\r|\\n/g, '\n');   // escaped sequences -> \n
+    body = String(body).replace(/\r\n?|\n/g, '\n').replace(/\\r\\n|\\r|\\n/g, '\n');
     logBuffer.unshift(`[${time}] ${label}: ${body}`);
     if (logBuffer.length > LOG_MAX) logBuffer.pop();
-    el.textContent = logBuffer.join('\n'); // ✅ actual newlines
+    el.textContent = logBuffer.join('\n');
   }
 
   function populateAddresses() {
@@ -131,6 +159,7 @@
     sel.value = '3';
   }
 
+  // enable/disable controls
   function isPortOpen() {
     try { return typeof connection.isOpen === 'function' ? connection.isOpen() : !!connection.port; }
     catch { return false; }
@@ -176,7 +205,7 @@
     if (fill) fill.style.width = pct.toFixed(1) + '%';
   }
 
-  // ---------- Build Buttons & LEDs cards ----------
+  // ---------- Buttons & LEDs cards ----------
   function buildButtons() {
     const container = $('buttons-config'); if (!container) return;
     container.innerHTML = '';
@@ -261,7 +290,7 @@
 
   function onPortStateChange() {
     const open = isPortOpen();
-    setEnabled(['reset-button','apply-ads','ledtest-button','savecfg-button'], open);
+    setEnabled(['reset-button','apply-ads','ledtest-button','savecfg-button','dac0-raw','dac0-slider','dac1-raw','dac1-slider'], open);
   }
   connection.on('open',  onPortStateChange);
   connection.on('close', onPortStateChange);
@@ -288,7 +317,7 @@
   // Serial log passthrough
   connection.on('message', (msg) => appendLog("AIO-422-R1", msg));
 
-  // Live samples
+  // Live ADC samples
   connection.on('AIO_Samples', (obj) => {
     try {
       const raw = Array.isArray(obj?.raw) ? obj.raw : [];
@@ -316,8 +345,66 @@
     const dot = $('state-led' + (i + 1)); if (dot) dot.style.background = v ? '#ffb300' : '#ccc';
   }));
 
+  // ---------- DAC handling ----------
+  function mvFromRaw(raw) {
+    raw = Number(raw)||0;
+    if (raw < 0) raw = 0; if (raw > 4095) raw = 4095;
+    return Math.round(raw * VREF_MV / 4095);
+  }
+  function reflectDac(idx, raw, mv) {
+    const rId = 'dac'+idx+'-raw', sId = 'dac'+idx+'-slider', lblId = 'dac'+idx+'-raw-label', mvId = 'dac'+idx+'-mv';
+    const r = $(rId), s = $(sId), lbl = $(lblId), mvEl = $(mvId);
+    if (typeof raw === 'number' && !Number.isNaN(raw)) {
+      if (r && document.activeElement !== r) r.value = String(raw);
+      if (s && document.activeElement !== s) s.value = String(raw);
+      if (lbl) lbl.textContent = String(raw);
+    }
+    if (typeof mv === 'number' && mvEl) mvEl.textContent = `${mv} mV`;
+  }
+  // debounce to avoid spamming serial on slider move
+  const debouncers = [null,null];
+  function sendDac(idx, raw) {
+    clearTimeout(debouncers[idx]);
+    debouncers[idx] = setTimeout(async () => {
+      raw = Math.max(0, Math.min(4095, parseInt(raw||0,10)));
+      await connection.send("Config", { t:"dac", cfg:{ idx, raw } });
+      appendLog("Config.dac", { idx, raw });
+    }, 40);
+  }
+  ['0','1'].forEach(id => {
+    const r = $('dac'+id+'-raw');
+    const s = $('dac'+id+'-slider');
+    const lbl = $('dac'+id+'-raw-label');
+    function syncFromRaw() {
+      const val = parseInt(r.value||'0',10);
+      if (s) s.value = String(val);
+      if (lbl) lbl.textContent = String(val);
+      reflectDac(Number(id), val, mvFromRaw(val));
+      sendDac(Number(id), val);
+    }
+    function syncFromSlider() {
+      const val = parseInt(s.value||'0',10);
+      if (r) r.value = String(val);
+      if (lbl) lbl.textContent = String(val);
+      reflectDac(Number(id), val, mvFromRaw(val));
+      sendDac(Number(id), val);
+    }
+    if (r) r.addEventListener('input',  syncFromRaw);
+    if (r) r.addEventListener('change', syncFromRaw);
+    if (s) s.addEventListener('input',  syncFromSlider);
+    if (s) s.addEventListener('change', syncFromSlider);
+  });
+  // consume firmware DAC echo
+  connection.on('DAC', (obj) => {
+    try {
+      const raw = Array.isArray(obj?.raw) ? obj.raw : [];
+      const mv  = Array.isArray(obj?.mv)  ? obj.mv  : [];
+      reflectDac(0, raw[0], mv[0] ?? mvFromRaw(raw[0]));
+      reflectDac(1, raw[1], mv[1] ?? mvFromRaw(raw[1]));
+    } catch (e) {}
+  });
+
   // ---------- Controls ----------
-  // Modbus config push
   $('modbus-address').addEventListener('input', pushModbus);
   $('modbus-baud').addEventListener('input',    pushModbus);
   async function pushModbus() {
@@ -394,7 +481,7 @@
     try {
       await connection.send("command", { action: "reset" });
       appendLog("command", "reset");
-      setEnabled(['reset-button','apply-ads','ledtest-button','savecfg-button'], false);
+      setEnabled(['reset-button','apply-ads','ledtest-button','savecfg-button','dac0-raw','dac0-slider','dac1-raw','dac1-slider'], false);
       setTimeout(onPortStateChange, 3000);
     } catch (err) {
       appendLog("Error", String(err && err.message || err));
