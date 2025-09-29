@@ -4,7 +4,7 @@
 
 **HOMEMASTER – Modular control. Custom logic.**
 
-<img src="Images/photo1.png" align="left" width="220" alt="WLD-521-R1 module photo">
+<img src="Images/photo1.png" align="left" width="660" alt="WLD-521-R1 module photo">
 
 The **WLD-521-R1** is a smart and reliable input/control module designed for **leak detection** and **water flow monitoring** in residential, commercial, and industrial environments. It connects easily to **MicroPLC** or **MiniPLC** systems via **RS-485 (Modbus RTU)** and offers seamless integration with **ESPHome** and **Home Assistant** for advanced automation.
 
