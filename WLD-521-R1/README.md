@@ -24,10 +24,9 @@ The **WLD-521-R1** is a smart and reliable input/control module designed for **l
 
 ### 3. [System Overview]
 - [3.1 Architecture & Modular Design]
-- [3.2 MicroPLC vs MiniPLC]
-- [3.3 Integration with Home Assistant]
-- [3.4 Diagrams & Pinouts] 
-- [3.5 WLD-521-R1 — Technical Specification]
+- [3.2 Integration with Home Assistant]
+- [3.3 Diagrams & Pinouts] 
+- [3.4 WLD-521-R1 — Technical Specification]
 
 ### 4. [Getting Started](#4-getting-started)
 - [4.1 What You Need](#41-what-you-need)  
@@ -167,9 +166,45 @@ This section outlines essential safety guidelines. Failure to adhere to these wa
 
 # 3. System Overview
 ## 3.1 Architecture & Modular Design
-## 3.2 MicroPLC vs MiniPLC
-## 3.3 Integration with Home Assistant
-## 3.4 Diagrams & Pinouts
+
+The **WLD-521-R1 (Water Leak Detection, 5 Inputs, 2 Relays)** is a dedicated Extension Module designed for reliable, distributed automation within the HomeMaster system. It’s built on an **RP2350** microcontroller and concentrates water-safety I/O into a single DIN-rail Modbus device.
+
+**Core I/O & Sensors**
+- **5× Digital Inputs (DI):** configurable for flow meters and water-related sensors (leak/moisture/rain).
+- **2× Relays (R1, R2):** for valves, pumps, sirens, or other actuators.
+- **1-Wire bus (GPIO16):** for temperature sensors (e.g., DS18B20). Optional heat-energy on a counter DI using two 1-Wire sensors (A/B).
+
+**Communication & Setup**
+- **RS-485 Modbus RTU** to the central MiniPLC/MicroPLC (typ. **19200 8N1**).
+- **WebConfig (USB-C):** set unique **Modbus Address (1–255)** and **Baud**, configure DI modes, relays, 1-Wire, and irrigation.
+
+**Local Resilience**
+- On-device logic executes critical actions without the controller: immediate **leak → relay action** and **two irrigation zones** with flow supervision, time windows, and interlocks. Core safety keep running even if the controller or Wi-Fi is down.
+
+## 3.2 Integration with Home Assistant
+
+Integration of the WLD-521-R1 into Home Assistant (HA) is achieved via the **ESPHome firmware** running on the HomeMaster controller (MiniPLC/MicroPLC). ESPHome handles Modbus polling/writes and exposes entities to HA.
+
+**Module Configuration (WebConfig)**
+- **Modbus parameters:** set Address & Baud.
+- **Digital Inputs:** assign DI roles (e.g., flow meter, DI_moist, DI_rain, DI_tank).
+- **Irrigation (2 zones):** map valve relays and flow DI; set **Min Rate (L/min)**, **Timeout (s)**, **Target Liters**, and define/enforce an **Irrigation Window** (local start/end).
+- **1-Wire:** discover, name, and store sensors.
+
+**Home Assistant Communication**
+- **ESPHome abstraction:** the controller periodically reads/writes Modbus **coils** and **holding registers** and publishes:
+  - **binary_sensors** (DI / leak),
+  - **sensors** (flow rate/total, temperatures / ΔT / power / energy),
+  - **switches** (relays / valves),
+  - plus irrigation state (via sensors/switches or template entities).
+
+**Add in ESPHome**
+- In the controller’s ESPHome YAML, add a `modbus_controller:` and the WLD package/templates for this module. ESPHome then exposes entities to Home Assistant (binary_sensors for DI/leaks, sensors for flow rate/total and temperatures/ΔT/power/energy, switches for relays; irrigation state can be mapped via sensors/switches or template entities).
+
+**Timekeeping & schedules in HA**
+- If you rely on the module’s **local irrigation window** or **daily counters**, schedule an HA automation at **00:00** to **pulse coil 360** and write **HREG 1100/1101** for minute/day—this keeps the module clock aligned with HA.
+
+## 3.3 Diagrams & Pinouts
 <div align="center">
   <table>
     <tr>
@@ -194,7 +229,8 @@ This section outlines essential safety guidelines. Failure to adhere to these wa
     </tr>
   </table>
 </div>
-## 3.5 WLD-521-R1 — Technical Specification
+
+## 3.4 WLD-521-R1 — Technical Specification
 
 ### Overview
 
