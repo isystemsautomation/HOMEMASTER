@@ -29,8 +29,8 @@ The **WLD-521-R1** is a smart and reliable input/control module designed for **l
 - [3.4 WLD-521-R1 — Technical Specification]
 
 ### 4. [Getting Started](#4-getting-started)
-- [4.1 What You Need](#41-what-you-need)  
-- [4.2 Quick Setup Checklist](#42-quick-setup-checklist)  
+- [4.1 What You Need] 
+- [4.2 Quick Setup]
 
 ### 5. [Powering the Devices](#5-powering-the-devices)
 - [5.1 Power Supply Types](#51-power-supply-types)  
@@ -80,7 +80,7 @@ The **WLD-521-R1** is a smart and reliable input/control module designed for **l
 # 1. [Introduction]
 ## 1.1 Overview of the WLD-521-R1 Module 💧
 
-The WLD-521-R1 is a highly specialized I/O module designed primarily for **Water Flow, Heat Energy (Calorimetry), and Irrigation/Leak Detection** applications. It functions as an intelligent Modbus slave device that processes local sensor data and executes commands from a master controller.
+The WLD-521-R1 is a specialized I/O module for water flow, heat energy (calorimetry), and irrigation/leak detection. It operates as an intelligent Modbus RTU slave that processes local sensor data and runs a fully configurable internal logic (e.g., input→relay actions, irrigation windows, flow supervision, safety interlocks) autonomously. Automation scenarios can then be extended and orchestrated by a central PLC/controller to add system-wide coordination, monitoring, history, and advanced rules.
 
 | Component | Quantity | Key Functionality |
 | :--- | :--- | :--- |
@@ -185,12 +185,6 @@ The **WLD-521-R1 (Water Leak Detection, 5 Inputs, 2 Relays)** is a dedicated Ext
 
 Integration of the WLD-521-R1 into Home Assistant (HA) is achieved via the **ESPHome firmware** running on the HomeMaster controller (MiniPLC/MicroPLC). ESPHome handles Modbus polling/writes and exposes entities to HA.
 
-**Module Configuration (WebConfig)**
-- **Modbus parameters:** set Address & Baud.
-- **Digital Inputs:** assign DI roles (e.g., flow meter, DI_moist, DI_rain, DI_tank).
-- **Irrigation (2 zones):** map valve relays and flow DI; set **Min Rate (L/min)**, **Timeout (s)**, **Target Liters**, and define/enforce an **Irrigation Window** (local start/end).
-- **1-Wire:** discover, name, and store sensors.
-
 **Home Assistant Communication**
 - **ESPHome abstraction:** the controller periodically reads/writes Modbus **coils** and **holding registers** and publishes:
   - **binary_sensors** (DI / leak),
@@ -248,7 +242,7 @@ Integration of the WLD-521-R1 into Home Assistant (HA) is achieved via the **ESP
 | **Relays (R1, R2)** | 2 | SPDT (NO/NC/COM) dry contacts for valves/pumps; max **3 A @ 250 VAC**. Hardware uses **HF115F/005-1ZS3** relays with opto-isolated drivers.|
 | **1-Wire bus** | 1 | 3-pin header: **+5 V / DATA / GND**. Protected by **DS9503** and MOSFET level shifting. Designed for DS18B20-class sensors.|
 | **User buttons** | 4 | Panel buttons (SW1..SW4) routed to MCU GPIO; used for local control/overrides.|
-| **User LEDs** | 4 + status | Front LEDs for status/override indication; driven via transistor stages from MCU GPIO.]{index=5} |
+| **User LEDs** | 4 + status | Front LEDs for status/override indication; driven via transistor stages from MCU GPIO.]|
 
 ---
 
@@ -259,7 +253,7 @@ Integration of the WLD-521-R1 into Home Assistant (HA) is achieved via the **ESP
 #### Connector Map (front label reference)
 
 - **Top**: `V+`, `0V` (Power) • `I1..I5`, `GND` (Inputs) • `+5V`, `D`, `GND` (1-Wire) • `A`, `B`, `COM` (RS-485)  
-- **Bottom**: `R1: NO, C, NC` • `R2: NO, C, NC` • `5/12 Vdc` sensor supply outputs. :contentReference[oaicite:27]{index=27}
+- **Bottom**: `R1: NO, C, NC` • `R2: NO, C, NC` • `5/12 Vdc` sensor supply outputs. :contentReference
 <br clear="left"/>
 ---
 
@@ -279,49 +273,49 @@ Integration of the WLD-521-R1 into Home Assistant (HA) is achieved via the **ESP
 ### Electrical
 
 #### Power & Regulation
-- **Primary input**: **24 VDC** nominal. On-board protection includes input fuse, reverse protection diode, and surge suppression. A synchronous buck (**AP64501**) generates +5 V, followed by **AMS1117-3.3** for +3.3 V logic. :contentReference[oaicite:12]{index=12}
+- **Primary input**: **24 VDC** nominal. On-board protection includes input fuse, reverse protection diode, and surge suppression. A synchronous buck (**AP64501**) generates +5 V, followed by **AMS1117-3.3** for +3.3 V logic.
 - **Isolated sensor rails**:  
   - **+12 V iso**: **B2412S-2WR3** DC-DC  
   - **+5 V iso**: **B2405S-2WR3** DC-DC  
-  Both rails are LC-filtered and fuse-limited for field use. :contentReference[oaicite:13]{index=13}
+  Both rails are LC-filtered and fuse-limited for field use. :contentReference
 
 #### Digital Inputs
-- Opto-couplers **SFH6156-3** with series resistors and MOSFET front-ends for pulse handling and noise immunity. Pull-downs and Schmitt-style shaping provided per channel. :contentReference[oaicite:14]{index=14}
+- Opto-couplers **SFH6156-3** with series resistors and MOSFET front-ends for pulse handling and noise immunity. Pull-downs and Schmitt-style shaping provided per channel. :contentReference
 
 #### Relay Outputs
-- **HF115F/005-1ZS3** SPDT relays with transistor drivers and opto-isolated control; RC snubbers/EMI parts on contacts for suppression. :contentReference[oaicite:15]{index=15}
+- **HF115F/005-1ZS3** SPDT relays with transistor drivers and opto-isolated control; RC snubbers/EMI parts on contacts for suppression.
 
 #### 1-Wire Interface
-- **DS9503** ESD/short protection and **BSS138** level translation between 3V3 MCU and 5 V field bus. Schottky clamp on +5 V. :contentReference[oaicite:16]{index=16}
+- **DS9503** ESD/short protection and **BSS138** level translation between 3V3 MCU and 5 V field bus. Schottky clamp on +5 V.
 
 #### RS-485 (Modbus RTU)
-- Transceiver **MAX485** with DE/RE control, series/TVS protection (**SMAJ6.8CA**), polyfuses on A/B, and bias/termination network. Level-shifted between 3V3 MCU UART and 5 V transceiver. TX/RX activity LEDs present. :contentReference[oaicite:17]{index=17}
+- Transceiver **MAX485** with DE/RE control, series/TVS protection (**SMAJ6.8CA**), polyfuses on A/B, and bias/termination network. Level-shifted between 3V3 MCU UART and 5 V transceiver. TX/RX activity LEDs present.
 
 #### USB-C (service/config)
-- **Type-C** receptacle with ESD array (**PRTR5V0U2X**), CC pull-downs, series resistors on D±, and reverse-polarity protection to +5 V rail (Schottky). Used for firmware and the Web Config Tool. :contentReference[oaicite:18]{index=18}
+- **Type-C** receptacle with ESD array (**PRTR5V0U2X**), CC pull-downs, series resistors on D±, and reverse-polarity protection to +5 V rail (Schottky). Used for firmware and the Web Config Tool.
 
 ---
 
 ### MCU & Storage
 
-- **MCU**: **Raspberry Pi RP2350A** (dual-core; RP2 family) with external QSPI flash. :contentReference[oaicite:19]{index=19}  
-- **Boot/Flash**: **W25Q32JV** 32-Mbit QSPI NOR. :contentReference[oaicite:20]{index=20}  
-- **Clocks**: 12 MHz crystal with load network; SWD header exposed for debug. :contentReference[oaicite:21]{index=21}
+- **MCU**: **Raspberry Pi RP2350A** (dual-core; RP2 family) with external QSPI flash.
+- **Boot/Flash**: **W25Q32JV** 32-Mbit QSPI NOR.
+- **Clocks**: 12 MHz crystal with load network; SWD header exposed for debug.
 
 ---
 
 ### Protections & Compliance-Oriented Features
 
-- Input surge/ESD: TVS on RS-485 lines, ESD arrays on USB, series resistors and RC on data lines. Polyfuses on field buses. :contentReference[oaicite:22]{index=22}  
-- Galvanic isolation: Separate **GND_ISO** domain for field inputs/power; isolated +5 V/+12 V DC-DC modules for sensors. :contentReference[oaicite:23]{index=23}  
-- Relay contact suppression and snubbers to reduce EMI and contact wear. :contentReference[oaicite:24]{index=24}
+- Input surge/ESD: TVS on RS-485 lines, ESD arrays on USB, series resistors and RC on data lines. Polyfuses on field buses.
+- Galvanic isolation: Separate **GND_ISO** domain for field inputs/power; isolated +5 V/+12 V DC-DC modules for sensors.
+- Relay contact suppression and snubbers to reduce EMI and contact wear.
 
 ---
 
 ### Firmware / Function (high-level)
 
 - **Leak & irrigation logic**, pulse-based **flow** and **totalization**, optional **heat power/energy** using dual 1-Wire temps and pulse-derived flow.  
-- USB-based **Config UI**, **Modbus RTU** register map, and override priority for local/manual control. :contentReference[oaicite:25]{index=25}
+- USB-based **Config UI**, **Modbus RTU** register map, and override priority for local/manual control.
 
 ---
 
@@ -335,14 +329,14 @@ Integration of the WLD-521-R1 into Home Assistant (HA) is achieved via the **ESP
 | Relay contacts | **3 A @ 250 VAC** (per relay) |
 | Sensor power | **+5 V / +12 V** isolated, up to **~50 mA** combined budget (guideline) |
 | Firmware update | **USB-C** (Web Serial / DFU) |
-| Mounting | **DIN-rail**, ~3-module width | :contentReference[oaicite:26]{index=26}
+| Mounting | **DIN-rail**, ~3-module width | 
 
 ---
 
 ### Notes
 
 - Actual enclosure dimensions and environmental limits (temperature, humidity, IP rating) should be confirmed with the latest mechanical drawing—values are not specified in the current schematics.  
-- For multi-module RS-485 networks, assign unique Modbus addresses and observe proper termination and biasing per segment. :contentReference[oaicite:28]{index=28}
+- For multi-module RS-485 networks, assign unique Modbus addresses and observe proper termination and biasing per segment.
 
 
 
