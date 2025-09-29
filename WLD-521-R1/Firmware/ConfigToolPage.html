@@ -1,5 +1,6 @@
 <section style="font-family:'Segoe UI',sans-serif;padding:2rem;max-width:1200px;margin:auto;">
   <style>
+    /* ---------- base (kept) ---------- */
     .hm-input{padding:6px 8px;border:1px solid #ccc;border-radius:6px;width:100%;box-sizing:border-box}
     .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:.75rem;background:#eef2f7;border:1px solid #d8e1ee}
     .pill.mono{font-family:monospace;background:#eef6ff;border:1px solid #cfe2ff}
@@ -40,6 +41,42 @@
     .section-title{font-size:1.2rem;margin:.1rem 0 .5rem}
     .led-row,.btn-row{display:grid;grid-template-columns:76px 1fr 1fr auto;gap:.5rem;align-items:center;border-bottom:1px dashed #eef2f7;padding:.35rem 0}
     .btn-row{grid-template-columns:76px 1fr auto}
+
+    /* ---------- NEW LAYOUT (no JS changes) ---------- */
+
+    /* 1) DIGITAL INPUTS — Masonry columns (handles tall “Water counter” cards cleanly) */
+    #inputs-config{
+      column-width:360px;      /* target column width */
+      column-gap:1rem;         /* horizontal gap between columns */
+    }
+    #inputs-config > div{
+      display:inline-block;    /* required for CSS columns */
+      width:100%;
+      break-inside:avoid;      /* keep each card intact */
+      margin:0 0 1rem;         /* vertical gap between items */
+    }
+    /* Make flow/heat blocks more compact so DI cards aren’t excessively tall */
+    [id^="flow-box-"], [id^="heat-box-"]{ padding:.75rem !important; }
+    [id^="flow-box-"] .grid-2, [id^="heat-box-"] .grid-2{ grid-template-columns:1fr 1fr; }
+    [id^="flow-box-"] .row{ gap:.4rem; }
+    #inputs-config .card small{ display:block; margin-top:.35rem; line-height:1.25; }
+
+    /* 2) RELAYS — Flex layout (fills width, no empty right space) */
+    #relays-config{
+      display:flex;
+      gap:1rem;
+      flex-wrap:wrap;
+      align-items:stretch;
+    }
+    #relays-config > div{
+      flex:1 1 360px;   /* two on desktop, one on small screens */
+      min-width:300px;
+      display:flex;
+    }
+    #relays-config > div > .card{ width:100%; }
+
+    /* Optional: slightly wider columns on very wide screens */
+    @media (min-width:1400px){ #inputs-config{ column-width:380px; } }
   </style>
 
   <div style="text-align:center;margin-bottom:1.5rem;">
@@ -59,12 +96,12 @@
     <div>
       <label><strong>Baud Rate</strong></label>
       <select id="modbus-baud" class="hm-input">
-        <option>9600</option><option selected="">19200</option><option>38400</option><option>57600</option><option>115200</option>
+        <option>9600</option><option selected>19200</option><option>38400</option><option>57600</option><option>115200</option>
       </select>
     </div>
     <div style="grid-column:span 2;display:flex;justify-content:flex-end;gap:.5rem;">
       <button id="connect-button" type="button" class="btn btn-blue">Connect</button>
-      <button id="reset-button" type="button" class="btn btn-red" disabled="">Reset Device</button>
+      <button id="reset-button" type="button" class="btn btn-red" disabled>Reset Device</button>
     </div>
   </form>
 
@@ -88,7 +125,7 @@
   <section style="margin-bottom:1.25rem;">
     <h2 class="section-title">1-Wire (GPIO16) Devices</h2>
     <div class="row" style="margin:.25rem 0 1rem;">
-      <button id="scan-button" type="button" class="btn" style="background:#17a2b8;color:#fff;" disabled="">Scan 1-Wire</button>
+      <button id="scan-button" type="button" class="btn" style="background:#17a2b8;color:#fff;" disabled>Scan 1-Wire</button>
       <span id="scan-status" class="muted">Not scanned yet.</span>
     </div>
 
@@ -121,13 +158,15 @@
   <!-- ===== Inputs ===== -->
   <section style="margin-bottom:1.25rem;">
     <h2 class="section-title">Digital Inputs (5)</h2>
-    <div id="inputs-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem;"></div>
+    <!-- No inline layout here: controlled entirely by CSS columns above -->
+    <div id="inputs-config"></div>
   </section>
 
   <!-- ===== Relays ===== -->
   <section style="margin-bottom:1.25rem;">
     <h2 class="section-title">Relays (2)</h2>
-    <div id="relays-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem;"></div>
+    <!-- No inline grid; flex layout in CSS fills the width cleanly -->
+    <div id="relays-config"></div>
   </section>
 
   <!-- ===== LEDs & Buttons ===== -->
@@ -187,7 +226,7 @@
             </label>
           </div>
 
-          <label style="margin-top:.35rem;"><input type="checkbox" id="ir1-useflow" checked=""> Use flow supervision</label>
+          <label style="margin-top:.35rem;"><input type="checkbox" id="ir1-useflow" checked> Use flow supervision</label>
 
           <div class="grid-2" style="margin-top:.35rem;">
             <label>Min rate (L/min)
@@ -278,9 +317,8 @@
             </label>
           </div>
 
-          <label style="margin-top:.35rem;"><input type="checkbox" id="ir2-useflow" checked=""> Use flow supervision</label>
+          <label style="margin-top:.35rem;"><input type="checkbox" id="ir2-useflow" checked> Use flow supervision</label>
 
-          <!-- FIXED: removed stray % -->
           <div class="grid-2" style="margin-top:.35rem;">
             <label>Min rate (L/min)
               <input class="hm-input" id="ir2-minrate" type="number" min="0" step="0.01" placeholder="0.2">
@@ -402,7 +440,8 @@
     </div>
   </section>
 
-  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
+  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
+  <script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
   <script>
   (function(){
     const $ = id => document.getElementById(id);
@@ -410,7 +449,7 @@
     const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;');
     const pad2 = n => String(n).padStart(2,'0');
 
-    // ========== logging ==========
+    /* === JS functionality unchanged below === */
     const LOG_MAX=500, buf=[];
     function log(label,data){
       const el=$('log-content'); if(!el) return;
@@ -422,15 +461,11 @@
     window.addEventListener('error', e=>log('JS Error', e.message||e));
     function logTx(channel, packet){ try{ log('TX', {channel, ...packet}); }catch{ log('TX', String(channel)+' '+String(packet)); } }
 
-    // Web Serial support hint
     if(!('serial' in navigator)){
       log('System','This browser does not support the Web Serial API. Use Chrome/Edge over HTTPS.');
     }
-
-    // Modbus addresses
     (function(){ const sel=$('modbus-address'); if(!sel) return; for(let i=1;i<=255;i++){ const o=document.createElement('option'); o.value=i; o.textContent=i; sel.appendChild(o); } sel.value='3'; })();
 
-    // ========== Serial ==========
     let conn;
     try{
       conn = SimpleWebSerial.setupSerialConnection({ requestAccessOnPageLoad:false, requestElement:'connect-button' });
@@ -464,7 +499,6 @@
     $('modbus-address')?.addEventListener('input', pushModbus);
     $('modbus-baud')?.addEventListener('input',    pushModbus);
 
-    // Reset dialog
     (function(){
       const dlg=$('reset-dialog'), btn=$('reset-button'), cancel=$('dlg-cancel'), ok=$('dlg-confirm');
       function doReset(){
@@ -480,7 +514,6 @@
       dlg?.addEventListener('click', ev=>{ const r=dlg.getBoundingClientRect(); const inside = ev.clientX>=r.left && ev.clientX<=r.right && ev.clientY>=r.top && ev.clientY<=r.bottom; if(!inside && dlg.open) dlg.close('backdrop'); });
     })();
 
-    // ===== 1-Wire helpers =====
     function romHexToHiLo(hex){ try{ let s=String(hex||'').trim(); if(/^0x/i.test(s)) s=s.slice(2); const v=BigInt('0x'+s); return {hi:Number((v>>32n)&0xffffffffn), lo:Number(v&0xffffffffn)}; }catch{ return {hi:0,lo:0}; } }
     function romHexToU64DecStr(hex){ try{ let s=String(hex||'').trim(); if(/^0x/i.test(s)) s=s.slice(2); return s? (BigInt('0x'+s)).toString(10) : '0'; }catch{ return '0'; } }
 
@@ -635,7 +668,6 @@
       });
       conn.on('onewireTempsList', rows=>{ renderOwTempsTable(toArray(rows)); });
 
-      // inputs
       conn.on('inputs',          list=>toArray(list).forEach((v,i)=>{ const d=$('state-in'+(i+1)); if(d) d.className = 'state-dot '+(v?'dot-on':'dot-off'); }));
       conn.on('enableList',      list=>toArray(list).forEach((v,i)=>{ const el=$('enable-in'+(i+1)); if(el) el.checked=!!v; }));
       conn.on('invertList',      list=>toArray(list).forEach((v,i)=>{ const el=$('invert-in'+(i+1)); if(el) el.checked=!!v; }));
@@ -647,7 +679,6 @@
       });
       conn.on('counterList',     list=>toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('counter-in'+(i+1)); if(el) el.textContent=Math.floor(v); } }));
 
-      // flow
       let gotRate=false, gotAccum=false;
       const lastFlowPPL  = [450,450,450,450,450];
       const lastCalRate  = [1,1,1,1,1];
@@ -678,7 +709,6 @@
       conn.on('flowAccumList', list=>toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('accum-in'+(i+1)); if(el) el.textContent = v.toFixed(3); }}));
       conn.on('flowRateList',  list=>toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('rate-in'+(i+1));  if(el) el.textContent = v.toFixed(3); }}));
 
-      // relays
       conn.on('relayStateList',  list=>toArray(list).forEach((v,i)=>{ const el=$('state-relay'+(i+1)); if(el) el.checked=!!v; }));
       conn.on('relayEnableList', list=>toArray(list).forEach((v,i)=>{ const el=$('enable-relay'+(i+1)); if(el) el.checked=!!v; }));
       conn.on('relayInvertList', list=>toArray(list).forEach((v,i)=>{ const el=$('invert-relay'+(i+1)); if(el) el.checked=!!v; }));
@@ -686,7 +716,6 @@
       conn.on('relayOverrideLatchList',list=>toArray(list).forEach((v,i)=>{ const el=$('ovlatch-relay'+(i+1)); if(el) el.checked=!!v; }));
       conn.on('relayOverrideStateList',list=>toArray(list).forEach((v,i)=>{ const el=$('ovstate-relay'+(i+1)); if(el) el.className='state-dot '+(v?'dot-on':'dot-off'); }));
 
-      // heat
       const heatSnapshot = { addrA: [], addrB: [], TA: [], TB: [] };
       const HEAT_LOCK_MS = 2000;
       const heatLockA = [0,0,0,0,0];
@@ -748,14 +777,10 @@
       conn.on('heatEnergyJList',   list=>toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('heat-ej-'+(i+1));   if(el) el.textContent=v.toFixed(0); }}));
       conn.on('heatEnergyKWhList', list=>toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('heat-ekwh-'+(i+1)); if(el) el.textContent=v.toFixed(5); }}));
 
-      // irrigation
       conn.on('irrigConfig', arr=>applyIrrigConfigFromArray(toArray(arr)));
       conn.on('irrigStatus', payload=>renderIrrigStatus(payload));
-
-      // time
       conn.on('timeStatus', obj=>applyTimeStatus(obj));
 
-      // LEDs/Buttons echoes
       conn.on('led', arr=>{
         const a = toArray(arr);
         for(let i=1;i<=4;i++){
@@ -781,7 +806,6 @@
       });
     }
 
-    // ===== Inputs / Relays =====
     (function buildInputs(){
       const c=$('inputs-config'); if(!c) return;
       const ACTIONS=[{v:0,l:'None'},{v:1,l:'Toggle'},{v:2,l:'Pulse'}];
@@ -935,7 +959,6 @@
       }
     })();
 
-    // ===== NEW: LEDs & Buttons UIs =====
     (function buildLEDsAndButtons(){
       const LC=$('leds-config'), BC=$('buttons-config'); if(!LC||!BC) return;
 
@@ -991,7 +1014,6 @@
       }
     }
 
-    // ===== Flow/heat senders =====
     function sendInputEnable(){ const l=[]; for(let i=1;i<=5;i++) l.push(!!$('enable-in'+i).checked); const packet={t:'inputEnable',list:l}; logTx('Config',packet); conn.send('Config',packet); }
     function sendInputInvert(){ const l=[]; for(let i=1;i<=5;i++) l.push(!!$('invert-in'+i).checked); const packet={t:'inputInvert',list:l}; logTx('Config',packet); conn.send('Config',packet); }
     function sendInputAction(){ const l=[]; for(let i=1;i<=5;i++) l.push(parseInt($('action-in'+i).value||'0',10)); const packet={t:'inputAction',list:l}; logTx('Config',packet); conn.send('Config',packet); }
@@ -1059,7 +1081,6 @@
         .catch(err=>log('Error','flow_calculate failed: '+(err?.message||err)));
     }
 
-    // ===== IRRIGATION (per-zone) =====
     function hhmmToMin(hhmm){
       const [h,m] = String(hhmm||'').split(':').map(Number);
       if(!Number.isFinite(h) || !Number.isFinite(m)) return 0;
@@ -1082,13 +1103,11 @@
         timeout:   parseInt($(`ir${n}-timeout`)?.value||'0',10)||0,
         targetL:   parseFloat($(`ir${n}-targetL`)?.value||'0')||0,
 
-        // sensors + pump
         DI_moist:  parseInt($(`ir${n}-moist`)?.value||'-1',10),
         DI_rain:   parseInt($(`ir${n}-rain`) ?.value||'-1',10),
         DI_tank:   parseInt($(`ir${n}-tank`) ?.value||'-1',10),
         R_pump:    parseInt($(`ir${n}-pump`) ?.value||'-1',10),
 
-        // window
         windowEnable: !!$(`ir${n}-win-en`)?.checked,
         winStartMin:  hhmmToMin($(`ir${n}-win-start`)?.value || '00:00'),
         winEndMin:    hhmmToMin($(`ir${n}-win-end`)?.value   || '01:00'),
@@ -1106,13 +1125,11 @@
       set(`ir${n}-timeout`, z?.timeout);
       set(`ir${n}-targetL`, z?.targetL);
 
-      // sensors + pump
       set(`ir${n}-moist`,   z?.DI_moist ?? -1);
       set(`ir${n}-rain`,    z?.DI_rain ?? -1);
       set(`ir${n}-tank`,    z?.DI_tank ?? -1);
       set(`ir${n}-pump`,    z?.R_pump ?? -1);
 
-      // window
       set(`ir${n}-win-en`,  z?.windowEnable);
       set(`ir${n}-auto`,    z?.autoStart);
       const s = (z?.winStartMin!=null)? minToHHMM(z.winStartMin) : '00:00';
@@ -1121,7 +1138,6 @@
       set(`ir${n}-win-end`,   e);
     }
 
-    // FIXED: always send both zones (no undefined holes)
     function sendIrrigConfig(zoneIdx){
       if(!isOpen()){ log('System','Connect first.'); return; }
       const z1 = readZone(1);
@@ -1148,7 +1164,6 @@
     function irrigStop(zone){  const packet = { action:'irrig_stop',  zone }; logTx('command', packet); conn.send('command', packet).catch(err=>log('Error','stop failed: '+(err?.message||err))); }
     function irrigReset(zone){ const packet = { action:'irrig_reset', zone }; logTx('command', packet); conn.send('command', packet).catch(err=>log('Error','reset failed: '+(err?.message||err))); }
 
-    // buttons for irrigation
     document.querySelectorAll('[data-irrig-save]').forEach(b=>b.addEventListener('click', ()=>sendIrrigConfig(parseInt(b.getAttribute('data-irrig-save'),10))));
     document.querySelectorAll('[data-irrig-start]').forEach(b=>b.addEventListener('click', ()=>irrigStart(parseInt(b.getAttribute('data-irrig-start'),10))));
     document.querySelectorAll('[data-irrig-stop]').forEach(b=>b.addEventListener('click',  ()=>irrigStop(parseInt(b.getAttribute('data-irrig-stop'),10))));
@@ -1205,7 +1220,6 @@
       box.querySelectorAll('[data-irrig-reset]').forEach(b=>b.addEventListener('click',()=>irrigReset(parseInt(b.getAttribute('data-irrig-reset'),10))));
     }
 
-    // Heat config senders (per input)
     function readHeatCfgFor(di){
       const enabled = !!$('heat-enable-'+di)?.checked;
       const posA = parseInt(($('heat-addrA-'+di)?.value||''), 10) || 0;
@@ -1243,7 +1257,6 @@
       $('heat-reset-'+i)?.addEventListener('click',  ((n)=>()=>resetHeatEnergy(n))(i));
     }
 
-    // ===== LED/Buttons senders =====
     function readLedCfgList(){
       const list=[];
       for(let i=1;i<=4;i++){
@@ -1278,7 +1291,6 @@
     }
     for(let i=1;i<=4;i++){ $('btn-act-'+i)?.addEventListener('change', sendBtnCfg); }
 
-    // ===== Module time (minute-of-day) =====
     function applyTimeStatus(o){
       const min = (o && typeof o.minuteOfDay==='number') ? Math.max(0,Math.min(1439, Math.floor(o.minuteOfDay))) : null;
       const day = (o && typeof o.dayIndex==='number') ? Math.max(0, Math.floor(o.dayIndex)) : null;
@@ -1309,9 +1321,7 @@
       setMinute(d.getHours()*60 + d.getMinutes());
     });
 
-    // ===== init cosmetics =====
     showTypeBoxes(); updateButtons();
-
   })();
   </script>
 </section>

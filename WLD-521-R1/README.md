@@ -92,39 +92,67 @@ The WLD-521-R1 is a highly specialized Industrial I/O module designed primarily 
 
 ---
 
-## 1.2 Supported Controllers 🔌
+## 1.2 WLD-521-R1 — Supported Controllers 🔌
 
-The WLD-521-R1 is engineered as an **intelligent expansion module** for the **HomeMaster MicroPLC/MiniPLC Modular Smart Control System**. 
+
+The **WLD-521-R1** is an intelligent expansion module for the **HomeMaster MiniPLC / MicroPLC Modular Smart Control System**.
+
 ### MiniPLC / MicroPLC (via Modbus RTU)
 
-| Feature | Specification |
-| :--- | :--- |
-| **Controller Role** | Operates as a **Modbus Slave**. The MiniPLC/MicroPLC acts as the **Modbus Master** for network and system logic management. |
-| **Communication** | **Modbus RTU (Serial)** protocol. |
-| **Physical Interface** | **RS-485 bus** (using dedicated UART2 pins). |
-| **Function** | Enables the Master to **read all I/O data** (Flow, Heat, Leak Status) and **write commands** to actuate the two Relays (R1, R2) and control Irrigation zones. |
-| **Modular Design** | The RS-485 architecture facilitates the **daisy-chaining of multiple WLD-521-R1 modules** and other expansion units to the central PLC, allowing for scalable I/O. |
-| **Default ID** | Modbus Slave ID is factory-set to **3**. |
+| Feature          | Specification                                                                                                                                         |
+|------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Controller Role** | Operates as a **Modbus Slave**. The MiniPLC/MicroPLC acts as the **Modbus Master** for network and system logic management.                          |
+| **Communication**   | **Modbus RTU** (Serial).                                                                                                                             |
+| **Physical Interface** | **RS-485** bus (using dedicated **UART2** pins).                                                                                                    |
+| **Function**         | Master can **read** all I/O data (Flow, Heat, Leak Status) and **write** commands to actuate **Relays R1, R2** and control **irrigation zones**.     |
+| **Modular Design**   | RS-485 architecture supports **daisy-chaining** multiple WLD-521-R1 modules and other expansion units for scalable I/O.                               |
+| **Default ID**       | Factory-set **Modbus Slave ID: 3**.                                                                                                                  |
+
+> **Note:** If multiple WLD-521-R1 modules share the same RS-485 segment, change the slave ID on each unit to avoid address conflicts.
+
 
 ---
 
 ## 1.3 Use Cases 🛠️
 
-### A. Water Flow & Leak Detection
-* **Flow Metering:** Configures DIs as **pulse counters** (`IT_WFLOW`) to track cumulative volume and calculate instantaneous **flow rates** (`flowRateLmin`).
-* **Leak Detection & Shut-off:** DIs can be configured for water sensing (`IT_WATER`). Upon detecting a leak, the module's logic can be configured to automatically trigger an **action** on a target relay (R1 or R2) to **close a main shut-off valve**.
-* **General Sensing:** DIs can be used for general purpose counting (`IT_WCOUNTER`) or humidity sensing (`IT_HUMIDITY`).
+Below are practical ways to deploy the **WLD-521-R1** with the HomeMaster Mini/Micro PLC.
 
-### B. Heat Energy Monitoring (Calorimetry)
-* The module performs specialized calculations when an input is set to **Heat Energy Mode** (`IT_WHEAT`).
-* Requires a **Flow Meter** and two dedicated **1-Wire temperature sensors** (T_A and T_B) to measure the temperature differential ($\Delta$T).
-* The module autonomously calculates and reports **heat power** (`heatPowerW`) and **accumulated heat energy** (`heatEnergyJ`).
+### 1) Basement leak alarm + siren
+- **Goal:** Trip an audible alarm and notify the PLC when water is detected.
+- **How:** Set **DI1** to **Water sensor**, enable it, and assign its **Action** to *Toggle* with **Control target** → *Relay 1*. Wire a siren/buzzer to **R1**. Optionally map an LED to **DI1** or **R1** for visual status. :contentReference[oaicite:0]{index=0}
 
-### C. Irrigation Control
-* The module provides native, dedicated logic for managing **two independent Irrigation Zones** (Zone 1 and Zone 2).
-* Relays are mapped to the physical irrigation valves.
-* The system allows for scheduling (not fully detailed in code snippets but inferred from time logic) and manual/remote commands to control **Start**, **Stop**, and **Reset** of the zones.
-* Local buttons can be mapped to trigger specific irrigation actions (e.g., `BTN_IRR1_START`).
+### 2) Garden irrigation with flow supervision
+- **Goal:** Safe, autonomous watering with dry-run protection.
+- **How:** Configure **Zone 1/2** with a valve on **Relay 1/2** and select a **Flow DI (1..5)** connected to a pulse flowmeter. Enable **Use flow supervision**, set **Min rate (L/min)** and **Grace (s)**, plus **Timeout** and optional **Target liters**. Add interlocks: **DI_moist** (needs water when OFF), **DI_rain** (block when ON), **DI_tank** (OK when ON), and an optional **R_pump**. Use **Irrigation Window** and **Auto-start** for time-based runs. :contentReference[oaicite:1]{index=1}
+
+### 3) Water consumption metering
+- **Goal:** Count liters for one or more branches (e.g., apartment/tenant billing).
+- **How:** Set selected inputs to **Water counter**. Enter **Pulses per liter**, and (optionally) calibrate **Total ×** and **Rate ×**. Use **Reset total** to move the accumulation baseline and **Calc from external** to fit readings to an external reference after a service interval. Read **Rate (L/min)** and **Total (L)** live in the UI. :contentReference[oaicite:2]{index=2}
+
+### 4) Hydronic loop heat-energy (ΔT) monitoring
+- **Goal:** Track instantaneous heat power and energy per loop.
+- **How:** For a DI configured as **Water counter**, open its **Heat** panel and enable **Heat**. Assign **Sensor A (supply)** and **Sensor B (return)** from stored **1-Wire** devices, then set **cp (J/kg·°C)**, **ρ (kg/L)**, and **Calibration (×)** as needed. The UI shows **TA**, **TB**, **ΔT**, **Power (W)**, **Energy (J / kWh)**. Use **Reset energy** to zero totals. Manage sensors from **1-Wire** (scan, add by name, view live temperatures). :contentReference[oaicite:3]{index=3}
+
+### 5) Pumped system dry-run protection
+- **Goal:** Prevent running the pump with an empty tank or no flow.
+- **How:** In the irrigation zone, set **R_pump** to the relay that powers the pump and require **DI_tank (OK when ON)**. Keep **Use flow supervision** enabled with a reasonable **Min rate** and **Grace**. The zone will block or stop when sensors are not OK. :contentReference[oaicite:4]{index=4}
+
+### 6) Manual service/override mode
+- **Goal:** Let staff force a relay on/off for maintenance without PLC edits.
+- **How:** Set **Control source** for **Relay 1/2** to *Buttons*, then map **Buttons (BTN1..4)** to actions such as *Toggle R1/R2* or *Pulse R1/R2*. Use **Override latch** to keep a manual override active; LEDs can be mapped to **R1/R2 Override** to indicate that state. :contentReference[oaicite:5]{index=5}
+
+### 7) Visual plant status board
+- **Goal:** Quick at-a-glance status for operators.
+- **How:** Map **LEDs (4)** to sources like **Relay 1/2**, **DI1..DI5**, **Irrig 1/2**, or **R1/R2 Override**, and choose **Solid** or **Blink** on activity. Combine with the **Live Status** card in the Irrigation section to monitor **state, rate, elapsed, accum, target, timeout, window, sensors** in real time. :contentReference[oaicite:6]{index=6}
+
+### 8) Home Assistant time sync / scheduled resets
+- **Goal:** Keep the module’s internal **minute-of-day** clock aligned and roll day index.
+- **How:** From HA, write **HREG_TIME_MINUTE (1100)** and **HREG_DAY_INDEX (1101)** as needed and pulse **CMD_TIME_MIDNIGHT (coil 360)** at 00:00 (TRUE then immediately FALSE). In the UI you can also **Set minute** or **Set from browser time** during commissioning. :contentReference[oaicite:7]{index=7}
+
+### 9) Multi-module expansion on RS-485
+- **Goal:** Scale I/O across several areas/zones.
+- **How:** Daisy-chain multiple WLD-521-R1 units on the **RS-485** bus, assign unique **Modbus Address** per unit, and select a common **Baud Rate**. The Master reads flows/temperatures/heat and commands relays/irrigation per module. The UI shows **Active Modbus Configuration** for quick verification. :contentReference[oaicite:8]{index=8}
+
 
 
 ## 🔧 Key Features
