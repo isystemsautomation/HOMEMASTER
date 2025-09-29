@@ -30,51 +30,48 @@ The **WLD-521-R1** is a smart and reliable input/control module designed for **l
 
 ### 4. [Getting Started]
 - [4.1 What You Need] 
-- [4.2 Quick Setup]
+- [4.2 Powering the Devices]
+-- [4.1.1 Power Supply Types]
+-- [4.1.2 Current Consumption]
+-- [4.1.3 Power Safety Tips] 
+- [4.3 Networking & Communication]
+-- [4.3.1 RS-485 Modbus]
+-- [4.3.2 USB-C Configuration]  
+- [4.4 Quick Setup]
 
-### 5. [Powering the Devices](#5-powering-the-devices)
-- [5.1 Power Supply Types](#51-power-supply-types)  
-- [5.2 Current Consumption](#52-current-consumption)  
-- [5.3 Power Safety Tips](#53-power-safety-tips)  
+### 5. [Installation & Wiring]
+- [5.1 ENM-223-R1 Wiring]
 
-### 6. [Networking & Communication](#6-networking--communication)
-- [6.1 RS-485 Modbus](#61-rs-485-modbus)  
-- [6.2 USB-C Configuration](#62-usb-c-configuration)  
+### 6. [Software & UI Configuration]
+- [6.1 Web Config Tool (USB Web Serial)] 
+- [6.2 ESPHome / Home Assistant]
+- [6.3 Meter Options & Calibration] 
+- [6.4 Alarms]
+- [6.5 Relays & Overrides]
+- [6.6 Buttons] 
+- [6.7 User LEDs, Energies & Live Meter]
 
-### 7. [Installation & Wiring](#7-installation--wiring)
-- [7.1 ENM-223-R1 Wiring](#71-enm-223-r1-wiring)  
+### 7. [Modbus RTU Communication]
+- [7.1 Input Registers (Read-Only)] 
+- [7.2 Holding Registers (Read/Write)]
+- [7.3 Discrete Inputs & Coils]
+- [7.4 Scaling Summary]
+- [7.5 Basics & Function Codes] 
+- [7.6 Register Map (Summary)]
+- [7.7 Override Priority] 
 
-### 8. [Software & UI Configuration](#8-software--ui-configuration)
-- [8.1 Web Config Tool (USB Web Serial)](#81-web-config-tool-usb-web-serial)  
-- [8.2 ESPHome / Home Assistant](#82-esphome--home-assistant)  
-- [8.3 Meter Options & Calibration](#83-meter-options--calibration)  
-- [8.4 Alarms](#84-alarms)  
-- [8.5 Relays & Overrides](#85-relays--overrides)  
-- [8.6 Buttons](#86-buttons)  
-- [8.7 User LEDs, Energies & Live Meter](#87-user-leds-energies--live-meter)  
+### 8. [ESPHome Integration Guide (MicroPLC/MiniPLC + ENM)]
 
-### 9. [Modbus RTU Communication](#9-modbus-rtu-communication)
-- [9.1 Input Registers (Read-Only)](#91-input-registers-read-only)  
-- [9.2 Holding Registers (Read/Write)](#92-holding-registers-readwrite)  
-- [9.3 Discrete Inputs & Coils](#93-discrete-inputs--coils)  
-- [9.4 Scaling Summary](#scaling-summary)  
-- [9.5 Basics & Function Codes](#basics--function-codes)  
-- [9.6 Register Map (Summary)](#register-map-summary)  
-- [9.7 Override Priority](#override-priority)  
+### 9. [Programming & Customization]
+- [9.1 Supported Languages] 
+- [9.2 Flashing via USB-C] 
+- [9.3 PlatformIO & Arduino]
 
-### 10. [Programming & Customization](#10-programming--customization)
-- [10.1 Supported Languages](#101-supported-languages)  
-- [10.2 Flashing via USB-C](#102-flashing-via-usb-c)  
-- [10.3 PlatformIO & Arduino](#103-platformio--arduino)  
-
-### 11. [Diagrams & Pinouts](#11-diagrams--pinouts)  
-### 12. [Maintenance & Troubleshooting](#12-maintenance--troubleshooting)  
-### 13. [Technical Specifications](#13-technical-specifications-electrical--external)  
-### 14. [Open Source & Licensing](#14-open-source--licensing)  
-### 15. [Downloads](#15-downloads)  
-### 16. [Support](#16-support)
-
-### 17. [ESPHome Integration Guide (MicroPLC/MiniPLC + ENM)](#17-esphome-integration-guide-microplcminiplc--enm)
+### 10. [Maintenance & Troubleshooting] 
+### 11. [Technical Specifications]
+### 12. [Open Source & Licensing]
+### 13. [Downloads] 
+### 14. [Support]
 
 ---
 # 1. [Introduction]
@@ -321,22 +318,22 @@ Integration of the WLD-521-R1 into Home Assistant (HA) is achieved via the **ESP
 
 # 4. Getting Started
 
-The **WLD-521-R1** integrates into the HomeMaster system over the **RS-485 Modbus** bus. Initial setup has two parts: **physical wiring** and **digital configuration** (WebConfig + ESPHome). :contentReference[oaicite:0]{index=0}
+The **WLD-521-R1** integrates into the HomeMaster system over the **RS-485 Modbus** bus. Initial setup has two parts: **physical wiring** and **digital configuration** (WebConfig + ESPHome).
 
 ---
 
 ## 4.1 What You Need
 
-| Category | Item | Details | Source Reference |
+| Category | Item | Details |
 |---|---|---|---|
-| **Hardware** | **WLD-521-R1 Module** | DIN-rail I/O module with **5× DI**, **2× relays**, and **1-Wire** (for DS18B20, etc.). | :contentReference[oaicite:1]{index=1} |
-|  | **HomeMaster Controller** | MiniPLC/MicroPLC acting as **Modbus master** and network gateway; ESPHome YAML template includes `wld_address: "3"` by default. | :contentReference[oaicite:2]{index=2} |
-|  | **Power Supply** | **24 VDC** to module power terminals (on-board 5 V/3.3 V rails derived). | :contentReference[oaicite:3]{index=3} |
-|  | **RS-485 Cabling** | Two-wire **A/B** plus **COM/GND**; use **120 Ω** termination at bus ends. | :contentReference[oaicite:4]{index=4} |
-|  | **USB-C Cable** | Connects the **module** to your computer to run WebConfig via Web Serial. | :contentReference[oaicite:5]{index=5} |
-| **Software** | **WebConfig Tool** | Browser page to set **Modbus Address & Baud**, see **Active Modbus Configuration**, reset device, and configure Inputs/Relays/Irrigation. | :contentReference[oaicite:6]{index=6} |
-|  | **ESPHome YAML** | Controller config declaring the WLD on RS-485 (`modbus_controller:` + entities). | :contentReference[oaicite:7]{index=7} |
-| **I/O** | **Sensors / Actuators** | Leak/moisture/rain probes & **pulse flow meters** on DIs; **DS18B20** on **1-Wire (GPIO16)**; valves/pumps on **R1/R2**. |  |
+| **Hardware** | **WLD-521-R1 Module** | DIN-rail I/O module with **5× DI**, **2× relays**, and **1-Wire** (for DS18B20, etc.). |
+|  | **HomeMaster Controller** | MiniPLC/MicroPLC acting as **Modbus master** and network gateway; ESPHome YAML template includes `wld_address: "3"` by default. |
+|  | **Power Supply** | **24 VDC** to module power terminals (on-board 5 V/3.3 V rails derived). |
+|  | **RS-485 Cabling** | Two-wire **A/B** plus **COM/GND**; use **120 Ω** termination at bus ends. |
+|  | **USB-C Cable** | Connects the **module** to your computer to run WebConfig via Web Serial. |
+| **Software** | **WebConfig Tool** | Browser page to set **Modbus Address & Baud**, see **Active Modbus Configuration**, reset device, and configure Inputs/Relays/Irrigation. |
+|  | **ESPHome YAML** | Controller config declaring the WLD on RS-485 (`modbus_controller:` + entities). |
+| **I/O** | **Sensors / Actuators** | Leak/moisture/rain probes & **pulse flow meters** on DIs; **DS18B20** on **1-Wire (GPIO16)**; valves/pumps on **R1/R2**. |
 
 ---
 
