@@ -174,15 +174,11 @@ This section outlines essential safety guidelines. Failure to adhere to these wa
 
 ## 3.5 WLD-521-R1 — Technical Specification
 
-This specification consolidates details from the current hardware schematics, product photo, and the previous README.
-
----
-
 ### Overview
 
 - **Function**: Water leak detection, pulse water metering, irrigation control, and optional heat (ΔT) calculations  
 - **System role**: RS-485 **Modbus RTU** slave; integrates with MicroPLC/MiniPLC and home automation stacks  
-- **Form factor**: DIN-rail module, ~3M wide (approx. “3-gang” footprint). :contentReference[oaicite:0]{index=0}
+- **Form factor**: DIN-rail module, ~3M wide (approx. “3-gang” footprint).
 
 ---
 
@@ -190,24 +186,26 @@ This specification consolidates details from the current hardware schematics, pr
 
 | Interface | Qty | Electrical / Notes |
 |---|---:|---|
-| **Digital Inputs (DI1..DI5)** | 5 | **Opto-isolated**; supports dry-contact and pulse meters. Typical trigger ≈ **14 V**, ≈ **6 mA** input current; up to **~9 Hz** (firmware supports higher with configuration). :contentReference[oaicite:1]{index=1} |
-| **Relays (R1, R2)** | 2 | SPDT (NO/NC/COM) dry contacts for valves/pumps; max **3 A @ 250 VAC**. Hardware uses **HF115F/005-1ZS3** relays with opto-isolated drivers. :contentReference[oaicite:2]{index=2} |
-| **1-Wire bus** | 1 | 3-pin header: **+5 V / DATA / GND**. Protected by **DS9503** and MOSFET level shifting. Designed for DS18B20-class sensors. :contentReference[oaicite:3]{index=3} |
-| **User buttons** | 4 | Panel buttons (SW1..SW4) routed to MCU GPIO; used for local control/overrides. :contentReference[oaicite:4]{index=4} |
-| **User LEDs** | 4 + status | Front LEDs for status/override indication; driven via transistor stages from MCU GPIO. :contentReference[oaicite:5]{index=5} |
+| **Digital Inputs (DI1..DI5)** | 5 | **Opto-isolated**; supports dry-contact and pulse meters. Typical trigger ≈ **5 V**, ≈ **6 mA** input current; up to **~9 Hz** (firmware supports higher with configuration).|
+| **Relays (R1, R2)** | 2 | SPDT (NO/NC/COM) dry contacts for valves/pumps; max **3 A @ 250 VAC**. Hardware uses **HF115F/005-1ZS3** relays with opto-isolated drivers.|
+| **1-Wire bus** | 1 | 3-pin header: **+5 V / DATA / GND**. Protected by **DS9503** and MOSFET level shifting. Designed for DS18B20-class sensors.|
+| **User buttons** | 4 | Panel buttons (SW1..SW4) routed to MCU GPIO; used for local control/overrides.|
+| **User LEDs** | 4 + status | Front LEDs for status/override indication; driven via transistor stages from MCU GPIO.]{index=5} |
 
 ---
 
 ### Terminals & Pinout (field side)
 
-- **Power**: `24VDC` and `0V` (primary supply). :contentReference[oaicite:6]{index=6}  
-- **Inputs**: `I1..I5` and **GND_ISO** (return for input side). Each DI has opto-isolation and input conditioning. :contentReference[oaicite:7]{index=7}  
+<img src="Images/photo1.png" align="left" width="220" alt="WLD-521-R1 module photo">
+
+- **Power**: `24VDC` and `0V` (primary supply). 
+- **Inputs**: `I1..I5` and **GND_ISO** (return for input side). Each DI has opto-isolation and input conditioning.  
 - **Relays**:  
   - **Relay 1**: `R1_NO`, `R1_C`, `R1_NC`  
-  - **Relay 2**: `R2_NO`, `R2_C`, `R2_NC`  :contentReference[oaicite:8]{index=8}  
-- **RS-485**: `A`, `B`, `COM` (shield/earth reference). :contentReference[oaicite:9]{index=9}  
-- **1-Wire**: `+5V`, `D`, `GND` (isolated 5 V sourced). :contentReference[oaicite:10]{index=10}  
-- **Aux sensor power**: **+5 V** and **+12 V** isolated rails available for external sensors (fuse-protected). :contentReference[oaicite:11]{index=11}
+  - **Relay 2**: `R2_NO`, `R2_C`, `R2_NC`
+- **RS-485**: `A`, `B`, `COM` (shield/earth reference). 
+- **1-Wire**: `+5V`, `D`, `GND` (isolated 5 V sourced).
+- **Aux sensor power**: **+5 V** and **+12 V** isolated rails available for external sensors (fuse-protected).
 
 > The front-label silkscreen in the product photo aligns with the terminals above (Inputs, RS-485, Relays, +5/12 V sensor supply).
 
