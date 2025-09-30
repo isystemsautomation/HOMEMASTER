@@ -588,19 +588,17 @@ When a digital input (DI) is set to **Water counter** and **Enable heat** is tur
 - **Calibration (×):** optional scalar applied to the computed power/energy (useful for meter or sensor bias).
 
 ##### Formulas (executed in firmware)
-1. **Mass flow**  
-   \[
-   \dot{m}\;[\mathrm{kg/s}] = \rho\,[\mathrm{kg/L}] \times \frac{\text{Rate (L/min)}}{60}
-   \]
-2. **Thermal power**  
-   \[
-   P\;[\mathrm{W}] = \text{Calibration} \times c_p\,[\mathrm{J/(kg\cdot °C)}] \times \dot{m}\,[\mathrm{kg/s}] \times \Delta T\,[°\mathrm{C}]
-   \]
-3. **Energy accumulation** (integrated each cycle)  
-   \[
-   E_J\;[\mathrm{J}] \mathrel{+}= P\,[\mathrm{W}] \times \Delta t\,[\mathrm{s}],\qquad
-   E_{kWh} = \frac{E_J}{3\,600\,000}
-   \]
+
+1) Mass flow
+   m_dot [kg/s] = rho [kg/L] * Rate_Lmin / 60
+
+2) Thermal power
+   P [W] = Calibration * cp [J/(kg·°C)] * m_dot [kg/s] * ΔT [°C]
+
+3) Energy accumulation (integrated each cycle)
+   E_J [J] += P [W] * Δt [s]
+   E_kWh   = E_J / 3,600,000
+
 
 **Notes**
 - If either temperature is missing or flow is effectively zero, **power is treated as 0 W** for that cycle.  
