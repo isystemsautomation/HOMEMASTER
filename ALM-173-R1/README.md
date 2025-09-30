@@ -19,7 +19,7 @@ The **ALM-173-R1** is a configurable **alarm I/O module** with **17 opto-isolate
 - [2. Safety Information](#2-safety-information-1)
 - [3. System Overview](#3-system-overview-1)
 - [4. Getting Started](#4-getting-started-1)
-- [5. Installation & Wiring](#5-Wiring)
+- [5. Installation & Wiring](#5-wiring-1)
 - [6 Software & UI Configuration](#6-software-ui-configuration-1)
 - [7 Modbus RTU Communication](#7-modbus-rtu-communication-1)
 - [8. [ESPHome Integration Guide (MicroPLC/MiniPLC + ALM-173-R1)]](#8-esphome-integration-guide-microplcminiplc-alm-173-r1-1)
@@ -312,7 +312,7 @@ The **ALM-173-R1** integrates with **Home Assistant (HA)** through the **HomeMas
 ### Overview
 
 - **Function:** Alarm and annunciation I/O module with **17× opto-isolated digital inputs** and **3× SPDT relay outputs**  
-- **System role:** RS-485 **Modbus RTU** slave for PLC/SCADA and Home Automation gateways  
+- **System role:** RS-485 **Modbus RTU** slave for MicroPLC/MiniPLC and Home Automation 
 - **Form factor:** DIN-rail module (compact multi-gang footprint), USB-C service port for Web-Serial setup
 
 ---
@@ -403,7 +403,7 @@ The **ALM-173-R1** integrates with **Home Assistant (HA)** through the **HomeMas
 ### Firmware / Function (high-level)
 
 - **Alarm engine:** map inputs → **Group 1/2/3** with modes **Active-while** or **Latched-until-ack**; **Any Alarm** summary  
-- **Actuation & HMI:** per-relay **Enable/Invert/Group**; **Buttons** for acknowledges and manual relay overrides; **User LEDs** sourced to groups/any/override with **Steady/Blink**  
+- **Actuation:** per-relay **Enable/Invert/Group**; **Buttons** for acknowledges and manual relay overrides; **User LEDs** sourced to groups/any/override with **Steady/Blink**  
 - **Setup & telemetry:** Web-Serial UI (USB-C) for **Modbus address/baud**, live input/relay/group status, and safe reset; operates stand-alone with a PLC/HMI supervising over Modbus
 
 
@@ -418,23 +418,34 @@ The **ALM-173-R1** integrates into the HomeMaster system over the **RS-485 Modbu
 
 ## 4.1 What You Need
 
-| Category   | Item                    | Details                                                                                         |
-|------------|-------------------------|-------------------------------------------------------------------------------------------------|
-| **Hardware** | **ALM-173-R1 Module**   | DIN-rail I/O module with **5× DI**, **2× relays**, and **1-Wire** (DS18B20, etc.).              |
-|            | **HomeMaster Controller** | MiniPLC/MicroPLC acting as **Modbus master** and network gateway; ESPHome uses `wld_address: "3"`. |
-|            | **Power Supply**          | **24 VDC** to module power terminals (on-board 5 V/3.3 V rails derived).                        |
-|            | **RS-485 Cabling**        | Two-wire **A/B** plus **COM/GND**; use **120 Ω** termination at bus ends.                       |
-|            | **USB-C Cable**           | Connects the module to your computer to run WebConfig via Web Serial.                            |
-| **Software** | **WebConfig Tool**       | Browser page to set **Modbus Address & Baud**, view **Active Modbus Configuration**, reset, and configure I/O/irrigation. |
-|            | **ESPHome YAML**          | Controller config declaring the WLD on RS-485 (`modbus_controller:` + entities).                |
-| **I/O**     | **Sensors / Actuators**   | Leak/moisture/rain probes & **pulse flow meters** on DIs; **DS18B20** on **1-Wire (GPIO16)**; valves/pumps on **R1/R2**. |
----
+| Category | Item | Details |
+|---|---|---|
+| **Hardware** | **ALM-173-R1 Module** | DIN-rail alarm I/O module with **17× opto-isolated DIs**, **3× SPDT relays**, **4 buttons**, **4 user LEDs**, **RS-485**, and **USB-C** service port. |
+|  | **HomeMaster Controller** | MiniPLC/MicroPLC (or any Modbus RTU master) to poll the ALM over RS-485 and integrate with HA/SCADA. |
+|  | **24 VDC Power Supply** | Regulated SELV **24 VDC** wired to **V+ / 0V** terminals. Size for ALM + any sensors powered from the module’s isolated rails. |
+|  | **RS-485 Cabling** | Twisted pair for **A/B** plus **COM/GND** reference; use **120 Ω** termination at the ends of the trunk and biasing per site design. |
+|  | **USB-C Cable** | Connects the ALM to a PC for setup via **Web Serial** (Chrome/Edge). Service use only. |
+|  | **Panel Enclosure & DIN Rail** | 35 mm DIN rail in a dry, clean enclosure with cable strain relief and shield management. |
+| **Software** | **WebConfig Tool (browser page)** | Set **Modbus Address & Baud**, configure **Inputs/Relays/Buttons/LEDs**, select **Alarm Modes**, view **live status**, and **Reset Device**. No drivers required. |
+|  | **ESPHome (optional)** | If using Home Assistant, run ESPHome on the controller to expose ALM states/actions as HA entities. |
+| **I/O & Field Wiring** | **Dry-contact Sensors** | Door/PIR/tamper/aux contacts to **IN1…IN17**; use the labeled **GND I.x** returns; keep within SELV limits. |
+|  | **Loads on Relays** | Siren/lock/indicator to **RLY1…RLY3 (COM/NO/NC)**; **observe relay ratings**. Fit **RC snubbers or TVS** across inductive loads. |
+|  | **Isolated Sensor Power** | Use module outputs **PS/1 = +12 V iso** and **PS/2 = +5 V iso** for low-power sensors only; do **not** backfeed or parallel rails. |
+| **Tools & Accessories** | **Screwdrivers & Ferrules** | Correctly torque terminal screws; ferrules recommended for stranded wire. |
+|  | **Multimeter** | Verify polarity, continuity, and RS-485 A/B orientation during commissioning. |
+|  | **120 Ω Resistors / Bias Network** | For RS-485 termination (ends of line) and biasing if not provided elsewhere on the trunk. |
+|  | **Surge/EMC Aids** | Cable shields, gland plates; optional surge protectors for long outdoor runs. |
+
+> **LED behavior:** **PWR** = steady ON in normal operation. **TX/RX** blink when RS-485 communication is active.
+
+> **Quick start:** mount on DIN rail → wire **24 VDC** and RS-485 (**A/B/COM**) → connect **USB-C** and open WebConfig → set **Address/Baud** → configure **inputs → groups → relays/LEDs** → disconnect USB and hand over to the controller.
+
 
 ## 4.2 Powering the Devices
 
 The ALM-173-R1 is powered from a **24 VDC primary input** on the field board. On-board regulators generate the internal rails for logic and provide **isolated 5 V / 12 V auxiliary rails** intended for low-power sensors.
 
-> Relays are **dry contacts** (SPDT). Do **not** power valves/pumps from the module’s internal rails; use a dedicated external supply and switch it via the relay contacts.
+> Relays are **dry contacts** (SPDT). Do **not** power valves/motors/lamps from the module’s internal rails; use a dedicated external supply and switch it via the relay contacts.
 
 ---
 
@@ -442,8 +453,8 @@ The ALM-173-R1 is powered from a **24 VDC primary input** on the field board. On
 
 - **Regulated 24 VDC DIN-rail PSU:** Connect to the module’s **+V / 0V** power terminals. Size the PSU for the module plus any externally powered devices.
 - **No power over RS-485:** The RS-485 bus carries signals only. Always provide local 24 VDC power to the module.
-- **Sensor power from module:** Use the **isolated** rails — **+5 V** and **+12 V** — **together with GND (DI ground)** to power **low-power field sensors** (leak probes, flow-meter heads) connected to the DI terminals.  
-  **Note:** The **1-Wire bus uses the module’s non-isolated +5 V (logic domain)**. Do **not** power DI sensors from the 1-Wire **+5 V/GND**, and do **not** tie the 1-Wire ground to the DI ground. Keep the **isolated (DI)** and **logic (1-Wire)** domains separate to preserve isolation and avoid noise/ground loops.
+- **Sensor power from module:** Use the **isolated** rails — **+5 V** and **+12 V** — to power **low-power field sensors** connected to the DI terminals.  
+
 
 
 ---
@@ -490,8 +501,8 @@ The ALM-173-R1 communicates with the controller over **RS-485 (Modbus RTU)** and
 
 **Controller (ESPHome) notes**
 - In your ESPHome YAML, configure `uart:` pins for the RS-485 transceiver and add a `modbus_controller:` for this device.
-- Ensure the `wld_address` in YAML matches the address set in WebConfig.
-- The controller will poll coils/holding registers and expose relays, DI states/counters, 1-Wire temps, and irrigation status as Home Assistant entities.
+- Ensure the `alm_address` in YAML matches the address set in WebConfig.
+- The controller will poll coils/holding registers and expose relays, DI states and alarms status as Home Assistant entities.
 
 **Wiring checklist**
 - A→A, B→B, COM↔COM between controller and module.
@@ -509,12 +520,8 @@ The ALM-173-R1 communicates with the controller over **RS-485 (Modbus RTU)** and
 1. Connect a **USB-C** cable from your computer to the module.
 2. Open the configuration page and click **Connect**.
 3. Use the **Modbus** card to set **Address** and **Baud**; the header shows **Active Modbus Configuration**.
-4. Configure **Digital Inputs**, **Relays**, **LEDs/Buttons**, **1-Wire**, and **Irrigation** zones. Changes are applied live.
+4. Configure **Digital Inputs**, **Relays**, **LEDs/Buttons**. Changes are applied live.
 5. Use **Serial Log** for diagnostics.
-
-**Clock & HA sync (optional)**
-- The **Module Time & Modbus Sync** panel lets you set the **minute-of-day** or pull browser time for testing.
-- For production, schedule a nightly automation in Home Assistant to pulse the **CMD_TIME_MIDNIGHT (coil 360)** and keep the module’s internal clock aligned (useful for irrigation windows and daily counters).
 
 **Troubleshooting**
 - If the **Connect** button is disabled, ensure you’re using Chrome/Edge and that the browser has permission to access serial devices.
@@ -525,43 +532,125 @@ The ALM-173-R1 communicates with the controller over **RS-485 (Modbus RTU)** and
 
 **Phase 1 — Physical Wiring**
 
-- **Power:** connect **24 VDC** to **V+ / 0 V** on the module.
-- **RS-485:** wire **A → A**, **B → B**, and **COM/GND** between the ALM-173-R1 and the controller; keep polarity consistent. Terminate the two bus ends with **120 Ω**.
-- **I/O:**
-  - **Relays:** wire your valves/pumps to **R1/R2 (NO/NC/COM)**.
-  - **Digital inputs:** connect leak sensors / flow meters / buttons to **DI1…DI5**.
-  - **1-Wire:** connect **DS18B20** sensors to **1WIRE_5V / 1WIRE_DATA / 1WIRE_GND** (GPIO16).
+- **Power:** connect a regulated **24 VDC** supply to the **V+ / 0 V** POWER terminals.
+- **RS-485:** wire **A → A**, **B → B**, and **COM/GND** between the **ALM-173-R1** and your controller. Keep polarity consistent. Terminate the two ends of the bus with **120 Ω** and apply biasing per your trunk design.
+- **Digital inputs:** connect dry-contact/isolated signals to **IN1…IN17**; use the matching **GND I.x** returns printed on the lower terminal row.
+- **Relays:** wire loads to **RLY1…RLY3 (COM/NO/NC)**. Use external **RC snubbers/TVS** for coils, locks, sirens, etc. Observe relay voltage/current ratings.
+- **Isolated sensor power (optional):** low-power sensors can be fed from **PS/1 = +12 V iso** and **PS/2 = +5 V iso**. Do **not** backfeed or parallel these rails.
 
-_For diagrams, terminal pinouts, cable gauges, and safety notes, see **[Section 5 — Installation & Wiring]**._
+_For wiring safety, terminal maps, and cable practices, see your **Installation & Wiring** section._
 
+---
 
 **Phase 2 — Module Configuration (WebConfig)**
 
-- **Connect:** plug **USB-C** into the module; open [ConfigToolPage.html](https://www.home-master.eu/configtool-alm-173-r1) in a Chromium browser and click **Connect**.
-- **Set Modbus:** choose a unique **Modbus Address (1–255)** and **Baud** (default list includes **19200**). The header shows the **Active Modbus Configuration**.
-- **Configure I/O:**  
-  - **Digital Inputs:** set role per DI (e.g., flow meter vs. leak sensor); counters show **Rate (L/min)** / **Total (L)**, with **Pulses-per-liter** and **Rate×/Total×** calibration, plus **Reset** tools.
-  - **Irrigation (2 zones, optional):** map **Valve relay** and **Flow DI**; set **Min rate**, **Grace**, **Timeout**, **Target liters**; add interlocks (**DI_moist / DI_rain / DI_tank / R_pump**) and an **Irrigation Window** (Start/End, Enforce, Auto-start).
-  - **1-Wire:** scan, store, and name sensors for temperature/heat features.
-- (Optional) **Reset Device** from the dialog if you need to restart; the serial link will reconnect.
+- **Connect:** plug a **USB-C** cable into the front service port and open the **ALM-173-R1 Config Tool** in a Chromium-based browser. Click **Connect**.
+- **Set Modbus:** choose a unique **Modbus Address (1–255)** and a **Baud** rate (e.g., 9600/19200/38400/57600/115200). The header shows the **Active Modbus Configuration**.
+- **Alarm modes:** for **Group 1/2/3**, pick **None**, **Active while condition is active (non-latched)**, or **Latched until acknowledged**.
+- **Digital Inputs (IN1…IN17):** per input, set **Enabled**, **Inverted**, and **Alarm Group** (*None/1/2/3*). Watch the live state dot to verify wiring.
+- **Relays (RLY1…RLY3):** set **Enabled**, **Inverted**, and **Alarm Group** mapping. The UI shows each relay’s live state.
+- **Buttons (4):** assign actions such as **All acknowledge**, **Group 1/2/3 acknowledge**, or **Relay 1/2/3 override (manual)**.
+- **User LEDs (4):** choose **Mode** (*Steady* / *Blink*) and **Source** (*Any alarm*, *Group 1/2/3*, *Relay 1/2/3 overridden*). Live LED status is shown.
+- (Optional) **Reset Device** from the confirmation dialog if you need to restart the module; the browser will reconnect.
 
-_For more details about WebConfig cards and fields, see **[Software & UI Configuration](#6-software-ui-configuration-1)**._
+> For more details about **WebConfig** cards and fields, see **[Software & UI Configuration](#6-software--ui-configuration)**.
 
-**Phase 3 — Controller Integration (ESPHome)**
+---
 
-- **Update YAML:** In the ESPHome YAML configuration file for your MiniPLC/MicroPLC (using the provided template, **`default_alm_173_r1_plc.yaml`**):  
-  - Verify the **`uart`** settings match your controller’s **RS-485 pins**.  
-  - Add a new **`modbus_controller:`** entry, ensuring the **`wld_address`** substitution matches the Modbus Address set in Step 3 of Phase 2 (e.g., `wld_address: "3"`).
-- **Compile & Upload:** Build and upload the updated ESPHome config to the controller. After reboot, the controller will poll the ALM-173-R1 and expose **DI states/counters**, **1-Wire temperatures**, **relay controls**, and **irrigation status** as HA entities.
+**Phase 3 — Controller Integration**
 
-_For protocol details and end-to-end examples, see **[Modbus RTU Communication](#7-modbus-rtu-communication-1)** and **[ESPHome Integration Guide (MicroPLC/MiniPLC + ALM-173-R1)](#8-esphome-integration-guide-microplcminiplc-alm-173-r1-1)**._
-  
+- **Controller role:** your MiniPLC/MicroPLC (or any Modbus master) polls the ALM-173-R1 over **RS-485** and exposes states/actions to your HMI or Home Assistant (via ESPHome on the controller, if used).
+- **Match parameters:** ensure the controller’s **address** and **baud** match what you set in WebConfig.
+- **Commission:** read DI and Alarm Group states from the controller; toggle relays for a functional test; expose “Acknowledge” and “Override” actions if desired.
 
-**Timekeeping (recommended for local schedules)**  
-If you use the module’s **Irrigation Window** or daily counters, schedule a Home Assistant automation at **00:00** to pulse the **CMD_TIME_MIDNIGHT (coil 360)** and keep the module’s minute/day registers aligned with HA. (See the **Module Time & Modbus Sync** area in the UI and your controller automations.)
+> For protocol details and end-to-end examples, see **[Modbus RTU Communication](#7-modbus-rtu-communication)** and **[ESPHome Integration Guide (MicroPLC/MiniPLC + ALM-173-R1)](#8-esphome-integration-guide-microplcminiplc--alm-173-r1)**.
 
-**Verify**  
-Use WebConfig’s **Serial Log** and live status panels to confirm DI changes, flow **rate/total**, relay actions, and irrigation state.
+---
+
+**Verify**
+
+- **LEDs:** **PWR** should be **steady ON**; **TX/RX** should **blink** when the controller is communicating.
+- **Inputs:** short/open a few inputs and confirm the **live dots** and **Group/Any** indicators react accordingly.
+- **Relays:** command each relay from the UI or controller and verify field wiring (use a meter or indicator load).
+- **Buttons/LEDs:** press front buttons to **acknowledge** or **override** as configured; confirm user LEDs reflect the chosen sources and modes.
+
+<a id="5-wiring-1"></a>
+# 5. Installation & Wiring
+
+> ⚠️ **Safety first.** Work must be performed by qualified personnel. De-energize the panel and verify with a meter before wiring. The ALM-173-R1 is a **SELV/low-voltage** device; do not connect mains to any logic/input terminal.
+
+---
+
+## 5.1 RS-485 Field Bus (Modbus RTU)
+
+![RS-485 wiring to controller with 120Ω end-of-line termination](Images/ALM_RS485Connection.png)
+
+**What you see:** The controller is wired to the ALM-173-R1 using a twisted pair for **A/B** plus a **COM/GND** reference. A **120 Ω** end-of-line resistor is installed across **A–B** at the far end of the trunk.
+
+**How to wire**
+
+1. Use shielded twisted pair (e.g., 24–22 AWG).  
+2. Wire **A → A**, **B → B**, **COM/GND → COM**; keep polarity consistent on all nodes.  
+3. Terminate the **two physical ends** of the trunk with **120 Ω** between **A–B**.  
+4. Bond the cable shield at **one point** only (usually at the controller) to avoid ground loops.  
+5. Daisy-chain topology is recommended; avoid star wiring.
+
+---
+
+## 5.2 Primary Power (24 VDC)
+
+![24 VDC power wiring to V+ and 0V](Images/ALM_24Vdc_PowerSupply.png)
+
+**What you see:** A regulated **24 VDC** supply connected to the top-left **POWER** terminals: **V+** (red) and **0 V** (blue).
+
+**How to wire**
+
+- Provide a clean SELV **24 VDC** source sized for the ALM plus any sensors powered from its isolated rails.  
+- Observe polarity (**V+ / 0 V**).  
+- Use an upstream fuse or breaker and proper panel bonding.  
+
+---
+
+## 5.3 Digital Inputs (IN1…IN17)
+
+![Dry-contact sensors to inputs with per-group returns](Images/ALM_DigitalInputs.png)
+
+**What you see:** Dry-contact sensors (switch symbols) wired between each **INx** and the matching **GND I.x** return. The lower terminal row groups the returns (e.g., **GND I.11**, **GND I.12**, …).
+
+**How to wire**
+
+- These inputs are **opto-isolated** and expect **dry contacts** or isolated low-voltage signals.  
+- For each input, connect the sensor between **INx** and its **GND I.x** return as labeled on the front panel.  
+- Do **not** inject external voltage into the inputs.  
+- Use shielded cable for long runs and keep input wiring away from high-dv/dt conductors.  
+- Configure each input in the WebConfig UI (**Enable / Invert / Group**) and verify with the live state dot.
+
+---
+
+## 5.4 Relay Outputs (RLY1…RLY3, COM/NO/NC)
+
+![Relays used as dry contacts to switch an external AC line via breaker](Images/ALM_RelayConnection.png)
+
+**What you see:** Each relay is used as a **dry contact** to switch an external AC line from a breaker (**L**) to loads (lamps). **N** is routed directly to the loads. The diagram shows use of the **NO (normally open)** path.
+
+**How to wire**
+
+1. Bring the external supply **line (L)** to the relay **COM** terminal.  
+2. From **NO** (or **NC** if you need fail-active behavior) go to the load; return the other side of the load to **N/0 V** of the external supply.  
+3. The relays **do not source power**—they only switch your external circuit.  
+4. Respect relay voltage/current ratings and local electrical codes.  
+5. Fit **RC snubbers or TVS** across inductive loads (locks, sirens, coils) to minimize arcing and EMI.
+
+---
+
+## 5.5 Final Checks
+
+- All terminals torqued; strain relief applied.  
+- **Isolation boundaries** respected (no unintended bonds between **GND_ISO** and logic ground).  
+- RS-485 polarity, termination, and biasing verified.  
+- Relays wired with the correct **COM/NO/NC** choice; snubbers fitted where needed.  
+- Power up: **PWR** LED steady **ON**; **TX/RX** **blink** when the controller communicates.  
+
 
 <a id="6-software-ui-configuration-1"></a>
 # 6 Software & UI Configuration
