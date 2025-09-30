@@ -287,7 +287,7 @@ The **ALM-173-R1** integrates with **Home Assistant (HA)** through the **HomeMas
     <tr>
       <td align="center">
         <strong>ALM System Diagram</strong><br>
-        <img src="Images/ALM_SystemBlockDiagram.png" alt="WLD System Diagram" width="360">
+        <img src="Images/ALM_SystemBlockDiagram.png" alt="ALM System Diagram" width="360">
       </td>
       <td align="center">
         <strong>RP2350 MCU Pinout</strong><br>
@@ -577,8 +577,6 @@ _For wiring safety, terminal maps, and cable practices, see your **Installation 
 <a id="5-wiring-1"></a>
 # 5. Installation & Wiring
 
-# 5. Installation & Wiring
-
 > ⚠️ **Safety first.** Work must be performed by qualified personnel. De-energize the panel and verify with a meter before wiring. The ALM-173-R1 is a **SELV/low-voltage** device; do not connect mains to any logic/input terminal.
 
 ---
@@ -677,7 +675,7 @@ Use the top **Modbus Address** and **Baud Rate** selectors. Changes are sent to 
 - **Set Address (1…255):** Choose a **unique** Modbus RTU address for this module.  
 - **Set Baud:** Pick one of the supported rates: **9600**, **19200** (default), **38400**, **57600**, **115200**.  
 - **Verify live status:** The banner updates to show **Address** and **Baud Rate** currently active on the device.  
-- **Controller match:** In your controller’s ESPHome YAML, ensure `uart` settings match your RS-485 pins/speed and set `wld_address` to the same address you chose here (e.g., `wld_address: "6"`).
+- **Controller match:** In your controller’s ESPHome YAML, ensure `uart` settings match your RS-485 pins/speed and set `alm_address` to the same address you chose here (e.g., `alm_address: "6"`).
 
 > You can revisit this page anytime to adjust Modbus parameters. Configuration persists in the module’s flash memory.
 
@@ -689,7 +687,7 @@ Use the **Mode – Group 1/2/3** dropdowns to select the behavior for each group
 - **Latched until acknowledged** — stays ON after a trigger until acknowledged.
 
 Top-row dots show live status for **Any Alarm**, **Group 1**, **Group 2**, **Group 3** (gray = idle, lit = active).
-![1-Wire Devices — WebConfig](./Images/webconfig2.png)
+![Alarm Status & Modes panel](Images/ALM_AlarmStatusModes.png)
 
 
 Use the **Mode – Group 1/2/3** dropdowns to select the behavior for each group:
@@ -729,6 +727,8 @@ For each **Relay 1…3**:
 
 
 ## 6.6 How to Configure LEDs and Buttons
+
+![LEDs — WebConfig](./Images/webconfig5.png)
 
 ### LEDs (4)
  
@@ -917,7 +917,7 @@ Holding Registers (R/W)
 
 ## 8.2 ESPHome (PLC): Enable Modbus RTU & Import the ALM Package
 
-Your MiniPLC usually already defines UART+Modbus. Import the **ALM** package and use the **exact variable names** shown (`enm_prefix`, `enm_id`, `enm_address`):
+Your MiniPLC usually already defines UART+Modbus. Import the **ALM** package and use the **exact variable names** shown (`alm_prefix`, `alm_id`, `alm_address`):
 
 ```yaml
 uart:
@@ -941,7 +941,7 @@ packages:
         vars:
           alm_prefix: "ALM#1"   # appears in HA entity names
           alm_id: alm_1         # unique internal ID
-          ealm_address: 5        # set to your module’s Modbus ID
+          alm_address: 5        # set to your module’s Modbus ID
     refresh: 1d
 ```
 
@@ -1020,7 +1020,7 @@ These appear as internal ESPHome switches or scripts that you can call from HA a
 - **Wrong package vars**: use **`alm_prefix` / `alm_id` / `alm_address`** (not older variable names).  
 - **Relays not responding**: verify the relay is **Enabled** in WebConfig and **not overridden**.  
 - **Latched alarms won’t clear**: inputs must be normal **and** you must send the corresponding **Ack**.  
-- **Multiple ALMs**: give each a unique **Modbus address** and **`enm_prefix`**.
+- **Multiple ALMs**: give each a unique **Modbus address** and **`alm_prefix`**.
 
 ---
 
@@ -1063,9 +1063,11 @@ These appear as internal ESPHome switches or scripts that you can call from HA a
   - #include <SimpleWebSerial.h>
   - #include <Arduino_JSON.h>
   - #include <LittleFS.h>
-  - #include <OneWire.h>
+  - #include <Wire.h>
+  - #include <PCF8574.h>
   - #include <utility>
   - #include "hardware/watchdog.h"
+
 
 
 <a id="10-maintenance-troubleshooting-1"></a>
