@@ -656,6 +656,61 @@ Select where commands for this relay come from:
 ### Troubleshooting
 - **Relay doesn’t respond from HA:** ensure **Control source = Modbus** and the relay is **Enabled**; clear **Override latch** if set.
 
+## How to Configure Digital-Input Buttons & User LEDs
+
+![LEDs & Buttons — WebConfig](./Images/webconfig6.png)
+
+The WLD-521-R1 has **4 user LEDs** and **4 front buttons** that you can assign to common tasks. Settings apply immediately; each row shows a live **State/Pressed** dot.
+
+---
+
+### LEDs (4)
+Each LED has:
+- **Mode:** `Solid` or `Blink` when the selected source is **active**.
+- **Source:** what the LED reflects. Options include  
+  `Relay 1`, `Relay 2`, `DI1…DI5`, `Irrig 1`, `Irrig 2`, and `R1/R2 Override`.
+
+**Examples**
+- Show manual overrides:  
+  `LED1 → Blink, Source: R1 Override`  
+  `LED2 → Blink, Source: R2 Override`
+- Show irrigation activity:  
+  `LED3 → Blink, Source: Irrig 1`  
+  `LED4 → Blink, Source: Irrig 2`
+
+> The **State** dot at the right of each LED row mirrors the live on/off state.
+
+---
+
+### Buttons (4)
+Each button has an **Action** that the firmware executes on press (short/long-press behavior is handled by firmware where applicable).
+
+**Available actions**
+- **Relays:** `Toggle R1`, `Toggle R2`, `Pulse R1`, `Pulse R2`
+- **Irrigation:** `Irrig1 Start`, `Irrig1 Stop`, `Irrig2 Start`, `Irrig2 Stop`
+- **Manual control:** `R1 Override Toggle`, `R2 Override Toggle`
+- `(none)` to disable a button
+
+**What the actions do**
+- **Toggle / Pulse**: operate the selected relay directly.  
+- **Irrig Start/Stop**: hand control to the chosen irrigation zone (flow supervision, time window, interlocks).  
+- **Override Toggle**: flips the relay’s **manual override** state (useful for maintenance/testing even when the relay is owned by Modbus or Local logic).
+
+> The **Pressed** dot shows real-time button presses—useful for verifying wiring and debounce.
+
+#### Using a Button to Enter/Exit Override
+
+- **Long-press (≈3 seconds):** Puts the relay into **Override mode**.  
+  - The relay switches to the **Override state** and ignores Modbus/Irrigation until override is cleared.
+- **Short-press:** **Toggles** the relay (ON ↔ OFF).  
+  - In override mode, short-press changes the override state.
+- **Long-press again (≈3 seconds):** **Exits Override mode** and returns control to the configured source (Modbus/Irrigation).
+
+> Make sure the button’s **Action** is set to **`R1 Override Toggle`** or **`R2 Override Toggle`**, and the relay is **Enabled**.  
+> (Optional) Map an LED source to **R1/R2 Override** to indicate when override is active.
+
+---
+
 
 ## Key Ratings (from prior release)
 
