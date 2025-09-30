@@ -687,7 +687,7 @@ Use the **Mode – Group 1/2/3** dropdowns to select the behavior for each group
 - **Latched until acknowledged** — stays ON after a trigger until acknowledged.
 
 Top-row dots show live status for **Any Alarm**, **Group 1**, **Group 2**, **Group 3** (gray = idle, lit = active).
-![Alarm Status & Modes panel](Images/ALM_AlarmStatusModes.png)
+![Alarm Status & Modes panel](Images/webconfig2.png)
 
 
 Use the **Mode – Group 1/2/3** dropdowns to select the behavior for each group:
