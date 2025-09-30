@@ -67,7 +67,7 @@ The **WLD-521-R1** is a smart, fully configurable input/control module for **lea
 ### 9. [Programming & Customization]
 - [9.1 Supported Languages] 
 - [9.2 Flashing via USB-C] 
-- [9.3 PlatformIO & Arduino]
+- [9.3 Arduino]
 
 ### 10. [Maintenance & Troubleshooting] 
 ### 11. [Open Source & Licensing]
@@ -756,4 +756,219 @@ The module provides **2 independent zones** with local safety logic (flow superv
 - **Stops immediately:** flowmeter not seen → confirm the **Flow DI** works (counts rising edges, correct **PPL**, wiring to **GND_ISO**).
 - **HA can’t control valve:** if a zone owns the relay, set the relay **Control source** to *Irrigation Z1/Z2* or stop the zone first.
 
+# 7 Modbus RTU Communication
 
+**Slave role:** Modbus RTU over RS‑485 (8N1, 9600…115200 baud; typical **19200**).  
+**Address:** 1…255 (set via WebConfig).  
+**Data model:** Coils, Discrete Inputs, Holding Registers (live telemetry + config snapshots).
+
+> This document mirrors the structure used for the ENM module’s Modbus chapter and applies it to **WLD‑521‑R1**. Register addresses reflect the current firmware build intended for ESPHome/HA integration.
+
+---
+
+## 7.1 Input Registers (Read‑Only)
+
+Live, read‑only snapshots convenient for dashboards and fast polling.
+
+| Group | Address range | Type | Units (raw) | Scaling | Notes |
+|---|---|---|---|---|---|
+| **Minute of day** | 1100 | U16 | minutes | 1 | Mirror of module clock (0…1439) |
+| **Day index** | 1101 | U16 | days | 1 | Rolling day counter |
+| **Flow rate (DI1…DI5)** | 1120…1129 | U32×5 | L/min ×1000 | ÷1000 | Two regs per DI (lo,hi) |
+| **Flow total (DI1…DI5)** | 1140…1149 | U32×5 | L ×1000 | ÷1000 | Two regs per DI |
+| **Heat ΔT (DI1…DI5)** | 1240…1249 | S32×5 | °C ×1000 | ÷1000 | Two regs per DI |
+| **Heat power (DI1…DI5)** | 1200…1209 | S32×5 | W | 1 | Two regs per DI |
+| **Heat energy (DI1…DI5)** | 1220…1229 | U32×5 | Wh ×1000 | Wh=÷1000, kWh=÷1e6 | Two regs per DI |
+| **Irr. state (Z1…Z2)** | 1300…1301 | U16×2 | enum | 1 | 0=idle,1=running,2=alarm |
+| **Irr. liters (Z1…Z2)** | 1310…1313 | U32×2 | L ×1000 | ÷1000 | Two regs per zone |
+| **Irr. elapsed (Z1…Z2)** | 1320…1323 | U32×2 | s | 1 | Two regs per zone |
+| **Irr. rate (Z1…Z2)** | 1330…1333 | U32×2 | L/min ×1000 | ÷1000 | Two regs per zone |
+| **Irr. window open (Z1…Z2)** | 1340…1341 | U16×2 | flag | 1 | 0/1 |
+| **Irr. sensors OK (Z1…Z2)** | 1342…1343 | U16×2 | flag | 1 | 0/1 |
+| **1‑Wire temperatures (#1…#10)** | 1500…1519 | S32×10 | °C ×1000 | ÷1000 | Two regs per sensor |
+
+> Notes: All multi‑word values occupy **two** consecutive registers (lo, hi).
+
+---
+
+## 7.2 Holding Registers (Read/Write)
+
+Configuration + low‑rate control values (persisted by firmware where applicable).
+
+| Group | Example registers | Description |
+|---|---|---|
+| **Clock** | 1100 (minute), 1101 (day) | Write to set module clock from HA (midnight sync recommended). |
+| **DI (per input)** | type, enable, invert, PPL, rate×, total× | Configure each DI as leak/humidity/counter; flow calibration. |
+| **Heat (per counter DI)** | cp, rho, calib×, sensorA#, sensorB# | Thermal properties and A/B sensor indices (from stored 1‑Wire list). |
+| **Irrigation (per zone)** | valve_relay, flow_DI, min_rate, grace, timeout, target_L, DI_moist/rain/tank, pump, window start/end, enforce, auto_start | Local zone logic & safety thresholds. |
+| **Relays / LEDs / Buttons** | mode, sources, actions | Runtime behavior for outputs and UI. |
+
+> Although most setup is done in WebConfig, exposing key fields allows hands‑off provisioning or backups via PLC/HA.
+
+---
+
+## 7.3 Discrete Inputs & Coils
+
+### Discrete Inputs (read‑only flags)
+| Range | Bits | Meaning |
+|---|---:|---|
+| 1…5 | 5 | DI1…DI5 debounced state |
+| 60…61 | 2 | Relay1, Relay2 state mirrors |
+| 90…93 | 4 | LED1…LED4 state mirrors |
+| 100…103 | 4 | BTN1…BTN4 pressed |
+
+### Coils (write – single/multiple)
+| Range | Count | Action |
+|---|---:|---|
+| 200…201 | 2 | Relay **ON** (per relay) |
+| 210…211 | 2 | Relay **OFF** (per relay) |
+| 300…304 | 5 | Enable DI *i* (pulse) |
+| 320…324 | 5 | Disable DI *i* (pulse) |
+| 340…344 | 5 | **Reset counter** DI *i* (pulse) |
+| **360** | 1 | **CMD_TIME_MIDNIGHT** — pulse TRUE→FALSE at 00:00 |
+| 370…371 | 2 | Irrigation **START** Z1/Z2 (pulse) |
+| 380…381 | 2 | Irrigation **STOP** Z1/Z2 (pulse) |
+| 390…391 | 2 | Irrigation **RESET** Z1/Z2 (pulse) |
+
+> Coils are honored subject to **ownership** (override/irrigation priority).
+
+---
+
+## 7.4 Scaling Summary
+
+Use these multipliers in the master (ESPHome/PLC) to obtain engineering units:
+
+- **Temp (°C)** = raw / **1000**  
+- **Flow rate (L/min)** = raw / **1000**  
+- **Volume (L)** = raw / **1000**  
+- **ΔT (°C)** = raw / **1000**  
+- **Power (W)** = raw  
+- **Energy:** Wh = raw / **1000**; kWh = raw / **1,000,000**
+
+---
+
+## 7.5 Basics & Function Codes
+
+- **Physical:** RS‑485 half‑duplex; 120 Ω termination at both ends; consistent A/B polarity; common GND recommended if separate PSUs.  
+- **Function codes:** `0x01` Read Coils, `0x02` Read Discrete Inputs, `0x03` Read Holding, `0x04` Read Input (if enabled), `0x05/0x0F` Write Coils, `0x06/0x10` Write Holding.  
+- **Polling:** Live telemetry can be polled at 1 s; configuration writes should be event‑driven (on change).
+
+---
+
+## 7.6 Register Map (Summary)
+
+```
+Discrete Inputs
+00001..00005  DI1..DI5 state
+00060..00061  Relay1..Relay2 state
+00090..00093  LED1..LED4 state
+00100..00103  BTN1..BTN4 pressed
+
+Coils
+00200..00201  Relay ON (pulse)
+00210..00211  Relay OFF (pulse)
+00300..00304  Enable DIi (pulse)
+00320..00324  Disable DIi (pulse)
+00340..00344  Reset counter DIi (pulse)
+00360         CMD_TIME_MIDNIGHT (pulse)
+00370..00371  Irrigation START Z1..Z2 (pulse)
+00380..00381  Irrigation STOP  Z1..Z2 (pulse)
+00390..00391  Irrigation RESET Z1..Z2 (pulse)
+
+Holding/Input (telemetry and control snapshots)
+01100         TIME_MINUTE (U16)
+01101         DAY_INDEX (U16)
+01120..01129  FLOW rate DI1..DI5 (U32 L/min ×1000; 2 regs each)
+01140..01149  FLOW total DI1..DI5 (U32 L ×1000; 2 regs each)
+01200..01209  HEAT power DI1..DI5 (S32 W; 2 regs each)
+01220..01229  HEAT energy DI1..DI5 (U32 Wh ×1000; 2 regs each)
+01240..01249  HEAT ΔT DI1..DI5 (S32 °C ×1000; 2 regs each)
+01300..01301  IRR state Z1..Z2 (U16)
+01310..01313  IRR liters Z1..Z2 (U32 L ×1000; 2 regs each)
+01320..01323  IRR elapsed Z1..Z2 (U32 s; 2 regs each)
+01330..01333  IRR rate Z1..Z2 (U32 L/min ×1000; 2 regs each)
+01340..01341  IRR windowOpen Z1..Z2 (U16 flag)
+01342..01343  IRR sensorsOK Z1..Z2 (U16 flag)
+01500..01519  1‑Wire temps #1..#10 (S32 °C ×1000; 2 regs each)
+```
+
+---
+
+## 7.7 Override Priority
+
+Control ownership is resolved as follows (highest wins):
+
+1. **Override (latched)** — manual force ON/OFF; blocks other sources until cleared.  
+2. **Irrigation zone** — while a zone runs, it owns its valve/pump relay.  
+3. **Modbus (controller/HA)** — normal remote control.  
+4. **Local buttons (non‑latched)** — momentary actions.
+
+> If a relay ignores HA commands, check for **latched override** or a **running irrigation zone**.
+
+
+# 9. Programming & Customization
+
+## 9.1 Supported Languages
+- **MicroPython** (pre‑installed)  
+- **C/C++**  
+- **Arduino IDE**
+
+## 9.2 Flashing via USB-C
+1. Connect USB‑C.  
+2. Enter boot/flash mode if required.  
+3. Upload the provided firmware/source.
+
+## 9.3 Arduino
+- Select the appropriate board profile (Generic RP2350).  
+- In the Tools select Flash size 2MB (Sketch: 1MB, FS: 1MB )
+- Add 
+  - #include <Arduino.h>
+  - #include <ModbusSerial.h>
+  - #include <SimpleWebSerial.h>
+  - #include <Arduino_JSON.h>
+  - #include <LittleFS.h>
+  - #include <OneWire.h>
+  - #include <utility>
+  - #include "hardware/watchdog.h"
+
+
+# 10. Maintenance & Troubleshooting
+
+
+# 11. Open Source & Licensing
+
+- **Hardware:** **CERN‑OHL‑W 2.0**  
+- **Firmware & code samples:** **GPLv3** (unless otherwise noted)
+
+# 12. Downloads
+
+The following key project resources are included in this repository:
+
+- **🧠 Firmware (Arduino/PlatformIO):** [`Firmware/default_enm_223_r1/`](Firmware/default_enm_223_r1/)  
+  Main sketch implementing ATM90E32 metering, relays, button overrides, alarms, Modbus RTU, and WebSerial support.
+
+- **🛠 Web Config Tool:** [`Firmware/ConfigToolPage.html`](Firmware/ConfigToolPage.html)  
+  HTML‑based USB Web Serial configuration UI, used for meter options, calibration, relays, alarms, etc.
+
+- **📷 Images & Visual Documentation:** [`Images/`](Images/)  
+  Contains UI screenshots, module photos, diagrams, and layout references used in this documentation.
+
+- **📐 Hardware Schematics:** [`Schematics/`](Schematics/)  
+  Includes Field Board and MCU Board schematics in PDF format for hardware developers and integrators.
+
+- **📖 Datasheet & Documentation (if available):** [`Manuals/`](Manuals/)  
+  Contains PDF datasheets or technical overviews, if applicable.
+
+
+# 13. Support
+
+If you need help using or configuring the WLD-521-R1 module, the following resources are available:
+
+- [🛠 Web Config Tool](https://www.home-master.eu/configtool-wld-521-r1) – Configure and calibrate via USB‑C in your browser.  
+- [🌐 Official Support Page](https://www.home-master.eu/support) – Knowledge base and contact options.  
+
+## 📡 Community & Updates
+- [Hackster Projects](https://www.hackster.io/homemaster) – Integration guides, wiring, and code examples.  
+- [YouTube Channel](https://www.youtube.com/channel/UCD_T5wsJrXib3Rd21JPU1dg) – Video tutorials and module demos.  
+- [Reddit Community](https://www.reddit.com/r/HomeMaster) – Questions, help, and user contributions.  
+- [Instagram](https://www.instagram.com/home_master.eu) – Visual updates and product insights.
