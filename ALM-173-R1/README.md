@@ -193,23 +193,6 @@ This section outlines essential safety guidelines specific to the **ALM-173-R1**
 
 ---
 
-## 2.4 Front-Panel & Terminal Labels (Quick Reference)
-
-> Refer to the silkscreen and the photo for orientation during wiring.
-
-| Area (Label on Bezel/Terminals) | Purpose | Safety Notes |
-| :--- | :--- | :--- |
-| **POWER — 24Vdc (V+, 0V)** | Primary SELV supply. | Verify polarity; isolate before service. |
-| **DIGITAL INPUTS — DI1…DI17 with GND I.x** | Dry-contact / isolated low-voltage inputs. | Use only within SELV limits; do not tie **GND I.x** to mains earth. |
-| **RELAY1…RELAY3 — C/NO/NC** | Dry contact outputs. | Observe contact ratings; snub inductive loads; never switch mains unless the **specific relay rating and local code** allow it. |
-| **OUTPUT 12Vdc (PS/1)** | Isolated sensor supply (12 V). | Limited current; not for actuators; no backfeeding. |
-| **OUTPUT 5Vdc (PS/2)** | Isolated sensor supply (5 V). | Limited current; not for actuators; no backfeeding. |
-| **RS-485 — COM, B, A** | Modbus RTU field bus. | Correct polarity; one-point shield bond; apply termination per system design. |
-| **USB (Service)** | Web-Serial configuration. | Service use only; avoid during storms; not a field power source. |
-| **PWR/TX/RX LEDs** | Power and bus activity. | If TX/RX are continuously lit, **disconnect power** and inspect wiring/bus faults. |
-
----
-
 > ✅ **Checklist before powering up**
 > - All terminals tightened and strain-relieved  
 > - No bridges between **isolated** and **logic** grounds unless intentional  
@@ -308,9 +291,18 @@ Integration of the ALM-173-R1 into Home Assistant (HA) is achieved via the **ESP
 <img src="Images/photo1.png" align="left" width="660" alt="ALM-173-R1 module photo">
 
 #### Connector Map (front label reference)
+> Refer to the silkscreen and the photo for orientation during wiring.
 
-- **Top**: `V+`, `0V` (Power) • `I1..I5`, `GND` (Inputs) • `+5V`, `D`, `GND` (1-Wire) • `A`, `B`, `COM` (RS-485)  
-- **Bottom**: `R1: NO, C, NC` • `R2: NO, C, NC` • `5/12 Vdc` sensor supply outputs. :contentReference
+| Area (Label on Bezel/Terminals) | Purpose | Safety Notes |
+| :--- | :--- | :--- |
+| **POWER — 24Vdc (V+, 0V)** | Primary SELV supply. | Verify polarity; isolate before service. |
+| **DIGITAL INPUTS — DI1…DI17 with GND I.x** | Dry-contact / isolated low-voltage inputs. | Use only within SELV limits; do not tie **GND I.x** to mains earth. |
+| **RELAY1…RELAY3 — C/NO/NC** | Dry contact outputs. | Observe contact ratings; snub inductive loads; never switch mains unless the **specific relay rating and local code** allow it. |
+| **OUTPUT 12Vdc (PS/1)** | Isolated sensor supply (12 V). | Limited current; not for actuators; no backfeeding. |
+| **OUTPUT 5Vdc (PS/2)** | Isolated sensor supply (5 V). | Limited current; not for actuators; no backfeeding. |
+| **RS-485 — COM, B, A** | Modbus RTU field bus. | Correct polarity; one-point shield bond; apply termination per system design. |
+| **USB (Service)** | Web-Serial configuration. | Service use only; avoid during storms; not a field power source. |
+| **PWR/TX/RX LEDs** | Power and bus activity. | If TX/RX are continuously lit, **disconnect power** and inspect wiring/bus faults. |
 <br clear="left"/>
 ---
 
