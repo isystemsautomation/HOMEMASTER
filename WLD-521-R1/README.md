@@ -362,12 +362,17 @@ _For diagrams, terminal pinouts, cable gauges, and safety notes, see **[Section 
   - **1-Wire:** scan, store, and name sensors for temperature/heat features.
 - (Optional) **Reset Device** from the dialog if you need to restart; the serial link will reconnect.
 
+_For more details about WebConfig cards and fields, see **[Software & UI Configuration](#software--ui-configuration)**._
+
 **Phase 3 — Controller Integration (ESPHome)**
 
 - **Update YAML:** In the ESPHome YAML configuration file for your MiniPLC/MicroPLC (using the provided template, **`default_wld_521_r1_plc.yaml`**):  
   - Verify the **`uart`** settings match your controller’s **RS-485 pins**.  
   - Add a new **`modbus_controller:`** entry, ensuring the **`wld_address`** substitution matches the Modbus Address set in Step 3 of Phase 2 (e.g., `wld_address: "3"`).
-- **Compile & Upload:** Build and upload the updated ESPHome config to the controller. After reboot, the controller will poll the WLD-521-R1 and expose **DI states/counters**, **1-Wire temperatures**, **relay controls**, and **irrigation status** as HA entities.   
+- **Compile & Upload:** Build and upload the updated ESPHome config to the controller. After reboot, the controller will poll the WLD-521-R1 and expose **DI states/counters**, **1-Wire temperatures**, **relay controls**, and **irrigation status** as HA entities.
+
+_For protocol details and end-to-end examples, see **[Modbus RTU Communication](#modbus-rtu-communication)** and **[ESPHome Integration Guide (MicroPLC/MiniPLC + WLD-521-R1)](#esphome-integration-guide-microplcminiplc--wld-521-r1)**._
+  
 
 **Timekeeping (recommended for local schedules)**  
 If you use the module’s **Irrigation Window** or daily counters, schedule a Home Assistant automation at **00:00** to pulse the **time-sync coil** and keep the module’s minute/day registers aligned with HA. (See the **Module Time & Modbus Sync** area in the UI and your controller automations.)
