@@ -88,7 +88,7 @@ Below are practical ways to deploy the **ALM-173-R1** with the HomeMaster Mini/M
 ---
 
 ### 1) Intrusion zone with siren, latched until acknowledgment
-- **Goal:** Trip a siren when a door/PIR is triggered; hold the alarm until a guard acknowledges it.
+- **Goal:** Trip a siren when a door/PIR is triggered; hold the alarm until acknowledges.
 - **How:**  
   1. Wire the detector to **IN1**. In **Digital Inputs**, set **IN1 → Enabled**, **Group = Group 1**; use **Invert** if the contact is NC.  
   2. In **Alarm Modes**, set **Group 1 = Latched until acknowledged**.  
@@ -112,59 +112,17 @@ Below are practical ways to deploy the **ALM-173-R1** with the HomeMaster Mini/M
 ---
 
 ### 3) Equipment room: summary fault to PLC + lamp tower
-- **Goal:** Collect many dry contacts (smoke, thermal, UPS, flooding) and present a **summary alarm** locally and to the PLC/HMI.
+- **Goal:** Collect many dry contacts (smoke, thermal, UPS, flooding) and present a **summary alarm** locally and to the HA.
 - **How:**  
   1. Map **IN1..IN8 → Group 1** (all fault inputs). Use **Invert** per sensor type (NO/NC).  
   2. **Alarm Modes:** Group 1 = *Active while condition is active* (non-latched).  
   3. Wire a **red stack light** to **Relay 1**, set **Relay 1 → Group 1**.  
   4. **LED 1 = Any Alarm** (Blink) for panel indication.  
-  5. PLC reads **Any Alarm** and **Group 1** bits via Modbus for SCADA alarms.
+  5. PLC reads **Any Alarm** and **Group 1** bits via Modbus for HA alarms.
 
 ---
 
-### 4) Tamper + zone alarm, single siren, separate acknowledgments
-- **Goal:** Zone alarm and tamper should both ring the siren, but be acknowledged independently for proper reporting.
-- **How:**  
-  1. **IN1 → Group 1** (Zone), **IN2 → Group 2** (Tamper).  
-  2. **Alarm Modes:** Group 1 = *Latched until acknowledged*; Group 2 = *Latched until acknowledged*.  
-  3. **Relay 1 → Group = Group 1** and **Relay 2 → Group = Group 2** are valid, **or** use **PLC logic** to drive **Relay 3** when *(Group1 OR Group2)* is active for a **single siren** line.  
-  4. **Button 1 = Alarm group 1 acknowledge**, **Button 2 = Alarm group 2 acknowledge**.  
-  5. **LED 1 = Group 1**, **LED 2 = Group 2**, **LED 3 = Any Alarm**.
-
----
-
-### 5) E-Stop loop with safety reset (manual restore)
-- **Goal:** An E-Stop contact chain drops a relay; restoring requires a **manual acknowledge/reset** (no auto-reset).
-- **How:**  
-  1. Wire the E-Stop loop to **IN1** (usually **Invert** = ON for NC loops). Set **IN1 → Group 1**.  
-  2. **Alarm Modes:** Group 1 = *Latched until acknowledged*.  
-  3. **Relay 1 → Group 1** (drives interlock/enable).  
-  4. **Button 1 = Alarm group 1 acknowledge** (acts as **manual reset** once the loop is healthy).  
-  5. **LED 1 = Group 1** (Blink). PLC logs trips and acks via Modbus.
-
----
-
-### 6) Siren/relay manual test from front panel
-- **Goal:** Let maintenance test the siren without a PLC or active alarm.
-- **How:**  
-  1. **Relays:** Leave group mapping as needed for normal ops.  
-  2. **Buttons:** Set **Button 3 = Relay 1 override (manual)**.  
-  3. **User LEDs:** Set **LED 4 = Relay 1 overridden** (Steady).  
-  4. Pressing **Button 3** forces the siren relay; the LED confirms override state.
-
----
-
-### 7) Night mode: silent alarm locally, PLC-driven remote notifier
-- **Goal:** Keep the site silent at night but notify a remote system (SMS/call) through the PLC.
-- **How:**  
-  1. **Inputs:** Assign all motion/door sensors to **Group 2**.  
-  2. **Alarm Modes:** Group 2 = *Active while condition is active*.  
-  3. **Relays:** Set **Relay 1 → Group = None** (siren disabled); PLC watches **Group 2** and actuates a **GSM dialer** or remote beacon via **Relay 3**.  
-  4. **LED 2 = Group 2** (Steady) for local, non-intrusive indication.
-
----
-
-### 8) Access door with strike control and door-left-open timer (via PLC)
+### 4) Access door with strike control and door-left-open timer (via PLC)
 - **Goal:** PLC unlocks a strike, supervises the door contact, and alarms if the door is left open too long.
 - **How:**  
   1. **IN1 = Door contact → Group 3** (Invert if NC).  
@@ -174,7 +132,7 @@ Below are practical ways to deploy the **ALM-173-R1** with the HomeMaster Mini/M
 
 ---
 
-### 9) Panel-mount annunciator with “Any Alarm” lamp
+### 5) Panel-mount annunciator with “Any Alarm” lamp
 - **Goal:** Use the front panel as a mini-annunciator while PLC handles supervision.
 - **How:**  
   1. Map various inputs **IN1..INn → Group 1..3** as needed.  
@@ -182,18 +140,10 @@ Below are practical ways to deploy the **ALM-173-R1** with the HomeMaster Mini/M
   3. **User LEDs:**  
      - **LED 1 = Any Alarm (Blink)**  
      - **LED 2 = Group 1**, **LED 3 = Group 2**, **LED 4 = Group 3**  
-  4. PLC mirrors lamp states on an HMI and logs alarm history.
+  4. PLC mirrors lamp states on an HA and logs alarm history.
 
 ---
 
-### 10) Remote siren inhibit / service mode
-- **Goal:** Temporarily disable audible outputs during maintenance while keeping input logging active.
-- **How:**  
-  1. Keep inputs grouped and alarm modes unchanged.  
-  2. **Relays:** Set **Relays 1..3 → Group = None**; PLC decides when to energize them based on service mode (a Modbus coil/flag).  
-  3. Optional: map **LED 4 = Relay 1..3 overridden** (choose any one) to indicate maintenance override is active.
-
-> 💡 **Tip:** Use **Invert** on inputs/relays to match field wiring (NO/NC, active-low drivers). For visual clarity, prefer **Blink** on critical alarms and **Steady** for normal states. For system-wide alerting, the PLC can watch **Any Alarm** and **Group 1..3** bits to trigger messages, logs, and interlocks.
 
 <a id="2-safety-information-1"></a>
 # 2. Safety Information
