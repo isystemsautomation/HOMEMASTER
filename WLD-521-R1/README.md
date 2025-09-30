@@ -898,16 +898,12 @@ Holding/Input (telemetry and control snapshots)
 
 # 8. ESPHome Integration Guide (MicroPLC/MiniPLC + WLD-521-R1)
 
-> This section mirrors the structure and style of the ENM module’s ESPHome guide and adapts it for the **WLD-521-R1** leak/flow/irrigation module. The flow follows wiring → ESPHome packages → exposed entities → Home Assistant → troubleshooting, just like the ENM chapter.
-
----
-
 ## 8.1 Hardware & RS-485 wiring
 
 1) **Power**  
-- WLD interface side: **24 V DC** to **V+ / GND**.  
+- WLD interface side: **24 V DC** to **+V / 0V**.  
 - MicroPLC/MiniPLC: per controller spec.  
-- If WLD and PLC use different PSUs, also share **GND** between devices.
+- If WLD and PLC use different PSUs, also share **COM** between devices.
 
 2) **RS-485**  
 - **A↔A**, **B↔B**, keep twisted pair; terminate bus ends (~**120 Ω**), bias at the master.  
@@ -923,7 +919,7 @@ Holding/Input (telemetry and control snapshots)
 
 ## 8.2 ESPHome (PLC): enable Modbus RTU & import the WLD package
 
-Your MiniPLC example already defines UART+Modbus and imports the external package. The **only correction needed** is the variable names: the WLD package expects **`wld_prefix`, `wld_id`, `wld_address`** (not the ENM ones). Use this exact pattern:
+Your MiniPLC example already defines UART+Modbus. The **imports the external packageand correction needed** is the variable names: the WLD package expects **`wld_prefix`, `wld_id`, `wld_address`**. Use this exact pattern:
 
 ```yaml
 uart:
@@ -951,7 +947,7 @@ packages:
     refresh: 1d
 ```
 
-> Your posted MiniPLC YAML already matches the UART/Modbus blocks and the `packages:` layout — just swap the three `enm_*` vars to `wld_*`. The package itself is parameterized for multiple WLDs (add `wld2`, `wld3`, … with unique `wld_id`/`wld_address`). The structure mirrors the ENM package approach.
+> MiniPLC/MicroPLC YAML already matches the UART/Modbus blocks. Put the `packages:`. The package itself is parameterized for multiple WLDs (add `wld2`, `wld3`, … with unique `wld_id`/`wld_address`).
 
 ---
 
@@ -1019,12 +1015,12 @@ These appear in ESPHome as hidden helpers (internal) plus a visible **Midnight P
 
 ## 8.5 Using your posted MiniPLC YAML with WLD
 
-You already have a working base (UART/Modbus, GPIOs, ADS1115, PCF8574, etc.). To **attach WLD**:
+You already have a working base (UART/Modbus, GPIOs, etc.). To **attach WLD**:
 
 1) Keep your UART+Modbus as is (TX=17, RX=16, 19200 8N1).  
 2) In `packages:`, switch the variables to `wld_prefix`, `wld_id`, `wld_address` (see 8.2).  
 3) Ensure the WLD’s Modbus address matches `wld_address` (set via your module’s config workflow).  
-4) After flashing, the device in Home Assistant will show a **device section** named with your `wld_prefix` (e.g., `WLD#1 Flow1 Rate`, `WLD#1 DI1`, `WLD#1 Irr Z1 State`, etc.), exactly like how ENM entities are grouped by its `enm_prefix`.
+4) After flashing, the device in Home Assistant will show a **device section** named with your `wld_prefix` (e.g., `WLD#1 Flow1 Rate`, `WLD#1 DI1`, `WLD#1 Irr Z1 State`, etc.).
 
 ---
 
@@ -1049,8 +1045,7 @@ You already have a working base (UART/Modbus, GPIOs, ADS1115, PCF8574, etc.). To
 ## 8.7 Troubleshooting & tips
 
 - **No entities / Modbus timeouts:** Check A/B polarity, shared **GND** (if different PSUs), bus termination/bias resistors.  
-- **Wrong vars in `packages:`** Use **`wld_*`** (not `enm_*`).  
-- **ESPHome register types:** Where the package reads **Input-style telemetry**, it already uses the correct `register_type` values for ESPHome (`discrete_input` or `holding`).  
+- **Wrong vars in `packages:`** Use **`wld_*`** (not `enm_*`, etc).  
 - **Entity naming collisions:** The package namespaces everything with your **`wld_prefix`**. Use unique prefixes per module (`WLD#1`, `WLD#2`, …).  
 - **Daily resets:** Prefer using the **Midnight pulse (360)** over manual counter math.  
 - **Multiple WLDs on one bus:** Add another `packages:` block with different `wld_id`/`wld_address` and a new `wld_prefix`.
@@ -1059,18 +1054,8 @@ You already have a working base (UART/Modbus, GPIOs, ADS1115, PCF8574, etc.). To
 
 ## 8.8 Version & compatibility
 
-- Pattern and workflow aligned with the ENM ESPHome chapter (tested on modern ESPHome builds that support `packages → files → vars`).  
-- The WLD external package is written as **valid ESPHome YAML** (no Jinja), with **pulse-safe coil helpers** to prevent stuck writes on network hiccups.
-
----
-
-### ✅ Quick checklist
-
-- [ ] RS-485 wired (A/B/GND), baud/address set on WLD.  
-- [ ] MiniPLC YAML has `uart`, `modbus`, and `packages: … default_wld_521_r1_plc.yaml` with `wld_*` vars.  
-- [ ] Entities appear under `WLD#1 …` in Home Assistant.  
-- [ ] Automations for **DI**, **Flow**, **Irrigation**, and **Relays** tested.  
-
+- Tested with ESPHome 2025.8.0.
+- The controller YAML uses ESP‑IDF; Arduino also works if preferred (adjust platform accordingly).
 
 ---
 # 9. Programming & Customization
