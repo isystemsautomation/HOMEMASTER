@@ -911,6 +911,17 @@ Holding/Input (telemetry and control snapshots)
 2. Enter boot/flash mode if required.  
 3. Upload the provided firmware/source.
 
+> **Boot/Reset combinations:**  
+> - **Buttons 1 + 2** → forces the module into **BOOT mode**.  
+> - **Buttons 3 + 4** → triggers a **hardware RESET**.  
+> These behaviors are handled **in hardware**.  
+> Use these combinations during firmware flashing or to restart the device manually.
+
+📷 **Button numbering reference:**  
+<p align="center">
+  <img src="Images/buttons1.png" alt="Button Layout" width="320">
+</p>
+
 ## 9.3 Arduino
 - Select the appropriate board profile (Generic RP2350).  
 - In the Tools select Flash size 2MB (Sketch: 1MB, FS: 1MB )
