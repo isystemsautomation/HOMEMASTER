@@ -148,12 +148,6 @@ Below are practical ways to deploy the **ALM-173-R1** with the HomeMaster Mini/M
 <a id="2-safety-information-1"></a>
 # 2. Safety Information
 
-This section outlines essential safety guidelines. Failure to adhere to these warnings may result in equipment damage, system failure, or personal injury.
-
-## 2.1 General Electrical Safety
-
-# 2. Safety Information
-
 This section outlines essential safety guidelines specific to the **ALM-173-R1** alarm I/O module. Failure to follow these instructions may result in equipment damage, system failure, or personal injury.
 
 > ⚠️ **SELV/LV only.** The ALM-173-R1 is intended for **Safety Extra–Low Voltage (SELV)** installations. Do **not** connect mains voltages to any terminal.
