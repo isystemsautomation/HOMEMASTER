@@ -302,7 +302,8 @@ Integration of the ALM-173-R1 into Home Assistant (HA) is achieved via the **ESP
 | **OUTPUT 5Vdc (PS/2)** | Isolated sensor supply (5 V). | Limited current; not for actuators; no backfeeding. |
 | **RS-485 — COM, B, A** | Modbus RTU field bus. | Correct polarity; one-point shield bond; apply termination per system design. |
 | **USB (Service)** | Web-Serial configuration. | Service use only; avoid during storms; not a field power source. |
-| **PWR/TX/RX LEDs** | Power and bus activity. | If TX/RX are continuously lit, **disconnect power** and inspect wiring/bus faults. |
+| **PWR/TX/RX LEDs** | Power and bus activity. | **PWR/TX/RX LEDs** — The **PWR** LED should be **steadily ON** during normal operation. **TX** and **RX** should **blink** when RS-485 communication is active. If TX/RX are not blinking as expected (stuck OFF or solid ON), isolate the bus and inspect wiring, polarity, termination, and device addressing.
+ |
 <br clear="left"/>
 ---
 
