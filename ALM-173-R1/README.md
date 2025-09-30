@@ -897,30 +897,27 @@ Holding Registers (R/W)
 <a id="8-esphome-integration-guide-microplcminiplc-alm-173-r1-1"></a>
 # 8. [ESPHome Integration Guide (MicroPLC/MiniPLC + ALM-173-R1)]
 
-## 8. ESPHome Integration Guide (MicroPLC/MiniPLC + ALM-173-R1)
-
-## 8.1 Hardware & RS-485 wiring
+## 8.1 Hardware & RS-485 Wiring
 
 1) **Power**  
-- WLD interface side: **24 V DC** to **+V / 0V**.  
-- MicroPLC/MiniPLC: per controller spec.  
-- If WLD and PLC use different PSUs, also share **COM** between devices.
+- **ALM-173-R1:** supply **24 V DC** to **V+ / 0 V**.  
+- **MicroPLC/MiniPLC:** per controller spec.  
+- If the ALM and PLC have different PSUs, also share the **COM/GND** reference between devices.
 
 2) **RS-485**  
-- **A↔A**, **B↔B**, keep twisted pair; terminate bus ends (~**120 Ω**), bias at the master.  
-- Default serial (firmware): **19200 8N1**; device address configurable (examples below use `4`).
+- Wire **A↔A**, **B↔B** with a twisted pair; terminate the two bus ends (~**120 Ω**), bias at the master.  
+- Default serial (firmware/UI): **19200 8N1**; device **address** is configurable (examples below use `5`).
 
 3) **Field I/O (typical)**  
-- **DI1..DI5**: leak probes/float switches/flow pulses.  
-- **Relays R1..R2**: siren/valve/solenoid (dry contact).  
-- **1-Wire** buses (optional): temp probes on hydronic lines.  
-- **Flow** monitoring: pulse input(s) from flowmeter(s).
+- **IN1…IN17:** dry contacts (door/PIR/tamper/aux). Map each to **Group 1/2/3** in WebConfig.  
+- **Relays RLY1…RLY3:** siren/lock/indicator (dry contacts).  
+- **Buttons/LEDs:** local **acknowledge** / **manual override** and visual status (Any/Group/Override).
 
 ---
 
-## 8.2 ESPHome (PLC): enable Modbus RTU & import the WLD package
+## 8.2 ESPHome (PLC): Enable Modbus RTU & Import the ALM Package
 
-Your MiniPLC example already defines UART+Modbus. The **imports the external packageand correction needed** is the variable names: the WLD package expects **`wld_prefix`, `wld_id`, `wld_address`**. Use this exact pattern:
+Your MiniPLC usually already defines UART+Modbus. Import the **ALM** package and use the **exact variable names** shown (`enm_prefix`, `enm_id`, `enm_address`):
 
 ```yaml
 uart:
@@ -936,122 +933,94 @@ modbus:
   uart_id: uart_modbus
 
 packages:
-  wld1:
+  alm1:
     url: https://github.com/isystemsautomation/HOMEMASTER
     ref: main
     files:
       - path: ALM-173-R1/Firmware/default_alm_173_r1_plc/default_alm_173_r1_plc.yaml
         vars:
-          wld_prefix: "WLD#1"
-          wld_id: wld_1
-          wld_address: 4         # set this to your module’s Modbus ID
+          alm_prefix: "ALM#1"   # appears in HA entity names
+          alm_id: alm_1         # unique internal ID
+          ealm_address: 5        # set to your module’s Modbus ID
     refresh: 1d
 ```
 
-> MiniPLC/MicroPLC YAML already matches the UART/Modbus blocks. Put the `packages:`. The package itself is parameterized for multiple WLDs (add `wld2`, `wld3`, … with unique `wld_id`/`wld_address`).
+> Add multiple ALMs by duplicating the `alm1:` block (`alm2:`, `alm3:`…) with unique `alm_id` / `alm_address` / `alm_prefix`.
 
 ---
 
-## 8.3 What the external WLD package exposes (entities)
+## 8.3 What the External ALM Package Exposes (Entities)
 
-The bundled **`default_alm_173_r1_plc.yaml`** creates ready-to-use entities grouped by function. Addressing is already encoded; you don’t need to hand-map registers.
+The bundled **`default_alm_173_r1_plc.yaml`** publishes ready-to-use entities; addressing is embedded, so you don’t hand-map registers.
 
-### Discrete Inputs (FC02)
-- **DI1..DI5** — real-time digital inputs (leak probes, float switches, pulse edges).  
-- **LED mirrors (90..93)**, **BTN mirrors (100..103)** — read-only reflections if needed.  
-- **Relay feedback (60..61)** — read-only state.
+- **Binary sensors**
+  - **IN1…IN17** (debounced digital inputs).
+  - **Alarm summary & groups:** **Any Alarm**, **Group 1**, **Group 2**, **Group 3**.
+  - **Buttons pressed:** BTN1…BTN4 (diagnostics).
+  - **Relay/LED mirrors:** readbacks for dashboards.
 
-### DI Counters (Holding, FC03)
-- **Counts for DI1..DI5** — 32-bit pulse totals assembled from word pairs at base **1000** (e.g., `1000/1001` for DI1).  
-  The package exposes **human-readable `… DIx Count`** sensors (pulses).
+- **Switches**
+  - **RLY1…RLY3** (ON/OFF) for manual or HA-driven actuation.
+  - **Acknowledge** actions (All / G1 / G2 / G3) as script/switch helpers.
+  - **Override** actions for **Relay 1/2/3** (force ON/OFF, then release).
 
-### Flow (Holding, FC03)
-- **Instantaneous flow rates** (L/min ×1000) for up to **5** channels at base **1120** (U32 pairs).  
-- **Accumulators** (L ×1000) at base **1140**.  
-  Exposed as **`… FlowX Rate`** and **`… FlowX Accum`** (already scaled to L/min and L).
+- **Numbers/Selects (optional)**
+  - Readbacks for **address/baud**, group **modes**, and per-channel **enable/invert/group** (mostly for diagnostics or advanced provisioning).
 
-### Heat (delta-T math & helpers, Holding, FC03)
-- **ΔT** and related hydronic helpers around base **1200–1241**: the package builds **`… Heat1 ΔT`** etc. (°C).
-
-### Irrigation (Holding, FC03)
-- Two zones (Z1/Z2) with state, liters, elapsed time, window, sensor sanity:  
-  - **State**: `1300..1301`  
-  - **Liters**: `1310..1313`  
-  - **Elapsed**: `1320..1323`  
-  - **Rate**: `1330..1333`  
-  - **Window**: `1340..1341`  
-  - **SensorsOK**: `1342..1343`  
-  Exposed as **`… Irr Zx …`** sensors for dashboards/automations.
-
-### 1-Wire Temperatures (Holding, FC03)
-- Up to **10** temperature channels at base **1500** (S32 = °C ×1000; two registers per sensor).  
-  The package outputs °C-scaled sensors (e.g., **`… OW1 Temp`**).
+> The ALM’s **LED sources/modes** and input/relay **group mapping** are usually configured in WebConfig; HA consumes the resulting states.
 
 ---
 
-## 8.4 Command coils you can use (writes; FC05 / reads via FC01)
+## 8.4 Command Coils You Can Use (Writes; FC05 / Read via FC01)
 
-The package includes **pulse-safe** internal switches that write, auto-delay, then turn themselves off (no latch stuck):
+The package implements **pulse-safe** helpers (they auto-release after writing):
 
 - **Relays**  
-  - **R1 ON** `200`, **R2 ON** `201`  
-  - **R1 OFF** `210`, **R2 OFF** `211`
+  - **R1 ON** / **OFF**, **R2 ON** / **OFF**, **R3 ON** / **OFF**
 
-- **DI enable/disable & counter reset**  
-  - Enable: `300..304` (DI1..DI5)  
-  - Disable: `320..324` (DI1..DI5)  
-  - **Counter reset:** `340..344` (DI1..DI5)
+- **Overrides**  
+  - **Override ON** / **Override OFF** for **R1/R2/R3** (forces relay regardless of group/master until released)
 
-- **Midnight sync pulse**  
-  - **360** — optional daily tick (e.g., roll over daily totals).
+- **Acknowledges**  
+  - **Ack All**, **Ack Group 1**, **Ack Group 2**, **Ack Group 3**
 
-- **Irrigation control**  
-  - **Start**: `370` (Z1), `371` (Z2)  
-  - **Stop**: `380` (Z1), `381` (Z2)  
-  - **Reset**: `390` (Z1), `391` (Z2)
+- **Input helpers (optional)**  
+  - **Enable/Disable INx** pulses for commissioning workflows
 
-These appear in ESPHome as hidden helpers (internal) plus a visible **Midnight Pulse** if you want to fire it from HA.
+These appear as internal ESPHome switches or scripts that you can call from HA automations.
 
 ---
 
-## 8.5 Using your posted MiniPLC YAML with WLD
+## 8.5 Using Your MiniPLC YAML with ALM
 
-You already have a working base (UART/Modbus, GPIOs, etc.). To **attach WLD**:
-
-1) Keep your UART+Modbus as is (TX=17, RX=16, 19200 8N1).  
-2) In `packages:`, switch the variables to `wld_prefix`, `wld_id`, `wld_address` (see 8.2).  
-3) Ensure the WLD’s Modbus address matches `wld_address` (set via your module’s config workflow).  
-4) After flashing, the device in Home Assistant will show a **device section** named with your `wld_prefix` (e.g., `WLD#1 Flow1 Rate`, `WLD#1 DI1`, `WLD#1 Irr Z1 State`, etc.).
+1) Keep the existing **UART/Modbus** blocks (pins/baud).  
+2) Add the **`packages:`** block above and set **`alm_address`** to the ALM’s address from WebConfig.  
+3) Flash the controller; ESPHome will discover entities under **`alm_prefix`** (e.g., `ALM#1 IN1`, `ALM#1 Any Alarm`, `ALM#1 Relay 1`).  
+4) Place the entities on dashboards and wire up acknowledge/override actions as HA buttons.
 
 ---
 
-## 8.6 Home Assistant integration
+## 8.6 Home Assistant Integration
 
-> Tip: In Home Assistant, schedule a daily automation at 00:00 to toggle **CMD_TIME_MIDNIGHT (coil 360)** via Modbus/ESPHome so counters and time-based accumulators reset in sync.
-
-1) **Add the ESPHome device**  
-- HA → **Settings → Devices & Services → Integrations → ESPHome** and enter the MiniPLC hostname/IP.
-
-2) **Suggested cards & dashboards**  
-- **Leak/Alarm**: Use **Entity** cards for **DI1..DI5**; create a **Siren** control mapped to a relay if used.  
-- **Flow**: **History Graph** for `FlowX Rate`; **Statistic** or **Gauge** for `FlowX Accum`.  
-- **Irrigation**: Show `Irr Zx State`, `Irr Zx Rate`, `Irr Zx WindowOpen`, `Irr Zx SensorsOK`; add automation buttons to start/stop zones by calling the coil helpers.  
-- **Temperatures**: Line charts of **OW temps** and **Heat ΔT** for hydronic insight.
-
-3) **Automations** (examples)  
-- If any **DIx** goes **ON** → turn **R1** ON and notify.  
-- If `Flow1 Rate` drops below threshold for **N** seconds during irrigation → **Stop zone** and alert.  
-- Nightly at **00:00** → toggle **Midnight pulse (360)** to roll daily stats.
+1) **Add the ESPHome device** in HA (`Settings → Devices & Services → ESPHome`) using your controller’s hostname/IP.  
+2) **Dashboards**
+   - **Annunciator**: tiles for **Any/Group1/2/3**, plus a button for **Ack All**.
+   - **Zones**: show **IN1…IN17** grouped by area; add **Relay 1/2/3** toggles for tests.
+   - **Service mode**: a helper (boolean) that gates HA from energizing sirens; use **Overrides** sparingly.
+3) **Automations**
+   - On **Any Alarm → ON**: push notification + flash a smart light; if **service_mode = off**, energize **Relay 1** for the siren.
+   - On **Group X → ON** and **latched**: prompt an **Ack Group X** action.
+   - On **Modbus unavailable**: raise a critical alert.
 
 ---
 
-## 8.7 Troubleshooting & tips
+## 8.7 Troubleshooting & Tips
 
-- **No entities / Modbus timeouts:** Check A/B polarity, shared **GND** (if different PSUs), bus termination/bias resistors.  
-- **Wrong vars in `packages:`** Use **`wld_*`** (not `enm_*`, etc).  
-- **Entity naming collisions:** The package namespaces everything with your **`wld_prefix`**. Use unique prefixes per module (`WLD#1`, `WLD#2`, …).  
-- **Daily resets:** Prefer using the **Midnight pulse (360)** over manual counter math.  
-- **Multiple WLDs on one bus:** Add another `packages:` block with different `wld_id`/`wld_address` and a new `wld_prefix`.
+- **No data / timeouts**: check **A/B polarity**, shared **COM/GND** (when PSUs differ), and **termination/bias**.  
+- **Wrong package vars**: use **`alm_prefix` / `alm_id` / `alm_address`** (not older variable names).  
+- **Relays not responding**: verify the relay is **Enabled** in WebConfig and **not overridden**.  
+- **Latched alarms won’t clear**: inputs must be normal **and** you must send the corresponding **Ack**.  
+- **Multiple ALMs**: give each a unique **Modbus address** and **`enm_prefix`**.
 
 ---
 
