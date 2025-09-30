@@ -1078,7 +1078,7 @@ You already have a working base (UART/Modbus, GPIOs, etc.). To **attach WLD**:
 The following key project resources are included in this repository:
 
 - **🧠 Firmware (Arduino/PlatformIO):** [`Firmware/default_wld_521_r1/`](Firmware/default_wld_521_r1/)  
-  Main sketch implementing ATM90E32 metering, relays, button overrides, alarms, Modbus RTU, and WebSerial support.
+  Main sketch implementing relays, button overrides, alarms, Modbus RTU, and WebSerial support.
 
 - **🛠 Web Config Tool:** [`Firmware/ConfigToolPage.html`](Firmware/ConfigToolPage.html)  
   HTML‑based USB Web Serial configuration UI, used for meter options, calibration, relays, alarms, etc.
