@@ -480,13 +480,10 @@ Use WebConfig’s **Serial Log** and live status panels to confirm DI changes, f
 2. **Open the config page.** In a Chromium-based browser (Chrome/Edge), open  
    **https://www.home-master.eu/configtool-wld-521-r1**  
 3. **Click “Connect”.** When prompted, allow the browser to access the serial device.  
-4. **Confirm connection.** The **Serial Log** shows events (e.g., `port open`) and the banner displays the **Active Modbus Configuration** (current **Address** and **Baud Rate**).  
+4. **Confirm connection.** The **Serial Log** shows events and the banner displays the **Active Modbus Configuration** (current **Address** and **Baud Rate**).  
 5. **(Optional) Reset Device.** Click **Reset Device** for a safe reboot; the serial link will drop and then reconnect automatically.
 
-> If **Connect** is disabled, make sure you’re using Chrome/Edge and have granted serial permissions. On macOS/Linux, ensure your user has access to USB serial devices.
-
-> If **Connect** is disabled, use Chrome/Edge and ensure serial permissions are allowed. On macOS/Linux, you may need to allow USB serial access.
-
+> If you cannot connect to the module, check that no other app (serial console, uploader, etc.) is already using the USB port, and verify the browser has permission to access it. On macOS/Linux, ensure your user has the required USB serial permissions.
 
 ## 6.2 How to Configure Modbus
 
@@ -499,6 +496,36 @@ Use the top **Modbus Address** and **Baud Rate** selectors. Changes are sent to 
 
 > You can revisit this page anytime to adjust Modbus parameters. Configuration persists in the module’s flash memory.
 
+## How to Configure 1-Wire Devices
+
+![1-Wire Devices — WebConfig](./Images/webconfig1.png)
+
+
+1. **Scan the bus**  
+   Click **Scan 1-Wire**. New ROM addresses appear under **Discovered devices**.
+
+2. **Store and name sensors**  
+   For each discovered address: enter a **Name** (e.g., *Chimney supply*), then click **Add**.  
+   The sensor moves to **Stored sensors (flash)** with a position tag (e.g., **#1**, **#2**) and a live temperature pill.
+
+3. **Live temperatures**  
+   The **1-Wire Live Temperatures** table auto-refreshes and shows **Address**, **Name**, **Temp (°C)**, and **Errors**.  
+   - **Errors = 0** indicates a healthy read. If errors increment, check wiring and pull-up.
+
+4. **Remove sensors (if needed)**  
+   Click **Remove** to delete a stored sensor from the module’s flash.
+
+5. **Use 1-Wire sensors in features**  
+   - **Heat Energy / Calorimetry:** When enabling Heat on a DI in the Inputs section, pick **Sensor A** and **Sensor B** from the **stored sensor positions** (the **#** tags). The UI shows the chosen position next to each selector.
+
+### Wiring & Power notes (important)
+- The **1-Wire bus uses GPIO16** and the module’s **non-isolated +5 V (logic domain)**.  
+- **Do not** power DI-side sensors from the 1-Wire +5 V/GND, and **do not** tie the 1-Wire ground to the DI ground. Keep **logic (1-Wire)** and **isolated (DI) sensor** domains separate.  
+
+### Troubleshooting
+- **No devices found:** verify DATA on GPIO16, +5 V, and GND; check the pull-up; rescan.  
+- **Intermittent readings / errors:** shorten cable, improve connections, avoid star topologies, and keep 1-Wire wiring away from high-noise loads.  
+- **Duplicate names:** rename stored sensors for clarity before assigning them to Heat A/B.
 
 ## Key Ratings (from prior release)
 
