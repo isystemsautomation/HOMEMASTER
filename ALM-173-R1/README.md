@@ -4,7 +4,7 @@
 
 **HOMEMASTER – Modular control. Custom logic.**
 
-<img src="Images/photo1.png" align="right" width="440" alt="WLD-521-R1 module photo">
+<img src="Images/photo1.png" align="right" width="440" alt="ALM-173-R1 module photo">
 
 ### Module Description
 
@@ -22,7 +22,7 @@ The **ALM-173-R1** is a configurable **alarm I/O module** with **17 opto-isolate
 - [5. Installation & Wiring](#5-Wiring)
 - [6 Software & UI Configuration](#6-software-ui-configuration-1)
 - [7 Modbus RTU Communication](#7-modbus-rtu-communication-1)
-- [8. [ESPHome Integration Guide (MicroPLC/MiniPLC + WLD-521-R1)]](#8-esphome-integration-guide-microplcminiplc-alm-173-r1-1)
+- [8. [ESPHome Integration Guide (MicroPLC/MiniPLC + ALM-173-R1)]](#8-esphome-integration-guide-microplcminiplc-alm-173-r1-1)
 - [9. Programming & Customization](#9-programming-customization-1)
 - [10. Maintenance & Troubleshooting](#10-maintenance-troubleshooting-1)
 - [11. Open Source & Licensing](#11-open-source-licensing-1)
@@ -36,23 +36,34 @@ The **ALM-173-R1** is a configurable **alarm I/O module** with **17 opto-isolate
 ---
 <a id="1-introduction-1"></a>
 # 1. [Introduction]
-## 1.1 Overview of the WLD-521-R1 Module 💧
+## 1.1 Overview of the ALM-173-R1 Module 🚨
 
-The WLD-521-R1 is a specialized I/O module for water flow, heat energy (calorimetry), and irrigation/leak detection. It operates as an intelligent Modbus RTU slave that processes local sensor data and runs a fully configurable internal logic (e.g., input→relay actions, irrigation windows, flow supervision, safety interlocks) autonomously. Automation scenarios can then be extended and orchestrated by a central PLC/controller to add system-wide coordination, monitoring, history, and advanced rules.
+The **ALM-173-R1** is a compact alarm I/O module for intrusion/safety panels and PLC-backed systems. It exposes **17 opto-isolated digital inputs** for dry contacts and detectors, **3 relay outputs** for sirens/arming lines, plus a **local HMI** (4 buttons, 4 user LEDs) and **Modbus RTU (RS-485)**.  
+Configuration and live status are available from any Chromium-based browser via **Web Serial**, letting you set Modbus address/baud, map inputs and relays to **three alarm groups**, and choose **latched** or **non-latched** alarm behavior—all without special software.
 
 | Component | Quantity | Key Functionality |
-| :--- | :--- | :--- |
-| **Digital Inputs (DI)** | 5 (DI1-DI5) | **Opto-isolated** inputs used for pulse counting (Flow Meters) or reading dry-contact status (Leak Sensors, Buttons, General Status). |
-| **Relays (RLY)** | 2 (R1, R2) | **High-performance industrial relays** for switching external loads, most commonly used for **pumps** or **shut-off valves**. |
-| **1-Wire Bus (OW)** | 1 | Dedicated bus supporting up to 32 **DS18B20 temperature sensors** for accurate temperature monitoring and heat energy calculation. |
-| **Local Interface** | 4 LEDs, 4 Buttons | Provides local status indication, manual control, and **override functions**. |
+| :--- | :---: | :--- |
+| **Digital Inputs (DI)** | **17** | **Opto-isolated** dry-contact inputs; each input can be enabled, inverted, debounced, and assigned to **Alarm Group 1/2/3**. Ideal for PIRs, door contacts, tamper loops, and general status lines. |
+| **Relays (RLY)** | **3** | Industrial SPDT relays for sirens, strobes, arm/disarm lines, or general outputs; per-relay enable/invert/group mapping. |
+| **Alarm Engine** | **3 groups + Any** | Per-group **mode**: **Active while condition** (non-latched) or **Latched until acknowledged**; “Any Alarm” summary indicator for system-wide signaling. |
+| **Local Interface** | **4 Buttons, 4 LEDs** | Buttons can be assigned to **alarm acknowledge (all or per-group)** or **manual relay override**; user LEDs can mirror group/relay states with **steady/blink** modes. |
+| **Configuration UI** | **Web Serial** | In-browser tool to set **Modbus address & baud**, view **live status**, push/save config, and **factory reset**—no drivers or installers required. |
+| **Field Bus** | **RS-485 (Modbus RTU)** | Robust multi-drop bus for PLC/SCADA integration; supports standard Modbus RTU registers and coil/DI maps. |
+| **Service Port** | **USB-C** | Protected USB-C for setup and service access. |
+| **Controller** | **RP2350A + QSPI Flash** | Dual-core MCU with external QSPI flash for firmware and configuration storage. |
+| **Power** | **24 VDC In** | On-board **24 V→5 V** buck and **5 V→3.3 V** LDO for logic; **isolated 12 V / 5 V** rails for field side. |
+| **Protection** | **TVS + PTC** | Surge/ESD protection and resettable fuses on field I/O and relay outputs for rugged installations. |
+
+> **Typical workflow:**  
+> Wire detectors & outputs → set Modbus address/baud → assign inputs/relays to groups → choose **latched/non-latched** behavior → map buttons to **acknowledge** / **manual override** → monitor alarms locally (LEDs) and centrally via PLC/HMI over **Modbus RTU**.
+
 
 ---
 
-## 1.2 WLD-521-R1 — Supported Controllers 🔌
+## 1.2 ALM-173-R1 — Supported Controllers 🔌
 
 
-The **WLD-521-R1** is an intelligent expansion module for the **HomeMaster MiniPLC / MicroPLC Modular Smart Control System**.
+The **ALM-173-R1** is an intelligent expansion module for the **HomeMaster MiniPLC / MicroPLC Modular Smart Control System**.
 
 ### MiniPLC / MicroPLC (via Modbus RTU)
 
@@ -62,34 +73,127 @@ The **WLD-521-R1** is an intelligent expansion module for the **HomeMaster MiniP
 | **Communication**   | **Modbus RTU** (Serial).                                                                                                                             |
 | **Physical Interface** | **RS-485** bus (using dedicated **UART2** pins).                                                                                                    |
 | **Function**         | Master can **read** all I/O data (Flow, Heat, Leak Status) and **write** commands to actuate **Relays R1, R2** and control **irrigation zones**.     |
-| **Modular Design**   | RS-485 architecture supports **daisy-chaining** multiple WLD-521-R1 modules and other expansion units for scalable I/O.                               |
+| **Modular Design**   | RS-485 architecture supports **daisy-chaining** multiple ALM-173-R1 modules and other expansion units for scalable I/O.                               |
 | **Default ID**       | Factory-set **Modbus Slave ID: 3**.                                                                                                                  |
 
-> **Note:** If multiple WLD-521-R1 modules share the same RS-485 segment, change the slave ID on each unit to avoid address conflicts.
+> **Note:** If multiple ALM-173-R1 modules share the same RS-485 segment, change the slave ID on each unit to avoid address conflicts.
 
 
 ---
 
 ## 1.3 Use Cases 🛠️
 
-Below are practical ways to deploy the **WLD-521-R1** with the HomeMaster Mini/Micro PLC.
+Below are practical ways to deploy the **ALM-173-R1** with the HomeMaster Mini/Micro PLC (or any Modbus RTU master). Each recipe uses only features available in the firmware + Web Serial UI: **Input Enable/Invert/Group**, **Relay Enable/Invert/Group**, **Alarm Modes** (*None / Active while condition* / *Latched until acknowledged*), **Buttons** (ack & manual relay override), and **User LEDs** (steady/blink; sources like *Any Alarm*, *Group 1..3*, *Relay overridden*).
 
-### 1) Basement leak detection + automatic water shut-off
-- **Goal:** When water is detected, automatically close the main water valve and notify the PLC.
-- **How:** Set **DI1** to **Water sensor**, enable it, and set its **Action** to *Toggle* with **Control target** → *Relay 1*. Wire a **motorized shut-off valve** (e.g., NC solenoid/actuated ball valve) to **R1** so the valve **closes on leak**. Optionally map an LED to **DI1** or **R1** for visual status. The PLC can read the leak status over Modbus for alerts or interlocks.
+---
 
-### 2) Garden irrigation with flow supervision & pump dry-run protection (merged)
-- **Goal:** Safe, autonomous watering with pump protection and sensor interlocks.
-- **How:** Configure **Zone 1/2** with a valve on **Relay 1/2** and select a **Flow DI (1..5)** tied to a pulse flowmeter. Enable **Use flow supervision** and set **Min rate (L/min)**, **Grace (s)**, **Timeout**, and optional **Target liters**.  
-  Add protection and interlocks: set **R_pump** to the pump relay; require **DI_tank (OK when ON)**; use **DI_moist** (needs water when OFF) and **DI_rain** (block when ON)**.** The zone will **block or stop** when sensors are not OK or when flow drops below thresholds. Use **Irrigation Window** and **Auto-start** for time-based runs.
+### 1) Intrusion zone with siren, latched until acknowledgment
+- **Goal:** Trip a siren when a door/PIR is triggered; hold the alarm until a guard acknowledges it.
+- **How:**  
+  1. Wire the detector to **IN1**. In **Digital Inputs**, set **IN1 → Enabled**, **Group = Group 1**; use **Invert** if the contact is NC.  
+  2. In **Alarm Modes**, set **Group 1 = Latched until acknowledged**.  
+  3. In **Relays**, set **Relay 1 → Enabled, Group = Group 1** (Invert if the siren needs opposite polarity).  
+  4. In **Buttons**, set **Button 1 = Alarm group 1 acknowledge**.  
+  5. In **User LEDs**, map **LED 1 → Source = Alarm group 1**, **Mode = Blink** for visual cue.  
+  6. The PLC reads Group 1 status and “Any Alarm” over Modbus for logging and notifications.
 
-### 3) Water consumption metering
-- **Goal:** Count liters for one or more branches (e.g., apartment/tenant billing).
-- **How:** Set selected inputs to **Water counter**. Enter **Pulses per liter** and (optionally) calibrate **Total ×** and **Rate ×**. Use **Reset total** to move the accumulation baseline and **Calc from external** to align with an external meter after service. View **Rate (L/min)** and **Total (L)** live in the UI.
+---
 
-### 4) Hydronic loop heat-energy (ΔT) monitoring
-- **Goal:** Track instantaneous heat power and energy per loop.
-- **How:** For a DI configured as **Water counter**, open its **Heat** panel and enable **Heat**. Assign **Sensor A (supply)** and **Sensor B (return)** from stored **1-Wire** devices, then set **cp (J/kg·°C)**, **ρ (kg/L)**, and **Calibration (×)** as needed. The UI shows **TA**, **TB**, **ΔT**, **Power (W)**, **Energy (J / kWh)**. Use **Reset energy** to zero totals; manage sensors from **1-Wire** (scan, name, view live temperatures).
+### 2) Dual-door supervision with common strobe and separate acks
+- **Goal:** Two doors report separately, a common strobe flashes on any breach, and each zone can be acknowledged locally.
+- **How:**  
+  1. **IN1 → Group 1** (Door A), **IN2 → Group 2** (Door B).  
+  2. **Alarm Modes:** Group 1 = *Latched until acknowledged*, Group 2 = *Latched until acknowledged*.  
+  3. **Relay 1 → Group 1**, **Relay 2 → Group 2** (drive individual buzzers/locks).  
+  4. **Relay 3 → Group = None**; PLC toggles it as a **common strobe** via Modbus when *Any Alarm* is active.  
+  5. **Button 1 = Alarm group 1 acknowledge**, **Button 2 = Alarm group 2 acknowledge**.  
+  6. **LED 1 = Group 1**, **LED 2 = Group 2**, **LED 3 = Any Alarm**.
+
+---
+
+### 3) Equipment room: summary fault to PLC + lamp tower
+- **Goal:** Collect many dry contacts (smoke, thermal, UPS, flooding) and present a **summary alarm** locally and to the PLC/HMI.
+- **How:**  
+  1. Map **IN1..IN8 → Group 1** (all fault inputs). Use **Invert** per sensor type (NO/NC).  
+  2. **Alarm Modes:** Group 1 = *Active while condition is active* (non-latched).  
+  3. Wire a **red stack light** to **Relay 1**, set **Relay 1 → Group 1**.  
+  4. **LED 1 = Any Alarm** (Blink) for panel indication.  
+  5. PLC reads **Any Alarm** and **Group 1** bits via Modbus for SCADA alarms.
+
+---
+
+### 4) Tamper + zone alarm, single siren, separate acknowledgments
+- **Goal:** Zone alarm and tamper should both ring the siren, but be acknowledged independently for proper reporting.
+- **How:**  
+  1. **IN1 → Group 1** (Zone), **IN2 → Group 2** (Tamper).  
+  2. **Alarm Modes:** Group 1 = *Latched until acknowledged*; Group 2 = *Latched until acknowledged*.  
+  3. **Relay 1 → Group = Group 1** and **Relay 2 → Group = Group 2** are valid, **or** use **PLC logic** to drive **Relay 3** when *(Group1 OR Group2)* is active for a **single siren** line.  
+  4. **Button 1 = Alarm group 1 acknowledge**, **Button 2 = Alarm group 2 acknowledge**.  
+  5. **LED 1 = Group 1**, **LED 2 = Group 2**, **LED 3 = Any Alarm**.
+
+---
+
+### 5) E-Stop loop with safety reset (manual restore)
+- **Goal:** An E-Stop contact chain drops a relay; restoring requires a **manual acknowledge/reset** (no auto-reset).
+- **How:**  
+  1. Wire the E-Stop loop to **IN1** (usually **Invert** = ON for NC loops). Set **IN1 → Group 1**.  
+  2. **Alarm Modes:** Group 1 = *Latched until acknowledged*.  
+  3. **Relay 1 → Group 1** (drives interlock/enable).  
+  4. **Button 1 = Alarm group 1 acknowledge** (acts as **manual reset** once the loop is healthy).  
+  5. **LED 1 = Group 1** (Blink). PLC logs trips and acks via Modbus.
+
+---
+
+### 6) Siren/relay manual test from front panel
+- **Goal:** Let maintenance test the siren without a PLC or active alarm.
+- **How:**  
+  1. **Relays:** Leave group mapping as needed for normal ops.  
+  2. **Buttons:** Set **Button 3 = Relay 1 override (manual)**.  
+  3. **User LEDs:** Set **LED 4 = Relay 1 overridden** (Steady).  
+  4. Pressing **Button 3** forces the siren relay; the LED confirms override state.
+
+---
+
+### 7) Night mode: silent alarm locally, PLC-driven remote notifier
+- **Goal:** Keep the site silent at night but notify a remote system (SMS/call) through the PLC.
+- **How:**  
+  1. **Inputs:** Assign all motion/door sensors to **Group 2**.  
+  2. **Alarm Modes:** Group 2 = *Active while condition is active*.  
+  3. **Relays:** Set **Relay 1 → Group = None** (siren disabled); PLC watches **Group 2** and actuates a **GSM dialer** or remote beacon via **Relay 3**.  
+  4. **LED 2 = Group 2** (Steady) for local, non-intrusive indication.
+
+---
+
+### 8) Access door with strike control and door-left-open timer (via PLC)
+- **Goal:** PLC unlocks a strike, supervises the door contact, and alarms if the door is left open too long.
+- **How:**  
+  1. **IN1 = Door contact → Group 3** (Invert if NC).  
+  2. **Relays:** **Relay 1** wired to the strike, **Group = None** (PLC controls it directly over Modbus).  
+  3. PLC logic: when access granted → energize **Relay 1**; start a **door-open timer**; if **IN1** stays active past timeout, raise **Group 3 alarm** (or directly drive **Relay 2** as buzzer).  
+  4. **Button 4 = Alarm group 3 acknowledge** for guard reset; **LED 3 = Group 3**.
+
+---
+
+### 9) Panel-mount annunciator with “Any Alarm” lamp
+- **Goal:** Use the front panel as a mini-annunciator while PLC handles supervision.
+- **How:**  
+  1. Map various inputs **IN1..INn → Group 1..3** as needed.  
+  2. **Alarm Modes:** choose **Active while** for live indication or **Latched** for operator intervention.  
+  3. **User LEDs:**  
+     - **LED 1 = Any Alarm (Blink)**  
+     - **LED 2 = Group 1**, **LED 3 = Group 2**, **LED 4 = Group 3**  
+  4. PLC mirrors lamp states on an HMI and logs alarm history.
+
+---
+
+### 10) Remote siren inhibit / service mode
+- **Goal:** Temporarily disable audible outputs during maintenance while keeping input logging active.
+- **How:**  
+  1. Keep inputs grouped and alarm modes unchanged.  
+  2. **Relays:** Set **Relays 1..3 → Group = None**; PLC decides when to energize them based on service mode (a Modbus coil/flag).  
+  3. Optional: map **LED 4 = Relay 1..3 overridden** (choose any one) to indicate maintenance override is active.
+
+> 💡 **Tip:** Use **Invert** on inputs/relays to match field wiring (NO/NC, active-low drivers). For visual clarity, prefer **Blink** on critical alarms and **Steady** for normal states. For system-wide alerting, the PLC can watch **Any Alarm** and **Group 1..3** bits to trigger messages, logs, and interlocks.
 
 <a id="2-safety-information-1"></a>
 # 2. Safety Information
@@ -127,7 +231,7 @@ This section outlines essential safety guidelines. Failure to adhere to these wa
 # 3. System Overview
 ## 3.1 Architecture & Modular Design
 
-The **WLD-521-R1 (Water Leak Detection, 5 Inputs, 2 Relays)** is a dedicated Extension Module designed for reliable, distributed automation within the HomeMaster system. It’s built on an **RP2350** microcontroller and concentrates water-safety I/O into a single DIN-rail Modbus device.
+The **ALM-173-R1 (Water Leak Detection, 5 Inputs, 2 Relays)** is a dedicated Extension Module designed for reliable, distributed automation within the HomeMaster system. It’s built on an **RP2350** microcontroller and concentrates water-safety I/O into a single DIN-rail Modbus device.
 
 **Core I/O & Sensors**
 - **5× Digital Inputs (DI):** configurable for flow meters and water-related sensors (leak/moisture/rain).
@@ -143,7 +247,7 @@ The **WLD-521-R1 (Water Leak Detection, 5 Inputs, 2 Relays)** is a dedicated Ext
 
 ## 3.2 Integration with Home Assistant
 
-Integration of the WLD-521-R1 into Home Assistant (HA) is achieved via the **ESPHome firmware** running on the HomeMaster controller (MiniPLC/MicroPLC). ESPHome handles Modbus polling/writes and exposes entities to HA.
+Integration of the ALM-173-R1 into Home Assistant (HA) is achieved via the **ESPHome firmware** running on the HomeMaster controller (MiniPLC/MicroPLC). ESPHome handles Modbus polling/writes and exposes entities to HA.
 
 **Home Assistant Communication**
 - **ESPHome abstraction:** the controller periodically reads/writes Modbus **coils** and **holding registers** and publishes:
@@ -184,7 +288,7 @@ Integration of the WLD-521-R1 into Home Assistant (HA) is achieved via the **ESP
   </table>
 </div>
 
-## 3.4 WLD-521-R1 — Technical Specification
+## 3.4 ALM-173-R1 — Technical Specification
 
 ### Overview
 
@@ -208,7 +312,7 @@ Integration of the WLD-521-R1 into Home Assistant (HA) is achieved via the **ESP
 
 ### Terminals & Pinout (field side)
 
-<img src="Images/photo1.png" align="left" width="660" alt="WLD-521-R1 module photo">
+<img src="Images/photo1.png" align="left" width="660" alt="ALM-173-R1 module photo">
 
 #### Connector Map (front label reference)
 
@@ -282,7 +386,7 @@ Integration of the WLD-521-R1 into Home Assistant (HA) is achieved via the **ESP
 <a id="4-getting-started-1"></a>
 # 4. Getting Started
 
-The **WLD-521-R1** integrates into the HomeMaster system over the **RS-485 Modbus** bus. Initial setup has two parts: **physical wiring** and **digital configuration** (WebConfig + ESPHome).
+The **ALM-173-R1** integrates into the HomeMaster system over the **RS-485 Modbus** bus. Initial setup has two parts: **physical wiring** and **digital configuration** (WebConfig + ESPHome).
 
 ---
 
@@ -290,7 +394,7 @@ The **WLD-521-R1** integrates into the HomeMaster system over the **RS-485 Modbu
 
 | Category   | Item                    | Details                                                                                         |
 |------------|-------------------------|-------------------------------------------------------------------------------------------------|
-| **Hardware** | **WLD-521-R1 Module**   | DIN-rail I/O module with **5× DI**, **2× relays**, and **1-Wire** (DS18B20, etc.).              |
+| **Hardware** | **ALM-173-R1 Module**   | DIN-rail I/O module with **5× DI**, **2× relays**, and **1-Wire** (DS18B20, etc.).              |
 |            | **HomeMaster Controller** | MiniPLC/MicroPLC acting as **Modbus master** and network gateway; ESPHome uses `wld_address: "3"`. |
 |            | **Power Supply**          | **24 VDC** to module power terminals (on-board 5 V/3.3 V rails derived).                        |
 |            | **RS-485 Cabling**        | Two-wire **A/B** plus **COM/GND**; use **120 Ω** termination at bus ends.                       |
@@ -302,7 +406,7 @@ The **WLD-521-R1** integrates into the HomeMaster system over the **RS-485 Modbu
 
 ## 4.2 Powering the Devices
 
-The WLD-521-R1 is powered from a **24 VDC primary input** on the field board. On-board regulators generate the internal rails for logic and provide **isolated 5 V / 12 V auxiliary rails** intended for low-power sensors.
+The ALM-173-R1 is powered from a **24 VDC primary input** on the field board. On-board regulators generate the internal rails for logic and provide **isolated 5 V / 12 V auxiliary rails** intended for low-power sensors.
 
 > Relays are **dry contacts** (SPDT). Do **not** power valves/pumps from the module’s internal rails; use a dedicated external supply and switch it via the relay contacts.
 
@@ -341,7 +445,7 @@ Actual current depends on configuration and what’s attached. Budget for:
 
 ### 4.3 Networking & Communication
 
-The WLD-521-R1 communicates with the controller over **RS-485 (Modbus RTU)** and exposes a **USB-C** port for local configuration via a browser (**Web Serial**). RS-485 is used for runtime control/telemetry; USB-C is used for setup, diagnostics, and safe resets. RS-485 carries **signals only** (no power).
+The ALM-173-R1 communicates with the controller over **RS-485 (Modbus RTU)** and exposes a **USB-C** port for local configuration via a browser (**Web Serial**). RS-485 is used for runtime control/telemetry; USB-C is used for setup, diagnostics, and safe resets. RS-485 carries **signals only** (no power).
 
 ---
 
@@ -396,7 +500,7 @@ The WLD-521-R1 communicates with the controller over **RS-485 (Modbus RTU)** and
 **Phase 1 — Physical Wiring**
 
 - **Power:** connect **24 VDC** to **V+ / 0 V** on the module.
-- **RS-485:** wire **A → A**, **B → B**, and **COM/GND** between the WLD-521-R1 and the controller; keep polarity consistent. Terminate the two bus ends with **120 Ω**.
+- **RS-485:** wire **A → A**, **B → B**, and **COM/GND** between the ALM-173-R1 and the controller; keep polarity consistent. Terminate the two bus ends with **120 Ω**.
 - **I/O:**
   - **Relays:** wire your valves/pumps to **R1/R2 (NO/NC/COM)**.
   - **Digital inputs:** connect leak sensors / flow meters / buttons to **DI1…DI5**.
@@ -422,9 +526,9 @@ _For more details about WebConfig cards and fields, see **[Software & UI Configu
 - **Update YAML:** In the ESPHome YAML configuration file for your MiniPLC/MicroPLC (using the provided template, **`default_alm_173_r1_plc.yaml`**):  
   - Verify the **`uart`** settings match your controller’s **RS-485 pins**.  
   - Add a new **`modbus_controller:`** entry, ensuring the **`wld_address`** substitution matches the Modbus Address set in Step 3 of Phase 2 (e.g., `wld_address: "3"`).
-- **Compile & Upload:** Build and upload the updated ESPHome config to the controller. After reboot, the controller will poll the WLD-521-R1 and expose **DI states/counters**, **1-Wire temperatures**, **relay controls**, and **irrigation status** as HA entities.
+- **Compile & Upload:** Build and upload the updated ESPHome config to the controller. After reboot, the controller will poll the ALM-173-R1 and expose **DI states/counters**, **1-Wire temperatures**, **relay controls**, and **irrigation status** as HA entities.
 
-_For protocol details and end-to-end examples, see **[Modbus RTU Communication](#7-modbus-rtu-communication-1)** and **[ESPHome Integration Guide (MicroPLC/MiniPLC + WLD-521-R1)](#8-esphome-integration-guide-microplcminiplc-alm-173-r1-1)**._
+_For protocol details and end-to-end examples, see **[Modbus RTU Communication](#7-modbus-rtu-communication-1)** and **[ESPHome Integration Guide (MicroPLC/MiniPLC + ALM-173-R1)](#8-esphome-integration-guide-microplcminiplc-alm-173-r1-1)**._
   
 
 **Timekeeping (recommended for local schedules)**  
@@ -438,9 +542,9 @@ Use WebConfig’s **Serial Log** and live status panels to confirm DI changes, f
 
 ## 6.1 How to Connect to the Module
 
-![WLD-521-R1 WebConfig — Active Modbus Configuration](Images/webconfig1.png)
+![ALM-173-R1 WebConfig — Active Modbus Configuration](Images/webconfig1.png)
 
-1. **Plug in USB-C.** Connect your computer to the WLD-521-R1’s USB-C port.  
+1. **Plug in USB-C.** Connect your computer to the ALM-173-R1’s USB-C port.  
 2. **Open the config page.** In a Chromium-based browser (Chrome/Edge), open  
    **https://www.home-master.eu/configtool-alm-173-r1**  
 3. **Click “Connect”.** When prompted, allow the browser to access the serial device.  
@@ -624,7 +728,7 @@ Select where commands for this relay come from:
 
 ![LEDs & Buttons — WebConfig](./Images/webconfig6.png)
 
-The WLD-521-R1 has **4 user LEDs** and **4 front buttons** that you can assign to common tasks. Settings apply immediately; each row shows a live **State/Pressed** dot.
+The ALM-173-R1 has **4 user LEDs** and **4 front buttons** that you can assign to common tasks. Settings apply immediately; each row shows a live **State/Pressed** dot.
 
 ---
 
@@ -860,9 +964,9 @@ Holding/Input (telemetry and control snapshots)
 ## 7.7 Override Priority
 
 <a id="8-esphome-integration-guide-microplcminiplc-alm-173-r1-1"></a>
-# 8. [ESPHome Integration Guide (MicroPLC/MiniPLC + WLD-521-R1)]
+# 8. [ESPHome Integration Guide (MicroPLC/MiniPLC + ALM-173-R1)]
 
-## 8. ESPHome Integration Guide (MicroPLC/MiniPLC + WLD-521-R1)
+## 8. ESPHome Integration Guide (MicroPLC/MiniPLC + ALM-173-R1)
 
 ## 8.1 Hardware & RS-485 wiring
 
@@ -905,7 +1009,7 @@ packages:
     url: https://github.com/isystemsautomation/HOMEMASTER
     ref: main
     files:
-      - path: WLD-521-R1/Firmware/default_alm_173_r1_plc/default_alm_173_r1_plc.yaml
+      - path: ALM-173-R1/Firmware/default_alm_173_r1_plc/default_alm_173_r1_plc.yaml
         vars:
           wld_prefix: "WLD#1"
           wld_id: wld_1
@@ -1098,7 +1202,7 @@ The following key project resources are included in this repository:
 <a id="13-support-1"></a>
 # 13. Support
 
-If you need help using or configuring the WLD-521-R1 module, the following resources are available:
+If you need help using or configuring the ALM-173-R1 module, the following resources are available:
 
 - [🛠 Web Config Tool](https://www.home-master.eu/configtool-alm-173-r1) – Configure and calibrate via USB‑C in your browser.  
 - [🌐 Official Support Page](https://www.home-master.eu/support) – Knowledge base and contact options.  
