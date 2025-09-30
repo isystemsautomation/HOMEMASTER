@@ -498,7 +498,7 @@ Use the top **Modbus Address** and **Baud Rate** selectors. Changes are sent to 
 
 ## How to Configure 1-Wire Devices
 
-![1-Wire Devices — WebConfig](./Images/webconfig1.png)
+![1-Wire Devices — WebConfig](./Images/webconfig2.png)
 
 
 1. **Scan the bus**  
