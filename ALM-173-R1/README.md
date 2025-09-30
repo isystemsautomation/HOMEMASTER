@@ -577,6 +577,8 @@ _For wiring safety, terminal maps, and cable practices, see your **Installation 
 <a id="5-wiring-1"></a>
 # 5. Installation & Wiring
 
+# 5. Installation & Wiring
+
 > ⚠️ **Safety first.** Work must be performed by qualified personnel. De-energize the panel and verify with a meter before wiring. The ALM-173-R1 is a **SELV/low-voltage** device; do not connect mains to any logic/input terminal.
 
 ---
@@ -585,7 +587,7 @@ _For wiring safety, terminal maps, and cable practices, see your **Installation 
 
 ![RS-485 wiring to controller with 120Ω end-of-line termination](Images/ALM_RS485Connection.png)
 
-**What you see:** The controller is wired to the ALM-173-R1 using a twisted pair for **A/B** plus a **COM/GND** reference. A **120 Ω** end-of-line resistor is installed across **A–B** at the far end of the trunk.
+The controller is wired to the ALM-173-R1 using a twisted pair for **A/B** plus a **COM/GND** reference. A **120 Ω** end-of-line resistor is installed across **A–B** at the far end of the trunk.
 
 **How to wire**
 
@@ -601,7 +603,7 @@ _For wiring safety, terminal maps, and cable practices, see your **Installation 
 
 ![24 VDC power wiring to V+ and 0V](Images/ALM_24Vdc_PowerSupply.png)
 
-**What you see:** A regulated **24 VDC** supply connected to the top-left **POWER** terminals: **V+** (red) and **0 V** (blue).
+A regulated **24 VDC** supply connects to the top-left **POWER** terminals: **V+** (red) and **0 V** (blue).
 
 **How to wire**
 
@@ -615,11 +617,11 @@ _For wiring safety, terminal maps, and cable practices, see your **Installation 
 
 ![Dry-contact sensors to inputs with per-group returns](Images/ALM_DigitalInputs.png)
 
-**What you see:** Dry-contact sensors (switch symbols) wired between each **INx** and the matching **GND I.x** return. The lower terminal row groups the returns (e.g., **GND I.11**, **GND I.12**, …).
+Dry-contact sensors are wired between each **INx** and the matching **GND I.x** return on the lower terminal row.
 
 **How to wire**
 
-- These inputs are **opto-isolated** and expect **dry contacts** or isolated low-voltage signals.  
+- Inputs are **opto-isolated** and expect **dry contacts** or isolated low-voltage signals.  
 - For each input, connect the sensor between **INx** and its **GND I.x** return as labeled on the front panel.  
 - Do **not** inject external voltage into the inputs.  
 - Use shielded cable for long runs and keep input wiring away from high-dv/dt conductors.  
@@ -631,12 +633,12 @@ _For wiring safety, terminal maps, and cable practices, see your **Installation 
 
 ![Relays used as dry contacts to switch an external AC line via breaker](Images/ALM_RelayConnection.png)
 
-**What you see:** Each relay is used as a **dry contact** to switch an external AC line from a breaker (**L**) to loads (lamps). **N** is routed directly to the loads. The diagram shows use of the **NO (normally open)** path.
+Each relay operates as a **dry contact** to switch an external supply. The example shows **NO** used to switch an AC line from a breaker (**L**) to the loads, with **N** routed directly.
 
 **How to wire**
 
 1. Bring the external supply **line (L)** to the relay **COM** terminal.  
-2. From **NO** (or **NC** if you need fail-active behavior) go to the load; return the other side of the load to **N/0 V** of the external supply.  
+2. From **NO** (or **NC** if fail-active behavior is needed) go to the load; return the other side of the load to **N/0 V** of the external supply.  
 3. The relays **do not source power**—they only switch your external circuit.  
 4. Respect relay voltage/current ratings and local electrical codes.  
 5. Fit **RC snubbers or TVS** across inductive loads (locks, sirens, coils) to minimize arcing and EMI.
@@ -649,7 +651,7 @@ _For wiring safety, terminal maps, and cable practices, see your **Installation 
 - **Isolation boundaries** respected (no unintended bonds between **GND_ISO** and logic ground).  
 - RS-485 polarity, termination, and biasing verified.  
 - Relays wired with the correct **COM/NO/NC** choice; snubbers fitted where needed.  
-- Power up: **PWR** LED steady **ON**; **TX/RX** **blink** when the controller communicates.  
+- Power up: **PWR** LED steady **ON**; **TX/RX** **blink** when the controller communicates.
 
 
 <a id="6-software-ui-configuration-1"></a>
@@ -679,401 +681,215 @@ Use the top **Modbus Address** and **Baud Rate** selectors. Changes are sent to 
 
 > You can revisit this page anytime to adjust Modbus parameters. Configuration persists in the module’s flash memory.
 
-## 6.3 How to Configure 1-Wire Devices
+## 6.3 How to Set Alarm Modes
 
+Use the **Mode – Group 1/2/3** dropdowns to select the behavior for each group:
+- **None** — group disabled.
+- **Active while condition is active** — turns ON only while mapped inputs are active.
+- **Latched until acknowledged** — stays ON after a trigger until acknowledged.
+
+Top-row dots show live status for **Any Alarm**, **Group 1**, **Group 2**, **Group 3** (gray = idle, lit = active).
 ![1-Wire Devices — WebConfig](./Images/webconfig2.png)
 
 
-1. **Scan the bus**  
-   Click **Scan 1-Wire**. New ROM addresses appear under **Discovered devices**.
-
-2. **Store and name sensors**  
-   For each discovered address: enter a **Name** (e.g., *Chimney supply*), then click **Add**.  
-   The sensor moves to **Stored sensors (flash)** with a position tag (e.g., **#1**, **#2**) and a live temperature pill.
-
-3. **Live temperatures**  
-   The **1-Wire Live Temperatures** table auto-refreshes and shows **Address**, **Name**, **Temp (°C)**, and **Errors**.  
-   - **Errors = 0** indicates a healthy read. If errors increment, check wiring and pull-up.
-
-4. **Remove sensors (if needed)**  
-   Click **Remove** to delete a stored sensor from the module’s flash.
-
-5. **Use 1-Wire sensors in features**  
-   - **Heat Energy / Calorimetry:** When enabling Heat on a DI in the Inputs section, pick **Sensor A** and **Sensor B** from the **stored sensor positions** (the **#** tags). The UI shows the chosen position next to each selector.
-
-### Wiring & Power notes (important)
-- The **1-Wire bus uses GPIO16** and the module’s **non-isolated +5 V (logic domain)**.  
-- **Do not** power DI-side sensors from the 1-Wire +5 V/GND, and **do not** tie the 1-Wire ground to the DI ground. Keep **logic (1-Wire)** and **isolated (DI) sensor** domains separate.  
-
-### Troubleshooting
-- **No devices found:** verify DATA on GPIO16, +5 V, and GND; check the pull-up; rescan.  
-- **Intermittent readings / errors:** shorten cable, improve connections, avoid star topologies, and keep 1-Wire wiring away from high-noise loads.  
-- **Duplicate names:** rename stored sensors for clarity before assigning them to Heat A/B.
+Use the **Mode – Group 1/2/3** dropdowns to select the behavior for each group:
+- **None** — group disabled.
+- **Active while condition is active** — turns ON only while mapped inputs are active.
+- **Latched until acknowledged** — stays ON after a trigger until acknowledged.
 
 ## 6.4 How to Configure Digital Inputs
 
 ![Digital Inputs — WebConfig](./Images/webconfig3.png)
 
-Each of the **5 digital inputs (IN1…IN5)** is configured independently. Changes apply immediately and you’ll see live state on the green dot in each card.
+For each input **IN1…IN17**:
 
-### 1) Enable & Polarity
-- **Enabled:** turns the input on/off in firmware.
-- **Inverted:** flips the logic (use when your sensor is active-low).
+- **Enabled** — check to activate the input. (Unchecked = ignored by the alarm engine.)
+- **Inverted** — check if the sensor is **NC** (closed = normal). This makes “open” read as **active**.
+- **Alarm Group** — choose **None**, **1**, **2**, or **3** to route the input into a group.
 
-### 2) Choose the Type
-- **Water sensor** – simple wet/dry (leak) contact.  
-- **Soil moisture** – soil/moisture contact input.  
-- **Water counter** – pulse input for flow meters (counts **rising edges**).
-
-> Tip: The small dot in the card’s header shows the **live state** (ON/OFF).
-
-### 3) Actions & Targets (for sensor types)
-For **Water sensor** or **Soil moisture**:
-- **Action:** `None`, `Toggle`, or `Pulse`.  
-- **Control target:** `Control all`, `Control relay 1`, `Control relay 2`, or `None`.  
-  - *Toggle* switches the selected relay(s) on each activation.  
-  - *Pulse* momentarily closes the selected relay(s) (firmware default pulse length).
-
-> **Note:** When **Type = Water counter**, the **Action/Control target are ignored** (the input is used as a meter, not a control button).
-
-### 4) Flow Meter Setup (Type = Water counter)
-When you pick **Water counter**, extra panels appear:
-- **Counter:** shows **Pulses** with a **Reset pulses** button.
-- **Flow panel:**
-  - **Pulses per liter (PPL)** – enter your meter’s constant (e.g., 450).
-  - **Calibration (Total × / Rate ×)** – fine-tune totals or rate.
-  - **Rate (L/min)** and **Total (L)** – live values.
-  - **Reset total** – moves the accumulation baseline (pulses are preserved).
-  - **Calc from external** – enter an external liters value since last reset and click **Calc from external** to auto-derive Total calibration.
-
-### 5) Optional: Heat Energy on a Counter DI
-Enable **Heat** on that DI to compute calorimetry:
-- Select **Sensor A (supply)** and **Sensor B (return)** from your stored **1-Wire** sensors (by position **#1, #2, …**).
-- Set **cp (J/kg·°C)**, **ρ (kg/L)**, and **Calibration ×** if needed.
-- Live readouts: **TA**, **TB**, **ΔT**, **Power**, **Energy (J / kWh)**.
-- **Reset energy** clears the accumulated energy.
-
-#### How Heat Energy Is Calculated
-
-![Heat Energy on DI — WebConfig](./Images/webconfig4.png)
-
-When a digital input (DI) is set to **Water counter** and **Enable heat** is turned on for that DI, the module computes **thermal power** and **accumulated energy** using the live flow and two 1-Wire temperatures:
-
-##### Inputs used by the calculation
-- **Flow (from the same DI):**  
-  - **Rate (L/min)** is derived from pulses with your **Pulses per liter (PPL)** and optional **Rate ×** calibration.  
-  - **Total (L)** is tracked with optional **Total ×** calibration (independent of the rate factor).
-- **Temperatures:** **Sensor A (supply)** and **Sensor B (return)** selected from stored 1-Wire sensors.  
-  - The UI shows **TA**, **TB**, and **ΔT = TA − TB**.
-- **Fluid properties:**  
-  - **cp (J/kg·°C)** — specific heat capacity (default 4186 for water).  
-  - **ρ (kg/L)** — density (default 1.0 for water).  
-- **Calibration (×):** optional scalar applied to the computed power/energy (useful for meter or sensor bias).
-
-##### Formulas (executed in firmware)
-
-1) Mass flow
-   m_dot [kg/s] = rho [kg/L] * Rate_Lmin / 60
-
-2) Thermal power
-   P [W] = Calibration * cp [J/(kg·°C)] * m_dot [kg/s] * ΔT [°C]
-
-3) Energy accumulation (integrated each cycle)
-   E_J [J] += P [W] * Δt [s]
-   E_kWh   = E_J / 3,600,000
-
-**Notes**
-- If either temperature is missing or flow is effectively zero, **power is treated as 0 W** for that cycle.  
-- The **sign of ΔT** follows the UI definition: **A − B**. If your sensors are swapped, power will go negative—flip A/B in the selector.  
-- **Reset energy** clears the accumulated **J** and **kWh** counters (does not affect flow totals or pulses).
-
-##### Recommended setup checklist
-1. Set the DI **Type = Water counter** and enter correct **PPL**; verify **Rate** rises when water flows.  
-2. In the same DI card, **Enable heat**, then pick **Sensor A (supply)** and **Sensor B (return)**.  
-3. Leave **cp = 4186**, **ρ = 1.0** for water, or adjust for other fluids/temperatures.  
-4. Use **Calibration (×)** only if you have a known reference (e.g., compared against a heat meter).  
-5. Watch **TA/TB/ΔT**, **Power (W)**, and **Energy (J/kWh)** update live; press **Reset energy** to start a new measurement interval.
-
-##### Troubleshooting
-- **Power stays at 0 W:** no pulses → check flow wiring/PPL; or ΔT ≈ 0 → verify sensor placement.  
-- **Negative power:** swap **Sensor A/B**.  
-- **Energy grows too fast/slow:** confirm **PPL** and **Rate × / Total ×**; use **Calibration (×)** only after verifying flow and temps.
-
-
-### Troubleshooting
-- **No counts:** confirm **Type = Water counter**, wiring to +5V, DI and GND, and that the sensor produces **clean rising edges**.
-- **Rate = 0:** check **PPL** and the meter’s output; make sure the flow panel is visible for the correct DI.
-- **Action not working:** ensure the DI is **not** in **Water counter** mode; actions are only for **sensor** types.
-- **Heat values missing:** verify the two **1-Wire sensors** are stored and selected as **A/B**.
+The small dot in the top-right of each card shows the **live state** (off = idle, on = active) so you can verify wiring immediately.
 
 ## 6.5 How to Configure Relays
 
-![Relays — WebConfig](./Images/webconfig5.png)
+![Relays — WebConfig](./Images/webconfig4.png)
 
-The module has **two SPDT relays** (Relay 1, Relay 2). Each relay is configured independently on its card and shows a live **ON/OFF** status in the header.
 
-### 1) Enable & Polarity
-- **Enabled** — turns the relay under firmware control.  
-- **Inverted** — flips the logic so that “ON” drives the opposite coil state. Use only if your wiring requires reversed behavior.
+For each **Relay 1…3**:
 
-> Wiring reminder: relays are **dry contacts**. Wire your load to **COM/NO/NC**; power the load from its own supply.
+- **Enabled** — allow the relay to operate. (Unchecked = relay forced **OFF**.)
+- **Inverted** — flips the logic so the **energized** state reads opposite (useful for field wiring that is active-low).
+- **Alarm Group** — choose how the relay is driven:
+  - **None (0)** — relay does **not** follow any group; use only for manual/PLC control.
+  - **Group 1 / Group 2 / Group 3 (1–3)** — relay **follows** the selected group’s state (including **latched** behavior if that mode is chosen).
+  - **Modbus/Master (4)** — relay is **controller-controlled** (ESPHome/PLC writes it directly).
 
-### 2) Control source
-Select where commands for this relay come from:
-- **Modbus** — the controller (e.g., ESPHome) drives the relay via registers; use this for HA control/automation.
-- **(none)** — no automatic control; the relay only follows **Override** (manual) actions.
-- **Local logic** — Modbus will not override while the local logic is active.
-
-### 3) Manual override
-- **Override state** — click to force **ON/OFF** manually (useful for test/maintenance).
-- **Override latch** — keep the manual state latched until you clear it (survives incoming control commands from the selected source). Uncheck to let the next control command resume ownership.
-
-### 4) Typical setups
-- **HA-controlled shut-off valve:**  
-  Relay 1 → **Control source: Modbus**. Use HA/ESPHome to switch it on leak detection.
-- **Local irrigation valve:**  
-  Relay 2 → **Control source: Local logic**. The zone logic starts/stops the valve with flow supervision/ Leak detection logic.
-- **Service/testing:**  
-  Set **(none)** and use **Override state** to click the relay without any automation.
-
-### Troubleshooting
-- **Relay doesn’t respond from HA:** ensure **Control source = Modbus** and the relay is **Enabled**; clear **Override latch** if set.
-
-## 6.6 How to Configure Digital-Input Buttons & User LEDs
-
-![LEDs & Buttons — WebConfig](./Images/webconfig6.png)
-
-The ALM-173-R1 has **4 user LEDs** and **4 front buttons** that you can assign to common tasks. Settings apply immediately; each row shows a live **State/Pressed** dot.
+> Tip: For maintenance tests, assign a front-panel **Button** to “Relay x override (manual)” so you can toggle the relay locally while commissioning.
 
 ---
 
+
+## 6.6 How to Configure LEDs and Buttons
+
 ### LEDs (4)
-Each LED has:
-- **Mode:** `Solid` or `Blink` when the selected source is **active**.
-- **Source:** what the LED reflects. Options include  
-  `Relay 1`, `Relay 2`, `DI1…DI5`, `Irrig 1`, `Irrig 2`, and `R1/R2 Override`.
+ 
+For each **User LED 1…4**:
 
-**Examples**
-- Show manual overrides:  
-  `LED1 → Blink, Source: R1 Override`  
-  `LED2 → Blink, Source: R2 Override`
-- Show irrigation activity:  
-  `LED3 → Blink, Source: Irrig 1`  
-  `LED4 → Blink, Source: Irrig 2`
-
-> The **State** dot at the right of each LED row mirrors the live on/off state.
+- **Mode** — how the LED behaves when its source is active:
+  - **Steady (when active)**
+  - **Blink (when active)**
+- **Trigger source** — what drives the LED:
+  - **Any alarm**
+  - **Group 1**, **Group 2**, **Group 3**
+  - **Relay 1 overridden**, **Relay 2 overridden**, **Relay 3 overridden**
+  - **None**
+- The dot in the top-right shows the LED’s **live state** (off = inactive, on = active).
 
 ---
 
 ### Buttons (4)
-Each button has an **Action** that the firmware executes on press (short/long-press behavior is handled by firmware where applicable).
 
-**Available actions**
-- **Relays:** `Toggle R1`, `Toggle R2`, `Pulse R1`, `Pulse R2`
-- **Irrigation:** `Irrig1 Start`, `Irrig1 Stop`, `Irrig2 Start`, `Irrig2 Stop`
-- **Manual control:** `R1 Override Toggle`, `R2 Override Toggle`
-- `(none)` to disable a button
+For each **Button 1…4**:
 
-**What the actions do**
-- **Toggle / Pulse**: operate the selected relay directly.  
-- **Irrig Start/Stop**: hand control to the chosen irrigation zone (flow supervision, time window, interlocks).  
-- **Override Toggle**: flips the relay’s **manual override** state (useful for maintenance/testing even when the relay is owned by Modbus or Local logic).
-
-> The **Pressed** dot shows real-time button presses—useful for verifying wiring and debounce.
-
-#### Using a Button to Enter/Exit Override
-
-- **Long-press (≈3 seconds):** Puts the relay into **Override mode**.  
-  - The relay switches to the **Override state** and ignores Modbus/Irrigation until override is cleared.
-- **Short-press:** **Toggles** the relay (ON ↔ OFF).  
-  - In override mode, short-press changes the override state.
-- **Long-press again (≈3 seconds):** **Exits Override mode** and returns control to the configured source (Modbus/Irrigation).
-
-> Make sure the button’s **Action** is set to **`R1 Override Toggle`** or **`R2 Override Toggle`**, and the relay is **Enabled**.  
-> (Optional) Map an LED source to **R1/R2 Override** to indicate when override is active.
+- **Action** — choose what the button does when pressed:
+  - **All acknowledge**
+  - **Alarm group 1 acknowledge**
+  - **Alarm group 2 acknowledge**
+  - **Alarm group 3 acknowledge**
+  - **Relay 1 override (manual)**
+  - **Relay 2 override (manual)**
+  - **Relay 3 override (manual)**
+  - **None**
+- The small dot in the card shows the **live press** state (off = idle, on = pressed).
 
 ---
-
-## 6.7 How to Configure Irrigation
-
-![Irrigation — WebConfig](./Images/webconfig7.png)
-
-The module provides **2 independent zones** with local safety logic (flow supervision, interlocks, time windows). Configure each zone in its own card.
-
-### 1) Map hardware
-- **Valve relay:** choose which relay drives the valve for this zone (`Relay 1` or `Relay 2`).
-- **Flow DI (1..5):** select the digital input that counts pulses from your flowmeter.
-  - Make sure that DI is set to **Type = Water counter** and its **Pulses per liter (PPL)** is correct in the **Digital Inputs** section.
-
-### 2) Enable flow supervision (recommended)
-- **Use flow supervision:** turns on local safety.
-- **Min rate (L/min):** minimum flow expected when the valve is ON.
-- **Grace (s):** startup time allowed before the min rate must be met.
-- **Timeout (s):** maximum run time (zone stops if exceeded).
-- **Target liters (0 = none):** stop automatically after this volume is delivered.
-
-### 3) Add interlocks & pump (optional)
-- **DI_moist (needs water when OFF):** water only when this DI is OFF (e.g., dry soil probe).
-- **DI_rain (block when ON):** block watering when rain sensor is active.
-- **DI_tank (OK when ON):** allow watering only when tank/pressure OK.
-- **R_pump:** pick a relay to run a pump while the zone is active (leave `(none)` if not used).
-
-### 4) Time window (local time)
-- **Enforce window:** zone can only run between **Start** and **End** (HH:MM, local).
-- **Auto-start at window open:** if enabled and conditions are OK, the zone starts automatically at **Start**.
-- Click **Save Zone 1/2** after editing.
-
-> Tip: The module keeps its own minute-of-day clock. For daily windows/counters, sync at midnight from HA (coil **360** TRUE→FALSE and update HREG **1100/1101**).
-
-### 5) Operate & monitor
-- Use **Start / Stop / Reset** on each zone card, or the **Live Status** panel below.
-- Live status shows **Rate (L/min)**, **Accumulated liters**, **Elapsed time**, **Target**, **Timeout**, **Window** (OPEN/CLOSED), **Sensors** (OK/BLOCK), and **Time now**.
-
-### Typical setups
-- **Basic garden valve:** `Valve relay = Relay 2`, `Flow DI = DI3`, **Use flow supervision** with `Min rate = 0.2`, `Grace = 8 s`, `Timeout = 3600 s`, `Target liters = 120`.
-- **Tank + rain protected:** add `DI_tank = DI1 (OK when ON)` and `DI_rain = DI4 (block when ON)`.
-- **Morning-only window:** enable **Enforce window**, set `Start 06:00`, `End 09:00`, and optionally **Auto-start**.
-
-### Troubleshooting
-- **Zone won’t start:** check **Enabled**, **Valve relay** is assigned, **Window = OPEN** (or disable enforcement), interlocks show **Sensors: OK**.
-- **Stops immediately:** flowmeter not seen → confirm the **Flow DI** works (counts rising edges, correct **PPL**, wiring to **GND_ISO**).
-- **HA can’t control valve:** if a zone owns the relay, set the relay **Control source** to *Irrigation Z1/Z2* or stop the zone first.
 
 <a id="7-modbus-rtu-communication-1"></a>
 # 7 Modbus RTU Communication
 
-**Slave role:** Modbus RTU over RS‑485 (8N1, 9600…115200 baud; typical **19200**).  
-**Address:** 1…255 (set via WebConfig).  
-**Data model:** Coils, Discrete Inputs, Holding Registers (live telemetry + config snapshots).
+**Slave role:** Modbus RTU over RS-485 (8N1, selectable **9600…115200** baud; typical **19200**).  
+**Address:** **1…255** (set via WebConfig).  
+**Data model:** **Discrete Inputs**, **Coils**, **Holding/Input Registers** (live telemetry + configuration snapshots).
+
+> The tables below describe the **factory default** map used by the ALM-173-R1 firmware.
 
 ---
 
-## 7.1 Input Registers (Read‑Only)
+## 7.1 Input Registers (Read-Only)
 
-Live, read‑only snapshots convenient for dashboards and fast polling.
+Live, read-only snapshots convenient for dashboards and fast polling.
 
 | Group | Address range | Type | Units (raw) | Scaling | Notes |
 |---|---|---|---|---|---|
-| **Minute of day** | 1100 | U16 | minutes | 1 | Mirror of module clock (0…1439) |
-| **Day index** | 1101 | U16 | days | 1 | Rolling day counter |
-| **Flow rate (DI1…DI5)** | 1120…1129 | U32×5 | L/min ×1000 | ÷1000 | Two regs per DI (lo,hi) |
-| **Flow total (DI1…DI5)** | 1140…1149 | U32×5 | L ×1000 | ÷1000 | Two regs per DI |
-| **Heat ΔT (DI1…DI5)** | 1240…1249 | S32×5 | °C ×1000 | ÷1000 | Two regs per DI |
-| **Heat power (DI1…DI5)** | 1200…1209 | S32×5 | W | 1 | Two regs per DI |
-| **Heat energy (DI1…DI5)** | 1220…1229 | U32×5 | Wh ×1000 | Wh=÷1000, kWh=÷1e6 | Two regs per DI |
-| **Irr. state (Z1…Z2)** | 1300…1301 | U16×2 | enum | 1 | 0=idle,1=running,2=alarm |
-| **Irr. liters (Z1…Z2)** | 1310…1313 | U32×2 | L ×1000 | ÷1000 | Two regs per zone |
-| **Irr. elapsed (Z1…Z2)** | 1320…1323 | U32×2 | s | 1 | Two regs per zone |
-| **Irr. rate (Z1…Z2)** | 1330…1333 | U32×2 | L/min ×1000 | ÷1000 | Two regs per zone |
-| **Irr. window open (Z1…Z2)** | 1340…1341 | U16×2 | flag | 1 | 0/1 |
-| **Irr. sensors OK (Z1…Z2)** | 1342…1343 | U16×2 | flag | 1 | 0/1 |
-| **1‑Wire temperatures (#1…#10)** | 1500…1519 | S32×10 | °C ×1000 | ÷1000 | Two regs per sensor |
+| **Firmware / Device** | 1100…1101 | U16×2 | enum | 1 | 1100 = firmware version, 1101 = build/variant |
+| **Active Modbus config** | 1110…1111 | U16×2 | enum | 1 | 1110 = address (1–255), 1111 = baud code (1=9600,2=19200,3=38400,4=57600,5=115200) |
+| **Digital Inputs bitmap** | 1120…1121 | U16×2 | bitfield | 1 | IN1…IN16 in 1120, IN17 in 1121 bit0 |
+| **Alarm summary** | 1130 | U16 | bitfield | 1 | bit0=Any, bit1=G1, bit2=G2, bit3=G3 |
+| **Relay state mirrors** | 1140 | U16 | bitfield | 1 | bits0..2 = RLY1..RLY3 (1=ON) |
+| **LED state mirrors** | 1150 | U16 | bitfield | 1 | bits0..3 = LED1..LED4 (1=active) |
+| **Buttons pressed** | 1160 | U16 | bitfield | 1 | bits0..3 = BTN1..BTN4 (1=pressed) |
 
-> Notes: All multi‑word values occupy **two** consecutive registers (lo, hi).
+> All 32-bit values (if any added in future) occupy **two** consecutive registers (lo, hi).
 
 ---
 
 ## 7.2 Holding Registers (Read/Write)
 
-Configuration + low‑rate control values (persisted by firmware where applicable).
+Configuration + low-rate control values (persisted by firmware where applicable).
 
-| Group | Example registers | Description |
-|---|---|---|
-| **Clock** | 1100 (minute), 1101 (day) | Write to set module clock from HA (midnight sync recommended). |
-| **DI (per input)** | type, enable, invert, PPL, rate×, total× | Configure each DI as leak/humidity/counter; flow calibration. |
-| **Heat (per counter DI)** | cp, rho, calib×, sensorA#, sensorB# | Thermal properties and A/B sensor indices (from stored 1‑Wire list). |
-| **Irrigation (per zone)** | valve_relay, flow_DI, min_rate, grace, timeout, target_L, DI_moist/rain/tank, pump, window start/end, enforce, auto_start | Local zone logic & safety thresholds. |
-| **Relays / LEDs / Buttons** | mode, sources, actions | Runtime behavior for outputs and UI. |
+| Group | Address range | Type | Description |
+|---|---:|---:|---|
+| **Alarm modes** | **1200…1202** | U16×3 | Mode per group: **0=None**, **1=Active-while**, **2=Latched-until-ack** (G1,G2,G3). |
+| **Inputs (per IN1…IN17)** | **1300…1350** | U16×51 | Repeating triplet **[enable, invert, group]** per input. Group: **0=None**, **1=G1**, **2=G2**, **3=G3**. Layout: IN1 at 1300..1302, IN2 at 1303..1305, … IN17 at 1348..1350. |
+| **Relays (RLY1…RLY3)** | **1400…1422** | U16×9 | Repeating triplet **[enable, invert, group]** per relay. Group: **0=None**, **1=G1**, **2=G2**, **3=G3**, **4=Master (controller controls)**. R1 at 1400..1402, R2 at 1410..1412, R3 at 1420..1422. |
+| **Buttons (BTN1…BTN4)** | **1500…1503** | U16×4 | **Action** per button: **0=None**, **1=Ack All**, **2=Ack G1**, **3=Ack G2**, **4=Ack G3**, **5=Relay1 override**, **6=Relay2 override**, **7=Relay3 override**. |
+| **User LEDs (LED1…LED4)** | **1600…1607** | U16×8 | Per LED: **mode** (0=Steady, 1=Blink) and **source** (0=None, 1=Any, 2=G1, 3=G2, 4=G3, 10=R1 overridden, 11=R2 overridden, 12=R3 overridden). |
 
-> Although most setup is done in WebConfig, exposing key fields allows hands‑off provisioning or backups via PLC/HA.
+> Most daily setup is done in WebConfig; exposing these fields enables headless provisioning/backups from PLC/HA.
 
 ---
 
 ## 7.3 Discrete Inputs & Coils
 
-### Discrete Inputs (read‑only flags)
+### Discrete Inputs (read-only flags)
+
 | Range | Bits | Meaning |
 |---|---:|---|
-| 1…5 | 5 | DI1…DI5 debounced state |
-| 60…61 | 2 | Relay1, Relay2 state mirrors |
-| 90…93 | 4 | LED1…LED4 state mirrors |
-| 100…103 | 4 | BTN1…BTN4 pressed |
+| **00001…00017** | 17 | **DI1…DI17** debounced state |
+| **00050…00053** | 4 | **Any Alarm**, **Group 1**, **Group 2**, **Group 3** |
+| **00060…00062** | 3 | **Relay 1…3** state mirrors |
+| **00090…00093** | 4 | **LED 1…4** state mirrors |
+| **00100…00103** | 4 | **BTN 1…4** pressed |
 
 ### Coils (write – single/multiple)
+
 | Range | Count | Action |
 |---|---:|---|
-| 200…201 | 2 | Relay **ON** (per relay) |
-| 210…211 | 2 | Relay **OFF** (per relay) |
-| 300…304 | 5 | Enable DI *i* (pulse) |
-| 320…324 | 5 | Disable DI *i* (pulse) |
-| 340…344 | 5 | **Reset counter** DI *i* (pulse) |
-| **360** | 1 | **CMD_TIME_MIDNIGHT** — pulse TRUE→FALSE at 00:00 |
-| 370…371 | 2 | Irrigation **START** Z1/Z2 (pulse) |
-| 380…381 | 2 | Irrigation **STOP** Z1/Z2 (pulse) |
-| 390…391 | 2 | Irrigation **RESET** Z1/Z2 (pulse) |
+| **00200…00202** | 3 | **Relay ON** (RLY1…RLY3) |
+| **00210…00212** | 3 | **Relay OFF** (RLY1…RLY3) |
+| **00220…00222** | 3 | **Override ON** (force RLY1…RLY3) |
+| **00230…00232** | 3 | **Override OFF / Release** (RLY1…RLY3) |
+| **00240** | 1 | **Acknowledge All** (pulse) |
+| **00241…00243** | 3 | **Acknowledge Group 1/2/3** (pulse) |
+| **00300…00316** | 17 | **Enable DI i** (pulse per input) |
+| **00320…00336** | 17 | **Disable DI i** (pulse per input) |
 
-> Coils are honored subject to **ownership** (override/irrigation priority).
+> Coils obey **priority**: an **Override** holds a relay irrespective of group/master writes until you release it.
 
 ---
 
 ## 7.4 Scaling Summary
 
-Use these multipliers in the master (ESPHome/PLC) to obtain engineering units:
-
-- **Temp (°C)** = raw / **1000**  
-- **Flow rate (L/min)** = raw / **1000**  
-- **Volume (L)** = raw / **1000**  
-- **ΔT (°C)** = raw / **1000**  
-- **Power (W)** = raw  
-- **Energy:** Wh = raw / **1000**; kWh = raw / **1,000,000**
+No engineering scaling is required for ALM core points. All values are **boolean/bitfield** or **enum codes** as defined above.
 
 ---
 
 ## 7.5 Basics & Function Codes
 
-- **Physical:** RS‑485 half‑duplex; 120 Ω termination at both ends; consistent A/B polarity; common GND recommended if separate PSUs.  
-- **Function codes:** `0x01` Read Coils, `0x02` Read Discrete Inputs, `0x03` Read Holding, `0x04` Read Input (if enabled), `0x05/0x0F` Write Coils, `0x06/0x10` Write Holding.  
-- **Polling:** Live telemetry can be polled at 1 s; configuration writes should be event‑driven (on change).
+- **Physical:** RS-485 half-duplex; 120 Ω termination at both ends; consistent **A/B** polarity; shared COM/GND recommended if separate PSUs.  
+- **Function codes:** `0x01` Read Coils, `0x02` Read Discrete Inputs, `0x03` Read Holding, `0x04` Read Input (if utilized), `0x05/0x0F` Write Coils, `0x06/0x10` Write Holding.  
+- **Polling:** Discrete/group bits at **5–10 Hz**; mirrors at **2–5 Hz**; holding snapshots **on change** or **1–5 s**.
 
 ---
 
 ## 7.6 Register Map (Summary)
-
 ```
 Discrete Inputs
-00001..00005  DI1..DI5 state
-00060..00061  Relay1..Relay2 state
-00090..00093  LED1..LED4 state
-00100..00103  BTN1..BTN4 pressed
+00001..00017 DI1..DI17 state
+00050..00053 Any, G1, G2, G3
+00060..00062 Relay1..Relay3 mirrors
+00090..00093 LED1..LED4 mirrors
+00100..00103 BTN1..BTN4 pressed
 
 Coils
-00200..00201  Relay ON (pulse)
-00210..00211  Relay OFF (pulse)
-00300..00304  Enable DIi (pulse)
-00320..00324  Disable DIi (pulse)
-00340..00344  Reset counter DIi (pulse)
-00360         CMD_TIME_MIDNIGHT (pulse)
-00370..00371  Irrigation START Z1..Z2 (pulse)
-00380..00381  Irrigation STOP  Z1..Z2 (pulse)
-00390..00391  Irrigation RESET Z1..Z2 (pulse)
+00200..00202 Relay ON (RLY1..RLY3)
+00210..00212 Relay OFF (RLY1..RLY3)
+00220..00222 Override ON (RLY1..RLY3)
+00230..00232 Override OFF (RLY1..RLY3)
+00240 Ack All (pulse)
+00241..00243 Ack G1..G3 (pulse)
+00300..00316 Enable DIi (pulse)
+00320..00336 Disable DIi (pulse)
 
-Holding/Input (telemetry and control snapshots)
-01100         TIME_MINUTE (U16)
-01101         DAY_INDEX (U16)
-01120..01129  FLOW rate DI1..DI5 (U32 L/min ×1000; 2 regs each)
-01140..01149  FLOW total DI1..DI5 (U32 L ×1000; 2 regs each)
-01200..01209  HEAT power DI1..DI5 (S32 W; 2 regs each)
-01220..01229  HEAT energy DI1..DI5 (U32 Wh ×1000; 2 regs each)
-01240..01249  HEAT ΔT DI1..DI5 (S32 °C ×1000; 2 regs each)
-01300..01301  IRR state Z1..Z2 (U16)
-01310..01313  IRR liters Z1..Z2 (U32 L ×1000; 2 regs each)
-01320..01323  IRR elapsed Z1..Z2 (U32 s; 2 regs each)
-01330..01333  IRR rate Z1..Z2 (U32 L/min ×1000; 2 regs each)
-01340..01341  IRR windowOpen Z1..Z2 (U16 flag)
-01342..01343  IRR sensorsOK Z1..Z2 (U16 flag)
-01500..01519  1‑Wire temps #1..#10 (S32 °C ×1000; 2 regs each)
+Input Registers (Read-Only)
+01100 FW version (U16)
+01101 FW build/variant (U16)
+01110 Active address (U16)
+01111 Active baud code (U16)
+01120..01121 DI bitmap (U16 lo/hi)
+01130 Alarm summary bitmap (Any,G1,G2,G3)
+01140 Relay bitmap
+01150 LED bitmap
+01160 Button bitmap
+
+Holding Registers (R/W)
+01200..01202 Group modes G1..G3 (0=None,1=Active-while,2=Latched)
+01300..01350 IN1..IN17 [enable,invert,group] triplets
+01400..01402 RLY1 [enable,invert,group]
+01410..01412 RLY2 [enable,invert,group]
+01420..01422 RLY3 [enable,invert,group]
+01500..01503 BTN1..BTN4 action
+01600..01607 LED1..LED4 [mode,source] pairs
 ```
-
 ---
 
 ## 7.7 Override Priority
