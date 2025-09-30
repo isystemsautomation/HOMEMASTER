@@ -335,7 +335,42 @@ The **WLD-521-R1** integrates into the HomeMaster system over the **RS-485 Modbu
 | **Software** | **WebConfig Tool**       | Browser page to set **Modbus Address & Baud**, view **Active Modbus Configuration**, reset, and configure I/O/irrigation. |
 |            | **ESPHome YAML**          | Controller config declaring the WLD on RS-485 (`modbus_controller:` + entities).                |
 | **I/O**     | **Sensors / Actuators**   | Leak/moisture/rain probes & **pulse flow meters** on DIs; **DS18B20** on **1-Wire (GPIO16)**; valves/pumps on **R1/R2**. |
+---
 
+## 4.2 Powering the Devices
+
+The WLD-521-R1 is powered from a **24 VDC primary input** on the field board. On-board regulators generate the internal rails for logic and provide **isolated 5 V / 12 V auxiliary rails** intended for low-power sensors.
+
+> Relays are **dry contacts** (SPDT). Do **not** power valves/pumps from the module’s internal rails; use a dedicated external supply and switch it via the relay contacts.
+
+---
+
+### 4.2.1 Power Supply Types
+
+- **Regulated 24 VDC DIN-rail PSU:** Connect to the module’s **24 V / GND** power terminals. Size the PSU for the module plus any externally powered devices.
+- **No power over RS-485:** The RS-485 bus carries signals only. Always provide local 24 VDC power to the module.
+- **Sensor power from module:** The isolated **+5 V** and **+12 V** outputs are for **low-power sensors** (leak probes, flowmeter electronics, 1-Wire). High-load actuators need their own supply.
+
+---
+
+### 4.2.2 Current Consumption
+
+Actual current depends on configuration and what’s attached. Budget for:
+- **Base electronics (logic/MCU/LEDs).**
+- **Relays:** add coil current for each energized relay.
+- **Sensor rails:** total draw of any devices on the isolated **+5 V / +12 V** rails.
+
+**Sizing tip:** choose a 24 V supply that covers base load + worst-case **both relays ON** + all sensor current, with at least **30% headroom** for startup and temperature.
+
+---
+
+### 4.2.3 Power Safety Tips
+
+- **Polarity & grounds:** Observe **24 V polarity** and keep logic ground and isolated sensor ground separate as designed.
+- **Fusing & protection:** Keep upstream over-current protection (fuse/breaker). Do not bypass on-board protective elements.
+- **Relay contact ratings:** Treat relay outputs as isolated contacts; follow the contact rating from the relay datasheet and local electrical codes.
+- **Use sensor rails only for sensors:** Do **not** power valves, pumps, or sirens from the module’s **+5 V / +12 V** sensor rails.
+- **De-energize before wiring:** Power down the 24 V supply before changing wiring. Double-check for shorts before re-energizing.
 
 
 ---
