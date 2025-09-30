@@ -1,6 +1,6 @@
 **Firmware Version:** 2025-09 snapshot
 
-# WLD-521-R1 – Water Meter & Leak Detection Module
+# ALM-173-R1 Module for Alarm Systems
 
 **HOMEMASTER – Modular control. Custom logic.**
 
@@ -8,7 +8,8 @@
 
 ### Module Description
 
-The **WLD-521-R1** is a smart, fully configurable input/control module for **leak detection**, **water flow**, **heat energy**, and **irrigation**. It connects to a **MicroPLC/MiniPLC** over **RS-485 (Modbus RTU)** and is configured via a USB-C **WebConfig** UI that lets you set Modbus params, choose per-input types (sensor/counter), map inputs to relay actions, calibrate flow, compute heat energy from paired 1-Wire sensors, run **two local irrigation zones** (flow supervision, interlocks, time windows, pump), and assign **LEDs/Buttons** with overrides—all with live status and optional clock sync for HA. Integration with **ESPHome + Home Assistant** is straightforward through the controller, which exposes the module’s **sensors** and **relays** as entities.
+The **ALM-173-R1** is a smart, fully configurable **alarm I/O module** with **17 opto-isolated digital inputs**, **3 SPDT relays**, plus **4 local buttons** and **4 user LEDs** for on-panel control and feedback. It links to a **MicroPLC/MiniPLC** over **RS-485 (Modbus RTU)** and is configured via a USB-C **WebConfig** UI (Web Serial) that lets you set Modbus address/baud, enable/invert inputs, assign them to **three alarm groups** with **non-latched** or **latched-until-ack** behavior, map groups to relay actions, program button actions (group/any acknowledge, manual relay overrides), and choose LED behaviors (steady/blink) with sources like “any alarm” or “relay override”—all with live status indicators and a one-click **device reset**. The design uses a **galvanically-isolated field side** with per-channel optocouplers, surge/TVS protection and resettable fuses, plus isolated DC-DC rails, while the logic board integrates an **RP2350 MCU**, **MAX485** transceiver, and multiple **PCF8574** I/O expanders for robust, noise-immune operation from **24 V** field power. Modbus registers expose input states, alarm/group bits, relay states and overrides so integration with **Home Assistant** is straightforward via the controllers MicroPLC/MiniPLC.
+
 
 <br clear="left"/>
 
