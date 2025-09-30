@@ -762,8 +762,6 @@ The module provides **2 independent zones** with local safety logic (flow superv
 **Address:** 1…255 (set via WebConfig).  
 **Data model:** Coils, Discrete Inputs, Holding Registers (live telemetry + config snapshots).
 
-> This document mirrors the structure used for the ENM module’s Modbus chapter and applies it to **WLD‑521‑R1**. Register addresses reflect the current firmware build intended for ESPHome/HA integration.
-
 ---
 
 ## 7.1 Input Registers (Read‑Only)
@@ -896,16 +894,11 @@ Holding/Input (telemetry and control snapshots)
 
 ## 7.7 Override Priority
 
-Control ownership is resolved as follows (highest wins):
-
-1. **Override (latched)** — manual force ON/OFF; blocks other sources until cleared.  
-2. **Irrigation zone** — while a zone runs, it owns its valve/pump relay.  
-3. **Modbus (controller/HA)** — normal remote control.  
-4. **Local buttons (non‑latched)** — momentary actions.
-
-> If a relay ignores HA commands, check for **latched override** or a **running irrigation zone**.
+# 8. [ESPHome Integration Guide (MicroPLC/MiniPLC + WLD-521-R1)]
 
 
+
+---
 # 9. Programming & Customization
 
 ## 9.1 Supported Languages
