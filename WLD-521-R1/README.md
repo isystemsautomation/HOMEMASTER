@@ -472,16 +472,18 @@ Use WebConfig’s **Serial Log** and live status panels to confirm DI changes, f
 
 # 6 Software & UI Configuration
 
-## 6.1How to Connect to the Module
+## 6.1 How to Connect to the Module
 
-![WLD-521-R1 WebConfig — Active Modbus Configuration]<img src="Images/webconfig1.png" alt="Field Board Diagram" width="360">
+![WLD-521-R1 WebConfig — Active Modbus Configuration](Images/webconfig1.png)
 
-1) **Plug in USB-C.** Connect your computer to the WLD-521-R1’s USB-C port.  
-2) **Open the config page.** In a Chromium-based browser (Chrome/Edge), open:  
-   `https://www.home-master.eu/configtool-wld-521-r1`  
-3) **Click _Connect_.** Grant browser access to the serial device when prompted.  
-4) **Confirm connection.** The **Serial Log** shows `port open`, and the banner displays the **Active Modbus Configuration** (current Address and Baud).  
-5) (Optional) **Reset Device.** Use **Reset Device** for a safe reboot; the serial link will drop and auto-reconnect.
+1. **Plug in USB-C.** Connect your computer to the WLD-521-R1’s USB-C port.  
+2. **Open the config page.** In a Chromium-based browser (Chrome/Edge), open  
+   **https://www.home-master.eu/configtool-wld-521-r1**  
+3. **Click “Connect”.** When prompted, allow the browser to access the serial device.  
+4. **Confirm connection.** The **Serial Log** shows events (e.g., `port open`) and the banner displays the **Active Modbus Configuration** (current **Address** and **Baud Rate**).  
+5. **(Optional) Reset Device.** Click **Reset Device** for a safe reboot; the serial link will drop and then reconnect automatically.
+
+> If **Connect** is disabled, make sure you’re using Chrome/Edge and have granted serial permissions. On macOS/Linux, ensure your user has access to USB serial devices.
 
 > If **Connect** is disabled, use Chrome/Edge and ensure serial permissions are allowed. On macOS/Linux, you may need to allow USB serial access.
 
