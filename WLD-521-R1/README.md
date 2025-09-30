@@ -32,6 +32,7 @@ The **WLD-521-R1** is a smart, fully configurable input/control module for **lea
 
 
 ---
+<a id="1-introduction-1"></a>
 # 1. [Introduction]
 ## 1.1 Overview of the WLD-521-R1 Module 💧
 
@@ -88,6 +89,7 @@ Below are practical ways to deploy the **WLD-521-R1** with the HomeMaster Mini/M
 - **Goal:** Track instantaneous heat power and energy per loop.
 - **How:** For a DI configured as **Water counter**, open its **Heat** panel and enable **Heat**. Assign **Sensor A (supply)** and **Sensor B (return)** from stored **1-Wire** devices, then set **cp (J/kg·°C)**, **ρ (kg/L)**, and **Calibration (×)** as needed. The UI shows **TA**, **TB**, **ΔT**, **Power (W)**, **Energy (J / kWh)**. Use **Reset energy** to zero totals; manage sensors from **1-Wire** (scan, name, view live temperatures).
 
+<a id="2-safety-information-1"></a>
 # 2. Safety Information
 
 This section outlines essential safety guidelines. Failure to adhere to these warnings may result in equipment damage, system failure, or personal injury.
@@ -119,6 +121,7 @@ This section outlines essential safety guidelines. Failure to adhere to these wa
 | **1-Wire Bus (OW)** | Use this interface only for low-voltage digital sensors (e.g., DS18B20). |
 
 
+<a id="3-system-overview-1"></a>
 # 3. System Overview
 ## 3.1 Architecture & Modular Design
 
@@ -274,6 +277,7 @@ Integration of the WLD-521-R1 into Home Assistant (HA) is achieved via the **ESP
 
 ---
 
+<a id="4-getting-started-1"></a>
 # 4. Getting Started
 
 The **WLD-521-R1** integrates into the HomeMaster system over the **RS-485 Modbus** bus. Initial setup has two parts: **physical wiring** and **digital configuration** (WebConfig + ESPHome).
@@ -427,6 +431,7 @@ If you use the module’s **Irrigation Window** or daily counters, schedule a Ho
 **Verify**  
 Use WebConfig’s **Serial Log** and live status panels to confirm DI changes, flow **rate/total**, relay actions, and irrigation state.
 
+<a id="6-software-ui-configuration-1"></a>
 # 6 Software & UI Configuration
 
 ## 6.1 How to Connect to the Module
@@ -713,6 +718,7 @@ The module provides **2 independent zones** with local safety logic (flow superv
 - **Stops immediately:** flowmeter not seen → confirm the **Flow DI** works (counts rising edges, correct **PPL**, wiring to **GND_ISO**).
 - **HA can’t control valve:** if a zone owns the relay, set the relay **Control source** to *Irrigation Z1/Z2* or stop the zone first.
 
+<a id="7-modbus-rtu-communication-1"></a>
 # 7 Modbus RTU Communication
 
 **Slave role:** Modbus RTU over RS‑485 (8N1, 9600…115200 baud; typical **19200**).  
@@ -851,6 +857,7 @@ Holding/Input (telemetry and control snapshots)
 
 ## 7.7 Override Priority
 
+<a id="8-esphome-integration-guide-microplcminiplc-wld-521-r1-1"></a>
 # 8. [ESPHome Integration Guide (MicroPLC/MiniPLC + WLD-521-R1)]
 
 ## 8. ESPHome Integration Guide (MicroPLC/MiniPLC + WLD-521-R1)
@@ -1017,6 +1024,7 @@ You already have a working base (UART/Modbus, GPIOs, etc.). To **attach WLD**:
 - The controller YAML uses ESP‑IDF; Arduino also works if preferred (adjust platform accordingly).
 
 ---
+<a id="9-programming-customization-1"></a>
 # 9. Programming & Customization
 
 ## 9.1 Supported Languages
@@ -1054,14 +1062,17 @@ You already have a working base (UART/Modbus, GPIOs, etc.). To **attach WLD**:
   - #include "hardware/watchdog.h"
 
 
+<a id="10-maintenance-troubleshooting-1"></a>
 # 10. Maintenance & Troubleshooting
 
 
+<a id="11-open-source-licensing-1"></a>
 # 11. Open Source & Licensing
 
 - **Hardware:** **CERN‑OHL‑W 2.0**  
 - **Firmware & code samples:** **GPLv3** (unless otherwise noted)
 
+<a id="12-downloads-1"></a>
 # 12. Downloads
 
 The following key project resources are included in this repository:
@@ -1082,6 +1093,7 @@ The following key project resources are included in this repository:
   Contains PDF datasheets or technical overviews, if applicable.
 
 
+<a id="13-support-1"></a>
 # 13. Support
 
 If you need help using or configuring the WLD-521-R1 module, the following resources are available:
