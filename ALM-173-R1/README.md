@@ -273,12 +273,6 @@ The **ALM-173-R1** integrates with **Home Assistant (HA)** through the **HomeMas
 - **Maintenance mode:** Temporarily inhibit relays from HA while keeping inputs visible; show a banner on the dashboard reminding operators that outputs are inhibited.
 - **Watchdog:** If entities become **unavailable** (Modbus fault), raise a **Critical** alert and create a persistent HA notification.
 
-### Setup Checklist
-1. **Wire RS-485**: connect A/B/COM from the controller to the ALM-173-R1 trunk; apply termination/bias per site design.
-2. **Set Modbus params on ALM**: address and baud rate via the Web Serial UI (unique address per device).
-3. **Add in ESPHome (controller)**: include the ALM-173-R1 package/profile so ESPHome knows which points to poll and which commands to expose (no register table needed here).
-4. **Pair with Home Assistant**: ESPHome will auto-discover entities; place them on dashboards and in automations.
-5. **Test end-to-end**: toggle a relay from HA, trip a test input, verify **Any/Group** entities and acknowledgments.
 
 ### Best Practices
 - **Let the ALM do the fast/critical work** (local group logic and latching). Use HA for **orchestration**: notifications, schedules, and mode management.
