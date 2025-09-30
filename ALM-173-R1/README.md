@@ -207,22 +207,23 @@ This section outlines essential safety guidelines specific to the **ALM-173-R1**
 # 3. System Overview
 ## 3.1 Architecture & Modular Design
 
-The **ALM-173-R1 (Alarm I/O, 17 Inputs, 3 Relays)** is a DIN-rail Modbus extension module for distributed alarm and annunciator tasks. It is configured entirely from a browser via **Web Serial**, exposing a clean model of **inputs → alarm groups → relays/LEDs**, plus local **buttons** for acknowledgments and manual overrides. :contentReference[oaicite:0]{index=0}
+The **ALM-173-R1 (Alarm I/O, 17 Inputs, 3 Relays)** is a DIN-rail Modbus extension module for distributed alarm and annunciator tasks. It’s configured entirely from a browser via **Web Serial**, exposing a clear model of **inputs → alarm groups → relays/LEDs**, plus local **buttons** for acknowledgments and manual overrides.
 
 ### Core I/O & Indicators
-- **17× Digital Inputs (IN1…IN17):** each can be **Enabled**, **Inverted**, and assigned to **Alarm Group 1/2/3** or **None**. Live state dots show each input in real time. :contentReference[oaicite:1]{index=1}
-- **3× Relays (RLY1…RLY3):** per-relay **Enable**, **Invert**, and **Group** mapping; live state feedback is shown in the UI. :contentReference[oaicite:2]{index=2}
-- **4× Buttons:** programmable actions such as **All acknowledge**, **Group 1/2/3 acknowledge**, or **Relay 1/2/3 override (manual)**. Live press state is indicated. :contentReference[oaicite:3]{index=3}
-- **4× User LEDs:** selectable **Mode** (*Steady* / *Blink*) and **Source** (*Any alarm*, *Group 1/2/3*, *Relay 1/2/3 overridden*). Live LED state is indicated. :contentReference[oaicite:4]{index=4}
-- **Alarm Engine:** **Any Alarm** summary + **Group 1/2/3** with per-group **Mode**: *None*, *Active while condition is active (non-latched)*, or *Latched until acknowledged*. Live group status indicators are shown at the top of the UI. :contentReference[oaicite:5]{index=5}
+- **17× Digital Inputs (IN1…IN17):** each input can be **Enabled**, **Inverted**, and assigned to **Alarm Group 1/2/3** or **None**. The UI shows a live dot for every input.
+- **3× Relays (RLY1…RLY3):** per-relay **Enable**, **Invert**, and **Group** mapping; live state feedback shown in the UI.
+- **4× Buttons:** assign actions such as **All acknowledge**, **Group 1/2/3 acknowledge**, or **Relay 1/2/3 override (manual)**; button press state is shown live.
+- **4× User LEDs:** pick **Mode** (*Steady* / *Blink*) and **Source** (*Any alarm*, *Group 1/2/3*, *Relay 1/2/3 overridden*); live LED state is indicated.
+- **Alarm Engine:** **Any Alarm** summary plus **Group 1/2/3** with per-group **Mode**: *None*, *Active while condition is active (non-latched)*, or *Latched until acknowledged*. Group status indicators are displayed at the top of the UI.
 
 ### Communication & Setup
-- **RS-485 / Modbus RTU:** Designed to be polled by a PLC/HMI (HomeMaster Mini/Micro or any Modbus master). The UI exposes **Address (1…255)** and **Baud** selections (9600, 19200, 38400, 57600, 115200). :contentReference[oaicite:6]{index=6}
-- **WebConfig over USB-C:** One-click **Connect**, view **Active Modbus Configuration** (address/baud), stream a **Serial Log**, and issue a safe **Reset Device** from a confirmation dialog. :contentReference[oaicite:7]{index=7}
+- **RS-485 / Modbus RTU:** Polled by a PLC/HMI (HomeMaster Mini/Micro or any Modbus master). UI provides **Address (1…255)** and **Baud** selections (9600, 19200, 38400, 57600, 115200).
+- **WebConfig over USB-C:** One-click **Connect**, view **Active Modbus Configuration** (address/baud), stream a **Serial Log**, and issue a confirmed **Reset Device**.
 
 ### Local Resilience & Behavior
-- **On-device mappings** let inputs assert alarm groups and drive relays/LEDs without a PC, while a PLC orchestrates higher-level logic via Modbus. **Buttons** provide local **acknowledge** and **manual relay override** functions for maintenance and operator workflows. :contentReference[oaicite:8]{index=8}
-- **Real-time telemetry** in the UI mirrors the device: **input states**, **relay states**, **button presses**, **LED states**, and **alarm group/summary status**. Configuration changes are sent immediately to the device as lists (e.g., *inputEnable*, *inputInvert*, *inputGroup*, *relays*, *buttons*, *leds*, *alarms*). :contentReference[oaicite:9]{index=9}
+- **On-device mappings** let inputs assert alarm groups and drive relays/LEDs without a PC, while a PLC orchestrates higher-level logic over Modbus.
+- **Buttons** provide local **acknowledge** and **manual relay override** functions for maintenance and operator workflows.
+- **Real-time telemetry** mirrors the device: **input states**, **relay states**, **button presses**, **LED states**, and **alarm group/summary status**. Configuration changes are sent immediately as lists (e.g., *inputEnable*, *inputInvert*, *inputGroup*, *relays*, *buttons*, *leds*, *alarms*).
 
 ---
 
@@ -231,53 +232,84 @@ The **ALM-173-R1 (Alarm I/O, 17 Inputs, 3 Relays)** is a DIN-rail Modbus extensi
 | Subsystem | Quantity | Key Options in UI | Live Status |
 | :--- | :---: | :--- | :--- |
 | **Digital Inputs** | 17 | Enable • Invert • Group (*None/1/2/3*) | Per-input dot (ON/OFF) |
-| **Relays** | 3 | Enable • Invert • Group (*None/1/2/3*) | Per-relay checkbox state |
+| **Relays** | 3 | Enable • Invert • Group (*None/1/2/3*) | Per-relay checkbox/state |
 | **Buttons** | 4 | Action: *All ack*, *G1 ack*, *G2 ack*, *G3 ack*, *Relay 1/2/3 override* | Per-button dot |
 | **User LEDs** | 4 | Mode: *Steady/Blink* • Source: *Any*, *G1*, *G2*, *G3*, *Relay 1/2/3 overridden* | Per-LED dot |
 | **Alarm Groups** | 3 (+ **Any**) | Mode per group: *None* / *Active while* / *Latched until acknowledged* | Any/G1/G2/G3 dots |
 | **Modbus Setup** | 1 | Address 1…255 • Baud 9600…115200 • Connect/Reset | Live address & baud panel |
 
-*All items above are derived from the Web Serial configuration page and its runtime messaging model.* :contentReference[oaicite:10]{index=10}
-
 
 ## 3.2 Integration with Home Assistant
 
-Integration of the ALM-173-R1 into Home Assistant (HA) is achieved via the **ESPHome firmware** running on the HomeMaster controller (MiniPLC/MicroPLC). ESPHome handles Modbus polling/writes and exposes entities to HA.
+## 3.2 Integration with Home Assistant
 
-**Home Assistant Communication**
-- **ESPHome abstraction:** the controller periodically reads/writes Modbus **coils** and **holding registers** and publishes:
-  - **binary_sensors** (DI / leak),
-  - **sensors** (flow rate/total, temperatures / ΔT / power / energy),
-  - **switches** (relays / valves),
-  - plus irrigation state (via sensors/switches or template entities).
+The **ALM-173-R1** integrates with **Home Assistant (HA)** through the **HomeMaster controller (MiniPLC/MicroPLC)** running **ESPHome**. The controller acts as a **Modbus RTU master** over RS-485, periodically polling the ALM-173-R1 and publishing friendly entities to HA. No custom add-ons are required on HA—everything is handled on the controller.
 
-**Add in ESPHome**
-- In the controller’s ESPHome YAML, add a `modbus_controller:` and the WLD package/templates for this module. ESPHome then exposes entities to Home Assistant (binary_sensors for DI/leaks, sensors for flow rate/total and temperatures/ΔT/power/energy, switches for relays; irrigation state can be mapped via sensors/switches or template entities).
+### Communication Path
+- **Topology:** Home Assistant ↔ ESPHome (on HomeMaster) ↔ RS-485 ↔ ALM-173-R1  
+- **Role split:**  
+  - **ALM-173-R1:** executes local alarm logic (inputs → groups → relays/LEDs, buttons for ack/override).  
+  - **ESPHome:** performs Modbus reads/writes and exposes states/actions as HA entities.  
+  - **Home Assistant:** dashboards, notifications, automations, scenes.
 
-**Timekeeping & schedules in HA**
-- If you rely on the module’s **local irrigation window** or **daily counters**, schedule an HA automation at **00:00** to **pulse coil 360 (CMD_TIME_MIDNIGHT)** and write **HREG 1100/1101** for minute/day—this keeps the module clock aligned with HA.
+### What Home Assistant Sees (via ESPHome)
+- **Binary sensors**
+  - **Inputs:** DI1…DI17 as individual `binary_sensor` entities (open/closed, active/inactive).
+  - **Alarm groups:** Group 1, Group 2, Group 3, and **Any Alarm** summary for annunciation and logic.
+  - **Optional:** Button press states (useful for diagnostics/maintenance).
+- **Switches**
+  - **Relays:** R1…R3 as `switch` entities for manual testing or HA-driven actuation.
+  - **Actions as switches/scripts:** “Acknowledge All”, “Acknowledge Group 1/2/3”, and **manual relay override** can be exposed as HA `switch` or `script` entities that perform the underlying Modbus command.
+- **Device health**
+  - **Availability:** ESPHome marks entities unavailable if the Modbus link is down; HA can alert on loss of comms.
+  - **Diagnostics (optional):** readback of active baud/address and last update timestamp, surfaced as HA attributes.
+
+> Note: The ALM’s **LED sources/modes** and **mapping** are configured on the device/UI and typically not changed from HA during normal operation. HA consumes the resulting **group/any** status to drive notifications and scenes.
+
+### Recommended HA Automations (Examples of Behavior)
+- **Alarm annunciation:** When **Any Alarm** turns ON, send a **mobile push** with a list of active inputs; optionally flash a smart light or activate a siren **only if** “Service Mode” is OFF.
+- **Per-group workflows:** If **Group 1** (e.g., intrusion) goes **latched**, notify security and highlight the zone on a dashboard; expose an **Acknowledge Group 1** action.
+- **Night mode:** Use an HA `input_boolean.night_mode` to suppress local siren relays (keep logging/notifications active). HA can still command remote notifiers (e.g., GSM dialer) via the controller.
+- **Maintenance mode:** Temporarily inhibit relays from HA while keeping inputs visible; show a banner on the dashboard reminding operators that outputs are inhibited.
+- **Watchdog:** If entities become **unavailable** (Modbus fault), raise a **Critical** alert and create a persistent HA notification.
+
+### Setup Checklist
+1. **Wire RS-485**: connect A/B/COM from the controller to the ALM-173-R1 trunk; apply termination/bias per site design.
+2. **Set Modbus params on ALM**: address and baud rate via the Web Serial UI (unique address per device).
+3. **Add in ESPHome (controller)**: include the ALM-173-R1 package/profile so ESPHome knows which points to poll and which commands to expose (no register table needed here).
+4. **Pair with Home Assistant**: ESPHome will auto-discover entities; place them on dashboards and in automations.
+5. **Test end-to-end**: toggle a relay from HA, trip a test input, verify **Any/Group** entities and acknowledgments.
+
+### Best Practices
+- **Let the ALM do the fast/critical work** (local group logic and latching). Use HA for **orchestration**: notifications, schedules, and mode management.
+- **Keep a single source of truth** for acknowledges and overrides (prefer ALM/ESPHome actions; reflect state in HA).
+- **Use HA helpers** (`input_boolean`, `input_select`) for modes like **Night** or **Maintenance**, gating HA’s decision to drive relays.
+- **Secure the service port** (USB) and require operator authentication for any HA dashboard actions that acknowledge alarms or force overrides.
+
+> You do **not** need to include firmware examples or a Modbus register table in this README. The ESPHome profile for ALM-173-R1 encapsulates the mapping and exposes ready-to-use entities and actions to Home Assistant.
+
 
 ## 3.3 Diagrams & Pinouts
 <div align="center">
   <table>
     <tr>
       <td align="center">
-        <strong>WLD System Diagram</strong><br>
-        <img src="Images/WLD_Diagram.png" alt="WLD System Diagram" width="360">
+        <strong>ALM System Diagram</strong><br>
+        <img src="Images/ALM_SystemBlockDiagram.png" alt="WLD System Diagram" width="360">
       </td>
       <td align="center">
         <strong>RP2350 MCU Pinout</strong><br>
-        <img src="Images/WLD_MCU_Pinouts.png" alt="MCU Pinouts" width="360">
+        <img src="Images/ALM_MCU_Pinouts.png" alt="MCU Pinouts" width="360">
       </td>
     </tr>
     <tr>
       <td align="center">
         <strong>Field Board Layout</strong><br>
-        <img src="Images/FieldBoard_Diagram.png" alt="Field Board Diagram" width="360">
+        <img src="Images/FieldBoard-Diagram.png" alt="Field Board Diagram" width="360">
       </td>
       <td align="center">
         <strong>MCU Board Layout</strong><br>
-        <img src="Images/MCUBoard_Diagram.png" alt="MCU Board Diagram" width="360">
+        <img src="Images/MCUBoard-Diagram.png" alt="MCU Board Diagram" width="360">
       </td>
     </tr>
   </table>
