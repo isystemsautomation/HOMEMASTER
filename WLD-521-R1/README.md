@@ -17,6 +17,7 @@ The **WLD-521-R1** is a smart, fully configurable input/control module for **lea
 - [2. Safety Information](#2-safety-information-1)
 - [3. System Overview](#3-system-overview-1)
 - [4. Getting Started](#4-getting-started-1)
+- [5. Installation & Wiring](#5-Wiring)
 - [6 Software & UI Configuration](#6-software-ui-configuration-1)
 - [7 Modbus RTU Communication](#7-modbus-rtu-communication-1)
 - [8. [ESPHome Integration Guide (MicroPLC/MiniPLC + WLD-521-R1)]](#8-esphome-integration-guide-microplcminiplc-wld-521-r1-1)
@@ -26,77 +27,9 @@ The **WLD-521-R1** is a smart, fully configurable input/control module for **lea
 - [12. Downloads](#12-downloads-1)
 - [13. Support](#13-support-1)
 
-**HOMEMASTER – Modular control. Custom logic.**
-
-<img src="Images/photo1.png" align="right" width="440" alt="WLD-521-R1 module photo">
-
-### Module Description
-
-The **WLD-521-R1** is a smart, fully configurable input/control module for **leak detection**, **water flow**, **heat energy**, and **irrigation**. It connects to a **MicroPLC/MiniPLC** over **RS-485 (Modbus RTU)** and is configured via a USB-C **WebConfig** UI that lets you set Modbus params, choose per-input types (sensor/counter), map inputs to relay actions, calibrate flow, compute heat energy from paired 1-Wire sensors, run **two local irrigation zones** (flow supervision, interlocks, time windows, pump), and assign **LEDs/Buttons** with overrides—all with live status and optional clock sync for HA. Integration with **ESPHome + Home Assistant** is straightforward through the controller, which exposes the module’s **sensors** and **relays** as entities.
 
 <br clear="left"/>
 
-## 📑 Table of Contents
-
-### 1. [Introduction]
-- [1.1 Overview of the WLD-521-R1 Module]
-- [1.2 Supported Modules & Controllers]
-- [1.3 Use Cases]  
-
-### 2. [Safety Information]
-- [2.1 General Electrical Safety] 
-- [2.2 Handling & Installation] 
-- [2.3 Device-Specific Warnings]
-
-### 3. [System Overview]
-- [3.1 Architecture & Modular Design]
-- [3.2 Integration with Home Assistant]
-- [3.3 Diagrams & Pinouts] 
-- [3.4 WLD-521-R1 — Technical Specification]
-
-### 4. [Getting Started]
-- [4.1 What You Need]
-- [4.2 Powering the Devices]
-  - [4.2.1 Power Supply Types]
-  - [4.2.2 Current Consumption]
-  - [4.2.3 Power Safety Tips]
-- [4.3 Networking & Communication]
-  - [4.3.1 RS-485 Modbus]
-  - [4.3.2 USB-C Configuration]
-- [4.4 Quick Setup]
-
-### 5. [Installation & Wiring]
-- [5.1 WLD-521-R1 Wiring]
-
-### 6. [Software & UI Configuration]
-- [6.1 How to Connect to the Module]
-- [6.2 How to Configure Modbus]
-- [6.3 How to Configure 1-Wire Devices]
-- [6.4 How to Configure Digital Inputs]
-- [6.5 How to Configure Relays]
-- [6.6 How to Configure Digital Inputs Buttons and User LEDs]
-- [6.7 How to Configure Irrigation]
-
-### 7. [Modbus RTU Communication]
-- [7.1 Input Registers (Read-Only)] 
-- [7.2 Holding Registers (Read/Write)]
-- [7.3 Discrete Inputs & Coils]
-- [7.4 Scaling Summary]
-- [7.5 Basics & Function Codes] 
-- [7.6 Register Map (Summary)]
-- [7.7 Override Priority] 
-
-### 8. [ESPHome Integration Guide (MicroPLC/MiniPLC + WLD-521-R1)]
-
-### 9. [Programming & Customization]
-- [9.1 Supported Languages] 
-- [9.2 Flashing via USB-C] 
-- [9.3 Arduino]
-
-### 10. [Maintenance & Troubleshooting] 
-### 11. [Open Source & Licensing]
-### 12. [Downloads] 
-### 13. [Support]
 
 ---
 # 1. [Introduction]
