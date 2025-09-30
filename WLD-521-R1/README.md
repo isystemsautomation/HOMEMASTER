@@ -2,6 +2,124 @@
 
 # WLD-521-R1 – Water Meter & Leak Detection Module
 
+
+## Table of Contents
+
+- [WLD-521-R1 – Water Meter & Leak Detection Module](#wld-521-r1-–-water-meter-leak-detection-module)
+    - [Module Description](#module-description)
+  - [📑 Table of Contents](#📑-table-of-contents)
+    - [1. [Introduction]](#1-introduction)
+    - [2. [Safety Information]](#2-safety-information)
+    - [3. [System Overview]](#3-system-overview)
+    - [4. [Getting Started]](#4-getting-started)
+    - [5. [Installation & Wiring]](#5-installation-wiring)
+    - [6. [Software & UI Configuration]](#6-software-ui-configuration)
+    - [7. [Modbus RTU Communication]](#7-modbus-rtu-communication)
+    - [8. [ESPHome Integration Guide (MicroPLC/MiniPLC + WLD-521-R1)]](#8-esphome-integration-guide-microplcminiplc-wld-521-r1)
+    - [9. [Programming & Customization]](#9-programming-customization)
+    - [10. [Maintenance & Troubleshooting]](#10-maintenance-troubleshooting)
+    - [11. [Open Source & Licensing]](#11-open-source-licensing)
+    - [12. [Downloads]](#12-downloads)
+    - [13. [Support]](#13-support)
+- [1. [Introduction]](#1-introduction-1)
+  - [1.1 Overview of the WLD-521-R1 Module 💧](#11-overview-of-the-wld-521-r1-module-💧)
+  - [1.2 WLD-521-R1 — Supported Controllers 🔌](#12-wld-521-r1-—-supported-controllers-🔌)
+    - [MiniPLC / MicroPLC (via Modbus RTU)](#miniplc-microplc-via-modbus-rtu)
+  - [1.3 Use Cases 🛠️](#13-use-cases-🛠️)
+    - [1) Basement leak detection + automatic water shut-off](#1-basement-leak-detection-automatic-water-shut-off)
+    - [2) Garden irrigation with flow supervision & pump dry-run protection (merged)](#2-garden-irrigation-with-flow-supervision-pump-dry-run-protection-merged)
+    - [3) Water consumption metering](#3-water-consumption-metering)
+    - [4) Hydronic loop heat-energy (ΔT) monitoring](#4-hydronic-loop-heat-energy-δt-monitoring)
+- [2. Safety Information](#2-safety-information-1)
+  - [2.1 General Electrical Safety](#21-general-electrical-safety)
+  - [2.2 Handling & Installation](#22-handling-installation)
+  - [2.3 Device-Specific Warnings](#23-device-specific-warnings)
+- [3. System Overview](#3-system-overview-1)
+  - [3.1 Architecture & Modular Design](#31-architecture-modular-design)
+  - [3.2 Integration with Home Assistant](#32-integration-with-home-assistant)
+  - [3.3 Diagrams & Pinouts](#33-diagrams-pinouts)
+  - [3.4 WLD-521-R1 — Technical Specification](#34-wld-521-r1-—-technical-specification)
+    - [Overview](#overview)
+    - [I/O Summary](#io-summary)
+    - [Terminals & Pinout (field side)](#terminals-pinout-field-side)
+    - [Electrical](#electrical)
+    - [MCU & Storage](#mcu-storage)
+    - [Protections & Compliance-Oriented Features](#protections-compliance-oriented-features)
+    - [Firmware / Function (high-level)](#firmware-function-high-level)
+- [4. Getting Started](#4-getting-started-1)
+  - [4.1 What You Need](#41-what-you-need)
+  - [4.2 Powering the Devices](#42-powering-the-devices)
+    - [4.2.1 Power Supply Types](#421-power-supply-types)
+    - [4.2.2 Current Consumption](#422-current-consumption)
+    - [4.2.3 Power Safety Tips](#423-power-safety-tips)
+    - [4.3 Networking & Communication](#43-networking-communication)
+  - [4.4 Quick Setup](#44-quick-setup)
+- [6 Software & UI Configuration](#6-software-ui-configuration-1)
+  - [6.1 How to Connect to the Module](#61-how-to-connect-to-the-module)
+  - [6.2 How to Configure Modbus](#62-how-to-configure-modbus)
+  - [6.3 How to Configure 1-Wire Devices](#63-how-to-configure-1-wire-devices)
+    - [Wiring & Power notes (important)](#wiring-power-notes-important)
+    - [Troubleshooting](#troubleshooting)
+  - [6.4 How to Configure Digital Inputs](#64-how-to-configure-digital-inputs)
+    - [1) Enable & Polarity](#1-enable-polarity)
+    - [2) Choose the Type](#2-choose-the-type)
+    - [3) Actions & Targets (for sensor types)](#3-actions-targets-for-sensor-types)
+    - [4) Flow Meter Setup (Type = Water counter)](#4-flow-meter-setup-type-water-counter)
+    - [5) Optional: Heat Energy on a Counter DI](#5-optional-heat-energy-on-a-counter-di)
+    - [Troubleshooting](#troubleshooting-1)
+  - [6.5 How to Configure Relays](#65-how-to-configure-relays)
+    - [1) Enable & Polarity](#1-enable-polarity-1)
+    - [2) Control source](#2-control-source)
+    - [3) Manual override](#3-manual-override)
+    - [4) Typical setups](#4-typical-setups)
+    - [Troubleshooting](#troubleshooting-2)
+  - [6.6 How to Configure Digital-Input Buttons & User LEDs](#66-how-to-configure-digital-input-buttons-user-leds)
+    - [LEDs (4)](#leds-4)
+    - [Buttons (4)](#buttons-4)
+  - [6.7 How to Configure Irrigation](#67-how-to-configure-irrigation)
+    - [1) Map hardware](#1-map-hardware)
+    - [2) Enable flow supervision (recommended)](#2-enable-flow-supervision-recommended)
+    - [3) Add interlocks & pump (optional)](#3-add-interlocks-pump-optional)
+    - [4) Time window (local time)](#4-time-window-local-time)
+    - [5) Operate & monitor](#5-operate-monitor)
+    - [Typical setups](#typical-setups)
+    - [Troubleshooting](#troubleshooting-3)
+- [7 Modbus RTU Communication](#7-modbus-rtu-communication-1)
+  - [7.1 Input Registers (Read‑Only)](#71-input-registers-read‑only)
+  - [7.2 Holding Registers (Read/Write)](#72-holding-registers-readwrite)
+  - [7.3 Discrete Inputs & Coils](#73-discrete-inputs-coils)
+    - [Discrete Inputs (read‑only flags)](#discrete-inputs-read‑only-flags)
+    - [Coils (write – single/multiple)](#coils-write-–-singlemultiple)
+  - [7.4 Scaling Summary](#74-scaling-summary)
+  - [7.5 Basics & Function Codes](#75-basics-function-codes)
+  - [7.6 Register Map (Summary)](#76-register-map-summary)
+  - [7.7 Override Priority](#77-override-priority)
+- [8. [ESPHome Integration Guide (MicroPLC/MiniPLC + WLD-521-R1)]](#8-esphome-integration-guide-microplcminiplc-wld-521-r1-1)
+  - [8. ESPHome Integration Guide (MicroPLC/MiniPLC + WLD-521-R1)](#8-esphome-integration-guide-microplcminiplc-wld-521-r1-2)
+  - [8.1 Hardware & RS-485 wiring](#81-hardware-rs-485-wiring)
+  - [8.2 ESPHome (PLC): enable Modbus RTU & import the WLD package](#82-esphome-plc-enable-modbus-rtu-import-the-wld-package)
+  - [8.3 What the external WLD package exposes (entities)](#83-what-the-external-wld-package-exposes-entities)
+    - [Discrete Inputs (FC02)](#discrete-inputs-fc02)
+    - [DI Counters (Holding, FC03)](#di-counters-holding-fc03)
+    - [Flow (Holding, FC03)](#flow-holding-fc03)
+    - [Heat (delta-T math & helpers, Holding, FC03)](#heat-delta-t-math-helpers-holding-fc03)
+    - [Irrigation (Holding, FC03)](#irrigation-holding-fc03)
+    - [1-Wire Temperatures (Holding, FC03)](#1-wire-temperatures-holding-fc03)
+  - [8.4 Command coils you can use (writes; FC05 / reads via FC01)](#84-command-coils-you-can-use-writes-fc05-reads-via-fc01)
+  - [8.5 Using your posted MiniPLC YAML with WLD](#85-using-your-posted-miniplc-yaml-with-wld)
+  - [8.6 Home Assistant integration](#86-home-assistant-integration)
+  - [8.7 Troubleshooting & tips](#87-troubleshooting-tips)
+  - [8.8 Version & compatibility](#88-version-compatibility)
+- [9. Programming & Customization](#9-programming-customization-1)
+  - [9.1 Supported Languages](#91-supported-languages)
+  - [9.2 Flashing via USB-C](#92-flashing-via-usb-c)
+  - [9.3 Arduino](#93-arduino)
+- [10. Maintenance & Troubleshooting](#10-maintenance-troubleshooting-1)
+- [11. Open Source & Licensing](#11-open-source-licensing-1)
+- [12. Downloads](#12-downloads-1)
+- [13. Support](#13-support-1)
+  - [📡 Community & Updates](#📡-community-updates)
+
 **HOMEMASTER – Modular control. Custom logic.**
 
 <img src="Images/photo1.png" align="right" width="440" alt="WLD-521-R1 module photo">
@@ -194,15 +312,15 @@ Integration of the WLD-521-R1 into Home Assistant (HA) is achieved via the **ESP
 - In the controller’s ESPHome YAML, add a `modbus_controller:` and the WLD package/templates for this module. ESPHome then exposes entities to Home Assistant (binary_sensors for DI/leaks, sensors for flow rate/total and temperatures/ΔT/power/energy, switches for relays; irrigation state can be mapped via sensors/switches or template entities).
 
 **Timekeeping & schedules in HA**
-- If you rely on the module’s **local irrigation window** or **daily counters**, schedule an HA automation at **00:00** to **pulse coil 360** and write **HREG 1100/1101** for minute/day—this keeps the module clock aligned with HA.
+- If you rely on the module’s **local irrigation window** or **daily counters**, schedule an HA automation at **00:00** to **pulse coil 360 (CMD_TIME_MIDNIGHT)** and write **HREG 1100/1101** for minute/day—this keeps the module clock aligned with HA.
 
 ## 3.3 Diagrams & Pinouts
 <div align="center">
   <table>
     <tr>
       <td align="center">
-        <strong>ENM System Diagram</strong><br>
-        <img src="Images/WLD_Diagram.png" alt="ENM System Diagram" width="360">
+        <strong>WLD System Diagram</strong><br>
+        <img src="Images/WLD_Diagram.png" alt="WLD System Diagram" width="360">
       </td>
       <td align="center">
         <strong>RP2350 MCU Pinout</strong><br>
@@ -421,7 +539,7 @@ The WLD-521-R1 communicates with the controller over **RS-485 (Modbus RTU)** and
 
 **Clock & HA sync (optional)**
 - The **Module Time & Modbus Sync** panel lets you set the **minute-of-day** or pull browser time for testing.
-- For production, schedule a nightly automation in Home Assistant to pulse the **midnight sync coil** and keep the module’s internal clock aligned (useful for irrigation windows and daily counters).
+- For production, schedule a nightly automation in Home Assistant to pulse the **CMD_TIME_MIDNIGHT (coil 360)** and keep the module’s internal clock aligned (useful for irrigation windows and daily counters).
 
 **Troubleshooting**
 - If the **Connect** button is disabled, ensure you’re using Chrome/Edge and that the browser has permission to access serial devices.
@@ -465,7 +583,7 @@ _For protocol details and end-to-end examples, see **[Modbus RTU Communication](
   
 
 **Timekeeping (recommended for local schedules)**  
-If you use the module’s **Irrigation Window** or daily counters, schedule a Home Assistant automation at **00:00** to pulse the **time-sync coil** and keep the module’s minute/day registers aligned with HA. (See the **Module Time & Modbus Sync** area in the UI and your controller automations.)
+If you use the module’s **Irrigation Window** or daily counters, schedule a Home Assistant automation at **00:00** to pulse the **CMD_TIME_MIDNIGHT (coil 360)** and keep the module’s minute/day registers aligned with HA. (See the **Module Time & Modbus Sync** area in the UI and your controller automations.)
 
 **Verify**  
 Use WebConfig’s **Serial Log** and live status panels to confirm DI changes, flow **rate/total**, relay actions, and irrigation state.
@@ -896,7 +1014,7 @@ Holding/Input (telemetry and control snapshots)
 
 # 8. [ESPHome Integration Guide (MicroPLC/MiniPLC + WLD-521-R1)]
 
-# 8. ESPHome Integration Guide (MicroPLC/MiniPLC + WLD-521-R1)
+## 8. ESPHome Integration Guide (MicroPLC/MiniPLC + WLD-521-R1)
 
 ## 8.1 Hardware & RS-485 wiring
 
@@ -1026,6 +1144,8 @@ You already have a working base (UART/Modbus, GPIOs, etc.). To **attach WLD**:
 
 ## 8.6 Home Assistant integration
 
+> Tip: In Home Assistant, schedule a daily automation at 00:00 to toggle **CMD_TIME_MIDNIGHT (coil 360)** via Modbus/ESPHome so counters and time-based accumulators reset in sync.
+
 1) **Add the ESPHome device**  
 - HA → **Settings → Devices & Services → Integrations → ESPHome** and enter the MiniPLC hostname/IP.
 
@@ -1107,7 +1227,7 @@ You already have a working base (UART/Modbus, GPIOs, etc.). To **attach WLD**:
 
 The following key project resources are included in this repository:
 
-- **🧠 Firmware (Arduino/PlatformIO):** [`Firmware/default_enm_223_r1/`](Firmware/default_enm_223_r1/)  
+- **🧠 Firmware (Arduino/PlatformIO):** [`Firmware/default_wld_521_r1/`](Firmware/default_wld_521_r1/)  
   Main sketch implementing ATM90E32 metering, relays, button overrides, alarms, Modbus RTU, and WebSerial support.
 
 - **🛠 Web Config Tool:** [`Firmware/ConfigToolPage.html`](Firmware/ConfigToolPage.html)  
