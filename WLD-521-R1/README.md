@@ -323,16 +323,18 @@ The **WLD-521-R1** integrates into the HomeMaster system over the **RS-485 Modbu
 
 ## 4.1 What You Need
 
-| Category | Item | Details |
-|---|---|---|---|
-| **Hardware** | **WLD-521-R1 Module** | DIN-rail I/O module with **5× DI**, **2× relays**, and **1-Wire** (for DS18B20, etc.). |
-|  | **HomeMaster Controller** | MiniPLC/MicroPLC acting as **Modbus master** and network gateway; ESPHome YAML template includes `wld_address: "3"` by default. |
-|  | **Power Supply** | **24 VDC** to module power terminals (on-board 5 V/3.3 V rails derived). |
-|  | **RS-485 Cabling** | Two-wire **A/B** plus **COM/GND**; use **120 Ω** termination at bus ends. |
-|  | **USB-C Cable** | Connects the **module** to your computer to run WebConfig via Web Serial. |
-| **Software** | **WebConfig Tool** | Browser page to set **Modbus Address & Baud**, see **Active Modbus Configuration**, reset device, and configure Inputs/Relays/Irrigation. |
-|  | **ESPHome YAML** | Controller config declaring the WLD on RS-485 (`modbus_controller:` + entities). |
-| **I/O** | **Sensors / Actuators** | Leak/moisture/rain probes & **pulse flow meters** on DIs; **DS18B20** on **1-Wire (GPIO16)**; valves/pumps on **R1/R2**. |
+| Category   | Item                    | Details                                                                                         |
+|------------|-------------------------|-------------------------------------------------------------------------------------------------|
+| **Hardware** | **WLD-521-R1 Module**   | DIN-rail I/O module with **5× DI**, **2× relays**, and **1-Wire** (DS18B20, etc.).              |
+|            | **HomeMaster Controller** | MiniPLC/MicroPLC acting as **Modbus master** and network gateway; ESPHome uses `wld_address: "3"`. |
+|            | **Power Supply**          | **24 VDC** to module power terminals (on-board 5 V/3.3 V rails derived).                        |
+|            | **RS-485 Cabling**        | Two-wire **A/B** plus **COM/GND**; use **120 Ω** termination at bus ends.                       |
+|            | **USB-C Cable**           | Connects the module to your computer to run WebConfig via Web Serial.                            |
+| **Software** | **WebConfig Tool**       | Browser page to set **Modbus Address & Baud**, view **Active Modbus Configuration**, reset, and configure I/O/irrigation. |
+|            | **ESPHome YAML**          | Controller config declaring the WLD on RS-485 (`modbus_controller:` + entities).                |
+| **I/O**     | **Sensors / Actuators**   | Leak/moisture/rain probes & **pulse flow meters** on DIs; **DS18B20** on **1-Wire (GPIO16)**; valves/pumps on **R1/R2**. |
+
+
 
 ---
 
