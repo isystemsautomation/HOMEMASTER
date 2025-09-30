@@ -538,7 +538,7 @@ The ALM-173-R1 communicates with the controller over **RS-485 (Modbus RTU)** and
 - **Relays:** wire loads to **RLY1…RLY3 (COM/NO/NC)**. Use external **RC snubbers/TVS** for coils, locks, sirens, etc. Observe relay voltage/current ratings.
 - **Isolated sensor power (optional):** low-power sensors can be fed from **PS/1 = +12 V iso** and **PS/2 = +5 V iso**. Do **not** backfeed or parallel these rails.
 
-_For wiring safety, terminal maps, and cable practices, see your **Installation & Wiring** section._
+_For wiring safety, terminal maps, and cable practices, see your **[Installation & Wiring](#5-wiring-1)**
 
 ---
 
