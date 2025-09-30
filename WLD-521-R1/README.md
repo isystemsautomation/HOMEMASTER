@@ -413,7 +413,7 @@ _For diagrams, terminal pinouts, cable gauges, and safety notes, see **[Section 
   - **1-Wire:** scan, store, and name sensors for temperature/heat features.
 - (Optional) **Reset Device** from the dialog if you need to restart; the serial link will reconnect.
 
-_For more details about WebConfig cards and fields, see **[Software & UI Configuration](#software--ui-configuration)**._
+_For more details about WebConfig cards and fields, see **[Software & UI Configuration](#6-software-ui-configuration-1)**._
 
 **Phase 3 — Controller Integration (ESPHome)**
 
@@ -422,7 +422,7 @@ _For more details about WebConfig cards and fields, see **[Software & UI Configu
   - Add a new **`modbus_controller:`** entry, ensuring the **`wld_address`** substitution matches the Modbus Address set in Step 3 of Phase 2 (e.g., `wld_address: "3"`).
 - **Compile & Upload:** Build and upload the updated ESPHome config to the controller. After reboot, the controller will poll the WLD-521-R1 and expose **DI states/counters**, **1-Wire temperatures**, **relay controls**, and **irrigation status** as HA entities.
 
-_For protocol details and end-to-end examples, see **[Modbus RTU Communication](#modbus-rtu-communication)** and **[ESPHome Integration Guide (MicroPLC/MiniPLC + WLD-521-R1)](#esphome-integration-guide-microplcminiplc--wld-521-r1)**._
+_For protocol details and end-to-end examples, see **[Modbus RTU Communication](#7-modbus-rtu-communication-1)** and **[ESPHome Integration Guide (MicroPLC/MiniPLC + WLD-521-R1)](#8-esphome-integration-guide-microplcminiplc-wld-521-r1-1)**._
   
 
 **Timekeeping (recommended for local schedules)**  
