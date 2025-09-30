@@ -656,7 +656,7 @@ Select where commands for this relay come from:
 ### Troubleshooting
 - **Relay doesn’t respond from HA:** ensure **Control source = Modbus** and the relay is **Enabled**; clear **Override latch** if set.
 
-## How to Configure Digital-Input Buttons & User LEDs
+## 6.6 How to Configure Digital-Input Buttons & User LEDs
 
 ![LEDs & Buttons — WebConfig](./Images/webconfig6.png)
 
@@ -711,254 +711,49 @@ Each button has an **Action** that the firmware executes on press (short/long-pr
 
 ---
 
+## 6.7 How to Configure Irrigation
 
-## Key Ratings (from prior release)
+![Irrigation — WebConfig](./Images/webconfig7.png)
 
-| Parameter | Typical / Max |
-|---|---|
-| Supply voltage | **24 VDC** |
-| DI trigger level / current | ≈ **14 V** / ≈ **6 mA** |
-| DI frequency | **~9 Hz** default (higher configurable) |
-| Relay contacts | **3 A @ 250 VAC** (per relay) |
-| Sensor power | **+5 V / +12 V** isolated, up to **~50 mA** combined budget (guideline) |
-| Firmware update | **USB-C** (Web Serial / DFU) |
-| Mounting | **DIN-rail**, ~3-module width | 
+The module provides **2 independent zones** with local safety logic (flow supervision, interlocks, time windows). Configure each zone in its own card.
 
----
+### 1) Map hardware
+- **Valve relay:** choose which relay drives the valve for this zone (`Relay 1` or `Relay 2`).
+- **Flow DI (1..5):** select the digital input that counts pulses from your flowmeter.
+  - Make sure that DI is set to **Type = Water counter** and its **Pulses per liter (PPL)** is correct in the **Digital Inputs** section.
 
-### Notes
+### 2) Enable flow supervision (recommended)
+- **Use flow supervision:** turns on local safety.
+- **Min rate (L/min):** minimum flow expected when the valve is ON.
+- **Grace (s):** startup time allowed before the min rate must be met.
+- **Timeout (s):** maximum run time (zone stops if exceeded).
+- **Target liters (0 = none):** stop automatically after this volume is delivered.
 
-- Actual enclosure dimensions and environmental limits (temperature, humidity, IP rating) should be confirmed with the latest mechanical drawing—values are not specified in the current schematics.  
-- For multi-module RS-485 networks, assign unique Modbus addresses and observe proper termination and biasing per segment.
+### 3) Add interlocks & pump (optional)
+- **DI_moist (needs water when OFF):** water only when this DI is OFF (e.g., dry soil probe).
+- **DI_rain (block when ON):** block watering when rain sensor is active.
+- **DI_tank (OK when ON):** allow watering only when tank/pressure OK.
+- **R_pump:** pick a relay to run a pump while the zone is active (leave `(none)` if not used).
 
+### 4) Time window (local time)
+- **Enforce window:** zone can only run between **Start** and **End** (HH:MM, local).
+- **Auto-start at window open:** if enabled and conditions are OK, the zone starts automatically at **Start**.
+- Click **Save Zone 1/2** after editing.
 
+> Tip: The module keeps its own minute-of-day clock. For daily windows/counters, sync at midnight from HA (coil **360** TRUE→FALSE and update HREG **1100/1101**).
 
+### 5) Operate & monitor
+- Use **Start / Stop / Reset** on each zone card, or the **Live Status** panel below.
+- Live status shows **Rate (L/min)**, **Accumulated liters**, **Elapsed time**, **Target**, **Timeout**, **Window** (OPEN/CLOSED), **Sensors** (OK/BLOCK), and **Time now**.
 
+### Typical setups
+- **Basic garden valve:** `Valve relay = Relay 2`, `Flow DI = DI3`, **Use flow supervision** with `Min rate = 0.2`, `Grace = 8 s`, `Timeout = 3600 s`, `Target liters = 120`.
+- **Tank + rain protected:** add `DI_tank = DI1 (OK when ON)` and `DI_rain = DI4 (block when ON)`.
+- **Morning-only window:** enable **Enforce window**, set `Start 06:00`, `End 09:00`, and optionally **Auto-start**.
 
+### Troubleshooting
+- **Zone won’t start:** check **Enabled**, **Valve relay** is assigned, **Window = OPEN** (or disable enforcement), interlocks show **Sensors: OK**.
+- **Stops immediately:** flowmeter not seen → confirm the **Flow DI** works (counts rising edges, correct **PPL**, wiring to **GND_ISO**).
+- **HA can’t control valve:** if a zone owns the relay, set the relay **Control source** to *Irrigation Z1/Z2* or stop the zone first.
 
 
-4. **Energy**
-   - Energy integrates power over time:
-     
-     $$
-     E_J(t+\Delta t) = E_J(t) + \text{Power}_{\text{final}} \times \Delta t
-     $$
-     
-   - The UI shows both:
-     - **Energy (J)** — raw joules.
-     - **Energy (kWh)** — converted as:
-       
-       $$
-       \mathrm{kWh} = \frac{E_J}{3{,}600{,}000}
-       $$
-
----
-
-### Reset behavior
-- **Reset energy** sets the energy accumulator baseline to zero *(doesn’t affect flow totals)*.
-- **Reset total** in the *Flow* box moves the volume baseline *(pulses are preserved)*.
-- **Calc from external** lets you enter a reference volume since the last total reset; the module derives a new **Total** calibration so the accumulated liters match your reference.
-
-### Defaults & signs
-- Defaults shown: $c_p = 4186\ \text{J/kg·°C}$, $\rho = 1.000\ \text{kg/L}$, $\mathrm{Calibration}=1.0000$.
-- $\Delta T$ is $A - B$. If return gets hotter than supply, $\Delta T$ goes negative; then power becomes negative. *(If you prefer to clamp to zero, that’s a simple firmware change.)*
-
-### Tiny worked example
-- **Flow:** $6.0\ \text{L/min} \rightarrow \frac{6}{60} = 0.1\ \text{L/s}$  
-- $\rho = 1.0\ \text{kg/L} \Rightarrow \dot m = 0.1\ \text{kg/s}$  
-- $c_p = 4186\ \text{J/kg·°C}$, $\Delta T = 5.0^\circ\text{C}$
-  
-  $$
-  \text{Power} = 0.1 \times 4186 \times 5 = 2093\ \text{W} \approx 2.09\ \text{kW}
-  $$
-  
-- **Over 10 seconds:**  
-  
-  $$
-  \text{Energy} \approx 2093 \times 10 = 20{,}930\ \text{J} \approx 0.0058\ \text{kWh}
-  $$
-  
-- Apply **Calibration ×** at the end if it’s not 1.0.
-
-
-## 🏠 Example Use Cases
-
-- Automatic valve shutoff on leak detection
-- Water consumption monitoring with pulse meters
-- Temperature-aware pipe protection logic
-- Manual override buttons for maintenance
-
-## What this does (in super simple terms)
-
-- You have **2 irrigation zones** (Zone 1 & Zone 2).  
-- Each zone opens a **valve relay** (Relay 1 or Relay 2).  
-- A zone can **watch a flow sensor** on one input (**DI1..DI5**) to be sure water actually moves and to **count liters**.  
-- Optional **sensors** can **block watering**:
-  - **Moisture**: wet = block
-  - **Rain**: raining = block
-  - **Tank level**: empty = block
-- Optional **pump** can run automatically while a zone is watering.
-- You can limit watering to a daily **time window** and even **auto‑start** at the window start.
-- You can set a **target liters** to stop automatically when that much water has passed.
-
-> This README focuses only on irrigation (the firmware also supports flow, heat energy, 1‑Wire etc.).
-
----
-
-### Before you start (1 minute)
-
-1. **Wire things**
-   - Valve(s) → **Relay 1/2**  
-   - Flow sensor → one of **DI1..DI5**  
-   - Optional: **moisture / rain / tank** sensors → free DI pins  
-   - Optional: **pump** → one of the relays
-2. **Power on** the module.
-3. Open the **Configuration UI** (the web page for the device) and click **Connect**.
-
----
-
-### Step 1 — Set the module clock (so windows & auto‑start make sense)
-
-- Go to **“Module Time & Modbus Sync”**.  
-- Click **Set from browser time**. Done.
-
-*(Advanced: Home Assistant can send a “midnight pulse” via Modbus; totally optional.)*
-
----
-
-### Step 2 — Tell the device which input is your flow sensor
-
-- In **“Digital Inputs (5)”**, on the DI that has your **flow meter**, set **Type = Water counter**.  
-- Leave regular sensors (moisture/rain/tank) as **Water sensor** (default).
-
-*(Calibration can wait; defaults work.)*
-
----
-
-### Step 3 — Configure a zone (repeat for both zones if needed)
-
-Open **Irrigation → Zone 1**:
-
-1. **Enable** the zone.
-2. **Valve relay** → choose **Relay 1** (or 2), matching your wiring.
-3. **Flow DI (1..5)** → pick the DI where your **flow sensor** is connected.
-4. Keep **Use flow supervision** **ON** (recommended).  
-   - **Min rate (L/min)**: start with **0.20**  
-   - **Grace (s)**: **8** (lets pipes pressurize)  
-   - **Target liters**: set a number (e.g. **50**). **0** = unlimited  
-   - **Timeout (s)**: **3600** (1 hour safety)
-5. **Sensors & Pump (optional)**
-   - **DI_moist (needs water when OFF)** → pick your soil sensor DI  
-     - *Dry (OFF) = watering allowed; Wet (ON) = block*
-   - **DI_rain (block when ON)** → pick your rain sensor DI  
-     - *Raining (ON) = block*
-   - **DI_tank (OK when ON)** → pick your tank level DI  
-     - *Tank OK (ON) = allowed; OFF = block*
-   - **R_pump** → pick the relay that powers your pump (**(none)** if you don’t use a pump).  
-     *The pump runs automatically only while the zone runs.*
-6. **Irrigation Window (optional)**
-   - **Enforce window** → ON if you only want watering during certain hours
-   - **Start** / **End** → e.g. **06:00 → 09:00** (*cross‑midnight works, e.g. 22:00 → 06:00*)
-   - **Auto‑start at window open** → ON if you want **daily automatic start** at the **start** time
-7. Click **Save Zone 1**. Repeat for Zone 2 if used.
-
----
-
-### Step 4 — Water!
-
-- **Manual**: Press **Start** on the zone. It will run until you **Stop**, or:
-  - **Target liters** is reached, or
-  - **Timeout** hits, or
-  - a **sensor blocks** it, or
-  - the **window closes** (if enforced).
-- **Automatic**: If **Auto‑start** is ON, the zone starts **once per day** at the **window start** time.
-
----
-
-### What “Live Status” tells you
-
-Each zone shows:
-- **State**: `idle` / `run` / `pause` / `done` / `fault`  
-- **Rate**: L/min (from your flow DI)  
-- **Accum**: liters done so far  
-- **Elapsed**: seconds since start  
-- **Target** & **Timeout** (if set)  
-- **Time now**: module clock (HH:MM)  
-- **Window**: `OPEN` or `CLOSED`  
-- **Sensors**: `OK` or `BLOCK`
-
-If a start is refused, check **Window** and **Sensors** (they reveal the reason).
-
----
-
-### Suggested starter settings
-
-- **Use flow supervision**: ON  
-- **Min rate**: `0.20 L/min`  
-- **Grace**: `8 s`  
-- **Timeout**: `3600 s`  
-- **Target liters**: set what you want (or `0` for unlimited)  
-- **Window**: `06:00–09:00` with **Auto‑start** ON (if you want daily watering)
-
----
-
-### Common actions
-
-- **Start / Stop / Reset** → buttons on each **Zone** card and in **Live Status**  
-- **Shared pump for multiple zones** → set **R_pump** to the same relay in each zone; the firmware handles it (pump runs if any zone needs it)  
-- **Only water when soil is dry** → set **DI_moist**; Dry (OFF) = allowed, Wet (ON) = block  
-- **Skip when raining** → set **DI_rain**; ON = block  
-- **Block if tank empty** → set **DI_tank**; ON = ok, OFF = block
-
----
-
-### Troubleshooting (fast)
-
-- **Won’t start** → check the zone is **Enabled**, **Window = OPEN**, **Sensors = OK**  
-- **Stops with “low flow”** → increase **Grace**, lower **Min rate** a little, or check flow wiring  
-- **Stops immediately** → **Target liters** is tiny, or a **sensor** is blocking  
-- **Pump doesn’t run** → set **R_pump** to your pump’s relay and make sure that relay is **Enabled**  
-- **Time looks wrong** → click **Set from browser time** again
-
----
-
-### Optional: Midnight sync from Home Assistant (Modbus)
-
-If you want the module clock to reset at midnight (00:00) via Modbus:
-
-- Write `TRUE` then immediately `FALSE` to **coil 360** at 00:00 (daily).  
-  The firmware will set minute‑of‑day to `0` and increment day‑index.
-
-> This is optional. Most users can ignore it and just use “Set from browser time”.
-
----
-
-### That’s it ✅
-
-Use **Save** after changes, **Start** to test, watch **Rate** and **Accum** increase, and adjust **Target liters** and **Window** to suit your garden.
-
-
-## ⚙️ Specifications
-
-| Parameter                         | Value                              |
-|----------------------------------|------------------------------------|
-| Power Supply                     | 24 V DC                            |
-| Digital Inputs                   | 5 opto-isolated, dry contact       |
-| Input Voltage (trigger)          | ~14 V                              |
-| Input Current                    | ~6 mA                              |
-| Input Frequency                  | Up to 9 Hz (1 kHz configurable)    |
-| Relay Outputs                    | 2 (NO/NC, max 3 A @ 250 V AC)      |
-| 1-Wire Bus                       | Yes                                |
-| Sensor Power Output              | 12 V / 5 V isolated (up to 50 mA)  |
-| Communication Interface          | RS-485 (Modbus RTU)                |
-| Dimensions                       | DIN-rail mount, 3 modules wide     |
-| Firmware Update                  | USB Type-C                         |
-
-## 📄 License
-
-All hardware design files and documentation are licensed under **CERN-OHL-W 2.0**.  
-Firmware and code samples are released under the **GNU General Public License v3 (GPLv3)** unless otherwise noted.
-
----
-
-> 🔧 **HOMEMASTER – Modular control. Custom logic.**
