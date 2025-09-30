@@ -470,6 +470,34 @@ If you use the module’s **Irrigation Window** or daily counters, schedule a Ho
 **Verify**  
 Use WebConfig’s **Serial Log** and live status panels to confirm DI changes, flow **rate/total**, relay actions, and irrigation state.
 
+# 6 Software & UI Configuration
+
+## 6.1How to Connect to the Module
+
+![WLD-521-R1 WebConfig — Active Modbus Configuration](/Images/webconfig1.png)
+
+1) **Plug in USB-C.** Connect your computer to the WLD-521-R1’s USB-C port.  
+2) **Open the config page.** In a Chromium-based browser (Chrome/Edge), open:  
+   `https://www.home-master.eu/configtool-wld-521-r1`  
+3) **Click _Connect_.** Grant browser access to the serial device when prompted.  
+4) **Confirm connection.** The **Serial Log** shows `port open`, and the banner displays the **Active Modbus Configuration** (current Address and Baud).  
+5) (Optional) **Reset Device.** Use **Reset Device** for a safe reboot; the serial link will drop and auto-reconnect.
+
+> If **Connect** is disabled, use Chrome/Edge and ensure serial permissions are allowed. On macOS/Linux, you may need to allow USB serial access.
+
+
+## 6.2 How to Configure Modbus
+
+Use the top **Modbus Address** and **Baud Rate** selectors. Changes are sent to the device immediately; the **Serial Log** confirms with messages like “Modbus configuration updated” and “Configuration saved.”
+
+- **Set Address (1…255):** Choose a **unique** Modbus RTU address for this module.  
+- **Set Baud:** Pick one of the supported rates: **9600**, **19200** (default), **38400**, **57600**, **115200**.  
+- **Verify live status:** The banner updates to show **Address** and **Baud Rate** currently active on the device.  
+- **Controller match:** In your controller’s ESPHome YAML, ensure `uart` settings match your RS-485 pins/speed and set `wld_address` to the same address you chose here (e.g., `wld_address: "6"`).
+
+> You can revisit this page anytime to adjust Modbus parameters. Configuration persists in the module’s flash memory.
+
+
 ## Key Ratings (from prior release)
 
 | Parameter | Typical / Max |
