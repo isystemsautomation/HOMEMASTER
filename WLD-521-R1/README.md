@@ -496,7 +496,7 @@ Use the top **Modbus Address** and **Baud Rate** selectors. Changes are sent to 
 
 > You can revisit this page anytime to adjust Modbus parameters. Configuration persists in the module’s flash memory.
 
-## How to Configure 1-Wire Devices
+## 6.3 How to Configure 1-Wire Devices
 
 ![1-Wire Devices — WebConfig](./Images/webconfig2.png)
 
@@ -526,6 +526,110 @@ Use the top **Modbus Address** and **Baud Rate** selectors. Changes are sent to 
 - **No devices found:** verify DATA on GPIO16, +5 V, and GND; check the pull-up; rescan.  
 - **Intermittent readings / errors:** shorten cable, improve connections, avoid star topologies, and keep 1-Wire wiring away from high-noise loads.  
 - **Duplicate names:** rename stored sensors for clarity before assigning them to Heat A/B.
+
+## 6.4 How to Configure Digital Inputs
+
+![Digital Inputs — WebConfig](./Images/webconfig3.png)
+
+Each of the **5 digital inputs (IN1…IN5)** is configured independently. Changes apply immediately and you’ll see live state on the green dot in each card.
+
+### 1) Enable & Polarity
+- **Enabled:** turns the input on/off in firmware.
+- **Inverted:** flips the logic (use when your sensor is active-low).
+
+### 2) Choose the Type
+- **Water sensor** – simple wet/dry (leak) contact.  
+- **Soil moisture** – soil/moisture contact input.  
+- **Water counter** – pulse input for flow meters (counts **rising edges**).
+
+> Tip: The small dot in the card’s header shows the **live state** (ON/OFF).
+
+### 3) Actions & Targets (for sensor types)
+For **Water sensor** or **Soil moisture**:
+- **Action:** `None`, `Toggle`, or `Pulse`.  
+- **Control target:** `Control all`, `Control relay 1`, `Control relay 2`, or `None`.  
+  - *Toggle* switches the selected relay(s) on each activation.  
+  - *Pulse* momentarily closes the selected relay(s) (firmware default pulse length).
+
+> **Note:** When **Type = Water counter**, the **Action/Control target are ignored** (the input is used as a meter, not a control button).
+
+### 4) Flow Meter Setup (Type = Water counter)
+When you pick **Water counter**, extra panels appear:
+- **Counter:** shows **Pulses** with a **Reset pulses** button.
+- **Flow panel:**
+  - **Pulses per liter (PPL)** – enter your meter’s constant (e.g., 450).
+  - **Calibration (Total × / Rate ×)** – fine-tune totals or rate.
+  - **Rate (L/min)** and **Total (L)** – live values.
+  - **Reset total** – moves the accumulation baseline (pulses are preserved).
+  - **Calc from external** – enter an external liters value since last reset and click **Calc from external** to auto-derive Total calibration.
+
+### 5) Optional: Heat Energy on a Counter DI
+Enable **Heat** on that DI to compute calorimetry:
+- Select **Sensor A (supply)** and **Sensor B (return)** from your stored **1-Wire** sensors (by position **#1, #2, …**).
+- Set **cp (J/kg·°C)**, **ρ (kg/L)**, and **Calibration ×** if needed.
+- Live readouts: **TA**, **TB**, **ΔT**, **Power**, **Energy (J / kWh)**.
+- **Reset energy** clears the accumulated energy.
+
+#### How Heat Energy Is Calculated
+
+![Heat Energy on DI — WebConfig](./Images/webconfig4.png)
+
+When a digital input (DI) is set to **Water counter** and **Enable heat** is turned on for that DI, the module computes **thermal power** and **accumulated energy** using the live flow and two 1-Wire temperatures:
+
+##### Inputs used by the calculation
+- **Flow (from the same DI):**  
+  - **Rate (L/min)** is derived from pulses with your **Pulses per liter (PPL)** and optional **Rate ×** calibration.  
+  - **Total (L)** is tracked with optional **Total ×** calibration (independent of the rate factor).
+- **Temperatures:** **Sensor A (supply)** and **Sensor B (return)** selected from stored 1-Wire sensors.  
+  - The UI shows **TA**, **TB**, and **ΔT = TA − TB**.
+- **Fluid properties:**  
+  - **cp (J/kg·°C)** — specific heat capacity (default 4186 for water).  
+  - **ρ (kg/L)** — density (default 1.0 for water).  
+- **Calibration (×):** optional scalar applied to the computed power/energy (useful for meter or sensor bias).
+
+##### Formulas (executed in firmware)
+1. **Mass flow**  
+   \[
+   \dot{m}\;[\mathrm{kg/s}] = \rho\,[\mathrm{kg/L}] \times \frac{\text{Rate (L/min)}}{60}
+   \]
+2. **Thermal power**  
+   \[
+   P\;[\mathrm{W}] = \text{Calibration} \times c_p\,[\mathrm{J/(kg\cdot °C)}] \times \dot{m}\,[\mathrm{kg/s}] \times \Delta T\,[°\mathrm{C}]
+   \]
+3. **Energy accumulation** (integrated each cycle)  
+   \[
+   E_J\;[\mathrm{J}] \mathrel{+}= P\,[\mathrm{W}] \times \Delta t\,[\mathrm{s}],\qquad
+   E_{kWh} = \frac{E_J}{3\,600\,000}
+   \]
+
+**Notes**
+- If either temperature is missing or flow is effectively zero, **power is treated as 0 W** for that cycle.  
+- The **sign of ΔT** follows the UI definition: **A − B**. If your sensors are swapped, power will go negative—flip A/B in the selector.  
+- **Reset energy** clears the accumulated **J** and **kWh** counters (does not affect flow totals or pulses).
+
+##### Recommended setup checklist
+1. Set the DI **Type = Water counter** and enter correct **PPL**; verify **Rate** rises when water flows.  
+2. In the same DI card, **Enable heat**, then pick **Sensor A (supply)** and **Sensor B (return)**.  
+3. Leave **cp = 4186**, **ρ = 1.0** for water, or adjust for other fluids/temperatures.  
+4. Use **Calibration (×)** only if you have a known reference (e.g., compared against a heat meter).  
+5. Watch **TA/TB/ΔT**, **Power (W)**, and **Energy (J/kWh)** update live; press **Reset energy** to start a new measurement interval.
+
+##### Troubleshooting
+- **Power stays at 0 W:** no pulses → check flow wiring/PPL; or ΔT ≈ 0 → verify sensor placement.  
+- **Negative power:** swap **Sensor A/B**.  
+- **Energy grows too fast/slow:** confirm **PPL** and **Rate × / Total ×**; use **Calibration (×)** only after verifying flow and temps.
+
+
+### 6) Typical Recipes
+- **Leak valve:** set a DI to **Water sensor → Action: Toggle → Control target: Relay 1** (your shut-off valve).  
+- **Counter for irrigation:** set a DI to **Water counter** and select it later in the **Irrigation** section as the **Flow DI** for a zone.
+
+### Troubleshooting
+- **No counts:** confirm **Type = Water counter**, wiring to DI and GND_ISO, and that the sensor produces **clean rising edges**.
+- **Rate = 0:** check **PPL** and the meter’s output; make sure the flow panel is visible for the correct DI.
+- **Action not working:** ensure the DI is **not** in **Water counter** mode; actions are only for **sensor** types.
+- **Heat values missing:** verify the two **1-Wire sensors** are stored and selected as **A/B**.
+
 
 ## Key Ratings (from prior release)
 
