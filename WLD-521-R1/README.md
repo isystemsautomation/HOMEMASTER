@@ -625,7 +625,7 @@ When a digital input (DI) is set to **Water counter** and **Enable heat** is tur
 
 ## 6.5 How to Configure Relays
 
-![Relays — WebConfig](./Images/webconfig4.png)
+![Relays — WebConfig](./Images/webconfig5.png)
 
 The module has **two SPDT relays** (Relay 1, Relay 2). Each relay is configured independently on its card and shows a live **ON/OFF** status in the header.
 
