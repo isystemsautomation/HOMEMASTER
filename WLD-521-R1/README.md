@@ -896,6 +896,180 @@ Holding/Input (telemetry and control snapshots)
 
 # 8. [ESPHome Integration Guide (MicroPLC/MiniPLC + WLD-521-R1)]
 
+# 8. ESPHome Integration Guide (MicroPLC/MiniPLC + WLD-521-R1)
+
+> This section mirrors the structure and style of the ENM module’s ESPHome guide and adapts it for the **WLD-521-R1** leak/flow/irrigation module. The flow follows wiring → ESPHome packages → exposed entities → Home Assistant → troubleshooting, just like the ENM chapter.
+
+---
+
+## 8.1 Hardware & RS-485 wiring
+
+1) **Power**  
+- WLD interface side: **24 V DC** to **V+ / GND**.  
+- MicroPLC/MiniPLC: per controller spec.  
+- If WLD and PLC use different PSUs, also share **GND** between devices.
+
+2) **RS-485**  
+- **A↔A**, **B↔B**, keep twisted pair; terminate bus ends (~**120 Ω**), bias at the master.  
+- Default serial (firmware): **19200 8N1**; device address configurable (examples below use `4`).
+
+3) **Field I/O (typical)**  
+- **DI1..DI5**: leak probes/float switches/flow pulses.  
+- **Relays R1..R2**: siren/valve/solenoid (dry contact).  
+- **1-Wire** buses (optional): temp probes on hydronic lines.  
+- **Flow** monitoring: pulse input(s) from flowmeter(s).
+
+---
+
+## 8.2 ESPHome (PLC): enable Modbus RTU & import the WLD package
+
+Your MiniPLC example already defines UART+Modbus and imports the external package. The **only correction needed** is the variable names: the WLD package expects **`wld_prefix`, `wld_id`, `wld_address`** (not the ENM ones). Use this exact pattern:
+
+```yaml
+uart:
+  id: uart_modbus
+  tx_pin: 17
+  rx_pin: 16
+  baud_rate: 19200
+  parity: NONE
+  stop_bits: 1
+
+modbus:
+  id: modbus_bus
+  uart_id: uart_modbus
+
+packages:
+  wld1:
+    url: https://github.com/isystemsautomation/HOMEMASTER
+    ref: main
+    files:
+      - path: WLD-521-R1/Firmware/default_wld_521_r1_plc/default_wld_521_r1_plc.yaml
+        vars:
+          wld_prefix: "WLD#1"
+          wld_id: wld_1
+          wld_address: 4         # set this to your module’s Modbus ID
+    refresh: 1d
+```
+
+> Your posted MiniPLC YAML already matches the UART/Modbus blocks and the `packages:` layout — just swap the three `enm_*` vars to `wld_*`. The package itself is parameterized for multiple WLDs (add `wld2`, `wld3`, … with unique `wld_id`/`wld_address`). The structure mirrors the ENM package approach.
+
+---
+
+## 8.3 What the external WLD package exposes (entities)
+
+The bundled **`default_wld_521_r1_plc.yaml`** creates ready-to-use entities grouped by function. Addressing is already encoded; you don’t need to hand-map registers.
+
+### Discrete Inputs (FC02)
+- **DI1..DI5** — real-time digital inputs (leak probes, float switches, pulse edges).  
+- **LED mirrors (90..93)**, **BTN mirrors (100..103)** — read-only reflections if needed.  
+- **Relay feedback (60..61)** — read-only state.
+
+### DI Counters (Holding, FC03)
+- **Counts for DI1..DI5** — 32-bit pulse totals assembled from word pairs at base **1000** (e.g., `1000/1001` for DI1).  
+  The package exposes **human-readable `… DIx Count`** sensors (pulses).
+
+### Flow (Holding, FC03)
+- **Instantaneous flow rates** (L/min ×1000) for up to **5** channels at base **1120** (U32 pairs).  
+- **Accumulators** (L ×1000) at base **1140**.  
+  Exposed as **`… FlowX Rate`** and **`… FlowX Accum`** (already scaled to L/min and L).
+
+### Heat (delta-T math & helpers, Holding, FC03)
+- **ΔT** and related hydronic helpers around base **1200–1241**: the package builds **`… Heat1 ΔT`** etc. (°C).
+
+### Irrigation (Holding, FC03)
+- Two zones (Z1/Z2) with state, liters, elapsed time, window, sensor sanity:  
+  - **State**: `1300..1301`  
+  - **Liters**: `1310..1313`  
+  - **Elapsed**: `1320..1323`  
+  - **Rate**: `1330..1333`  
+  - **Window**: `1340..1341`  
+  - **SensorsOK**: `1342..1343`  
+  Exposed as **`… Irr Zx …`** sensors for dashboards/automations.
+
+### 1-Wire Temperatures (Holding, FC03)
+- Up to **10** temperature channels at base **1500** (S32 = °C ×1000; two registers per sensor).  
+  The package outputs °C-scaled sensors (e.g., **`… OW1 Temp`**).
+
+---
+
+## 8.4 Command coils you can use (writes; FC05 / reads via FC01)
+
+The package includes **pulse-safe** internal switches that write, auto-delay, then turn themselves off (no latch stuck):
+
+- **Relays**  
+  - **R1 ON** `200`, **R2 ON** `201`  
+  - **R1 OFF** `210`, **R2 OFF** `211`
+
+- **DI enable/disable & counter reset**  
+  - Enable: `300..304` (DI1..DI5)  
+  - Disable: `320..324` (DI1..DI5)  
+  - **Counter reset:** `340..344` (DI1..DI5)
+
+- **Midnight sync pulse**  
+  - **360** — optional daily tick (e.g., roll over daily totals).
+
+- **Irrigation control**  
+  - **Start**: `370` (Z1), `371` (Z2)  
+  - **Stop**: `380` (Z1), `381` (Z2)  
+  - **Reset**: `390` (Z1), `391` (Z2)
+
+These appear in ESPHome as hidden helpers (internal) plus a visible **Midnight Pulse** if you want to fire it from HA.
+
+---
+
+## 8.5 Using your posted MiniPLC YAML with WLD
+
+You already have a working base (UART/Modbus, GPIOs, ADS1115, PCF8574, etc.). To **attach WLD**:
+
+1) Keep your UART+Modbus as is (TX=17, RX=16, 19200 8N1).  
+2) In `packages:`, switch the variables to `wld_prefix`, `wld_id`, `wld_address` (see 8.2).  
+3) Ensure the WLD’s Modbus address matches `wld_address` (set via your module’s config workflow).  
+4) After flashing, the device in Home Assistant will show a **device section** named with your `wld_prefix` (e.g., `WLD#1 Flow1 Rate`, `WLD#1 DI1`, `WLD#1 Irr Z1 State`, etc.), exactly like how ENM entities are grouped by its `enm_prefix`.
+
+---
+
+## 8.6 Home Assistant integration
+
+1) **Add the ESPHome device**  
+- HA → **Settings → Devices & Services → Integrations → ESPHome** and enter the MiniPLC hostname/IP.
+
+2) **Suggested cards & dashboards**  
+- **Leak/Alarm**: Use **Entity** cards for **DI1..DI5**; create a **Siren** control mapped to a relay if used.  
+- **Flow**: **History Graph** for `FlowX Rate`; **Statistic** or **Gauge** for `FlowX Accum`.  
+- **Irrigation**: Show `Irr Zx State`, `Irr Zx Rate`, `Irr Zx WindowOpen`, `Irr Zx SensorsOK`; add automation buttons to start/stop zones by calling the coil helpers.  
+- **Temperatures**: Line charts of **OW temps** and **Heat ΔT** for hydronic insight.
+
+3) **Automations** (examples)  
+- If any **DIx** goes **ON** → turn **R1** ON and notify.  
+- If `Flow1 Rate` drops below threshold for **N** seconds during irrigation → **Stop zone** and alert.  
+- Nightly at **00:00** → toggle **Midnight pulse (360)** to roll daily stats.
+
+---
+
+## 8.7 Troubleshooting & tips
+
+- **No entities / Modbus timeouts:** Check A/B polarity, shared **GND** (if different PSUs), bus termination/bias resistors.  
+- **Wrong vars in `packages:`** Use **`wld_*`** (not `enm_*`).  
+- **ESPHome register types:** Where the package reads **Input-style telemetry**, it already uses the correct `register_type` values for ESPHome (`discrete_input` or `holding`).  
+- **Entity naming collisions:** The package namespaces everything with your **`wld_prefix`**. Use unique prefixes per module (`WLD#1`, `WLD#2`, …).  
+- **Daily resets:** Prefer using the **Midnight pulse (360)** over manual counter math.  
+- **Multiple WLDs on one bus:** Add another `packages:` block with different `wld_id`/`wld_address` and a new `wld_prefix`.
+
+---
+
+## 8.8 Version & compatibility
+
+- Pattern and workflow aligned with the ENM ESPHome chapter (tested on modern ESPHome builds that support `packages → files → vars`).  
+- The WLD external package is written as **valid ESPHome YAML** (no Jinja), with **pulse-safe coil helpers** to prevent stuck writes on network hiccups.
+
+---
+
+### ✅ Quick checklist
+
+- [ ] RS-485 wired (A/B/GND), baud/address set on WLD.  
+- [ ] MiniPLC YAML has `uart`, `modbus`, and `packages: … default_wld_521_r1_plc.yaml` with `wld_*` vars.  
+- [ ] Entities appear under `WLD#1 …` in Home Assistant.  
+- [ ] Automations for **DI**, **Flow**, **Irrigation**, and **Relays** tested.  
 
 
 ---
