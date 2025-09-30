@@ -347,11 +347,14 @@ The WLD-521-R1 is powered from a **24 VDC primary input** on the field board. On
 
 ### 4.2.1 Power Supply Types
 
-- **Regulated 24 VDC DIN-rail PSU:** Connect to the module’s **24 V / GND** power terminals. Size the PSU for the module plus any externally powered devices.
+- **Regulated 24 VDC DIN-rail PSU:** Connect to the module’s **+V / 0V** power terminals. Size the PSU for the module plus any externally powered devices.
 - **No power over RS-485:** The RS-485 bus carries signals only. Always provide local 24 VDC power to the module.
-- **Sensor power from module:** The isolated **+5 V** and **+12 V** outputs are for **low-power sensors** (leak probes, flowmeter electronics, 1-Wire). High-load actuators need their own supply.
+- **Sensor power from module:** Use the **isolated** rails — **+5 V_ISO** and **+12 V_ISO** — **together with GND_ISO (DI ground)** to power **low-power field sensors** (leak probes, flow-meter heads) connected to the DI terminals.  
+  **Note:** The **1-Wire bus uses the module’s non-isolated +5 V (logic domain)**. Do **not** power DI sensors from the 1-Wire **+5 V/GND**, and do **not** tie the 1-Wire ground to the DI ground. Keep the **isolated (DI)** and **logic (1-Wire)** domains separate to preserve isolation and avoid noise/ground loops.
+
 
 ---
+
 
 ### 4.2.2 Current Consumption
 
