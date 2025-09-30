@@ -45,13 +45,13 @@ The **WLD-521-R1** is a smart, fully configurable input/control module for **lea
 - [5.1 WLD-521-R1 Wiring]
 
 ### 6. [Software & UI Configuration]
-- [6.1 Web Config Tool (USB Web Serial)] 
-- [6.2 ESPHome / Home Assistant]
-- [6.3 Meter Options & Calibration] 
-- [6.4 Alarms]
-- [6.5 Relays & Overrides]
-- [6.6 Buttons] 
-- [6.7 User LEDs, Energies & Live Meter]
+- [6.1 How to Connect to the Module]
+- [6.2 How to Configure Modbus]
+- [6.3 How to Configure 1-Wire Devices]
+- [6.4 How to Configure Digital Inputs]
+- [6.5 How to Configure Relays]
+- [6.6 How to Configure Digital Inputs Buttons and User LEDs]
+- [6.7 How to Configure Irrigation]
 
 ### 7. [Modbus RTU Communication]
 - [7.1 Input Registers (Read-Only)] 
@@ -599,7 +599,6 @@ When a digital input (DI) is set to **Water counter** and **Enable heat** is tur
    E_J [J] += P [W] * Δt [s]
    E_kWh   = E_J / 3,600,000
 
-
 **Notes**
 - If either temperature is missing or flow is effectively zero, **power is treated as 0 W** for that cycle.  
 - The **sign of ΔT** follows the UI definition: **A − B**. If your sensors are swapped, power will go negative—flip A/B in the selector.  
@@ -618,15 +617,44 @@ When a digital input (DI) is set to **Water counter** and **Enable heat** is tur
 - **Energy grows too fast/slow:** confirm **PPL** and **Rate × / Total ×**; use **Calibration (×)** only after verifying flow and temps.
 
 
-### 6) Typical Recipes
-- **Leak valve:** set a DI to **Water sensor → Action: Toggle → Control target: Relay 1** (your shut-off valve).  
-- **Counter for irrigation:** set a DI to **Water counter** and select it later in the **Irrigation** section as the **Flow DI** for a zone.
-
 ### Troubleshooting
-- **No counts:** confirm **Type = Water counter**, wiring to DI and GND_ISO, and that the sensor produces **clean rising edges**.
+- **No counts:** confirm **Type = Water counter**, wiring to +5V, DI and GND, and that the sensor produces **clean rising edges**.
 - **Rate = 0:** check **PPL** and the meter’s output; make sure the flow panel is visible for the correct DI.
 - **Action not working:** ensure the DI is **not** in **Water counter** mode; actions are only for **sensor** types.
 - **Heat values missing:** verify the two **1-Wire sensors** are stored and selected as **A/B**.
+
+## 6.5 How to Configure Relays
+
+![Relays — WebConfig](./Images/webconfig4.png)
+
+The module has **two SPDT relays** (Relay 1, Relay 2). Each relay is configured independently on its card and shows a live **ON/OFF** status in the header.
+
+### 1) Enable & Polarity
+- **Enabled** — turns the relay under firmware control.  
+- **Inverted** — flips the logic so that “ON” drives the opposite coil state. Use only if your wiring requires reversed behavior.
+
+> Wiring reminder: relays are **dry contacts**. Wire your load to **COM/NO/NC**; power the load from its own supply.
+
+### 2) Control source
+Select where commands for this relay come from:
+- **Modbus** — the controller (e.g., ESPHome) drives the relay via registers; use this for HA control/automation.
+- **(none)** — no automatic control; the relay only follows **Override** (manual) actions.
+- **Local logic** — Modbus will not override while the local logic is active.
+
+### 3) Manual override
+- **Override state** — click to force **ON/OFF** manually (useful for test/maintenance).
+- **Override latch** — keep the manual state latched until you clear it (survives incoming control commands from the selected source). Uncheck to let the next control command resume ownership.
+
+### 4) Typical setups
+- **HA-controlled shut-off valve:**  
+  Relay 1 → **Control source: Modbus**. Use HA/ESPHome to switch it on leak detection.
+- **Local irrigation valve:**  
+  Relay 2 → **Control source: Local logic**. The zone logic starts/stops the valve with flow supervision/ Leak detection logic.
+- **Service/testing:**  
+  Set **(none)** and use **Override state** to click the relay without any automation.
+
+### Troubleshooting
+- **Relay doesn’t respond from HA:** ensure **Control source = Modbus** and the relay is **Enabled**; clear **Override latch** if set.
 
 
 ## Key Ratings (from prior release)
@@ -652,65 +680,7 @@ When a digital input (DI) is set to **Water counter** and **Enable heat** is tur
 
 
 
-## 🔧 Key Features
 
-- **5 Opto-isolated digital inputs**
-  - Supports dry contact leak sensors and pulse water meters
-  - Configurable for up to 1 kHz input frequency
-- **2 Relay outputs (NO/NC)**
-  - For valves, pumps, or alarm systems
-- **1-Wire interface**
-  - Compatible with DS18B20 temperature sensors
-- **Galvanically isolated power outputs**
-  - 12 V and 5 V for powering external sensors
-- **Front panel controls**
-  - 4 user buttons and status LEDs
-- **USB Type-C**
-  - Easy firmware updates and configuration
-
-
----
-
-## How heat is computed
-
-1. **Temperatures**
-   - Two 1‑Wire sensors: **A = supply (TA)** and **B = return (TB)**.
-   - $\Delta T = T_A - T_B\ \text{(°C)}$.
-
-2. **Flow from pulses** *(DI set to “Water counter”)*
-   - The input counts pulses from a flow meter.
-   - With **PPL = pulses per liter**:
-     
-     $$
-     \text{raw flow}_{\mathrm{L/s}} = \frac{\text{pulses per second}}{\mathrm{PPL}}
-     $$
-     
-   - Two separate calibrations exist in your UI:
-     - **Rate calibration** *(Rate ×)*: scales the instantaneous flow *(used for power)*:
-       
-       $$
-       \text{flow}_{\mathrm{L/s}} = \text{raw flow}_{\mathrm{L/s}} \times \mathrm{calRate}
-       $$
-     
-     - **Total calibration** *(Total ×)*: applied to the accumulated liters counter *(for the displayed total volume)*.  
-       *(You’ll see both in the Flow box: “Rate” and “Total”.)*
-
-3. **Power (heat rate)**
-   - With $\rho$ *(kg/L)* and $c_p$ *(J/kg·°C)*, convert flow to mass flow and multiply by $\Delta T$:
-     
-     $$
-     \dot m\ \text{(kg/s)} = \text{flow}_{\mathrm{L/s}} \times \rho
-     $$
-     
-     $$
-     \text{Power (W)} = \dot m \times c_p \times \Delta T
-     $$
-     
-   - Then your **Heat calibration** *(Calibration ×, shown in the Heat box)* is applied to the computed power/energy:
-     
-     $$
-     \text{Power}_{\text{final}} = \text{Power} \times \mathrm{calib}
-     $$
 
 4. **Energy**
    - Energy integrates power over time:
