@@ -474,7 +474,7 @@ Use WebConfig’s **Serial Log** and live status panels to confirm DI changes, f
 
 ## 6.1How to Connect to the Module
 
-![WLD-521-R1 WebConfig — Active Modbus Configuration](/Images/webconfig1.png)
+![WLD-521-R1 WebConfig — Active Modbus Configuration]<img src="Images/webconfig1.png" alt="Field Board Diagram" width="360">
 
 1) **Plug in USB-C.** Connect your computer to the WLD-521-R1’s USB-C port.  
 2) **Open the config page.** In a Chromium-based browser (Chrome/Edge), open:  
