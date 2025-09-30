@@ -152,29 +152,78 @@ This section outlines essential safety guidelines. Failure to adhere to these wa
 
 ## 2.1 General Electrical Safety
 
+# 2. Safety Information
+
+This section outlines essential safety guidelines specific to the **ALM-173-R1** alarm I/O module. Failure to follow these instructions may result in equipment damage, system failure, or personal injury.
+
+> ⚠️ **SELV/LV only.** The ALM-173-R1 is intended for **Safety Extra–Low Voltage (SELV)** installations. Do **not** connect mains voltages to any terminal.
+
+---
+
+## 2.1 General Electrical Safety
+
 | Warning | Requirement |
 | :--- | :--- |
-| **Professional Service** | Installation and maintenance must be performed exclusively by **qualified personnel** familiar with electrical codes. |
-| **Power Isolation** | **ALWAYS** disconnect the primary **24VDC** power supply and all connected loads before performing any wiring, installation, or maintenance. |
-| **Voltage Verification** | Ensure the power source strictly adheres to the **24VDC** primary supply voltage. |
-| **Grounding** | Ensure all field wiring and system components are properly grounded. |
+| **Professional Service** | Installation and maintenance must be performed by **qualified personnel** familiar with local electrical codes and control-panel practices. |
+| **Power Isolation** | **Always** isolate the primary **24 VDC** supply and all connected loads before wiring, servicing, or moving the module. Lock-out/Tag-out where applicable. |
+| **Polarity & Ratings** | Verify the supply polarity and that all connected circuits remain within the module’s specified **voltage and current** limits. Use an upstream fuse or breaker. |
+| **Grounding** | Bond the control panel to protective earth. Keep **SELV returns** and shields properly managed; avoid earth loops. |
+| **Environmental** | Install in a **dry, clean, indoor** enclosure with adequate ventilation. Keep away from condensation, conductive dust, and vibration. |
+
+---
 
 ## 2.2 Handling & Installation
 
 | Requirement | Detail |
 | :--- | :--- |
-| **ESD Protection** | Handle the module by its casing or edges and observe **Electrostatic Discharge (ESD)** precautions when handling the bare printed circuit boards (PCBs). |
-| **Wiring** | Use insulated wires of the appropriate gauge for the connected loads. **Secure all wires firmly** to the screw terminals; loose connections pose a fire and arcing risk. |
-| **Mounting** | The module is designed for **DIN-rail mounting** . It must be secured within a protective enclosure to shield it from moisture, dust, and mechanical damage. |
+| **ESD Protection** | Handle the product by its case; when boards are exposed, wear an **ESD wrist strap** and use an antistatic workstation. |
+| **DIN-Rail Mounting** | Mount on **35 mm DIN rail** inside a protective enclosure. Secure the rail and provide strain relief for all field wiring. |
+| **Wiring** | Use insulated wire of appropriate gauge and temperature rating per code and **terminal block ratings**. **Tighten all screws**; loose connections can overheat. Route **signal, power, and relay** wiring separately. |
+| **Isolation Boundaries** | The module contains **isolated field supplies** and **opto-isolated inputs**. Do **not** bridge isolated returns to logic ground unless the system design requires it. |
+| **Commissioning** | After wiring, verify correct **polarity**, **bus polarity (A/B)**, and **relay contact routing (COM/NO/NC)** before energizing. Perform functional tests with loads disconnected first. |
+
+---
 
 ## 2.3 Device-Specific Warnings
 
-| Component | Warning |
+| Component / Area | Warning |
 | :--- | :--- |
-| **Relays (R1, R2)** | Do not exceed the **maximum voltage and current ratings** of the dry-contact relay outputs. Overloading the relays will cause permanent device damage and is a fire hazard. |
-| **Digital Inputs (DI1-DI5)** | Inputs are opto-isolated. Only connect **dry-contact** or **low-voltage, isolated** signals. Connecting high AC or DC voltages will compromise the internal isolation barrier. |
-| **Power Outputs (+5V / +12V)** | Do not exceed the specified power budget for the isolated +5VDC and +12VDC sensor supply outputs. |
-| **1-Wire Bus (OW)** | Use this interface only for low-voltage digital sensors (e.g., DS18B20). |
+| **Primary Power (24 VDC)** | Use a clean, SELV 24 VDC source. Reverse-polarity protection is limited—**incorrect wiring can damage the unit**. Provide an upstream fuse/breaker sized for your installation. |
+| **Isolated Sensor Supplies — “OUTPUT 12 Vdc (PS/1)” & “OUTPUT 5 Vdc (PS/2)”** | These rails are **isolated** and intended **only for low-power sensors**. Do **not** backfeed from external supplies, parallel with other rails, or exceed the current budget. Short circuits may trip onboard **PTC fuses**; allow them to cool to auto-reset. |
+| **Digital Inputs (DI1…DI17)** | Inputs are **opto-isolated** and share labeled **GND I.x** returns. Connect **dry contacts** or **low-voltage isolated** signals only. Applying high AC/DC or non-isolated industrial voltages will **breach the isolation barrier** and can destroy the module. Respect debounce/invert settings in firmware rather than hardwiring unsafe workarounds. |
+| **Relay Outputs (RLY1…RLY3, COM/NO/NC)** | Relays are **dry contacts** (no internal source of power). **Do not exceed** their contact voltage/current ratings. Inductive loads (coils, locks, sirens) **must** be snubbed (RC / TVS) externally to prevent arcing and premature contact wear. Use separate supply returns for high-current loads; avoid routing load current through logic returns. |
+| **RS-485 (A/B, COM)** | Use **twisted pair** (preferably shielded). Maintain correct **A/B polarity**. Termination/biasing should be applied **once per bus** as per system design. The port includes protection (TVS/PTC) for transients, but it is **not a lightning arrestor**—route cabling appropriately and use surge protection where required. |
+| **USB-C (Front “USB”)** | Intended for **service/configuration** only. Do **not** use to power field devices. Connect to grounded/isolated PCs. During electrical storms or when the RS-485 trunk is long/exposed, avoid connecting a laptop to the panel. |
+| **Front-Panel Buttons & LEDs** | Buttons can acknowledge alarms or override relays. **Accidental presses** may change system state—use enclosure doors/covers or disable overrides in firmware where safety-critical. |
+| **Shielding & EMC** | Terminate cable shields **at one end** unless your EMC plan specifies otherwise. Keep RS-485 and input cabling away from contactors, VFDs, and high-dv/dt conductors. |
+
+---
+
+## 2.4 Front-Panel & Terminal Labels (Quick Reference)
+
+> Refer to the silkscreen and the photo for orientation during wiring.
+
+| Area (Label on Bezel/Terminals) | Purpose | Safety Notes |
+| :--- | :--- | :--- |
+| **POWER — 24Vdc (V+, 0V)** | Primary SELV supply. | Verify polarity; isolate before service. |
+| **DIGITAL INPUTS — DI1…DI17 with GND I.x** | Dry-contact / isolated low-voltage inputs. | Use only within SELV limits; do not tie **GND I.x** to mains earth. |
+| **RELAY1…RELAY3 — C/NO/NC** | Dry contact outputs. | Observe contact ratings; snub inductive loads; never switch mains unless the **specific relay rating and local code** allow it. |
+| **OUTPUT 12Vdc (PS/1)** | Isolated sensor supply (12 V). | Limited current; not for actuators; no backfeeding. |
+| **OUTPUT 5Vdc (PS/2)** | Isolated sensor supply (5 V). | Limited current; not for actuators; no backfeeding. |
+| **RS-485 — COM, B, A** | Modbus RTU field bus. | Correct polarity; one-point shield bond; apply termination per system design. |
+| **USB (Service)** | Web-Serial configuration. | Service use only; avoid during storms; not a field power source. |
+| **PWR/TX/RX LEDs** | Power and bus activity. | If TX/RX are continuously lit, **disconnect power** and inspect wiring/bus faults. |
+
+---
+
+> ✅ **Checklist before powering up**
+> - All terminals tightened and strain-relieved  
+> - No bridges between **isolated** and **logic** grounds unless intentional  
+> - Relays wired with correct **COM/NO/NC** choice and snubbers fitted  
+> - RS-485 polarity and termination verified  
+> - Sensor loads on **PS/1 (12 V)** and **PS/2 (5 V)** within budget
+
+
 
 
 <a id="3-system-overview-1"></a>
