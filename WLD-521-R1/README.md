@@ -340,14 +340,15 @@ The **WLD-521-R1** integrates into the HomeMaster system over the **RS-485 Modbu
 
 **Phase 1 — Physical Wiring**
 
-- **Power:** connect **24 VDC** to V+ / 0 V on the module.
+- **Power:** connect **24 VDC** to **V+ / 0 V** on the module.
 - **RS-485:** wire **A → A**, **B → B**, and **COM/GND** between the WLD-521-R1 and the controller; keep polarity consistent. Terminate the two bus ends with **120 Ω**.
-- **I/O:**  
-  - Relays: wire your **valves/pumps** to **R1/R2 (NO/NC/COM)**. 
-  - Digital inputs: connect **leak sensors / flow meters / buttons** to **DI1…DI5**.
-  - 1-Wire: connect **DS18B20** sensors to **1WIRE_5V / 1WIRE_DATA / 1WIRE_GND** (GPIO16). 
+- **I/O:**
+  - **Relays:** wire your valves/pumps to **R1/R2 (NO/NC/COM)**.
+  - **Digital inputs:** connect leak sensors / flow meters / buttons to **DI1…DI5**.
+  - **1-Wire:** connect **DS18B20** sensors to **1WIRE_5V / 1WIRE_DATA / 1WIRE_GND** (GPIO16).
 
 _For diagrams, terminal pinouts, cable gauges, and safety notes, see **[Section 5 — Installation & Wiring]**._
+
 
 **Phase 2 — Module Configuration (WebConfig)**
 
