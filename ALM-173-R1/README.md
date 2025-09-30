@@ -207,19 +207,38 @@ This section outlines essential safety guidelines specific to the **ALM-173-R1**
 # 3. System Overview
 ## 3.1 Architecture & Modular Design
 
-The **ALM-173-R1 (Water Leak Detection, 5 Inputs, 2 Relays)** is a dedicated Extension Module designed for reliable, distributed automation within the HomeMaster system. It’s built on an **RP2350** microcontroller and concentrates water-safety I/O into a single DIN-rail Modbus device.
+The **ALM-173-R1 (Alarm I/O, 17 Inputs, 3 Relays)** is a DIN-rail Modbus extension module for distributed alarm and annunciator tasks. It is configured entirely from a browser via **Web Serial**, exposing a clean model of **inputs → alarm groups → relays/LEDs**, plus local **buttons** for acknowledgments and manual overrides. :contentReference[oaicite:0]{index=0}
 
-**Core I/O & Sensors**
-- **5× Digital Inputs (DI):** configurable for flow meters and water-related sensors (leak/moisture/rain).
-- **2× Relays (R1, R2):** for valves, pumps, sirens, or other actuators.
-- **1-Wire bus (GPIO16):** for temperature sensors (e.g., DS18B20). Optional heat-energy on a counter DI using two 1-Wire sensors (A/B).
+### Core I/O & Indicators
+- **17× Digital Inputs (IN1…IN17):** each can be **Enabled**, **Inverted**, and assigned to **Alarm Group 1/2/3** or **None**. Live state dots show each input in real time. :contentReference[oaicite:1]{index=1}
+- **3× Relays (RLY1…RLY3):** per-relay **Enable**, **Invert**, and **Group** mapping; live state feedback is shown in the UI. :contentReference[oaicite:2]{index=2}
+- **4× Buttons:** programmable actions such as **All acknowledge**, **Group 1/2/3 acknowledge**, or **Relay 1/2/3 override (manual)**. Live press state is indicated. :contentReference[oaicite:3]{index=3}
+- **4× User LEDs:** selectable **Mode** (*Steady* / *Blink*) and **Source** (*Any alarm*, *Group 1/2/3*, *Relay 1/2/3 overridden*). Live LED state is indicated. :contentReference[oaicite:4]{index=4}
+- **Alarm Engine:** **Any Alarm** summary + **Group 1/2/3** with per-group **Mode**: *None*, *Active while condition is active (non-latched)*, or *Latched until acknowledged*. Live group status indicators are shown at the top of the UI. :contentReference[oaicite:5]{index=5}
 
-**Communication & Setup**
-- **RS-485 Modbus RTU** to the central MiniPLC/MicroPLC (typ. **19200 8N1**).
-- **WebConfig (USB-C):** set unique **Modbus Address (1–255)** and **Baud**, configure DI modes, relays, 1-Wire, and irrigation.
+### Communication & Setup
+- **RS-485 / Modbus RTU:** Designed to be polled by a PLC/HMI (HomeMaster Mini/Micro or any Modbus master). The UI exposes **Address (1…255)** and **Baud** selections (9600, 19200, 38400, 57600, 115200). :contentReference[oaicite:6]{index=6}
+- **WebConfig over USB-C:** One-click **Connect**, view **Active Modbus Configuration** (address/baud), stream a **Serial Log**, and issue a safe **Reset Device** from a confirmation dialog. :contentReference[oaicite:7]{index=7}
 
-**Local Resilience**
-- On-device logic executes critical actions without the controller: immediate **leak → relay action** and **two irrigation zones** with flow supervision, time windows, and interlocks. Core safety keep running even if the controller or Wi-Fi is down.
+### Local Resilience & Behavior
+- **On-device mappings** let inputs assert alarm groups and drive relays/LEDs without a PC, while a PLC orchestrates higher-level logic via Modbus. **Buttons** provide local **acknowledge** and **manual relay override** functions for maintenance and operator workflows. :contentReference[oaicite:8]{index=8}
+- **Real-time telemetry** in the UI mirrors the device: **input states**, **relay states**, **button presses**, **LED states**, and **alarm group/summary status**. Configuration changes are sent immediately to the device as lists (e.g., *inputEnable*, *inputInvert*, *inputGroup*, *relays*, *buttons*, *leds*, *alarms*). :contentReference[oaicite:9]{index=9}
+
+---
+
+### Quick Capability Table
+
+| Subsystem | Quantity | Key Options in UI | Live Status |
+| :--- | :---: | :--- | :--- |
+| **Digital Inputs** | 17 | Enable • Invert • Group (*None/1/2/3*) | Per-input dot (ON/OFF) |
+| **Relays** | 3 | Enable • Invert • Group (*None/1/2/3*) | Per-relay checkbox state |
+| **Buttons** | 4 | Action: *All ack*, *G1 ack*, *G2 ack*, *G3 ack*, *Relay 1/2/3 override* | Per-button dot |
+| **User LEDs** | 4 | Mode: *Steady/Blink* • Source: *Any*, *G1*, *G2*, *G3*, *Relay 1/2/3 overridden* | Per-LED dot |
+| **Alarm Groups** | 3 (+ **Any**) | Mode per group: *None* / *Active while* / *Latched until acknowledged* | Any/G1/G2/G3 dots |
+| **Modbus Setup** | 1 | Address 1…255 • Baud 9600…115200 • Connect/Reset | Live address & baud panel |
+
+*All items above are derived from the Web Serial configuration page and its runtime messaging model.* :contentReference[oaicite:10]{index=10}
+
 
 ## 3.2 Integration with Home Assistant
 
