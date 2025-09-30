@@ -349,7 +349,7 @@ The WLD-521-R1 is powered from a **24 VDC primary input** on the field board. On
 
 - **Regulated 24 VDC DIN-rail PSU:** Connect to the module’s **+V / 0V** power terminals. Size the PSU for the module plus any externally powered devices.
 - **No power over RS-485:** The RS-485 bus carries signals only. Always provide local 24 VDC power to the module.
-- **Sensor power from module:** Use the **isolated** rails — **+5 V_ISO** and **+12 V_ISO** — **together with GND_ISO (DI ground)** to power **low-power field sensors** (leak probes, flow-meter heads) connected to the DI terminals.  
+- **Sensor power from module:** Use the **isolated** rails — **+5 V** and **+12 V** — **together with GND (DI ground)** to power **low-power field sensors** (leak probes, flow-meter heads) connected to the DI terminals.  
   **Note:** The **1-Wire bus uses the module’s non-isolated +5 V (logic domain)**. Do **not** power DI sensors from the 1-Wire **+5 V/GND**, and do **not** tie the 1-Wire ground to the DI ground. Keep the **isolated (DI)** and **logic (1-Wire)** domains separate to preserve isolation and avoid noise/ground loops.
 
 
@@ -374,7 +374,57 @@ Actual current depends on configuration and what’s attached. Budget for:
 - **Relay contact ratings:** Treat relay outputs as isolated contacts; follow the contact rating from the relay datasheet and local electrical codes.
 - **Use sensor rails only for sensors:** Do **not** power valves, pumps, or sirens from the module’s **+5 V / +12 V** sensor rails.
 - **De-energize before wiring:** Power down the 24 V supply before changing wiring. Double-check for shorts before re-energizing.
+---
 
+### 4.3 Networking & Communication
+
+The WLD-521-R1 communicates with the controller over **RS-485 (Modbus RTU)** and exposes a **USB-C** port for local configuration via a browser (**Web Serial**). RS-485 is used for runtime control/telemetry; USB-C is used for setup, diagnostics, and safe resets. RS-485 carries **signals only** (no power).
+
+---
+
+#### 4.3.1 RS-485 Modbus
+
+**Physical layer**
+- **Terminals:** **A**, **B**, **COM (GND)** on the field board.
+- **Cabling:** 2-wire twisted pair for **A/B** plus a **common reference (COM/GND)**.
+- **Termination:** 120 Ω at the two ends of the bus. Keep stubs short.
+- **Protection & robustness:** On-board surge suppressors/TVS and self-resetting fuses protect the transceiver; biasing and a MAX485-class transceiver handle the differential link.
+
+**Protocol**
+- **Role:** Modbus **RTU slave** on the RS-485 multi-drop bus; your MicroPLC/MiniPLC acts as **master**.
+- **Address & speed:** Set **Address (1–255)** and **Baud** in WebConfig. Default/common speed is **19200**, 8N1.
+- **No power over RS-485:** Provide 24 VDC locally to the module; RS-485 only carries data.
+
+**Controller (ESPHome) notes**
+- In your ESPHome YAML, configure `uart:` pins for the RS-485 transceiver and add a `modbus_controller:` for this device.
+- Ensure the `wld_address` in YAML matches the address set in WebConfig.
+- The controller will poll coils/holding registers and expose relays, DI states/counters, 1-Wire temps, and irrigation status as Home Assistant entities.
+
+**Wiring checklist**
+- A→A, B→B, COM↔COM between controller and module.
+- Terminate the two bus ends; avoid star topologies.
+- Keep A/B polarity consistent end-to-end.
+
+---
+
+#### 4.3.2 USB-C Configuration
+
+**Purpose**
+- Local setup and diagnostics via a **Chromium-based browser** (Chrome/Edge) using the **Web Serial API**. No drivers needed.
+
+**How to use**
+1. Connect a **USB-C** cable from your computer to the module.
+2. Open the configuration page and click **Connect**.
+3. Use the **Modbus** card to set **Address** and **Baud**; the header shows **Active Modbus Configuration**.
+4. Configure **Digital Inputs**, **Relays**, **LEDs/Buttons**, **1-Wire**, and **Irrigation** zones. Changes are applied live.
+5. Use **Serial Log** for diagnostics.
+
+**Clock & HA sync (optional)**
+- The **Module Time & Modbus Sync** panel lets you set the **minute-of-day** or pull browser time for testing.
+- For production, schedule a nightly automation in Home Assistant to pulse the **midnight sync coil** and keep the module’s internal clock aligned (useful for irrigation windows and daily counters).
+
+**Troubleshooting**
+- If the **Connect** button is disabled, ensure you’re using Chrome/Edge and that the browser has permission to access serial devices.
 
 ---
 
