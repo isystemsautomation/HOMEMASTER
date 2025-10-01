@@ -26,37 +26,6 @@ modbus_controller:
     update_interval: 1s
     command_throttle: 0ms
 
-##
-## WLD-521-R1 — ESPHome Modbus package (MiniPLC/MicroPLC ↔ WLD)
-##
-
-##
-## WLD-521-R1 — ESPHome Modbus package (MiniPLC/MicroPLC ↔ WLD)
-##
-
-substitutions:
-  wld_id: wld_1
-  wld_prefix: "WLD#1"
-  wld_address: "3"     # firmware default Modbus ID
-
-# If UART/MODBUS aren’t defined globally, uncomment & set pins:
-# uart:
-#   id: rs485_uart
-#   tx_pin: GPIO4         # set to your RS-485 TX
-#   rx_pin: GPIO5         # set to your RS-485 RX
-#   baud_rate: 19200
-#   parity: NONE
-#   stop_bits: 1
-# modbus:
-#   id: modbus_bus
-#   uart_id: rs485_uart
-
-modbus_controller:
-  - id: ${wld_id}
-    address: ${wld_address}
-    modbus_id: modbus_bus
-    update_interval: 1s
-    command_throttle: 0ms
 
 binary_sensor:
   - platform: modbus_controller
