@@ -30,6 +30,34 @@ modbus_controller:
 ## WLD-521-R1 — ESPHome Modbus package (MiniPLC/MicroPLC ↔ WLD)
 ##
 
+##
+## WLD-521-R1 — ESPHome Modbus package (MiniPLC/MicroPLC ↔ WLD)
+##
+
+substitutions:
+  wld_id: wld_1
+  wld_prefix: "WLD#1"
+  wld_address: "3"     # firmware default Modbus ID
+
+# If UART/MODBUS aren’t defined globally, uncomment & set pins:
+# uart:
+#   id: rs485_uart
+#   tx_pin: GPIO4         # set to your RS-485 TX
+#   rx_pin: GPIO5         # set to your RS-485 RX
+#   baud_rate: 19200
+#   parity: NONE
+#   stop_bits: 1
+# modbus:
+#   id: modbus_bus
+#   uart_id: rs485_uart
+
+modbus_controller:
+  - id: ${wld_id}
+    address: ${wld_address}
+    modbus_id: modbus_bus
+    update_interval: 1s
+    command_throttle: 0ms
+
 binary_sensor:
   - platform: modbus_controller
     name: "${wld_prefix} DI1"
@@ -554,7 +582,7 @@ sensor:
       - multiply: 0.001
 
 # -------------------------------
-# COMMAND COILS: INTERNAL SWITCHES
+# COMMAND COILS: INTERNAL SWITCHES (no 'optimistic')
 # -------------------------------
 switch:
   # Relays ON (200/201) and OFF (210/211)
@@ -564,28 +592,24 @@ switch:
     register_type: coil
     address: 200
     internal: true
-    optimistic: true
   - platform: modbus_controller
     id: ${wld_id}_coil_r2_on
     modbus_controller_id: ${wld_id}
     register_type: coil
     address: 201
     internal: true
-    optimistic: true
   - platform: modbus_controller
     id: ${wld_id}_coil_r1_off
     modbus_controller_id: ${wld_id}
     register_type: coil
     address: 210
     internal: true
-    optimistic: true
   - platform: modbus_controller
     id: ${wld_id}_coil_r2_off
     modbus_controller_id: ${wld_id}
     register_type: coil
     address: 211
     internal: true
-    optimistic: true
 
   # DI enable (300..304)
   - platform: modbus_controller
@@ -594,35 +618,30 @@ switch:
     register_type: coil
     address: 300
     internal: true
-    optimistic: true
   - platform: modbus_controller
     id: ${wld_id}_coil_di2_en
     modbus_controller_id: ${wld_id}
     register_type: coil
     address: 301
     internal: true
-    optimistic: true
   - platform: modbus_controller
     id: ${wld_id}_coil_di3_en
     modbus_controller_id: ${wld_id}
     register_type: coil
     address: 302
     internal: true
-    optimistic: true
   - platform: modbus_controller
     id: ${wld_id}_coil_di4_en
     modbus_controller_id: ${wld_id}
     register_type: coil
     address: 303
     internal: true
-    optimistic: true
   - platform: modbus_controller
     id: ${wld_id}_coil_di5_en
     modbus_controller_id: ${wld_id}
     register_type: coil
     address: 304
     internal: true
-    optimistic: true
 
   # DI disable (320..324)
   - platform: modbus_controller
@@ -631,35 +650,30 @@ switch:
     register_type: coil
     address: 320
     internal: true
-    optimistic: true
   - platform: modbus_controller
     id: ${wld_id}_coil_di2_dis
     modbus_controller_id: ${wld_id}
     register_type: coil
     address: 321
     internal: true
-    optimistic: true
   - platform: modbus_controller
     id: ${wld_id}_coil_di3_dis
     modbus_controller_id: ${wld_id}
     register_type: coil
     address: 322
     internal: true
-    optimistic: true
   - platform: modbus_controller
     id: ${wld_id}_coil_di4_dis
     modbus_controller_id: ${wld_id}
     register_type: coil
     address: 323
     internal: true
-    optimistic: true
   - platform: modbus_controller
     id: ${wld_id}_coil_di5_dis
     modbus_controller_id: ${wld_id}
     register_type: coil
     address: 324
     internal: true
-    optimistic: true
 
   # DI counter reset (340..344)
   - platform: modbus_controller
@@ -668,35 +682,30 @@ switch:
     register_type: coil
     address: 340
     internal: true
-    optimistic: true
   - platform: modbus_controller
     id: ${wld_id}_coil_di2_rst
     modbus_controller_id: ${wld_id}
     register_type: coil
     address: 341
     internal: true
-    optimistic: true
   - platform: modbus_controller
     id: ${wld_id}_coil_di3_rst
     modbus_controller_id: ${wld_id}
     register_type: coil
     address: 342
     internal: true
-    optimistic: true
   - platform: modbus_controller
     id: ${wld_id}_coil_di4_rst
     modbus_controller_id: ${wld_id}
     register_type: coil
     address: 343
     internal: true
-    optimistic: true
   - platform: modbus_controller
     id: ${wld_id}_coil_di5_rst
     modbus_controller_id: ${wld_id}
     register_type: coil
     address: 344
     internal: true
-    optimistic: true
 
   # Midnight pulse (360)
   - platform: modbus_controller
@@ -705,7 +714,6 @@ switch:
     register_type: coil
     address: 360
     internal: true
-    optimistic: true
 
   # Irrigation Z1/Z2 start/stop/reset (370/371, 380/381, 390/391)
   - platform: modbus_controller
@@ -714,42 +722,36 @@ switch:
     register_type: coil
     address: 370
     internal: true
-    optimistic: true
   - platform: modbus_controller
     id: ${wld_id}_coil_irr_z2_start
     modbus_controller_id: ${wld_id}
     register_type: coil
     address: 371
     internal: true
-    optimistic: true
   - platform: modbus_controller
     id: ${wld_id}_coil_irr_z1_stop
     modbus_controller_id: ${wld_id}
     register_type: coil
     address: 380
     internal: true
-    optimistic: true
   - platform: modbus_controller
     id: ${wld_id}_coil_irr_z2_stop
     modbus_controller_id: ${wld_id}
     register_type: coil
     address: 381
     internal: true
-    optimistic: true
   - platform: modbus_controller
     id: ${wld_id}_coil_irr_z1_reset
     modbus_controller_id: ${wld_id}
     register_type: coil
     address: 390
     internal: true
-    optimistic: true
   - platform: modbus_controller
     id: ${wld_id}_coil_irr_z2_reset
     modbus_controller_id: ${wld_id}
     register_type: coil
     address: 391
     internal: true
-    optimistic: true
 
 # -------------------------------
 # COMMAND COILS: BUTTON PULSES
@@ -919,3 +921,4 @@ button:
       - switch.turn_on: ${wld_id}_coil_irr_z2_reset
       - delay: 200ms
       - switch.turn_off: ${wld_id}_coil_irr_z2_reset
+
