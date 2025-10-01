@@ -476,6 +476,15 @@
     const isOpen = ()=>{ try{ return (typeof conn.isOpen==='function') ? conn.isOpen() : !!conn.port; }catch{ return false; } };
     function updateButtons(){ const en=isOpen(); $('reset-button').disabled=!en; $('scan-button').disabled=!en; }
 
+    /* ===== FIX: heat lock globals at TOP-LEVEL ===== */
+    const HEAT_LOCK_MS = 2000;
+    const heatLockA = [0,0,0,0,0];
+    const heatLockB = [0,0,0,0,0];
+    const nowMs = () => Date.now();
+    const isLockedA = (idx1)=> nowMs() < heatLockA[idx1-1];
+    const isLockedB = (idx1)=> nowMs() < heatLockB[idx1-1];
+    /* ============================================== */
+
     if(conn.on){
       conn.on('open', ()=>{ log('port','open'); updateButtons(); conn.send('onewire',{action:'list'}).catch(()=>{}); requestIrrigGet(); });
       conn.on('close',()=>{ log('port','close'); updateButtons(); });
@@ -717,12 +726,6 @@
       conn.on('relayOverrideStateList',list=>toArray(list).forEach((v,i)=>{ const el=$('ovstate-relay'+(i+1)); if(el) el.className='state-dot '+(v?'dot-on':'dot-off'); }));
 
       const heatSnapshot = { addrA: [], addrB: [], TA: [], TB: [] };
-      const HEAT_LOCK_MS = 2000;
-      const heatLockA = [0,0,0,0,0];
-      const heatLockB = [0,0,0,0,0];
-      const nowMs = () => Date.now();
-      const isLockedA = (idx1)=> nowMs() < heatLockA[idx1-1];
-      const isLockedB = (idx1)=> nowMs() < heatLockB[idx1-1];
 
       function updatePillsFromHeat(){
         const map = {};
@@ -1249,8 +1252,8 @@
     }
     for(let i=1;i<=5;i++){
       $('heat-enable-'+i)?.addEventListener('change', ()=>sendHeatConfigSingle(i));
-      $('heat-addrA-'+i)?.addEventListener('change', ((di)=>()=>{ heatLockA[di-1] = Date.now() + 2000; sendHeatConfigSingle(di); })(i));
-      $('heat-addrB-'+i)?.addEventListener('change', ((di)=>()=>{ heatLockB[di-1] = Date.now() + 2000; sendHeatConfigSingle(di); })(i));
+      $('heat-addrA-'+i)?.addEventListener('change', ((di)=>()=>{ heatLockA[di-1] = Date.now() + HEAT_LOCK_MS; sendHeatConfigSingle(di); })(i));
+      $('heat-addrB-'+i)?.addEventListener('change', ((di)=>()=>{ heatLockB[di-1] = Date.now() + HEAT_LOCK_MS; sendHeatConfigSingle(di); })(i));
       $('heat-cp-'+i   )?.addEventListener('change', ((di)=>()=>sendHeatConfigSingle(di))(i));
       $('heat-rho-'+i  )?.addEventListener('change', ((di)=>()=>sendHeatConfigSingle(di))(i));
       $('heat-calib-'+i)?.addEventListener('change', ((di)=>()=>sendHeatConfigSingle(di))(i));
