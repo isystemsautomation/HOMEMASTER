@@ -10,8 +10,8 @@ substitutions:
 # If UART/MODBUS aren’t defined globally, uncomment & set pins:
 # uart:
 #   id: rs485_uart
-#   tx_pin: GPIO4         # set to your RS-485 TX
-#   rx_pin: GPIO5         # set to your RS-485 RX
+#   tx_pin: GPIO4
+#   rx_pin: GPIO5
 #   baud_rate: 19200
 #   parity: NONE
 #   stop_bits: 1
@@ -25,7 +25,6 @@ modbus_controller:
     modbus_id: modbus_bus
     update_interval: 1s
     command_throttle: 0ms
-
 
 # ===================== Discrete Inputs (FC02) =====================
 binary_sensor:
@@ -70,7 +69,7 @@ binary_sensor:
     address: 61
     register_type: discrete_input
 
-  # LED mirrors (90..93) — keep internal
+  # LED mirrors (internal)
   - platform: modbus_controller
     modbus_controller_id: ${wld_id}
     name: "${wld_prefix} LED1 (ro)"
@@ -96,7 +95,7 @@ binary_sensor:
     register_type: discrete_input
     internal: true
 
-  # Button mirrors (100..103) — keep internal
+  # Button mirrors (internal)
   - platform: modbus_controller
     modbus_controller_id: ${wld_id}
     name: "${wld_prefix} BTN1 (ro)"
@@ -122,8 +121,7 @@ binary_sensor:
     register_type: discrete_input
     internal: true
 
-
-# ===================== Holding (FC03) — 16‑bit or Lo/Hi combine =====================
+# ===================== Holding (FC03) =====================
 sensor:
   # Time / Day (U16)
   - platform: modbus_controller
@@ -143,162 +141,724 @@ sensor:
     accuracy_decimals: 0
 
   # ---------- DI Counters (U32) ----------
-  # DI1..DI5 counters at 1000..1009 (lo,hi)
-  {% for i in [1,2,3,4,5] %}
   - platform: modbus_controller
-    id: ${wld_id}_di{{i}}_lo
+    id: ${wld_id}_di1_lo
     modbus_controller_id: ${wld_id}
-    address: {{ 1000 + (i-1)*2 }}
+    address: 1000
     register_type: holding
     value_type: U_WORD
     internal: true
   - platform: modbus_controller
-    id: ${wld_id}_di{{i}}_hi
+    id: ${wld_id}_di1_hi
     modbus_controller_id: ${wld_id}
-    address: {{ 1001 + (i-1)*2 }}
+    address: 1001
     register_type: holding
     value_type: U_WORD
     internal: true
   - platform: template
-    name: "${wld_prefix} DI{{i}} Count"
+    name: "${wld_prefix} DI1 Count"
     unit_of_measurement: "pulses"
     accuracy_decimals: 0
     update_interval: 1s
     lambda: |-
-      return (uint32_t(id(${wld_id}_di{{i}}_lo).state) | (uint32_t(id(${wld_id}_di{{i}}_hi).state) << 16));
-  {% endfor %}
+      return (uint32_t(id(${wld_id}_di1_lo).state) | (uint32_t(id(${wld_id}_di1_hi).state) << 16));
 
-  # ---------- Flow (U32 ×1000) ----------
-  # Rate base 1120, Total base 1140 for DI1..DI5
-  {% for i in [0,1,2,3,4] %}
   - platform: modbus_controller
-    id: ${wld_id}_flow{{i+1}}_rate_lo
+    id: ${wld_id}_di2_lo
     modbus_controller_id: ${wld_id}
-    address: {{ 1120 + i*2 }}
+    address: 1002
     register_type: holding
     value_type: U_WORD
     internal: true
   - platform: modbus_controller
-    id: ${wld_id}_flow{{i+1}}_rate_hi
+    id: ${wld_id}_di2_hi
     modbus_controller_id: ${wld_id}
-    address: {{ 1121 + i*2 }}
+    address: 1003
     register_type: holding
     value_type: U_WORD
     internal: true
   - platform: template
-    name: "${wld_prefix} Flow{{i+1}} Rate"
+    name: "${wld_prefix} DI2 Count"
+    unit_of_measurement: "pulses"
+    accuracy_decimals: 0
+    update_interval: 1s
+    lambda: |-
+      return (uint32_t(id(${wld_id}_di2_lo).state) | (uint32_t(id(${wld_id}_di2_hi).state) << 16));
+
+  - platform: modbus_controller
+    id: ${wld_id}_di3_lo
+    modbus_controller_id: ${wld_id}
+    address: 1004
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_di3_hi
+    modbus_controller_id: ${wld_id}
+    address: 1005
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} DI3 Count"
+    unit_of_measurement: "pulses"
+    accuracy_decimals: 0
+    update_interval: 1s
+    lambda: |-
+      return (uint32_t(id(${wld_id}_di3_lo).state) | (uint32_t(id(${wld_id}_di3_hi).state) << 16));
+
+  - platform: modbus_controller
+    id: ${wld_id}_di4_lo
+    modbus_controller_id: ${wld_id}
+    address: 1006
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_di4_hi
+    modbus_controller_id: ${wld_id}
+    address: 1007
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} DI4 Count"
+    unit_of_measurement: "pulses"
+    accuracy_decimals: 0
+    update_interval: 1s
+    lambda: |-
+      return (uint32_t(id(${wld_id}_di4_lo).state) | (uint32_t(id(${wld_id}_di4_hi).state) << 16));
+
+  - platform: modbus_controller
+    id: ${wld_id}_di5_lo
+    modbus_controller_id: ${wld_id}
+    address: 1008
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_di5_hi
+    modbus_controller_id: ${wld_id}
+    address: 1009
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} DI5 Count"
+    unit_of_measurement: "pulses"
+    accuracy_decimals: 0
+    update_interval: 1s
+    lambda: |-
+      return (uint32_t(id(${wld_id}_di5_lo).state) | (uint32_t(id(${wld_id}_di5_hi).state) << 16));
+
+  # ---------- Flow (U32 ×1000) ----------
+  # DI1
+  - platform: modbus_controller
+    id: ${wld_id}_flow1_rate_lo
+    modbus_controller_id: ${wld_id}
+    address: 1120
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_flow1_rate_hi
+    modbus_controller_id: ${wld_id}
+    address: 1121
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} Flow1 Rate"
     unit_of_measurement: "L/min"
     accuracy_decimals: 3
     update_interval: 1s
     lambda: |-
-      uint32_t v = (uint32_t(id(${wld_id}_flow{{i+1}}_rate_lo).state) | (uint32_t(id(${wld_id}_flow{{i+1}}_rate_hi).state) << 16));
+      uint32_t v = (uint32_t(id(${wld_id}_flow1_rate_lo).state) | (uint32_t(id(${wld_id}_flow1_rate_hi).state) << 16));
       return v / 1000.0;
 
   - platform: modbus_controller
-    id: ${wld_id}_flow{{i+1}}_acc_lo
+    id: ${wld_id}_flow1_acc_lo
     modbus_controller_id: ${wld_id}
-    address: {{ 1140 + i*2 }}
+    address: 1140
     register_type: holding
     value_type: U_WORD
     internal: true
   - platform: modbus_controller
-    id: ${wld_id}_flow{{i+1}}_acc_hi
+    id: ${wld_id}_flow1_acc_hi
     modbus_controller_id: ${wld_id}
-    address: {{ 1141 + i*2 }}
+    address: 1141
     register_type: holding
     value_type: U_WORD
     internal: true
   - platform: template
-    name: "${wld_prefix} Flow{{i+1}} Total"
+    name: "${wld_prefix} Flow1 Total"
     unit_of_measurement: "L"
     accuracy_decimals: 3
     update_interval: 1s
     lambda: |-
-      uint32_t v = (uint32_t(id(${wld_id}_flow{{i+1}}_acc_lo).state) | (uint32_t(id(${wld_id}_flow{{i+1}}_acc_hi).state) << 16));
+      uint32_t v = (uint32_t(id(${wld_id}_flow1_acc_lo).state) | (uint32_t(id(${wld_id}_flow1_acc_hi).state) << 16));
       return v / 1000.0;
-  {% endfor %}
 
-  # ---------- Heat (Power=S32, Energy=U32 ×1000, ΔT=S32 ×1000) ----------
-  {% for i in [0,1,2,3,4] %}
-  # Power {{i+1}} (W)
+  # DI2
   - platform: modbus_controller
-    id: ${wld_id}_heat{{i+1}}_p_lo
+    id: ${wld_id}_flow2_rate_lo
     modbus_controller_id: ${wld_id}
-    address: {{ 1200 + i*2 }}
+    address: 1122
     register_type: holding
     value_type: U_WORD
     internal: true
   - platform: modbus_controller
-    id: ${wld_id}_heat{{i+1}}_p_hi
+    id: ${wld_id}_flow2_rate_hi
     modbus_controller_id: ${wld_id}
-    address: {{ 1201 + i*2 }}
+    address: 1123
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} Flow2 Rate"
+    unit_of_measurement: "L/min"
+    accuracy_decimals: 3
+    update_interval: 1s
+    lambda: |-
+      uint32_t v = (uint32_t(id(${wld_id}_flow2_rate_lo).state) | (uint32_t(id(${wld_id}_flow2_rate_hi).state) << 16));
+      return v / 1000.0;
+
+  - platform: modbus_controller
+    id: ${wld_id}_flow2_acc_lo
+    modbus_controller_id: ${wld_id}
+    address: 1142
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_flow2_acc_hi
+    modbus_controller_id: ${wld_id}
+    address: 1143
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} Flow2 Total"
+    unit_of_measurement: "L"
+    accuracy_decimals: 3
+    update_interval: 1s
+    lambda: |-
+      uint32_t v = (uint32_t(id(${wld_id}_flow2_acc_lo).state) | (uint32_t(id(${wld_id}_flow2_acc_hi).state) << 16));
+      return v / 1000.0;
+
+  # DI3
+  - platform: modbus_controller
+    id: ${wld_id}_flow3_rate_lo
+    modbus_controller_id: ${wld_id}
+    address: 1124
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_flow3_rate_hi
+    modbus_controller_id: ${wld_id}
+    address: 1125
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} Flow3 Rate"
+    unit_of_measurement: "L/min"
+    accuracy_decimals: 3
+    update_interval: 1s
+    lambda: |-
+      uint32_t v = (uint32_t(id(${wld_id}_flow3_rate_lo).state) | (uint32_t(id(${wld_id}_flow3_rate_hi).state) << 16));
+      return v / 1000.0;
+
+  - platform: modbus_controller
+    id: ${wld_id}_flow3_acc_lo
+    modbus_controller_id: ${wld_id}
+    address: 1144
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_flow3_acc_hi
+    modbus_controller_id: ${wld_id}
+    address: 1145
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} Flow3 Total"
+    unit_of_measurement: "L"
+    accuracy_decimals: 3
+    update_interval: 1s
+    lambda: |-
+      uint32_t v = (uint32_t(id(${wld_id}_flow3_acc_lo).state) | (uint32_t(id(${wld_id}_flow3_acc_hi).state) << 16));
+      return v / 1000.0;
+
+  # DI4
+  - platform: modbus_controller
+    id: ${wld_id}_flow4_rate_lo
+    modbus_controller_id: ${wld_id}
+    address: 1126
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_flow4_rate_hi
+    modbus_controller_id: ${wld_id}
+    address: 1127
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} Flow4 Rate"
+    unit_of_measurement: "L/min"
+    accuracy_decimals: 3
+    update_interval: 1s
+    lambda: |-
+      uint32_t v = (uint32_t(id(${wld_id}_flow4_rate_lo).state) | (uint32_t(id(${wld_id}_flow4_rate_hi).state) << 16));
+      return v / 1000.0;
+
+  - platform: modbus_controller
+    id: ${wld_id}_flow4_acc_lo
+    modbus_controller_id: ${wld_id}
+    address: 1146
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_flow4_acc_hi
+    modbus_controller_id: ${wld_id}
+    address: 1147
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} Flow4 Total"
+    unit_of_measurement: "L"
+    accuracy_decimals: 3
+    update_interval: 1s
+    lambda: |-
+      uint32_t v = (uint32_t(id(${wld_id}_flow4_acc_lo).state) | (uint32_t(id(${wld_id}_flow4_acc_hi).state) << 16));
+      return v / 1000.0;
+
+  # DI5
+  - platform: modbus_controller
+    id: ${wld_id}_flow5_rate_lo
+    modbus_controller_id: ${wld_id}
+    address: 1128
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_flow5_rate_hi
+    modbus_controller_id: ${wld_id}
+    address: 1129
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} Flow5 Rate"
+    unit_of_measurement: "L/min"
+    accuracy_decimals: 3
+    update_interval: 1s
+    lambda: |-
+      uint32_t v = (uint32_t(id(${wld_id}_flow5_rate_lo).state) | (uint32_t(id(${wld_id}_flow5_rate_hi).state) << 16));
+      return v / 1000.0;
+
+  - platform: modbus_controller
+    id: ${wld_id}_flow5_acc_lo
+    modbus_controller_id: ${wld_id}
+    address: 1148
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_flow5_acc_hi
+    modbus_controller_id: ${wld_id}
+    address: 1149
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} Flow5 Total"
+    unit_of_measurement: "L"
+    accuracy_decimals: 3
+    update_interval: 1s
+    lambda: |-
+      uint32_t v = (uint32_t(id(${wld_id}_flow5_acc_lo).state) | (uint32_t(id(${wld_id}_flow5_acc_hi).state) << 16));
+      return v / 1000.0;
+
+  # ---------- Heat (Power=S32, Energy=U32×1000, ΔT=S32×1000) ----------
+  # DI1
+  - platform: modbus_controller
+    id: ${wld_id}_heat1_p_lo
+    modbus_controller_id: ${wld_id}
+    address: 1200
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_heat1_p_hi
+    modbus_controller_id: ${wld_id}
+    address: 1201
     register_type: holding
     value_type: S_WORD
     internal: true
   - platform: template
-    name: "${wld_prefix} Heat{{i+1}} Power"
+    name: "${wld_prefix} Heat1 Power"
     unit_of_measurement: "W"
     accuracy_decimals: 0
     update_interval: 1s
     lambda: |-
-      uint32_t lo = id(${wld_id}_heat{{i+1}}_p_lo).state;
-      int32_t hi = (int16_t)id(${wld_id}_heat{{i+1}}_p_hi).state;
+      uint32_t lo = id(${wld_id}_heat1_p_lo).state;
+      int32_t hi = (int16_t)id(${wld_id}_heat1_p_hi).state;
       int32_t v = (hi << 16) | lo;
       return (float)v;
 
-  # Energy {{i+1}} (Wh ×1000 → kWh)
   - platform: modbus_controller
-    id: ${wld_id}_heat{{i+1}}_e_lo
+    id: ${wld_id}_heat1_e_lo
     modbus_controller_id: ${wld_id}
-    address: {{ 1220 + i*2 }}
+    address: 1220
     register_type: holding
     value_type: U_WORD
     internal: true
   - platform: modbus_controller
-    id: ${wld_id}_heat{{i+1}}_e_hi
+    id: ${wld_id}_heat1_e_hi
     modbus_controller_id: ${wld_id}
-    address: {{ 1221 + i*2 }}
+    address: 1221
     register_type: holding
     value_type: U_WORD
     internal: true
   - platform: template
-    name: "${wld_prefix} Heat{{i+1}} Energy"
+    name: "${wld_prefix} Heat1 Energy"
     unit_of_measurement: "kWh"
     accuracy_decimals: 3
     update_interval: 1s
     lambda: |-
-      uint32_t v = (uint32_t(id(${wld_id}_heat{{i+1}}_e_lo).state) | (uint32_t(id(${wld_id}_heat{{i+1}}_e_hi).state) << 16));
+      uint32_t v = (uint32_t(id(${wld_id}_heat1_e_lo).state) | (uint32_t(id(${wld_id}_heat1_e_hi).state) << 16));
       return v / 1000.0;
 
-  # ΔT {{i+1}} (m°C → °C)
   - platform: modbus_controller
-    id: ${wld_id}_heat{{i+1}}_dt_lo
+    id: ${wld_id}_heat1_dt_lo
     modbus_controller_id: ${wld_id}
-    address: {{ 1240 + i*2 }}
+    address: 1240
     register_type: holding
     value_type: U_WORD
     internal: true
   - platform: modbus_controller
-    id: ${wld_id}_heat{{i+1}}_dt_hi
+    id: ${wld_id}_heat1_dt_hi
     modbus_controller_id: ${wld_id}
-    address: {{ 1241 + i*2 }}
+    address: 1241
     register_type: holding
     value_type: S_WORD
     internal: true
   - platform: template
-    name: "${wld_prefix} Heat{{i+1}} ΔT"
+    name: "${wld_prefix} Heat1 ΔT"
     unit_of_measurement: "°C"
     accuracy_decimals: 3
     update_interval: 1s
     lambda: |-
-      uint32_t lo = id(${wld_id}_heat{{i+1}}_dt_lo).state;
-      int32_t hi = (int16_t)id(${wld_id}_heat{{i+1}}_dt_hi).state;
+      uint32_t lo = id(${wld_id}_heat1_dt_lo).state;
+      int32_t hi = (int16_t)id(${wld_id}_heat1_dt_hi).state;
       int32_t v = (hi << 16) | lo;
       return v / 1000.0;
-  {% endfor %}
+
+  # DI2
+  - platform: modbus_controller
+    id: ${wld_id}_heat2_p_lo
+    modbus_controller_id: ${wld_id}
+    address: 1202
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_heat2_p_hi
+    modbus_controller_id: ${wld_id}
+    address: 1203
+    register_type: holding
+    value_type: S_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} Heat2 Power"
+    unit_of_measurement: "W"
+    accuracy_decimals: 0
+    update_interval: 1s
+    lambda: |-
+      uint32_t lo = id(${wld_id}_heat2_p_lo).state;
+      int32_t hi = (int16_t)id(${wld_id}_heat2_p_hi).state;
+      int32_t v = (hi << 16) | lo;
+      return (float)v;
+
+  - platform: modbus_controller
+    id: ${wld_id}_heat2_e_lo
+    modbus_controller_id: ${wld_id}
+    address: 1222
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_heat2_e_hi
+    modbus_controller_id: ${wld_id}
+    address: 1223
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} Heat2 Energy"
+    unit_of_measurement: "kWh"
+    accuracy_decimals: 3
+    update_interval: 1s
+    lambda: |-
+      uint32_t v = (uint32_t(id(${wld_id}_heat2_e_lo).state) | (uint32_t(id(${wld_id}_heat2_e_hi).state) << 16));
+      return v / 1000.0;
+
+  - platform: modbus_controller
+    id: ${wld_id}_heat2_dt_lo
+    modbus_controller_id: ${wld_id}
+    address: 1242
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_heat2_dt_hi
+    modbus_controller_id: ${wld_id}
+    address: 1243
+    register_type: holding
+    value_type: S_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} Heat2 ΔT"
+    unit_of_measurement: "°C"
+    accuracy_decimals: 3
+    update_interval: 1s
+    lambda: |-
+      uint32_t lo = id(${wld_id}_heat2_dt_lo).state;
+      int32_t hi = (int16_t)id(${wld_id}_heat2_dt_hi).state;
+      int32_t v = (hi << 16) | lo;
+      return v / 1000.0;
+
+  # DI3
+  - platform: modbus_controller
+    id: ${wld_id}_heat3_p_lo
+    modbus_controller_id: ${wld_id}
+    address: 1204
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_heat3_p_hi
+    modbus_controller_id: ${wld_id}
+    address: 1205
+    register_type: holding
+    value_type: S_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} Heat3 Power"
+    unit_of_measurement: "W"
+    accuracy_decimals: 0
+    update_interval: 1s
+    lambda: |-
+      uint32_t lo = id(${wld_id}_heat3_p_lo).state;
+      int32_t hi = (int16_t)id(${wld_id}_heat3_p_hi).state;
+      int32_t v = (hi << 16) | lo;
+      return (float)v;
+
+  - platform: modbus_controller
+    id: ${wld_id}_heat3_e_lo
+    modbus_controller_id: ${wld_id}
+    address: 1224
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_heat3_e_hi
+    modbus_controller_id: ${wld_id}
+    address: 1225
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} Heat3 Energy"
+    unit_of_measurement: "kWh"
+    accuracy_decimals: 3
+    update_interval: 1s
+    lambda: |-
+      uint32_t v = (uint32_t(id(${wld_id}_heat3_e_lo).state) | (uint32_t(id(${wld_id}_heat3_e_hi).state) << 16));
+      return v / 1000.0;
+
+  - platform: modbus_controller
+    id: ${wld_id}_heat3_dt_lo
+    modbus_controller_id: ${wld_id}
+    address: 1244
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_heat3_dt_hi
+    modbus_controller_id: ${wld_id}
+    address: 1245
+    register_type: holding
+    value_type: S_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} Heat3 ΔT"
+    unit_of_measurement: "°C"
+    accuracy_decimals: 3
+    update_interval: 1s
+    lambda: |-
+      uint32_t lo = id(${wld_id}_heat3_dt_lo).state;
+      int32_t hi = (int16_t)id(${wld_id}_heat3_dt_hi).state;
+      int32_t v = (hi << 16) | lo;
+      return v / 1000.0;
+
+  # DI4
+  - platform: modbus_controller
+    id: ${wld_id}_heat4_p_lo
+    modbus_controller_id: ${wld_id}
+    address: 1206
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_heat4_p_hi
+    modbus_controller_id: ${wld_id}
+    address: 1207
+    register_type: holding
+    value_type: S_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} Heat4 Power"
+    unit_of_measurement: "W"
+    accuracy_decimals: 0
+    update_interval: 1s
+    lambda: |-
+      uint32_t lo = id(${wld_id}_heat4_p_lo).state;
+      int32_t hi = (int16_t)id(${wld_id}_heat4_p_hi).state;
+      int32_t v = (hi << 16) | lo;
+      return (float)v;
+
+  - platform: modbus_controller
+    id: ${wld_id}_heat4_e_lo
+    modbus_controller_id: ${wld_id}
+    address: 1226
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_heat4_e_hi
+    modbus_controller_id: ${wld_id}
+    address: 1227
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} Heat4 Energy"
+    unit_of_measurement: "kWh"
+    accuracy_decimals: 3
+    update_interval: 1s
+    lambda: |-
+      uint32_t v = (uint32_t(id(${wld_id}_heat4_e_lo).state) | (uint32_t(id(${wld_id}_heat4_e_hi).state) << 16));
+      return v / 1000.0;
+
+  - platform: modbus_controller
+    id: ${wld_id}_heat4_dt_lo
+    modbus_controller_id: ${wld_id}
+    address: 1246
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_heat4_dt_hi
+    modbus_controller_id: ${wld_id}
+    address: 1247
+    register_type: holding
+    value_type: S_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} Heat4 ΔT"
+    unit_of_measurement: "°C"
+    accuracy_decimals: 3
+    update_interval: 1s
+    lambda: |-
+      uint32_t lo = id(${wld_id}_heat4_dt_lo).state;
+      int32_t hi = (int16_t)id(${wld_id}_heat4_dt_hi).state;
+      int32_t v = (hi << 16) | lo;
+      return v / 1000.0;
+
+  # DI5
+  - platform: modbus_controller
+    id: ${wld_id}_heat5_p_lo
+    modbus_controller_id: ${wld_id}
+    address: 1208
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_heat5_p_hi
+    modbus_controller_id: ${wld_id}
+    address: 1209
+    register_type: holding
+    value_type: S_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} Heat5 Power"
+    unit_of_measurement: "W"
+    accuracy_decimals: 0
+    update_interval: 1s
+    lambda: |-
+      uint32_t lo = id(${wld_id}_heat5_p_lo).state;
+      int32_t hi = (int16_t)id(${wld_id}_heat5_p_hi).state;
+      int32_t v = (hi << 16) | lo;
+      return (float)v;
+
+  - platform: modbus_controller
+    id: ${wld_id}_heat5_e_lo
+    modbus_controller_id: ${wld_id}
+    address: 1228
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_heat5_e_hi
+    modbus_controller_id: ${wld_id}
+    address: 1229
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} Heat5 Energy"
+    unit_of_measurement: "kWh"
+    accuracy_decimals: 3
+    update_interval: 1s
+    lambda: |-
+      uint32_t v = (uint32_t(id(${wld_id}_heat5_e_lo).state) | (uint32_t(id(${wld_id}_heat5_e_hi).state) << 16));
+      return v / 1000.0;
+
+  - platform: modbus_controller
+    id: ${wld_id}_heat5_dt_lo
+    modbus_controller_id: ${wld_id}
+    address: 1248
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_heat5_dt_hi
+    modbus_controller_id: ${wld_id}
+    address: 1249
+    register_type: holding
+    value_type: S_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} Heat5 ΔT"
+    unit_of_measurement: "°C"
+    accuracy_decimals: 3
+    update_interval: 1s
+    lambda: |-
+      uint32_t lo = id(${wld_id}_heat5_dt_lo).state;
+      int32_t hi = (int16_t)id(${wld_id}_heat5_dt_hi).state;
+      int32_t v = (hi << 16) | lo;
+      return v / 1000.0;
 
   # ---------- Irrigation (Z1..Z2) ----------
-  # States/flags (U16)
   - platform: modbus_controller
     modbus_controller_id: ${wld_id}
     address: 1300
@@ -312,7 +872,6 @@ sensor:
     value_type: U_WORD
     name: "${wld_prefix} Irr Z2 State"
 
-  # Z1 liters (U32 ×1000)
   - platform: modbus_controller
     id: ${wld_id}_irr1_l_lo
     modbus_controller_id: ${wld_id}
@@ -336,7 +895,6 @@ sensor:
       uint32_t v = (uint32_t(id(${wld_id}_irr1_l_lo).state) | (uint32_t(id(${wld_id}_irr1_l_hi).state) << 16));
       return v / 1000.0;
 
-  # Z2 liters (U32 ×1000)
   - platform: modbus_controller
     id: ${wld_id}_irr2_l_lo
     modbus_controller_id: ${wld_id}
@@ -360,7 +918,6 @@ sensor:
       uint32_t v = (uint32_t(id(${wld_id}_irr2_l_lo).state) | (uint32_t(id(${wld_id}_irr2_l_hi).state) << 16));
       return v / 1000.0;
 
-  # Z1 elapsed (U32 s)
   - platform: modbus_controller
     id: ${wld_id}_irr1_t_lo
     modbus_controller_id: ${wld_id}
@@ -384,7 +941,6 @@ sensor:
       uint32_t v = (uint32_t(id(${wld_id}_irr1_t_lo).state) | (uint32_t(id(${wld_id}_irr1_t_hi).state) << 16));
       return (float)v;
 
-  # Z2 elapsed (U32 s)
   - platform: modbus_controller
     id: ${wld_id}_irr2_t_lo
     modbus_controller_id: ${wld_id}
@@ -408,7 +964,6 @@ sensor:
       uint32_t v = (uint32_t(id(${wld_id}_irr2_t_lo).state) | (uint32_t(id(${wld_id}_irr2_t_hi).state) << 16));
       return (float)v;
 
-  # Z1 rate (U32 ×1000 L/min)
   - platform: modbus_controller
     id: ${wld_id}_irr1_r_lo
     modbus_controller_id: ${wld_id}
@@ -432,7 +987,6 @@ sensor:
       uint32_t v = (uint32_t(id(${wld_id}_irr1_r_lo).state) | (uint32_t(id(${wld_id}_irr1_r_hi).state) << 16));
       return v / 1000.0;
 
-  # Z2 rate (U32 ×1000 L/min)
   - platform: modbus_controller
     id: ${wld_id}_irr2_r_lo
     modbus_controller_id: ${wld_id}
@@ -456,7 +1010,6 @@ sensor:
       uint32_t v = (uint32_t(id(${wld_id}_irr2_r_lo).state) | (uint32_t(id(${wld_id}_irr2_r_hi).state) << 16));
       return v / 1000.0;
 
-  # Flags (U16)
   - platform: modbus_controller
     modbus_controller_id: ${wld_id}
     address: 1340
@@ -482,36 +1035,258 @@ sensor:
     value_type: U_WORD
     name: "${wld_prefix} Irr Z2 SensorsOK"
 
-  # ---------- 1‑Wire temps (10× S32 ×1000) ----------
-  {% for i in [0,1,2,3,4,5,6,7,8,9] %}
+  # ---------- 1‑Wire Temperatures (10× S32 ×1000) ----------
   - platform: modbus_controller
-    id: ${wld_id}_ow{{i+1}}_lo
+    id: ${wld_id}_ow1_lo
     modbus_controller_id: ${wld_id}
-    address: {{ 1500 + i*2 }}
+    address: 1500
     register_type: holding
     value_type: U_WORD
     internal: true
   - platform: modbus_controller
-    id: ${wld_id}_ow{{i+1}}_hi
+    id: ${wld_id}_ow1_hi
     modbus_controller_id: ${wld_id}
-    address: {{ 1501 + i*2 }}
+    address: 1501
     register_type: holding
     value_type: S_WORD
     internal: true
   - platform: template
-    name: "${wld_prefix} 1W Temp {{i+1}} °C"
+    name: "${wld_prefix} 1W Temp 1 °C"
     unit_of_measurement: "°C"
     accuracy_decimals: 3
     update_interval: 5s
     lambda: |-
-      uint32_t lo = id(${wld_id}_ow{{i+1}}_lo).state;
-      int32_t hi = (int16_t)id(${wld_id}_ow{{i+1}}_hi).state;
+      uint32_t lo = id(${wld_id}_ow1_lo).state;
+      int32_t hi = (int16_t)id(${wld_id}_ow1_hi).state;
       int32_t v = (hi << 16) | lo;
       return v / 1000.0;
-  {% endfor %}
 
+  - platform: modbus_controller
+    id: ${wld_id}_ow2_lo
+    modbus_controller_id: ${wld_id}
+    address: 1502
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_ow2_hi
+    modbus_controller_id: ${wld_id}
+    address: 1503
+    register_type: holding
+    value_type: S_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} 1W Temp 2 °C"
+    unit_of_measurement: "°C"
+    accuracy_decimals: 3
+    update_interval: 5s
+    lambda: |-
+      uint32_t lo = id(${wld_id}_ow2_lo).state;
+      int32_t hi = (int16_t)id(${wld_id}_ow2_hi).state;
+      int32_t v = (hi << 16) | lo;
+      return v / 1000.0;
 
-# ===================== Command Coils (FC05 write / FC01 read) =====================
+  - platform: modbus_controller
+    id: ${wld_id}_ow3_lo
+    modbus_controller_id: ${wld_id}
+    address: 1504
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_ow3_hi
+    modbus_controller_id: ${wld_id}
+    address: 1505
+    register_type: holding
+    value_type: S_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} 1W Temp 3 °C"
+    unit_of_measurement: "°C"
+    accuracy_decimals: 3
+    update_interval: 5s
+    lambda: |-
+      uint32_t lo = id(${wld_id}_ow3_lo).state;
+      int32_t hi = (int16_t)id(${wld_id}_ow3_hi).state;
+      int32_t v = (hi << 16) | lo;
+      return v / 1000.0;
+
+  - platform: modbus_controller
+    id: ${wld_id}_ow4_lo
+    modbus_controller_id: ${wld_id}
+    address: 1506
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_ow4_hi
+    modbus_controller_id: ${wld_id}
+    address: 1507
+    register_type: holding
+    value_type: S_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} 1W Temp 4 °C"
+    unit_of_measurement: "°C"
+    accuracy_decimals: 3
+    update_interval: 5s
+    lambda: |-
+      uint32_t lo = id(${wld_id}_ow4_lo).state;
+      int32_t hi = (int16_t)id(${wld_id}_ow4_hi).state;
+      int32_t v = (hi << 16) | lo;
+      return v / 1000.0;
+
+  - platform: modbus_controller
+    id: ${wld_id}_ow5_lo
+    modbus_controller_id: ${wld_id}
+    address: 1508
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_ow5_hi
+    modbus_controller_id: ${wld_id}
+    address: 1509
+    register_type: holding
+    value_type: S_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} 1W Temp 5 °C"
+    unit_of_measurement: "°C"
+    accuracy_decimals: 3
+    update_interval: 5s
+    lambda: |-
+      uint32_t lo = id(${wld_id}_ow5_lo).state;
+      int32_t hi = (int16_t)id(${wld_id}_ow5_hi).state;
+      int32_t v = (hi << 16) | lo;
+      return v / 1000.0;
+
+  - platform: modbus_controller
+    id: ${wld_id}_ow6_lo
+    modbus_controller_id: ${wld_id}
+    address: 1510
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_ow6_hi
+    modbus_controller_id: ${wld_id}
+    address: 1511
+    register_type: holding
+    value_type: S_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} 1W Temp 6 °C"
+    unit_of_measurement: "°C"
+    accuracy_decimals: 3
+    update_interval: 5s
+    lambda: |-
+      uint32_t lo = id(${wld_id}_ow6_lo).state;
+      int32_t hi = (int16_t)id(${wld_id}_ow6_hi).state;
+      int32_t v = (hi << 16) | lo;
+      return v / 1000.0;
+
+  - platform: modbus_controller
+    id: ${wld_id}_ow7_lo
+    modbus_controller_id: ${wld_id}
+    address: 1512
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_ow7_hi
+    modbus_controller_id: ${wld_id}
+    address: 1513
+    register_type: holding
+    value_type: S_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} 1W Temp 7 °C"
+    unit_of_measurement: "°C"
+    accuracy_decimals: 3
+    update_interval: 5s
+    lambda: |-
+      uint32_t lo = id(${wld_id}_ow7_lo).state;
+      int32_t hi = (int16_t)id(${wld_id}_ow7_hi).state;
+      int32_t v = (hi << 16) | lo;
+      return v / 1000.0;
+
+  - platform: modbus_controller
+    id: ${wld_id}_ow8_lo
+    modbus_controller_id: ${wld_id}
+    address: 1514
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_ow8_hi
+    modbus_controller_id: ${wld_id}
+    address: 1515
+    register_type: holding
+    value_type: S_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} 1W Temp 8 °C"
+    unit_of_measurement: "°C"
+    accuracy_decimals: 3
+    update_interval: 5s
+    lambda: |-
+      uint32_t lo = id(${wld_id}_ow8_lo).state;
+      int32_t hi = (int16_t)id(${wld_id}_ow8_hi).state;
+      int32_t v = (hi << 16) | lo;
+      return v / 1000.0;
+
+  - platform: modbus_controller
+    id: ${wld_id}_ow9_lo
+    modbus_controller_id: ${wld_id}
+    address: 1516
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_ow9_hi
+    modbus_controller_id: ${wld_id}
+    address: 1517
+    register_type: holding
+    value_type: S_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} 1W Temp 9 °C"
+    unit_of_measurement: "°C"
+    accuracy_decimals: 3
+    update_interval: 5s
+    lambda: |-
+      uint32_t lo = id(${wld_id}_ow9_lo).state;
+      int32_t hi = (int16_t)id(${wld_id}_ow9_hi).state;
+      int32_t v = (hi << 16) | lo;
+      return v / 1000.0;
+
+  - platform: modbus_controller
+    id: ${wld_id}_ow10_lo
+    modbus_controller_id: ${wld_id}
+    address: 1518
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_ow10_hi
+    modbus_controller_id: ${wld_id}
+    address: 1519
+    register_type: holding
+    value_type: S_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} 1W Temp 10 °C"
+    unit_of_measurement: "°C"
+    accuracy_decimals: 3
+    update_interval: 5s
+    lambda: |-
+      uint32_t lo = id(${wld_id}_ow10_lo).state;
+      int32_t hi = (int16_t)id(${wld_id}_ow10_hi).state;
+      int32_t v = (hi << 16) | lo;
+      return v / 1000.0;
+
+# ===================== Command Coils (FC05/FC01) =====================
 switch:
   # Relay pulse helpers (internal; pulse & auto-off)
   - platform: modbus_controller
@@ -554,27 +1329,6 @@ switch:
       - delay: 50ms
       - switch.turn_off: ${wld_id}_r2_off_pulse
 
-  # User-facing relay switches (follow feedback via mirrors)
-  - platform: template
-    name: "${wld_prefix} Relay 1"
-    optimistic: true
-    lambda: |-
-      return id(${wld_id}_r1_state).state;
-    turn_on_action:
-      - switch.turn_on: ${wld_id}_r1_on_pulse
-    turn_off_action:
-      - switch.turn_on: ${wld_id}_r1_off_pulse
-
-  - platform: template
-    name: "${wld_prefix} Relay 2"
-    optimistic: true
-    lambda: |-
-      return id(${wld_id}_r2_state).state;
-    turn_on_action:
-      - switch.turn_on: ${wld_id}_r2_on_pulse
-    turn_off_action:
-      - switch.turn_on: ${wld_id}_r2_off_pulse
-
   # DI enable (300..304)
   - platform: modbus_controller
     id: ${wld_id}_di1_enable_coil
@@ -582,35 +1336,45 @@ switch:
     address: 300
     register_type: coil
     internal: true
-    on_turn_on: [ delay: 50ms, switch.turn_off: ${wld_id}_di1_enable_coil ]
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di1_enable_coil
   - platform: modbus_controller
     id: ${wld_id}_di2_enable_coil
     modbus_controller_id: ${wld_id}
     address: 301
     register_type: coil
     internal: true
-    on_turn_on: [ delay: 50ms, switch.turn_off: ${wld_id}_di2_enable_coil ]
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di2_enable_coil
   - platform: modbus_controller
     id: ${wld_id}_di3_enable_coil
     modbus_controller_id: ${wld_id}
     address: 302
     register_type: coil
     internal: true
-    on_turn_on: [ delay: 50ms, switch.turn_off: ${wld_id}_di3_enable_coil ]
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di3_enable_coil
   - platform: modbus_controller
     id: ${wld_id}_di4_enable_coil
     modbus_controller_id: ${wld_id}
     address: 303
     register_type: coil
     internal: true
-    on_turn_on: [ delay: 50ms, switch.turn_off: ${wld_id}_di4_enable_coil ]
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di4_enable_coil
   - platform: modbus_controller
     id: ${wld_id}_di5_enable_coil
     modbus_controller_id: ${wld_id}
     address: 304
     register_type: coil
     internal: true
-    on_turn_on: [ delay: 50ms, switch.turn_off: ${wld_id}_di5_enable_coil ]
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di5_enable_coil
 
   # DI disable (320..324)
   - platform: modbus_controller
@@ -619,35 +1383,45 @@ switch:
     address: 320
     register_type: coil
     internal: true
-    on_turn_on: [ delay: 50ms, switch.turn_off: ${wld_id}_di1_disable_coil ]
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di1_disable_coil
   - platform: modbus_controller
     id: ${wld_id}_di2_disable_coil
     modbus_controller_id: ${wld_id}
     address: 321
     register_type: coil
     internal: true
-    on_turn_on: [ delay: 50ms, switch.turn_off: ${wld_id}_di2_disable_coil ]
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di2_disable_coil
   - platform: modbus_controller
     id: ${wld_id}_di3_disable_coil
     modbus_controller_id: ${wld_id}
     address: 322
     register_type: coil
     internal: true
-    on_turn_on: [ delay: 50ms, switch.turn_off: ${wld_id}_di3_disable_coil ]
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di3_disable_coil
   - platform: modbus_controller
     id: ${wld_id}_di4_disable_coil
     modbus_controller_id: ${wld_id}
     address: 323
     register_type: coil
     internal: true
-    on_turn_on: [ delay: 50ms, switch.turn_off: ${wld_id}_di4_disable_coil ]
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di4_disable_coil
   - platform: modbus_controller
     id: ${wld_id}_di5_disable_coil
     modbus_controller_id: ${wld_id}
     address: 324
     register_type: coil
     internal: true
-    on_turn_on: [ delay: 50ms, switch.turn_off: ${wld_id}_di5_disable_coil ]
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di5_disable_coil
 
   # DI counter reset (340..344)
   - platform: modbus_controller
@@ -656,35 +1430,45 @@ switch:
     address: 340
     register_type: coil
     internal: true
-    on_turn_on: [ delay: 50ms, switch.turn_off: ${wld_id}_di1_reset_coil ]
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di1_reset_coil
   - platform: modbus_controller
     id: ${wld_id}_di2_reset_coil
     modbus_controller_id: ${wld_id}
     address: 341
     register_type: coil
     internal: true
-    on_turn_on: [ delay: 50ms, switch.turn_off: ${wld_id}_di2_reset_coil ]
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di2_reset_coil
   - platform: modbus_controller
     id: ${wld_id}_di3_reset_coil
     modbus_controller_id: ${wld_id}
     address: 342
     register_type: coil
     internal: true
-    on_turn_on: [ delay: 50ms, switch.turn_off: ${wld_id}_di3_reset_coil ]
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di3_reset_coil
   - platform: modbus_controller
     id: ${wld_id}_di4_reset_coil
     modbus_controller_id: ${wld_id}
     address: 343
     register_type: coil
     internal: true
-    on_turn_on: [ delay: 50ms, switch.turn_off: ${wld_id}_di4_reset_coil ]
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di4_reset_coil
   - platform: modbus_controller
     id: ${wld_id}_di5_reset_coil
     modbus_controller_id: ${wld_id}
     address: 344
     register_type: coil
     internal: true
-    on_turn_on: [ delay: 50ms, switch.turn_off: ${wld_id}_di5_reset_coil ]
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_di5_reset_coil
 
   # Midnight sync pulse (360)
   - platform: modbus_controller
@@ -701,126 +1485,168 @@ switch:
     address: 370
     register_type: coil
     internal: true
-    on_turn_on: [ delay: 50ms, switch.turn_off: ${wld_id}_irr1_start ]
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_irr1_start
+
   - platform: modbus_controller
     id: ${wld_id}_irr2_start
     modbus_controller_id: ${wld_id}
     address: 371
     register_type: coil
     internal: true
-    on_turn_on: [ delay: 50ms, switch.turn_off: ${wld_id}_irr2_start ]
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_irr2_start
+
   - platform: modbus_controller
     id: ${wld_id}_irr1_stop
     modbus_controller_id: ${wld_id}
     address: 380
     register_type: coil
     internal: true
-    on_turn_on: [ delay: 50ms, switch.turn_off: ${wld_id}_irr1_stop ]
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_irr1_stop
+
   - platform: modbus_controller
     id: ${wld_id}_irr2_stop
     modbus_controller_id: ${wld_id}
     address: 381
     register_type: coil
     internal: true
-    on_turn_on: [ delay: 50ms, switch.turn_off: ${wld_id}_irr2_stop ]
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_irr2_stop
+
   - platform: modbus_controller
     id: ${wld_id}_irr1_reset
     modbus_controller_id: ${wld_id}
     address: 390
     register_type: coil
     internal: true
-    on_turn_on: [ delay: 50ms, switch.turn_off: ${wld_id}_irr1_reset ]
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_irr1_reset
+
   - platform: modbus_controller
     id: ${wld_id}_irr2_reset
     modbus_controller_id: ${wld_id}
     address: 391
     register_type: coil
     internal: true
-    on_turn_on: [ delay: 50ms, switch.turn_off: ${wld_id}_irr2_reset ]
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_irr2_reset
 
-
-# ===================== Convenience Buttons (pulse the internal coils) =====================
+# ===================== Convenience Buttons =====================
 button:
   - platform: template
     name: "${wld_prefix} R1 ON"
-    on_press: [ switch.turn_on: ${wld_id}_r1_on_pulse ]
+    on_press:
+      - switch.turn_on: ${wld_id}_r1_on_pulse
   - platform: template
     name: "${wld_prefix} R1 OFF"
-    on_press: [ switch.turn_on: ${wld_id}_r1_off_pulse ]
+    on_press:
+      - switch.turn_on: ${wld_id}_r1_off_pulse
   - platform: template
     name: "${wld_prefix} R2 ON"
-    on_press: [ switch.turn_on: ${wld_id}_r2_on_pulse ]
+    on_press:
+      - switch.turn_on: ${wld_id}_r2_on_pulse
   - platform: template
     name: "${wld_prefix} R2 OFF"
-    on_press: [ switch.turn_on: ${wld_id}_r2_off_pulse ]
+    on_press:
+      - switch.turn_on: ${wld_id}_r2_off_pulse
 
   - platform: template
     name: "${wld_prefix} DI1 Enable"
-    on_press: [ switch.turn_on: ${wld_id}_di1_enable_coil ]
+    on_press:
+      - switch.turn_on: ${wld_id}_di1_enable_coil
   - platform: template
     name: "${wld_prefix} DI2 Enable"
-    on_press: [ switch.turn_on: ${wld_id}_di2_enable_coil ]
+    on_press:
+      - switch.turn_on: ${wld_id}_di2_enable_coil
   - platform: template
     name: "${wld_prefix} DI3 Enable"
-    on_press: [ switch.turn_on: ${wld_id}_di3_enable_coil ]
+    on_press:
+      - switch.turn_on: ${wld_id}_di3_enable_coil
   - platform: template
     name: "${wld_prefix} DI4 Enable"
-    on_press: [ switch.turn_on: ${wld_id}_di4_enable_coil ]
+    on_press:
+      - switch.turn_on: ${wld_id}_di4_enable_coil
   - platform: template
     name: "${wld_prefix} DI5 Enable"
-    on_press: [ switch.turn_on: ${wld_id}_di5_enable_coil ]
+    on_press:
+      - switch.turn_on: ${wld_id}_di5_enable_coil
 
   - platform: template
     name: "${wld_prefix} DI1 Disable"
-    on_press: [ switch.turn_on: ${wld_id}_di1_disable_coil ]
+    on_press:
+      - switch.turn_on: ${wld_id}_di1_disable_coil
   - platform: template
     name: "${wld_prefix} DI2 Disable"
-    on_press: [ switch.turn_on: ${wld_id}_di2_disable_coil ]
+    on_press:
+      - switch.turn_on: ${wld_id}_di2_disable_coil
   - platform: template
     name: "${wld_prefix} DI3 Disable"
-    on_press: [ switch.turn_on: ${wld_id}_di3_disable_coil ]
+    on_press:
+      - switch.turn_on: ${wld_id}_di3_disable_coil
   - platform: template
     name: "${wld_prefix} DI4 Disable"
-    on_press: [ switch.turn_on: ${wld_id}_di4_disable_coil ]
+    on_press:
+      - switch.turn_on: ${wld_id}_di4_disable_coil
   - platform: template
     name: "${wld_prefix} DI5 Disable"
-    on_press: [ switch.turn_on: ${wld_id}_di5_disable_coil ]
+    on_press:
+      - switch.turn_on: ${wld_id}_di5_disable_coil
 
   - platform: template
     name: "${wld_prefix} DI1 Counter Reset"
-    on_press: [ switch.turn_on: ${wld_id}_di1_reset_coil ]
+    on_press:
+      - switch.turn_on: ${wld_id}_di1_reset_coil
   - platform: template
     name: "${wld_prefix} DI2 Counter Reset"
-    on_press: [ switch.turn_on: ${wld_id}_di2_reset_coil ]
+    on_press:
+      - switch.turn_on: ${wld_id}_di2_reset_coil
   - platform: template
     name: "${wld_prefix} DI3 Counter Reset"
-    on_press: [ switch.turn_on: ${wld_id}_di3_reset_coil ]
+    on_press:
+      - switch.turn_on: ${wld_id}_di3_reset_coil
   - platform: template
     name: "${wld_prefix} DI4 Counter Reset"
-    on_press: [ switch.turn_on: ${wld_id}_di4_reset_coil ]
+    on_press:
+      - switch.turn_on: ${wld_id}_di4_reset_coil
   - platform: template
     name: "${wld_prefix} DI5 Counter Reset"
-    on_press: [ switch.turn_on: ${wld_id}_di5_reset_coil ]
+    on_press:
+      - switch.turn_on: ${wld_id}_di5_reset_coil
 
   - platform: template
     name: "${wld_prefix} Midnight Pulse"
-    on_press: [ switch.turn_on: ${wld_id}_midnight_pulse ]
+    on_press:
+      - switch.turn_on: ${wld_id}_midnight_pulse
 
   - platform: template
     name: "${wld_prefix} Irrigation Z1 START"
-    on_press: [ switch.turn_on: ${wld_id}_irr1_start ]
+    on_press:
+      - switch.turn_on: ${wld_id}_irr1_start
   - platform: template
     name: "${wld_prefix} Irrigation Z2 START"
-    on_press: [ switch.turn_on: ${wld_id}_irr2_start ]
+    on_press:
+      - switch.turn_on: ${wld_id}_irr2_start
   - platform: template
     name: "${wld_prefix} Irrigation Z1 STOP"
-    on_press: [ switch.turn_on: ${wld_id}_irr1_stop ]
+    on_press:
+      - switch.turn_on: ${wld_id}_irr1_stop
   - platform: template
     name: "${wld_prefix} Irrigation Z2 STOP"
-    on_press: [ switch.turn_on: ${wld_id}_irr2_stop ]
+    on_press:
+      - switch.turn_on: ${wld_id}_irr2_stop
   - platform: template
     name: "${wld_prefix} Irrigation Z1 RESET"
-    on_press: [ switch.turn_on: ${wld_id}_irr1_reset ]
+    on_press:
+      - switch.turn_on: ${wld_id}_irr1_reset
   - platform: template
     name: "${wld_prefix} Irrigation Z2 RESET"
-    on_press: [ switch.turn_on: ${wld_id}_irr2_reset ]
+    on_press:
+      - switch.turn_on: ${wld_id}_irr2_reset
