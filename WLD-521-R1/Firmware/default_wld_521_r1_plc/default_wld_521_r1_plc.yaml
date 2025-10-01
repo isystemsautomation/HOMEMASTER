@@ -293,6 +293,8 @@ sensor:
   - platform: template
     name: "${wld_prefix} Flow1 Total"
     unit_of_measurement: "L"
+    device_class: water
+    state_class: total_increasing
     accuracy_decimals: 3
     update_interval: 1s
     lambda: |-
@@ -340,6 +342,8 @@ sensor:
   - platform: template
     name: "${wld_prefix} Flow2 Total"
     unit_of_measurement: "L"
+    device_class: water
+    state_class: total_increasing
     accuracy_decimals: 3
     update_interval: 1s
     lambda: |-
@@ -387,6 +391,8 @@ sensor:
   - platform: template
     name: "${wld_prefix} Flow3 Total"
     unit_of_measurement: "L"
+    device_class: water
+    state_class: total_increasing
     accuracy_decimals: 3
     update_interval: 1s
     lambda: |-
@@ -434,6 +440,8 @@ sensor:
   - platform: template
     name: "${wld_prefix} Flow4 Total"
     unit_of_measurement: "L"
+    device_class: water
+    state_class: total_increasing
     accuracy_decimals: 3
     update_interval: 1s
     lambda: |-
@@ -481,6 +489,8 @@ sensor:
   - platform: template
     name: "${wld_prefix} Flow5 Total"
     unit_of_measurement: "L"
+    device_class: water
+    state_class: total_increasing
     accuracy_decimals: 3
     update_interval: 1s
     lambda: |-
