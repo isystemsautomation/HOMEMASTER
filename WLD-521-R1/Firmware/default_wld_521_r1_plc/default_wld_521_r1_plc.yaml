@@ -31,9 +31,6 @@ modbus_controller:
 ## Cleaned for ESPHome YAML (no Jinja, valid automations)
 ##
 
-# ===================== Discrete Inputs (FC02) =====================
-# DI states: 1..5 | Relay feedback: 60..61 | LED mirrors: 90..93 | BTN mirrors: 100..103
-
 #########################################################
 # READ-ONLY MIRROR STATES (Discrete Inputs / LEDs / BTN)
 #########################################################
@@ -667,3 +664,826 @@ button:
   - platform: template
     name: "${wld_prefix} Irrigation Z2 RESET"
     on_press: { then: - modbus_controller.write_coil: { id: wld, address: 391, value: true } }
+Notes
+I used U_DWORD/S_DWORD and applied multiply: 0.001 where the firmware scales ×1000. That keeps your UI values human‑readable.
+
+Command coils are exposed as template buttons so each press sends a single pulse (true) — this matches the firmware’s momentary design and avoids switch state drift.
+
+Remove your previous 1000..1009 DI‑counter block; it’s not in the current firmware.
+
+If you want this split into multiple files (e.g., packages) or adapted for Home Assistant Modbus (instead of ESPHome), say the word and I’ll convert it.
+
+
+
+
+
+You said:
+  Failed to load packages. WLD-521-R1/Firmware/default_wld_521_r1_plc/default_wld_521_r1_plc.yaml is not a valid YAML file. Please check the file contents.
+  while parsing a flow node
+  expected the node content, but found '-'
+    in "/config/.esphome/packages/86090964/WLD-521-R1/Firmware/default_wld_521_r1_plc/default_wld_521_r1_plc.yaml", line 596, column 23.
+  wld: 
+    url: https://github.com/isystemsautomation/HOMEMASTER
+    ref: main
+    files: 
+      - path: WLD-521-R1/Firmware/default_wld_521_r1_plc/default_wld_521_r1_plc.yaml
+        vars: 
+          wld_prefix: WLD#1
+          wld_id: wld_1
+          wld_address: 6
+
+
+ChatGPT said:
+
+Thought
+You’ve got two separate issues:
+
+your packages include block is malformed (you nested vars under a file), and
+
+the referenced YAML used a few inline flow mappings ({ ... }) that tend to trip ESPHome’s YAML parser.
+
+Below is a drop‑in fixed version of your config. I’ve:
+
+moved vars to the correct level in the packages include example,
+
+removed all inline { … }/[ … ] forms,
+
+kept everything else the same functionally (flow/heat/irrigation/1‑Wire + buttons).
+
+1) Fix your packages include (in your main esphome project)
+Replace your block with this (notice vars is a sibling of files, not nested under the - path item):
+
+yaml
+Copy code
+packages:
+  wld:
+    url: https://github.com/isystemsautomation/HOMEMASTER
+    ref: main
+    files:
+      - WLD-521-R1/Firmware/default_wld_521_r1_plc/default_wld_521_r1_plc.yaml
+    vars:
+      wld_prefix: "WLD#1"
+      wld_id: "wld_1"
+      wld_address: 6
+If you don’t use packages, ignore this and place the full YAML below directly in your node config.
+
+2) Fixed default_wld_521_r1_plc.yaml (complete file)
+yaml
+Copy code
+substitutions:
+  device_name: wld-521-r1
+  wld_prefix: "WLD-521-R1"
+  uart_tx_pin: GPIO4
+  uart_rx_pin: GPIO5
+  uart_baud: "9600"
+  wld_id: wld
+  wld_address: "1"
+
+esphome:
+  name: ${device_name}
+
+esp32:
+  board: esp32dev
+
+logger:
+
+uart:
+  id: rs485_uart
+  tx_pin: ${uart_tx_pin}
+  rx_pin: ${uart_rx_pin}
+  baud_rate: ${uart_baud}
+  stop_bits: 1
+  parity: NONE
+
+modbus:
+  id: rs485_modbus
+  send_wait_time: 200ms
+
+modbus_controller:
+  - id: ${wld_id}
+    address: ${wld_address}
+    modbus_id: rs485_modbus
+    command_throttle: 200ms
+    setup_priority: -10
+    update_interval: 2s
+
+# -------------------------------
+# DISCRETE INPUT MIRRORS
+# -------------------------------
+binary_sensor:
+  - platform: modbus_controller
+    name: "${wld_prefix} DI1"
+    modbus_controller_id: ${wld_id}
+    register_type: discrete_input
+    address: 1
+  - platform: modbus_controller
+    name: "${wld_prefix} DI2"
+    modbus_controller_id: ${wld_id}
+    register_type: discrete_input
+    address: 2
+  - platform: modbus_controller
+    name: "${wld_prefix} DI3"
+    modbus_controller_id: ${wld_id}
+    register_type: discrete_input
+    address: 3
+  - platform: modbus_controller
+    name: "${wld_prefix} DI4"
+    modbus_controller_id: ${wld_id}
+    register_type: discrete_input
+    address: 4
+  - platform: modbus_controller
+    name: "${wld_prefix} DI5"
+    modbus_controller_id: ${wld_id}
+    register_type: discrete_input
+    address: 5
+
+  - platform: modbus_controller
+    name: "${wld_prefix} Relay R1 (state)"
+    modbus_controller_id: ${wld_id}
+    register_type: discrete_input
+    address: 60
+  - platform: modbus_controller
+    name: "${wld_prefix} Relay R2 (state)"
+    modbus_controller_id: ${wld_id}
+    register_type: discrete_input
+    address: 61
+
+  - platform: modbus_controller
+    name: "${wld_prefix} LED1"
+    modbus_controller_id: ${wld_id}
+    register_type: discrete_input
+    address: 90
+  - platform: modbus_controller
+    name: "${wld_prefix} LED2"
+    modbus_controller_id: ${wld_id}
+    register_type: discrete_input
+    address: 91
+  - platform: modbus_controller
+    name: "${wld_prefix} LED3"
+    modbus_controller_id: ${wld_id}
+    register_type: discrete_input
+    address: 92
+  - platform: modbus_controller
+    name: "${wld_prefix} LED4"
+    modbus_controller_id: ${wld_id}
+    register_type: discrete_input
+    address: 93
+
+  - platform: modbus_controller
+    name: "${wld_prefix} BTN1"
+    modbus_controller_id: ${wld_id}
+    register_type: discrete_input
+    address: 100
+  - platform: modbus_controller
+    name: "${wld_prefix} BTN2"
+    modbus_controller_id: ${wld_id}
+    register_type: discrete_input
+    address: 101
+  - platform: modbus_controller
+    name: "${wld_prefix} BTN3"
+    modbus_controller_id: ${wld_id}
+    register_type: discrete_input
+    address: 102
+  - platform: modbus_controller
+    name: "${wld_prefix} BTN4"
+    modbus_controller_id: ${wld_id}
+    register_type: discrete_input
+    address: 103
+
+# -------------------------------
+# HOLDING REGISTERS: TIME/DAY
+# -------------------------------
+sensor:
+  - platform: modbus_controller
+    name: "${wld_prefix} Minutes Since Midnight"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1100
+    value_type: U_WORD
+    accuracy_decimals: 0
+
+  - platform: modbus_controller
+    name: "${wld_prefix} Day Index"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1101
+    value_type: U_WORD
+    accuracy_decimals: 0
+
+  # -------------------------------
+  # FLOW per DI (U32 ×1000)
+  # -------------------------------
+  - platform: modbus_controller
+    name: "${wld_prefix} DI1 Flow Rate L/min"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1120
+    value_type: U_DWORD
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    name: "${wld_prefix} DI2 Flow Rate L/min"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1122
+    value_type: U_DWORD
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    name: "${wld_prefix} DI3 Flow Rate L/min"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1124
+    value_type: U_DWORD
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    name: "${wld_prefix} DI4 Flow Rate L/min"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1126
+    value_type: U_DWORD
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    name: "${wld_prefix} DI5 Flow Rate L/min"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1128
+    value_type: U_DWORD
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+
+  - platform: modbus_controller
+    name: "${wld_prefix} DI1 Total Liters"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1140
+    value_type: U_DWORD
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    name: "${wld_prefix} DI2 Total Liters"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1142
+    value_type: U_DWORD
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    name: "${wld_prefix} DI3 Total Liters"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1144
+    value_type: U_DWORD
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    name: "${wld_prefix} DI4 Total Liters"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1146
+    value_type: U_DWORD
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    name: "${wld_prefix} DI5 Total Liters"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1148
+    value_type: U_DWORD
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+
+  # -------------------------------
+  # HEAT per DI
+  # -------------------------------
+  # Power (S32, Watts)
+  - platform: modbus_controller
+    name: "${wld_prefix} DI1 Heat Power W"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1200
+    value_type: S_DWORD
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    name: "${wld_prefix} DI2 Heat Power W"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1202
+    value_type: S_DWORD
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    name: "${wld_prefix} DI3 Heat Power W"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1204
+    value_type: S_DWORD
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    name: "${wld_prefix} DI4 Heat Power W"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1206
+    value_type: S_DWORD
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    name: "${wld_prefix} DI5 Heat Power W"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1208
+    value_type: S_DWORD
+    accuracy_decimals: 0
+
+  # Energy (U32, Wh×1000)
+  - platform: modbus_controller
+    name: "${wld_prefix} DI1 Heat Energy kWh"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1220
+    value_type: U_DWORD
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    name: "${wld_prefix} DI2 Heat Energy kWh"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1222
+    value_type: U_DWORD
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    name: "${wld_prefix} DI3 Heat Energy kWh"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1224
+    value_type: U_DWORD
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    name: "${wld_prefix} DI4 Heat Energy kWh"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1226
+    value_type: U_DWORD
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    name: "${wld_prefix} DI5 Heat Energy kWh"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1228
+    value_type: U_DWORD
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+
+  # Delta-T (S32, °C×1000)
+  - platform: modbus_controller
+    name: "${wld_prefix} DI1 DeltaT °C"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1240
+    value_type: S_DWORD
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    name: "${wld_prefix} DI2 DeltaT °C"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1242
+    value_type: S_DWORD
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    name: "${wld_prefix} DI3 DeltaT °C"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1244
+    value_type: S_DWORD
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    name: "${wld_prefix} DI4 DeltaT °C"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1246
+    value_type: S_DWORD
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    name: "${wld_prefix} DI5 DeltaT °C"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1248
+    value_type: S_DWORD
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+
+  # -------------------------------
+  # IRRIGATION (Z1..Z2)
+  # -------------------------------
+  - platform: modbus_controller
+    name: "${wld_prefix} Irrigation Z1 State"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1300
+    value_type: U_WORD
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    name: "${wld_prefix} Irrigation Z2 State"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1301
+    value_type: U_WORD
+    accuracy_decimals: 0
+
+  - platform: modbus_controller
+    name: "${wld_prefix} Irrigation Z1 Liters"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1310
+    value_type: U_DWORD
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    name: "${wld_prefix} Irrigation Z2 Liters"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1312
+    value_type: U_DWORD
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+
+  - platform: modbus_controller
+    name: "${wld_prefix} Irrigation Z1 Elapsed s"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1320
+    value_type: U_DWORD
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    name: "${wld_prefix} Irrigation Z2 Elapsed s"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1322
+    value_type: U_DWORD
+    accuracy_decimals: 0
+
+  - platform: modbus_controller
+    name: "${wld_prefix} Irrigation Z1 Rate L/min"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1330
+    value_type: U_DWORD
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    name: "${wld_prefix} Irrigation Z2 Rate L/min"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1332
+    value_type: U_DWORD
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+
+  - platform: modbus_controller
+    name: "${wld_prefix} Z1 Window Open"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1340
+    value_type: U_WORD
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    name: "${wld_prefix} Z2 Window Open"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1341
+    value_type: U_WORD
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    name: "${wld_prefix} Z1 Sensors OK"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1342
+    value_type: U_WORD
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    name: "${wld_prefix} Z2 Sensors OK"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1343
+    value_type: U_WORD
+    accuracy_decimals: 0
+
+  # -------------------------------
+  # 1-Wire Temps (S32, °C×1000)
+  # -------------------------------
+  - platform: modbus_controller
+    name: "${wld_prefix} 1W Temp 1 °C"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1500
+    value_type: S_DWORD
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    name: "${wld_prefix} 1W Temp 2 °C"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1502
+    value_type: S_DWORD
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    name: "${wld_prefix} 1W Temp 3 °C"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1504
+    value_type: S_DWORD
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    name: "${wld_prefix} 1W Temp 4 °C"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1506
+    value_type: S_DWORD
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    name: "${wld_prefix} 1W Temp 5 °C"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1508
+    value_type: S_DWORD
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    name: "${wld_prefix} 1W Temp 6 °C"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1510
+    value_type: S_DWORD
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    name: "${wld_prefix} 1W Temp 7 °C"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1512
+    value_type: S_DWORD
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    name: "${wld_prefix} 1W Temp 8 °C"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1514
+    value_type: S_DWORD
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    name: "${wld_prefix} 1W Temp 9 °C"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1516
+    value_type: S_DWORD
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+  - platform: modbus_controller
+    name: "${wld_prefix} 1W Temp 10 °C"
+    modbus_controller_id: ${wld_id}
+    register_type: holding
+    address: 1518
+    value_type: S_DWORD
+    accuracy_decimals: 3
+    filters:
+      - multiply: 0.001
+
+# -------------------------------
+# COMMAND COILS AS BUTTONS
+# -------------------------------
+button:
+  - platform: template
+    name: "${wld_prefix} R1 ON"
+    on_press:
+      - modbus_controller.write_coil:
+          id: ${wld_id}
+          address: 200
+          value: true
+
+  - platform: template
+    name: "${wld_prefix} R1 OFF"
+    on_press:
+      - modbus_controller.write_coil:
+          id: ${wld_id}
+          address: 210
+          value: true
+
+  - platform: template
+    name: "${wld_prefix} R2 ON"
+    on_press:
+      - modbus_controller.write_coil:
+          id: ${wld_id}
+          address: 201
+          value: true
+
+  - platform: template
+    name: "${wld_prefix} R2 OFF"
+    on_press:
+      - modbus_controller.write_coil:
+          id: ${wld_id}
+          address: 211
+          value: true
+
+  - platform: template
+    name: "${wld_prefix} DI1 Enable"
+    on_press:
+      - modbus_controller.write_coil:
+          id: ${wld_id}
+          address: 300
+          value: true
+  - platform: template
+    name: "${wld_prefix} DI2 Enable"
+    on_press:
+      - modbus_controller.write_coil:
+          id: ${wld_id}
+          address: 301
+          value: true
+  - platform: template
+    name: "${wld_prefix} DI3 Enable"
+    on_press:
+      - modbus_controller.write_coil:
+          id: ${wld_id}
+          address: 302
+          value: true
+  - platform: template
+    name: "${wld_prefix} DI4 Enable"
+    on_press:
+      - modbus_controller.write_coil:
+          id: ${wld_id}
+          address: 303
+          value: true
+  - platform: template
+    name: "${wld_prefix} DI5 Enable"
+    on_press:
+      - modbus_controller.write_coil:
+          id: ${wld_id}
+          address: 304
+          value: true
+
+  - platform: template
+    name: "${wld_prefix} DI1 Disable"
+    on_press:
+      - modbus_controller.write_coil:
+          id: ${wld_id}
+          address: 320
+          value: true
+  - platform: template
+    name: "${wld_prefix} DI2 Disable"
+    on_press:
+      - modbus_controller.write_coil:
+          id: ${wld_id}
+          address: 321
+          value: true
+  - platform: template
+    name: "${wld_prefix} DI3 Disable"
+    on_press:
+      - modbus_controller.write_coil:
+          id: ${wld_id}
+          address: 322
+          value: true
+  - platform: template
+    name: "${wld_prefix} DI4 Disable"
+    on_press:
+      - modbus_controller.write_coil:
+          id: ${wld_id}
+          address: 323
+          value: true
+  - platform: template
+    name: "${wld_prefix} DI5 Disable"
+    on_press:
+      - modbus_controller.write_coil:
+          id: ${wld_id}
+          address: 324
+          value: true
+
+  - platform: template
+    name: "${wld_prefix} DI1 Counter Reset"
+    on_press:
+      - modbus_controller.write_coil:
+          id: ${wld_id}
+          address: 340
+          value: true
+  - platform: template
+    name: "${wld_prefix} DI2 Counter Reset"
+    on_press:
+      - modbus_controller.write_coil:
+          id: ${wld_id}
+          address: 341
+          value: true
+  - platform: template
+    name: "${wld_prefix} DI3 Counter Reset"
+    on_press:
+      - modbus_controller.write_coil:
+          id: ${wld_id}
+          address: 342
+          value: true
+  - platform: template
+    name: "${wld_prefix} DI4 Counter Reset"
+    on_press:
+      - modbus_controller.write_coil:
+          id: ${wld_id}
+          address: 343
+          value: true
+  - platform: template
+    name: "${wld_prefix} DI5 Counter Reset"
+    on_press:
+      - modbus_controller.write_coil:
+          id: ${wld_id}
+          address: 344
+          value: true
+
+  - platform: template
+    name: "${wld_prefix} Midnight Pulse"
+    on_press:
+      - modbus_controller.write_coil:
+          id: ${wld_id}
+          address: 360
+          value: true
+
+  - platform: template
+    name: "${wld_prefix} Irrigation Z1 START"
+    on_press:
+      - modbus_controller.write_coil:
+          id: ${wld_id}
+          address: 370
+          value: true
+  - platform: template
+    name: "${wld_prefix} Irrigation Z2 START"
+    on_press:
+      - modbus_controller.write_coil:
+          id: ${wld_id}
+          address: 371
+          value: true
+  - platform: template
+    name: "${wld_prefix} Irrigation Z1 STOP"
+    on_press:
+      - modbus_controller.write_coil:
+          id: ${wld_id}
+          address: 380
+          value: true
+  - platform: template
+    name: "${wld_prefix} Irrigation Z2 STOP"
+    on_press:
+      - modbus_controller.write_coil:
+          id: ${wld_id}
+          address: 381
+          value: true
+  - platform: template
+    name: "${wld_prefix} Irrigation Z1 RESET"
+    on_press:
+      - modbus_controller.write_coil:
+          id: ${wld_id}
+          address: 390
+          value: true
+  - platform: template
+    name: "${wld_prefix} Irrigation Z2 RESET"
+    on_press:
+      - modbus_controller.write_coil:
+          id: ${wld_id}
+          address: 391
+          value: true
