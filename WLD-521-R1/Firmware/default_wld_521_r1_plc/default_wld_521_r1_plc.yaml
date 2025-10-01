@@ -26,6 +26,10 @@ modbus_controller:
     update_interval: 1s
     command_throttle: 0ms
 
+##
+## WLD-521-R1 — ESPHome Modbus package (MiniPLC/MicroPLC ↔ WLD)
+##
+
 binary_sensor:
   - platform: modbus_controller
     name: "${wld_prefix} DI1"
@@ -550,196 +554,368 @@ sensor:
       - multiply: 0.001
 
 # -------------------------------
-# COMMAND COILS AS BUTTONS
+# COMMAND COILS: INTERNAL SWITCHES
+# -------------------------------
+switch:
+  # Relays ON (200/201) and OFF (210/211)
+  - platform: modbus_controller
+    id: ${wld_id}_coil_r1_on
+    modbus_controller_id: ${wld_id}
+    register_type: coil
+    address: 200
+    internal: true
+    optimistic: true
+  - platform: modbus_controller
+    id: ${wld_id}_coil_r2_on
+    modbus_controller_id: ${wld_id}
+    register_type: coil
+    address: 201
+    internal: true
+    optimistic: true
+  - platform: modbus_controller
+    id: ${wld_id}_coil_r1_off
+    modbus_controller_id: ${wld_id}
+    register_type: coil
+    address: 210
+    internal: true
+    optimistic: true
+  - platform: modbus_controller
+    id: ${wld_id}_coil_r2_off
+    modbus_controller_id: ${wld_id}
+    register_type: coil
+    address: 211
+    internal: true
+    optimistic: true
+
+  # DI enable (300..304)
+  - platform: modbus_controller
+    id: ${wld_id}_coil_di1_en
+    modbus_controller_id: ${wld_id}
+    register_type: coil
+    address: 300
+    internal: true
+    optimistic: true
+  - platform: modbus_controller
+    id: ${wld_id}_coil_di2_en
+    modbus_controller_id: ${wld_id}
+    register_type: coil
+    address: 301
+    internal: true
+    optimistic: true
+  - platform: modbus_controller
+    id: ${wld_id}_coil_di3_en
+    modbus_controller_id: ${wld_id}
+    register_type: coil
+    address: 302
+    internal: true
+    optimistic: true
+  - platform: modbus_controller
+    id: ${wld_id}_coil_di4_en
+    modbus_controller_id: ${wld_id}
+    register_type: coil
+    address: 303
+    internal: true
+    optimistic: true
+  - platform: modbus_controller
+    id: ${wld_id}_coil_di5_en
+    modbus_controller_id: ${wld_id}
+    register_type: coil
+    address: 304
+    internal: true
+    optimistic: true
+
+  # DI disable (320..324)
+  - platform: modbus_controller
+    id: ${wld_id}_coil_di1_dis
+    modbus_controller_id: ${wld_id}
+    register_type: coil
+    address: 320
+    internal: true
+    optimistic: true
+  - platform: modbus_controller
+    id: ${wld_id}_coil_di2_dis
+    modbus_controller_id: ${wld_id}
+    register_type: coil
+    address: 321
+    internal: true
+    optimistic: true
+  - platform: modbus_controller
+    id: ${wld_id}_coil_di3_dis
+    modbus_controller_id: ${wld_id}
+    register_type: coil
+    address: 322
+    internal: true
+    optimistic: true
+  - platform: modbus_controller
+    id: ${wld_id}_coil_di4_dis
+    modbus_controller_id: ${wld_id}
+    register_type: coil
+    address: 323
+    internal: true
+    optimistic: true
+  - platform: modbus_controller
+    id: ${wld_id}_coil_di5_dis
+    modbus_controller_id: ${wld_id}
+    register_type: coil
+    address: 324
+    internal: true
+    optimistic: true
+
+  # DI counter reset (340..344)
+  - platform: modbus_controller
+    id: ${wld_id}_coil_di1_rst
+    modbus_controller_id: ${wld_id}
+    register_type: coil
+    address: 340
+    internal: true
+    optimistic: true
+  - platform: modbus_controller
+    id: ${wld_id}_coil_di2_rst
+    modbus_controller_id: ${wld_id}
+    register_type: coil
+    address: 341
+    internal: true
+    optimistic: true
+  - platform: modbus_controller
+    id: ${wld_id}_coil_di3_rst
+    modbus_controller_id: ${wld_id}
+    register_type: coil
+    address: 342
+    internal: true
+    optimistic: true
+  - platform: modbus_controller
+    id: ${wld_id}_coil_di4_rst
+    modbus_controller_id: ${wld_id}
+    register_type: coil
+    address: 343
+    internal: true
+    optimistic: true
+  - platform: modbus_controller
+    id: ${wld_id}_coil_di5_rst
+    modbus_controller_id: ${wld_id}
+    register_type: coil
+    address: 344
+    internal: true
+    optimistic: true
+
+  # Midnight pulse (360)
+  - platform: modbus_controller
+    id: ${wld_id}_coil_midnight
+    modbus_controller_id: ${wld_id}
+    register_type: coil
+    address: 360
+    internal: true
+    optimistic: true
+
+  # Irrigation Z1/Z2 start/stop/reset (370/371, 380/381, 390/391)
+  - platform: modbus_controller
+    id: ${wld_id}_coil_irr_z1_start
+    modbus_controller_id: ${wld_id}
+    register_type: coil
+    address: 370
+    internal: true
+    optimistic: true
+  - platform: modbus_controller
+    id: ${wld_id}_coil_irr_z2_start
+    modbus_controller_id: ${wld_id}
+    register_type: coil
+    address: 371
+    internal: true
+    optimistic: true
+  - platform: modbus_controller
+    id: ${wld_id}_coil_irr_z1_stop
+    modbus_controller_id: ${wld_id}
+    register_type: coil
+    address: 380
+    internal: true
+    optimistic: true
+  - platform: modbus_controller
+    id: ${wld_id}_coil_irr_z2_stop
+    modbus_controller_id: ${wld_id}
+    register_type: coil
+    address: 381
+    internal: true
+    optimistic: true
+  - platform: modbus_controller
+    id: ${wld_id}_coil_irr_z1_reset
+    modbus_controller_id: ${wld_id}
+    register_type: coil
+    address: 390
+    internal: true
+    optimistic: true
+  - platform: modbus_controller
+    id: ${wld_id}_coil_irr_z2_reset
+    modbus_controller_id: ${wld_id}
+    register_type: coil
+    address: 391
+    internal: true
+    optimistic: true
+
+# -------------------------------
+# COMMAND COILS: BUTTON PULSES
 # -------------------------------
 button:
   - platform: template
     name: "${wld_prefix} R1 ON"
     on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 200
-          value: true
+      - switch.turn_on: ${wld_id}_coil_r1_on
+      - delay: 200ms
+      - switch.turn_off: ${wld_id}_coil_r1_on
 
   - platform: template
     name: "${wld_prefix} R1 OFF"
     on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 210
-          value: true
+      - switch.turn_on: ${wld_id}_coil_r1_off
+      - delay: 200ms
+      - switch.turn_off: ${wld_id}_coil_r1_off
 
   - platform: template
     name: "${wld_prefix} R2 ON"
     on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 201
-          value: true
+      - switch.turn_on: ${wld_id}_coil_r2_on
+      - delay: 200ms
+      - switch.turn_off: ${wld_id}_coil_r2_on
 
   - platform: template
     name: "${wld_prefix} R2 OFF"
     on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 211
-          value: true
+      - switch.turn_on: ${wld_id}_coil_r2_off
+      - delay: 200ms
+      - switch.turn_off: ${wld_id}_coil_r2_off
 
   - platform: template
     name: "${wld_prefix} DI1 Enable"
     on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 300
-          value: true
+      - switch.turn_on: ${wld_id}_coil_di1_en
+      - delay: 200ms
+      - switch.turn_off: ${wld_id}_coil_di1_en
   - platform: template
     name: "${wld_prefix} DI2 Enable"
     on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 301
-          value: true
+      - switch.turn_on: ${wld_id}_coil_di2_en
+      - delay: 200ms
+      - switch.turn_off: ${wld_id}_coil_di2_en
   - platform: template
     name: "${wld_prefix} DI3 Enable"
     on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 302
-          value: true
+      - switch.turn_on: ${wld_id}_coil_di3_en
+      - delay: 200ms
+      - switch.turn_off: ${wld_id}_coil_di3_en
   - platform: template
     name: "${wld_prefix} DI4 Enable"
     on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 303
-          value: true
+      - switch.turn_on: ${wld_id}_coil_di4_en
+      - delay: 200ms
+      - switch.turn_off: ${wld_id}_coil_di4_en
   - platform: template
     name: "${wld_prefix} DI5 Enable"
     on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 304
-          value: true
+      - switch.turn_on: ${wld_id}_coil_di5_en
+      - delay: 200ms
+      - switch.turn_off: ${wld_id}_coil_di5_en
 
   - platform: template
     name: "${wld_prefix} DI1 Disable"
     on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 320
-          value: true
+      - switch.turn_on: ${wld_id}_coil_di1_dis
+      - delay: 200ms
+      - switch.turn_off: ${wld_id}_coil_di1_dis
   - platform: template
     name: "${wld_prefix} DI2 Disable"
     on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 321
-          value: true
+      - switch.turn_on: ${wld_id}_coil_di2_dis
+      - delay: 200ms
+      - switch.turn_off: ${wld_id}_coil_di2_dis
   - platform: template
     name: "${wld_prefix} DI3 Disable"
     on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 322
-          value: true
+      - switch.turn_on: ${wld_id}_coil_di3_dis
+      - delay: 200ms
+      - switch.turn_off: ${wld_id}_coil_di3_dis
   - platform: template
     name: "${wld_prefix} DI4 Disable"
     on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 323
-          value: true
+      - switch.turn_on: ${wld_id}_coil_di4_dis
+      - delay: 200ms
+      - switch.turn_off: ${wld_id}_coil_di4_dis
   - platform: template
     name: "${wld_prefix} DI5 Disable"
     on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 324
-          value: true
+      - switch.turn_on: ${wld_id}_coil_di5_dis
+      - delay: 200ms
+      - switch.turn_off: ${wld_id}_coil_di5_dis
 
   - platform: template
     name: "${wld_prefix} DI1 Counter Reset"
     on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 340
-          value: true
+      - switch.turn_on: ${wld_id}_coil_di1_rst
+      - delay: 200ms
+      - switch.turn_off: ${wld_id}_coil_di1_rst
   - platform: template
     name: "${wld_prefix} DI2 Counter Reset"
     on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 341
-          value: true
+      - switch.turn_on: ${wld_id}_coil_di2_rst
+      - delay: 200ms
+      - switch.turn_off: ${wld_id}_coil_di2_rst
   - platform: template
     name: "${wld_prefix} DI3 Counter Reset"
     on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 342
-          value: true
+      - switch.turn_on: ${wld_id}_coil_di3_rst
+      - delay: 200ms
+      - switch.turn_off: ${wld_id}_coil_di3_rst
   - platform: template
     name: "${wld_prefix} DI4 Counter Reset"
     on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 343
-          value: true
+      - switch.turn_on: ${wld_id}_coil_di4_rst
+      - delay: 200ms
+      - switch.turn_off: ${wld_id}_coil_di4_rst
   - platform: template
     name: "${wld_prefix} DI5 Counter Reset"
     on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 344
-          value: true
+      - switch.turn_on: ${wld_id}_coil_di5_rst
+      - delay: 200ms
+      - switch.turn_off: ${wld_id}_coil_di5_rst
 
   - platform: template
     name: "${wld_prefix} Midnight Pulse"
     on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 360
-          value: true
+      - switch.turn_on: ${wld_id}_coil_midnight
+      - delay: 200ms
+      - switch.turn_off: ${wld_id}_coil_midnight
 
   - platform: template
     name: "${wld_prefix} Irrigation Z1 START"
     on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 370
-          value: true
+      - switch.turn_on: ${wld_id}_coil_irr_z1_start
+      - delay: 200ms
+      - switch.turn_off: ${wld_id}_coil_irr_z1_start
   - platform: template
     name: "${wld_prefix} Irrigation Z2 START"
     on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 371
-          value: true
+      - switch.turn_on: ${wld_id}_coil_irr_z2_start
+      - delay: 200ms
+      - switch.turn_off: ${wld_id}_coil_irr_z2_start
   - platform: template
     name: "${wld_prefix} Irrigation Z1 STOP"
     on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 380
-          value: true
+      - switch.turn_on: ${wld_id}_coil_irr_z1_stop
+      - delay: 200ms
+      - switch.turn_off: ${wld_id}_coil_irr_z1_stop
   - platform: template
     name: "${wld_prefix} Irrigation Z2 STOP"
     on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 381
-          value: true
+      - switch.turn_on: ${wld_id}_coil_irr_z2_stop
+      - delay: 200ms
+      - switch.turn_off: ${wld_id}_coil_irr_z2_stop
   - platform: template
     name: "${wld_prefix} Irrigation Z1 RESET"
     on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 390
-          value: true
+      - switch.turn_on: ${wld_id}_coil_irr_z1_reset
+      - delay: 200ms
+      - switch.turn_off: ${wld_id}_coil_irr_z1_reset
   - platform: template
     name: "${wld_prefix} Irrigation Z2 RESET"
     on_press:
-      - modbus_controller.write_coil:
-          id: ${wld_id}
-          address: 391
-          value: true
+      - switch.turn_on: ${wld_id}_coil_irr_z2_reset
+      - delay: 200ms
+      - switch.turn_off: ${wld_id}_coil_irr_z2_reset
