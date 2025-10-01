@@ -531,6 +531,8 @@ sensor:
   - platform: template
     name: "${wld_prefix} Heat1 Energy"
     unit_of_measurement: "kWh"
+    device_class: energy
+    state_class: total_increasing
     accuracy_decimals: 3
     update_interval: 1s
     lambda: |-
@@ -606,6 +608,8 @@ sensor:
     name: "${wld_prefix} Heat2 Energy"
     unit_of_measurement: "kWh"
     accuracy_decimals: 3
+    device_class: energy
+    state_class: total_increasing
     update_interval: 1s
     lambda: |-
       uint32_t v = (uint32_t(id(${wld_id}_heat2_e_lo).state) | (uint32_t(id(${wld_id}_heat2_e_hi).state) << 16));
@@ -679,6 +683,8 @@ sensor:
   - platform: template
     name: "${wld_prefix} Heat3 Energy"
     unit_of_measurement: "kWh"
+    device_class: energy
+    state_class: total_increasing
     accuracy_decimals: 3
     update_interval: 1s
     lambda: |-
@@ -753,6 +759,8 @@ sensor:
   - platform: template
     name: "${wld_prefix} Heat4 Energy"
     unit_of_measurement: "kWh"
+    device_class: energy
+    state_class: total_increasing
     accuracy_decimals: 3
     update_interval: 1s
     lambda: |-
@@ -827,6 +835,8 @@ sensor:
   - platform: template
     name: "${wld_prefix} Heat5 Energy"
     unit_of_measurement: "kWh"
+    device_class: energy
+    state_class: total_increasing
     accuracy_decimals: 3
     update_interval: 1s
     lambda: |-
