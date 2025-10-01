@@ -535,7 +535,7 @@ sensor:
     update_interval: 1s
     lambda: |-
       uint32_t v = (uint32_t(id(${wld_id}_heat1_e_lo).state) | (uint32_t(id(${wld_id}_heat1_e_hi).state) << 16));
-      return v / 1000.0;
+      return v / 1000000.0;
 
   - platform: modbus_controller
     id: ${wld_id}_heat1_dt_lo
@@ -609,7 +609,7 @@ sensor:
     update_interval: 1s
     lambda: |-
       uint32_t v = (uint32_t(id(${wld_id}_heat2_e_lo).state) | (uint32_t(id(${wld_id}_heat2_e_hi).state) << 16));
-      return v / 1000.0;
+      return v / 1000000.0;
 
   - platform: modbus_controller
     id: ${wld_id}_heat2_dt_lo
@@ -683,7 +683,7 @@ sensor:
     update_interval: 1s
     lambda: |-
       uint32_t v = (uint32_t(id(${wld_id}_heat3_e_lo).state) | (uint32_t(id(${wld_id}_heat3_e_hi).state) << 16));
-      return v / 1000.0;
+      return v / 1000000.0;
 
   - platform: modbus_controller
     id: ${wld_id}_heat3_dt_lo
@@ -757,7 +757,7 @@ sensor:
     update_interval: 1s
     lambda: |-
       uint32_t v = (uint32_t(id(${wld_id}_heat4_e_lo).state) | (uint32_t(id(${wld_id}_heat4_e_hi).state) << 16));
-      return v / 1000.0;
+      return v / 1000000.0;
 
   - platform: modbus_controller
     id: ${wld_id}_heat4_dt_lo
@@ -831,7 +831,7 @@ sensor:
     update_interval: 1s
     lambda: |-
       uint32_t v = (uint32_t(id(${wld_id}_heat5_e_lo).state) | (uint32_t(id(${wld_id}_heat5_e_hi).state) << 16));
-      return v / 1000.0;
+      return v / 1000000.0;
 
   - platform: modbus_controller
     id: ${wld_id}_heat5_dt_lo
