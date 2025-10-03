@@ -181,58 +181,83 @@ Each case uses built-in firmware features via the Web Serial UI:
 
 # 3. Safety Information
 
-This section outlines essential safety guidelines specific to the **ALM-173-R1** alarm I/O module. Failure to follow these instructions may result in equipment damage, system failure, or personal injury.
+These safety guidelines apply to the **ALM-173-R1** alarm I/O module. Ignoring them may result in **equipment damage**, **system failure**, or **personal injury**.
 
-> ⚠️ **SELV/LV only.** The ALM-173-R1 is intended for **Safety Extra–Low Voltage (SELV)** installations. Do **not** connect mains voltages to any terminal.
-
----
-
-## 3.1 General Electrical Safety
-
-| Warning                  | Requirement                                                                                                                                                      |
-| :----------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Professional Service** | Installation and maintenance must be performed by **qualified personnel** familiar with local electrical codes and control-panel practices.                      |
-| **Power Isolation**      | **Always** isolate the primary **24 VDC** supply and all connected loads before wiring, servicing, or moving the module. Lock-out/Tag-out where applicable.      |
-| **Polarity & Ratings**   | Verify the supply polarity and that all connected circuits remain within the module’s specified **voltage and current** limits. Use an upstream fuse or breaker. |
-| **Grounding**            | Bond the control panel to protective earth. Keep **SELV returns** and shields properly managed; avoid earth loops.                                               |
-| **Environmental**        | Install in a **dry, clean, indoor** enclosure with adequate ventilation. Keep away from condensation, conductive dust, and vibration.                            |
+> ⚠️ **Low-Voltage (SELV) only** — This module is intended **only** for Safety Extra-Low Voltage (SELV) systems. Never connect mains or high-voltage circuits.
 
 ---
 
-## 3.2 Handling & Installation
+## 3.1 General Requirements
 
-| Requirement              | Detail                                                                                                                                                                                                                |
-| :----------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **ESD Protection**       | Handle the product by its case; when boards are exposed, wear an **ESD wrist strap** and use an antistatic workstation.                                                                                               |
-| **DIN-Rail Mounting**    | Mount on **35 mm DIN rail** inside a protective enclosure. Secure the rail and provide strain relief for all field wiring.                                                                                            |
-| **Wiring**               | Use insulated wire of appropriate gauge and temperature rating per code and **terminal block ratings**. **Tighten all screws**; loose connections can overheat. Route **signal, power, and relay** wiring separately. |
-| **Isolation Boundaries** | The module contains **isolated field supplies** and **opto-isolated inputs**. Do **not** bridge isolated returns to logic ground unless the system design requires it.                                                |
-| **Commissioning**        | After wiring, verify correct **polarity**, **bus polarity (A/B)**, and **relay contact routing (COM/NO/NC)** before energizing. Perform functional tests with loads disconnected first.                               |
-
----
-
-## 3.3 Device-Specific Warnings
-
-| Component / Area                                                              | Warning                                                                                                                                                                                                                                                                                                                                                  |
-| :---------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Primary Power (24 VDC)**                                                    | Use a clean, SELV 24 VDC source. Reverse-polarity protection is limited—**incorrect wiring can damage the unit**. Provide an upstream fuse/breaker sized for your installation.                                                                                                                                                                          |
-| **Isolated Sensor Supplies — “OUTPUT 12 Vdc (PS/1)” & “OUTPUT 5 Vdc (PS/2)”** | These rails are **isolated** and intended **only for low-power sensors**. Do **not** backfeed from external supplies, parallel with other rails, or exceed the current budget. Short circuits may trip onboard **PTC fuses**; allow them to cool to auto-reset.                                                                                          |
-| **Digital Inputs (DI1…DI17)**                                                 | Inputs are **opto-isolated** and share labeled **GND I.x** returns. Connect **dry contacts** or **low-voltage isolated** signals only. Applying high AC/DC or non-isolated industrial voltages will **breach the isolation barrier** and can destroy the module. Respect debounce/invert settings in firmware rather than hardwiring unsafe workarounds. |
-| **Relay Outputs (RLY1…RLY3, COM/NO/NC)**                                      | Relays are **dry contacts** (no internal source of power). **Do not exceed** their contact voltage/current ratings. Inductive loads (coils, locks, sirens) **must** be snubbed (RC / TVS) externally to prevent arcing and premature contact wear. Use separate supply returns for high-current loads; avoid routing load current through logic returns. |
-| **RS-485 (A/B, COM)**                                                         | Use **twisted pair** (preferably shielded). Maintain correct **A/B polarity**. Termination/biasing should be applied **once per bus** as per system design. The port includes protection (TVS/PTC) for transients, but it is **not a lightning arrestor**—route cabling appropriately and use surge protection where required.                           |
-| **USB-C (Front “USB”)**                                                       | Intended for **service/configuration** only. Do **not** use to power field devices. Connect to grounded/isolated PCs. During electrical storms or when the RS-485 trunk is long/exposed, avoid connecting a laptop to the panel.                                                                                                                         |
-| **Front-Panel Buttons & LEDs**                                                | Buttons can acknowledge alarms or override relays. **Accidental presses** may change system state—use enclosure doors/covers or disable overrides in firmware where safety-critical.                                                                                                                                                                     |
-| **Shielding & EMC**                                                           | Terminate cable shields **at one end** unless your EMC plan specifies otherwise. Keep RS-485 and input cabling away from contactors, VFDs, and high-dv/dt conductors.                                                                                                                                                                                    |
+| Requirement               | Detail |
+|---------------------------|--------|
+| **Qualified Personnel**   | Installation and servicing must be done by trained technicians familiar with panel wiring and control systems. |
+| **Power Isolation**       | Always disconnect **24 VDC** power and any relay loads before wiring or moving the module. Use lockout/tagout where applicable. |
+| **Environmental Limits**  | Mount inside a **dry, clean, ventilated** enclosure. Keep away from condensation, conductive dust, or vibration. |
+| **Grounding**             | Bond the control panel to protective earth. Keep **SELV returns** and shields properly managed. |
+| **Voltage Compliance**    | Ensure all connected circuits stay within the module’s voltage/current ratings. Fuse the supply appropriately. |
 
 ---
 
-> ✅ **Checklist before powering up**
->
-> * All terminals tightened and strain-relieved
-> * No bridges between **isolated** and **logic** grounds unless intentional
-> * Relays wired with correct **COM/NO/NC** choice and snubbers fitted
-> * RS-485 polarity and termination verified
-> * Sensor loads on **PS/1 (12 V)** and **PS/2 (5 V)** within budget
+## 3.2 Installation Practices
+
+| Task                  | Guidance |
+|-----------------------|----------|
+| **ESD Protection**    | Handle only by the case. Use antistatic wrist strap and surface when the board is exposed. |
+| **DIN Rail Mounting** | Mount securely on **35 mm DIN rail** inside an enclosure. Apply strain relief to all cabling. |
+| **Wiring**            | Use appropriate wire gauge and tighten terminal screws firmly. Separate signal, power, and relay wiring paths. |
+| **Isolation Domains** | Inputs and sensor power are isolated. Do not bridge **GND_ISO** to logic ground unless intentionally designed. |
+| **Commissioning**     | Before applying power, double-check polarity, RS-485 A/B wiring, and relay contact routing (COM/NO/NC). Run tests without loads first. |
+
+---
+
+## 3.3 I/O & Interface Warnings
+
+### 🔌 Power
+
+| Area              | Warning |
+|------------------|---------|
+| **24 VDC Input**  | Use a **clean SELV** 24 VDC source. Reverse polarity can damage the module. Fuse the supply upstream. |
+| **Sensor Rails (12 V / 5 V)** | For **low-power sensors only**. Never backfeed or parallel with external rails. Short circuits may trip **PTC fuses** (auto-reset). |
+
+### ⚠️ Inputs & Relays
+
+| Area            | Warning |
+|----------------|---------|
+| **Digital Inputs (IN1–IN17)** | Accept **dry contacts** or isolated low-voltage signals only. Never apply high voltage. Respect debounce/invert settings in UI. |
+| **Relay Outputs (RLY1–3)**    | **Dry contacts** only. Do not exceed rated current/voltage. **Snub** inductive loads externally (RC/TVS). Do not route high-current return through logic ground. |
+
+### 🧠 Communication & USB
+
+| Area            | Warning |
+|----------------|---------|
+| **RS-485 Bus**  | Use **twisted pair (shielded)**. Terminate and bias once per trunk. Protect against surges. Not designed for lightning arrest. |
+| **USB-C (Front)** | For **setup only**. Never use to power field devices. During storms or if trunk is long/exposed, disconnect USB from PC. |
+
+### 👆 Front Panel
+
+| Area           | Warning |
+|----------------|---------|
+| **Buttons & LEDs** | Can acknowledge alarms or override relays. Disable in firmware or use protective enclosures in safety-critical environments. |
+
+### 📶 Shielding & EMC
+
+| Area         | Recommendation |
+|--------------|----------------|
+| **Cable Shields** | Terminate at one point only (typically the controller). Keep signal wiring away from VFDs or high-energy switching circuits. |
+
+---
+
+## ✅ Pre-Power Checklist
+
+Ensure the following before applying power:
+
+- [ ] **All terminals** are torqued and strain-relieved  
+- [ ] No accidental bridges between **logic ground** and **GND_ISO**  
+- [ ] Relays are correctly wired (**COM/NO/NC**) with snubbers installed  
+- [ ] RS-485 **A/B polarity and termination** are correct  
+- [ ] Sensor current on **PS/1 (12 V)** and **PS/2 (5 V)** is within limits  
+
 
 ---
 
