@@ -10,15 +10,15 @@
 
 The **ALM-173-R1** is a configurable **alarm I/O module** with **17 opto-isolated inputs**, **3 SPDT relays**, plus **4 buttons** and **4 LEDs** for on-panel control. It connects to a **MicroPLC/MiniPLC** via **RS-485 (Modbus RTU)** and is set up through a USB-C **WebConfig** UI (Web Serial) to define Modbus params, invert/enable inputs, group them into **three alarm groups** (latched or momentary), map groups to relays, assign button roles (acknowledge, manual relay override), and choose LED modes—with live status and quick **device reset**. The design features a **galvanically isolated field side**, and an **RP2350 MCU** with **MAX485** and **PCF8574** expanders running from **24 V**. Modbus registers expose inputs, group/alarm bits, and relay states, making integration with **Home Assistant** straightforward.
 
-
+## Table of Contents
 - [1. ALM-173-R1 Module for Alarm Systems](#1-introduction-1)
 - [2. Use Cases & Alarm Logic Examples]
 - [3. Safety Information(#2-safety-information-1)
-- [4. Quick Start Guide] (From old 4.4, the Phase 1/2/3 checklist)
-5. System Role & Home Assistant Integration (From old 1.2 & 3.2, merged)
-6. Detailed Installation & Wiring (From old 5.0)
-7. WebConfig UI Setup (From old 6.0)
-8. Hardware & Technical Specification (Reference) (From old 3.1 & 3.4, merged)
+- [4. Quick Start Guide]
+- [5. System Role & Home Assistant Integration] (From old 1.2 & 3.2, merged)
+- [6. Detailed Installation & Wiring](#6-wiring-1)
+- [7. WebConfig UI Setup](#7-software-ui-configuration-1)
+- [8. Hardware & Technical Specification]
 - [9. Modbus Register Map](#8-modbus-rtu-communication-1)
 - [10. ESPHome Integration Guide (MicroPLC/MiniPLC + ALM-173-R1)](#10-esphome-integration-guide-microplcminiplc-alm-173-r1-1)
 - [11. Programming & Customization](119-programming-customization-1)
@@ -27,26 +27,6 @@ The **ALM-173-R1** is a configurable **alarm I/O module** with **17 opto-isolate
 - [14. Downloads](#14-downloads-1)
 - [15. Support](#15-support-1)
 <br clear="left"/>
-
-## Table of Contents
-- [1. [Introduction]](#1-introduction-1)
-- [2. Safety Information](#2-safety-information-1)
-- [3. System Overview](#3-system-overview-1)
-- [4. Getting Started](#4-getting-started-1)
-- [5. Installation & Wiring](#5-wiring-1)
-- [6 Software & UI Configuration](#6-software-ui-configuration-1)
-- [7 Modbus RTU Communication](#7-modbus-rtu-communication-1)
-- [8. [ESPHome Integration Guide (MicroPLC/MiniPLC + ALM-173-R1)]](#8-esphome-integration-guide-microplcminiplc-alm-173-r1-1)
-- [9. Programming & Customization](#9-programming-customization-1)
-- [10. Maintenance & Troubleshooting](#10-maintenance-troubleshooting-1)
-- [11. Open Source & Licensing](#11-open-source-licensing-1)
-- [12. Downloads](#12-downloads-1)
-- [13. Support](#13-support-1)
-
-
-<br clear="left"/>
-
-
 ---
 <a id="1-introduction-1"></a>
 # 1. [Introduction]
@@ -125,134 +105,6 @@ The **ALM-173-R1** is an intelligent expansion module for the **HomeMaster MiniP
 
 > **Note:** If multiple ALM-173-R1 modules share the same RS-485 segment, change the slave ID on each unit to avoid address conflicts.
 
-<a id="3-system-overview-1"></a>
-# 3. System Overview
-## 
-
-## 3.3 Diagrams & Pinouts
-<div align="center">
-  <table>
-    <tr>
-      <td align="center">
-        <strong>ALM System Diagram</strong><br>
-        <img src="Images/ALM_SystemBlockDiagram.png" alt="ALM System Diagram" width="360">
-      </td>
-      <td align="center">
-        <strong>RP2350 MCU Pinout</strong><br>
-        <img src="Images/ALM_MCU_Pinouts.png" alt="MCU Pinouts" width="360">
-      </td>
-    </tr>
-    <tr>
-      <td align="center">
-        <strong>Field Board Layout</strong><br>
-        <img src="Images/FieldBoard-Diagram.png" alt="Field Board Diagram" width="360">
-      </td>
-      <td align="center">
-        <strong>MCU Board Layout</strong><br>
-        <img src="Images/MCUBoard-Diagram.png" alt="MCU Board Diagram" width="360">
-      </td>
-    </tr>
-  </table>
-</div>
-
-#4 ALM-173-R1 — Technical Specification
-
-## Overview
-
-- **Function:** Alarm and annunciation I/O module with **17× opto-isolated digital inputs** and **3× SPDT relay outputs**  
-- **System role:** RS-485 **Modbus RTU** slave for MicroPLC/MiniPLC and Home Automation 
-- **Form factor:** DIN-rail module (compact multi-gang footprint), USB-C service port for Web-Serial setup
-
----
-
-## I/O Summary
-
-| Interface | Qty | Electrical / Notes |
-|---|---:|---|
-| **Digital Inputs (IN1…IN17)** | 17 | **Opto-isolated** inputs referenced to **GND_ISO**; suited for dry contacts and other isolated low-voltage signals. Per-channel conditioning and surge protection. |
-| **Relays (RLY1…RLY3)** | 3 | **SPDT dry contacts** (COM/NO/NC) with transistor + opto drivers and contact suppression. Use snubbers/TVS for inductive loads; observe relay datasheet ratings (HF115F series). |
-| **Isolated sensor rails** | 2 | **+12 V (PS/1)** and **+5 V (PS/2)**, each **isolated** and fuse-limited for powering field sensors (not actuators). |
-| **User Buttons** | 4 | Front-panel buttons (SW1…SW4) to acknowledge alarms or manually override relays (configurable in UI). |
-| **User LEDs** | 4 (+ status) | Front LEDs indicate groups/any alarm and overrides; **PWR** steady-on, **TX/RX** blink on bus activity. |
-| **Field bus** | 1 | **RS-485 (A/B/COM)** with ESD/TVS and PTC protection; bias/termination per site design. |
-| **Service** | 1 | **USB-C** with ESD protection for Web-Serial configuration and diagnostics. |
-
----
-
-## Terminals & Pinout (field side)
-
-<img src="Images/photo1.png" align="left" width="660" alt="ALM-173-R1 module photo">
-
-### Connector Map (front label reference)
-> Use the front silkscreen to match terminals during wiring.
-
-| Area (Front Label) | Purpose | Notes |
-| :--- | :--- | :--- |
-| **POWER — 24 Vdc (V+, 0 V)** | Primary SELV supply. | Verify polarity; isolate before service. |
-| **DIGITAL INPUTS — IN1…IN17 (with GND_ISO groups)** | Dry-contact / isolated low-voltage inputs. | Use only within SELV limits; keep **GND_ISO** separate from logic ground unless design requires bonding. |
-| **RELAY1…RELAY3 — C/NO/NC** | SPDT dry-contact outputs. | Observe relay ratings; snub inductive loads; avoid switching mains unless permitted by code and relay datasheet. |
-| **OUTPUT 12 Vdc (PS/1)** | Isolated sensor supply (12 V). | Fuse-limited; no backfeeding or paralleling with other rails. |
-| **OUTPUT 5 Vdc (PS/2)** | Isolated sensor supply (5 V). | Fuse-limited; for sensors only. |
-| **RS-485 — COM, B, A** | Modbus RTU field bus. | Twisted pair; correct A/B polarity; one-point shield bond; termination per trunk design. |
-| **USB (Service)** | Web-Serial configuration. | For service only; not a field power source. |
-| **PWR/TX/RX LEDs** | Power and bus activity. | **PWR** = steady ON; **TX/RX** = **blink** when communication is active. If not blinking (stuck OFF/solid), isolate and check wiring, polarity, termination, and addressing. |
-
-<br clear="left"/>
-
----
-
-## Electrical
-
-### Power & Regulation
-- **Primary input:** **24 VDC** nominal with input fuse, reverse-polarity protection, and surge suppression  
-- **DC/DC & rails:**  
-  - **Buck 24 V → +5 V** (primary logic rail)  
-  - **LDO +5 V → +3.3 V** (MCU and logic)  
-  - **Isolated rails:** **+12 V ISO** and **+5 V ISO** via isolated DC-DC modules with LC filtering and PTC fusing
-
-### Digital Inputs
-- **Opto-isolators** per channel with series/network resistors for noise immunity  
-- **Surge/ESD protection** on input lines; inputs referenced to **GND_ISO** return groups  
-- Firmware options per input: **Enable**, **Invert**, **Group assignment (1/2/3/None)**, debounce in logic
-
-### Relay Outputs
-- **HF115F series** SPDT relays with transistor drivers and opto-isolation on control side  
-- **Contact suppression** network to reduce EMI/arcing; fit external snubbers/TVS for coils, locks, sirens  
-- Wire loads directly to **COM/NO/NC**; keep load currents off logic returns
-
-### RS-485 (Modbus RTU)
-- **MAX485-class** transceiver with DE/RE control  
-- **Protection:** TVS diodes on A/B, series elements, bias network, and **PTC** resettable fuses on the bus  
-- **Indicators:** **TX/RX LEDs** reflect line activity
-
-### USB-C (service/config)
-- **ESD/EMI** protection array on D± and VBUS, CC pull-downs; reverse-current protection to the +5 V rail  
-- Intended for **configuration and diagnostics**; not for powering external loads
-
----
-
-##MCU & Storage
-
-- **Controller:** **Raspberry Pi RP2350A** dual-core MCU  
-- **External storage:** **W25Q32** (32-Mbit QSPI NOR flash) for firmware/config  
-- **Clocking & debug:** 12 MHz crystal; **SWD** header for development/service access  
-- **I/O expansion:** **PCF8574** I²C expanders for input/relay/LED/button matrixing
-
----
-
-## Protections & Design for Reliability
-
-- **Galvanic isolation:** Dedicated **GND_ISO** domain and **isolated +12 V/+5 V** rails for sensors  
-- **Surge/ESD:** TVS arrays on RS-485 and USB; RC/series networks on data lines; **PTC** resettable fuses on field rails and bus  
-- **Contact life:** Built-in suppression and guidance to apply external snubbers for inductive loads
-
----
-
-## Firmware / Function (high-level)
-
-- **Alarm engine:** map inputs → **Group 1/2/3** with modes **Active-while** or **Latched-until-ack**; **Any Alarm** summary  
-- **Actuation:** per-relay **Enable/Invert/Group**; **Buttons** for acknowledges and manual relay overrides; **User LEDs** sourced to groups/any/override with **Steady/Blink**  
-- **Setup & telemetry:** Web-Serial UI (USB-C) for **Modbus address/baud**, live input/relay/group status, and safe reset; operates stand-alone with a PLC/HMI supervising over Modbus
 ---
 
 ## 2 Use Cases 🛠️
@@ -541,14 +393,14 @@ _For wiring safety, terminal maps, and cable practices, see your **[Installation
 - **Relays:** command each relay from the UI or controller and verify field wiring (use a meter or indicator load).
 - **Buttons/LEDs:** press front buttons to **acknowledge** or **override** as configured; confirm user LEDs reflect the chosen sources and modes.
 
-<a id="5-wiring-1"></a>
-# 5. Installation & Wiring
+<a id="7-wiring-1"></a>
+# 6. Installation & Wiring
 
 > ⚠️ **Safety first.** Work must be performed by qualified personnel. De-energize the panel and verify with a meter before wiring. The ALM-173-R1 is a **SELV/low-voltage** device; do not connect mains to any logic/input terminal.
 
 ---
 
-## 5.1 RS-485 Field Bus (Modbus RTU)
+## 7.1 RS-485 Field Bus (Modbus RTU)
 
 ![RS-485 wiring to controller with 120Ω end-of-line termination](Images/ALM_RS485Connection.png)
 
@@ -564,7 +416,7 @@ The controller is wired to the ALM-173-R1 using a twisted pair for **A/B** plus 
 
 ---
 
-## 5.2 Primary Power (24 VDC)
+## 7.2 Primary Power (24 VDC)
 
 ![24 VDC power wiring to V+ and 0V](Images/ALM_24Vdc_PowerSupply.png)
 
@@ -578,7 +430,7 @@ A regulated **24 VDC** supply connects to the top-left **POWER** terminals: **V+
 
 ---
 
-## 5.3 Digital Inputs (IN1…IN17)
+## 7.3 Digital Inputs (IN1…IN17)
 
 ![Dry-contact sensors to inputs with per-group returns](Images/ALM_DigitalInputs.png)
 
@@ -594,7 +446,7 @@ Dry-contact sensors are wired between each **INx** and the matching **GND I.x** 
 
 ---
 
-## 5.4 Relay Outputs (RLY1…RLY3, COM/NO/NC)
+## 7.4 Relay Outputs (RLY1…RLY3, COM/NO/NC)
 
 ![Relays used as dry contacts to switch an external AC line via breaker](Images/ALM_RelayConnection.png)
 
@@ -610,7 +462,7 @@ Each relay operates as a **dry contact** to switch an external supply. The examp
 
 ---
 
-## 5.5 Final Checks
+## 7.5 Final Checks
 
 - All terminals torqued; strain relief applied.  
 - **Isolation boundaries** respected (no unintended bonds between **GND_ISO** and logic ground).  
@@ -619,10 +471,10 @@ Each relay operates as a **dry contact** to switch an external supply. The examp
 - Power up: **PWR** LED steady **ON**; **TX/RX** **blink** when the controller communicates.
 
 
-<a id="6-software-ui-configuration-1"></a>
-# 6 Software & UI Configuration
+<a id="7-software-ui-configuration-1"></a>
+# 7Software & UI Configuration
 
-## 6.1 How to Connect to the Module
+## 7.1 How to Connect to the Module
 
 ![ALM-173-R1 WebConfig — Active Modbus Configuration](Images/webconfig1.png)
 
@@ -635,7 +487,7 @@ Each relay operates as a **dry contact** to switch an external supply. The examp
 
 > If you cannot connect to the module, check that no other app (serial console, uploader, etc.) is already using the USB port, and verify the browser has permission to access it. On macOS/Linux, ensure your user has the required USB serial permissions.
 
-## 6.2 How to Configure Modbus
+## 7.2 How to Configure Modbus
 
 Use the top **Modbus Address** and **Baud Rate** selectors. Changes are sent to the device immediately; the **Serial Log** confirms with messages like “Modbus configuration updated” and “Configuration saved.”
 
@@ -646,7 +498,7 @@ Use the top **Modbus Address** and **Baud Rate** selectors. Changes are sent to 
 
 > You can revisit this page anytime to adjust Modbus parameters. Configuration persists in the module’s flash memory.
 
-## 6.3 How to Set Alarm Modes
+## 7.3 How to Set Alarm Modes
 
 Use the **Mode – Group 1/2/3** dropdowns to select the behavior for each group:
 - **None** — group disabled.
@@ -662,7 +514,7 @@ Use the **Mode – Group 1/2/3** dropdowns to select the behavior for each group
 - **Active while condition is active** — turns ON only while mapped inputs are active.
 - **Latched until acknowledged** — stays ON after a trigger until acknowledged.
 
-## 6.4 How to Configure Digital Inputs
+## 7.4 How to Configure Digital Inputs
 
 ![Digital Inputs — WebConfig](./Images/webconfig3.png)
 
@@ -674,7 +526,7 @@ For each input **IN1…IN17**:
 
 The small dot in the top-right of each card shows the **live state** (off = idle, on = active) so you can verify wiring immediately.
 
-## 6.5 How to Configure Relays
+## 7.5 How to Configure Relays
 
 ![Relays — WebConfig](./Images/webconfig4.png)
 
@@ -693,7 +545,7 @@ For each **Relay 1…3**:
 ---
 
 
-## 6.6 How to Configure LEDs and Buttons
+## 7.6 How to Configure LEDs and Buttons
 
 ![LEDs — WebConfig](./Images/webconfig5.png)
 
@@ -729,6 +581,132 @@ For each **Button 1…4**:
 - The small dot in the card shows the **live press** state (off = idle, on = pressed).
 
 ---
+
+<a id="8-system-overview-1"></a>
+# 8. ALM-173-R1 — Technical Specification
+## 3.3 Diagrams & Pinouts
+<div align="center">
+  <table>
+    <tr>
+      <td align="center">
+        <strong>ALM System Diagram</strong><br>
+        <img src="Images/ALM_SystemBlockDiagram.png" alt="ALM System Diagram" width="360">
+      </td>
+      <td align="center">
+        <strong>RP2350 MCU Pinout</strong><br>
+        <img src="Images/ALM_MCU_Pinouts.png" alt="MCU Pinouts" width="360">
+      </td>
+    </tr>
+    <tr>
+      <td align="center">
+        <strong>Field Board Layout</strong><br>
+        <img src="Images/FieldBoard-Diagram.png" alt="Field Board Diagram" width="360">
+      </td>
+      <td align="center">
+        <strong>MCU Board Layout</strong><br>
+        <img src="Images/MCUBoard-Diagram.png" alt="MCU Board Diagram" width="360">
+      </td>
+    </tr>
+  </table>
+</div>
+
+## Overview
+
+- **Function:** Alarm and annunciation I/O module with **17× opto-isolated digital inputs** and **3× SPDT relay outputs**  
+- **System role:** RS-485 **Modbus RTU** slave for MicroPLC/MiniPLC and Home Automation 
+- **Form factor:** DIN-rail module (compact multi-gang footprint), USB-C service port for Web-Serial setup
+
+---
+
+## I/O Summary
+
+| Interface | Qty | Electrical / Notes |
+|---|---:|---|
+| **Digital Inputs (IN1…IN17)** | 17 | **Opto-isolated** inputs referenced to **GND_ISO**; suited for dry contacts and other isolated low-voltage signals. Per-channel conditioning and surge protection. |
+| **Relays (RLY1…RLY3)** | 3 | **SPDT dry contacts** (COM/NO/NC) with transistor + opto drivers and contact suppression. Use snubbers/TVS for inductive loads; observe relay datasheet ratings (HF115F series). |
+| **Isolated sensor rails** | 2 | **+12 V (PS/1)** and **+5 V (PS/2)**, each **isolated** and fuse-limited for powering field sensors (not actuators). |
+| **User Buttons** | 4 | Front-panel buttons (SW1…SW4) to acknowledge alarms or manually override relays (configurable in UI). |
+| **User LEDs** | 4 (+ status) | Front LEDs indicate groups/any alarm and overrides; **PWR** steady-on, **TX/RX** blink on bus activity. |
+| **Field bus** | 1 | **RS-485 (A/B/COM)** with ESD/TVS and PTC protection; bias/termination per site design. |
+| **Service** | 1 | **USB-C** with ESD protection for Web-Serial configuration and diagnostics. |
+
+---
+
+## Terminals & Pinout (field side)
+
+<img src="Images/photo1.png" align="left" width="660" alt="ALM-173-R1 module photo">
+
+### Connector Map (front label reference)
+> Use the front silkscreen to match terminals during wiring.
+
+| Area (Front Label) | Purpose | Notes |
+| :--- | :--- | :--- |
+| **POWER — 24 Vdc (V+, 0 V)** | Primary SELV supply. | Verify polarity; isolate before service. |
+| **DIGITAL INPUTS — IN1…IN17 (with GND_ISO groups)** | Dry-contact / isolated low-voltage inputs. | Use only within SELV limits; keep **GND_ISO** separate from logic ground unless design requires bonding. |
+| **RELAY1…RELAY3 — C/NO/NC** | SPDT dry-contact outputs. | Observe relay ratings; snub inductive loads; avoid switching mains unless permitted by code and relay datasheet. |
+| **OUTPUT 12 Vdc (PS/1)** | Isolated sensor supply (12 V). | Fuse-limited; no backfeeding or paralleling with other rails. |
+| **OUTPUT 5 Vdc (PS/2)** | Isolated sensor supply (5 V). | Fuse-limited; for sensors only. |
+| **RS-485 — COM, B, A** | Modbus RTU field bus. | Twisted pair; correct A/B polarity; one-point shield bond; termination per trunk design. |
+| **USB (Service)** | Web-Serial configuration. | For service only; not a field power source. |
+| **PWR/TX/RX LEDs** | Power and bus activity. | **PWR** = steady ON; **TX/RX** = **blink** when communication is active. If not blinking (stuck OFF/solid), isolate and check wiring, polarity, termination, and addressing. |
+
+<br clear="left"/>
+
+---
+
+## Electrical
+
+### Power & Regulation
+- **Primary input:** **24 VDC** nominal with input fuse, reverse-polarity protection, and surge suppression  
+- **DC/DC & rails:**  
+  - **Buck 24 V → +5 V** (primary logic rail)  
+  - **LDO +5 V → +3.3 V** (MCU and logic)  
+  - **Isolated rails:** **+12 V ISO** and **+5 V ISO** via isolated DC-DC modules with LC filtering and PTC fusing
+
+### Digital Inputs
+- **Opto-isolators** per channel with series/network resistors for noise immunity  
+- **Surge/ESD protection** on input lines; inputs referenced to **GND_ISO** return groups  
+- Firmware options per input: **Enable**, **Invert**, **Group assignment (1/2/3/None)**, debounce in logic
+
+### Relay Outputs
+- **HF115F series** SPDT relays with transistor drivers and opto-isolation on control side  
+- **Contact suppression** network to reduce EMI/arcing; fit external snubbers/TVS for coils, locks, sirens  
+- Wire loads directly to **COM/NO/NC**; keep load currents off logic returns
+
+### RS-485 (Modbus RTU)
+- **MAX485-class** transceiver with DE/RE control  
+- **Protection:** TVS diodes on A/B, series elements, bias network, and **PTC** resettable fuses on the bus  
+- **Indicators:** **TX/RX LEDs** reflect line activity
+
+### USB-C (service/config)
+- **ESD/EMI** protection array on D± and VBUS, CC pull-downs; reverse-current protection to the +5 V rail  
+- Intended for **configuration and diagnostics**; not for powering external loads
+
+---
+
+##MCU & Storage
+
+- **Controller:** **Raspberry Pi RP2350A** dual-core MCU  
+- **External storage:** **W25Q32** (32-Mbit QSPI NOR flash) for firmware/config  
+- **Clocking & debug:** 12 MHz crystal; **SWD** header for development/service access  
+- **I/O expansion:** **PCF8574** I²C expanders for input/relay/LED/button matrixing
+
+---
+
+## Protections & Design for Reliability
+
+- **Galvanic isolation:** Dedicated **GND_ISO** domain and **isolated +12 V/+5 V** rails for sensors  
+- **Surge/ESD:** TVS arrays on RS-485 and USB; RC/series networks on data lines; **PTC** resettable fuses on field rails and bus  
+- **Contact life:** Built-in suppression and guidance to apply external snubbers for inductive loads
+
+---
+
+## Firmware / Function (high-level)
+
+- **Alarm engine:** map inputs → **Group 1/2/3** with modes **Active-while** or **Latched-until-ack**; **Any Alarm** summary  
+- **Actuation:** per-relay **Enable/Invert/Group**; **Buttons** for acknowledges and manual relay overrides; **User LEDs** sourced to groups/any/override with **Steady/Blink**  
+- **Setup & telemetry:** Web-Serial UI (USB-C) for **Modbus address/baud**, live input/relay/group status, and safe reset; operates stand-alone with a PLC/HMI supervising over Modbus
+
 
 <a id="9-modbus-rtu-communication-1"></a>
 # 9 Modbus RTU Communication
