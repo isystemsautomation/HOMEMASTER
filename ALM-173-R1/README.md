@@ -99,79 +99,85 @@ The **ALM-173-R1** is a standalone, intelligent Modbus slave. It runs group logi
 
 # 2. Use Cases 🛠️
 
-Below are practical ways to deploy the **ALM-173-R1** with the HomeMaster Mini/Micro PLC (or any Modbus RTU master). Each recipe uses only features available in the firmware + Web Serial UI: **Input Enable/Invert/Group**, **Relay Enable/Invert/Group**, **Alarm Modes** (*None / Active while condition* / *Latched until acknowledged*), **Buttons** (ack & manual relay override), and **User LEDs** (steady/blink; sources like *Any Alarm*, *Group 1..3*, *Relay overridden*).
+These are practical examples of deploying the **ALM-173-R1** with the HomeMaster Mini/Micro PLC or any Modbus RTU master.
+
+Each case uses built-in firmware features via the Web Serial UI:
+- **Input settings:** Enable, Invert, Group
+- **Relay logic:** Enable, Invert, Group or Manual
+- **Alarm behavior:** Latched or Momentary
+- **Buttons & LEDs:** Ack / Override / Status
+- **Modbus:** PLC reads status and controls relays
 
 ---
 
-### 1) Intrusion zone with siren, latched until acknowledgment
+### 1) [Intrusion] Zone Alarm with Siren (Latched)
 
-* **Goal:** Trip a siren when a door/PIR is triggered; hold the alarm until acknowledges.
-* **How:**
+**Trigger a siren when a sensor activates. Alarm stays ON until acknowledged.**
 
-  1. Wire the detector to **IN1**. In **Digital Inputs**, set **IN1 → Enabled**, **Group = Group 1**; use **Invert** if the contact is NC.
-  2. In **Alarm Modes**, set **Group 1 = Latched until acknowledged**.
-  3. In **Relays**, set **Relay 1 → Enabled, Group = Group 1** (Invert if the siren needs opposite polarity).
-  4. In **Buttons**, set **Button 1 = Alarm group 1 acknowledge**.
-  5. In **User LEDs**, map **LED 1 → Source = Alarm group 1**, **Mode = Blink** for visual cue.
-  6. The PLC reads Group 1 status and “Any Alarm” over Modbus for logging and notifications.
-
----
-
-### 2) Dual-door supervision with common strobe and separate acks
-
-* **Goal:** Two doors report separately, a common strobe flashes on any breach, and each zone can be acknowledged locally.
-* **How:**
-
-  1. **IN1 → Group 1** (Door A), **IN2 → Group 2** (Door B).
-  2. **Alarm Modes:** Group 1 = *Latched until acknowledged*, Group 2 = *Latched until acknowledged*.
-  3. **Relay 1 → Group 1**, **Relay 2 → Group 2** (drive individual buzzers/locks).
-  4. **Relay 3 → Group = None**; PLC toggles it as a **common strobe** via Modbus when *Any Alarm* is active.
-  5. **Button 1 = Alarm group 1 acknowledge**, **Button 2 = Alarm group 2 acknowledge**.
-  6. **LED 1 = Group 1**, **LED 2 = Group 2**, **LED 3 = Any Alarm**.
+**Steps:**
+1. Map **IN1 → Group 1**; enable + invert if NC.
+2. Set **Group 1 → Latched until acknowledged**.
+3. Map **Relay 1 → Group 1** (enable; invert if required).
+4. Set **Button 1 → Acknowledge Group 1**.
+5. Set **LED 1 → Group 1, Blink mode**.
+6. PLC reads Group 1 + “Any Alarm” status.
 
 ---
 
-### 3) Equipment room: summary fault to PLC + lamp tower
+### 2) [Access Control] Dual-Door Alarm with Shared Strobe
 
-* **Goal:** Collect many dry contacts (smoke, thermal, UPS, flooding) and present a **summary alarm** locally and to the HA.
-* **How:**
+**Two zones, each with own buzzer. Common strobe flashes on any alarm.**
 
-  1. Map **IN1..IN8 → Group 1** (all fault inputs). Use **Invert** per sensor type (NO/NC).
-  2. **Alarm Modes:** Group 1 = *Active while condition is active* (non-latched).
-  3. Wire a **red stack light** to **Relay 1**, set **Relay 1 → Group 1**.
-  4. **LED 1 = Any Alarm** (Blink) for panel indication.
-  5. PLC reads **Any Alarm** and **Group 1** bits via Modbus for HA alarms.
-
----
-
-### 4) Access door with strike control and door-left-open timer (via PLC)
-
-* **Goal:** PLC unlocks a strike, supervises the door contact, and alarms if the door is left open too long.
-* **How:**
-
-  1. **IN1 = Door contact → Group 3** (Invert if NC).
-  2. **Relays:** **Relay 1** wired to the strike, **Group = None** (PLC controls it directly over Modbus).
-  3. PLC logic: when access granted → energize **Relay 1**; start a **door-open timer**; if **IN1** stays active past timeout, raise **Group 3 alarm** (or directly drive **Relay 2** as buzzer).
-  4. **Button 4 = Alarm group 3 acknowledge** for guard reset; **LED 3 = Group 3**.
+**Steps:**
+1. Map **IN1 → Group 1**, **IN2 → Group 2**.
+2. Set **Groups 1 & 2 → Latched**.
+3. Map **Relay 1 → Group 1**, **Relay 2 → Group 2**.
+4. PLC toggles **Relay 3** when “Any Alarm” is active.
+5. Set **Button 1 → Ack G1**, **Button 2 → Ack G2**.
+6. Set **LEDs 1–3 → G1, G2, Any Alarm**.
 
 ---
 
-### 5) Panel-mount annunciator with “Any Alarm” lamp
+### 3) [Supervision] Equipment Room Summary Alarm
 
-* **Goal:** Use the front panel as a mini-annunciator while PLC handles supervision.
-* **How:**
+**Aggregate faults (smoke, thermal, flood, etc.) into one visual + Modbus alarm.**
 
-  1. Map various inputs **IN1..INn → Group 1..3** as needed.
-  2. **Alarm Modes:** choose **Active while** for live indication or **Latched** for operator intervention.
-  3. **User LEDs:**
-
-     * **LED 1 = Any Alarm (Blink)**
-     * **LED 2 = Group 1**, **LED 3 = Group 2**, **LED 4 = Group 3**
-  4. PLC mirrors lamp states on an HA and logs alarm history.
+**Steps:**
+1. Map **IN1–IN8 → Group 1**, invert per sensor.
+2. Set **Group 1 → Active while condition is active**.
+3. Map **Relay 1 → Group 1** (to stack light).
+4. Set **LED 1 → Any Alarm, Blink**.
+5. PLC reads **Any** and **Group 1** status.
 
 ---
 
-<a id="3-safety-information"></a>
+### 4) [Access Control] Door Strike with Timeout Alarm
+
+**PLC unlocks door, monitors contact, alarms if left open too long.**
+
+**Steps:**
+1. Map **IN1 → Group 3** (Invert if NC).
+2. Leave **Relay 1 = Group None**; PLC controls strike directly.
+3. In PLC logic: if **IN1** open too long → set **Group 3** or energize **Relay 2**.
+4. Set **Button 4 → Ack Group 3**, **LED 3 → Group 3**.
+
+---
+
+### 5) [Annunciator Panel] Any Alarm Indication
+
+**Use the front panel to show system-wide or per-group alarm state.**
+
+**Steps:**
+1. Map inputs **IN1…INn → Group 1–3**.
+2. Set groups to either **Latched** or **Active while** depending on use.
+3. Set **LED 1 → Any Alarm, Blink**
+4. Set **LED 2 → Group 1**, **LED 3 → Group 2**, **LED 4 → Group 3**
+5. PLC mirrors lamp states to HMI/HA dashboard.
+
+---
+
+> 💡 Tip: “Any Alarm” is always available via Modbus and can be mapped to a summary relay or LED.
+
 
 # 3. Safety Information
 
