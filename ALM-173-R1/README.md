@@ -551,30 +551,30 @@ For **RLY1…RLY3**:
 
 | Interface | Qty | Electrical / Notes |
 |---|---:|---|
-| **Digital Inputs (IN1…IN17)** | 17 | Opto-isolated to **GND_ISO**; dry contacts / isolated LV signals; per-channel conditioning + surge protection.  |
-| **Relays (RLY1…RLY3)** | 3 | **SPDT dry contacts (COM/NO/NC)** with transistor + opto drivers; contact suppression onboard—add external RC/TVS for inductive loads; observe datasheet ratings (HF115F). :contentReference[oaicite:1]{index=1} |
-| **Isolated Sensor Rails** | 2 | **+12 V (PS/1)** and **+5 V (PS/2)**, isolated & fuse-limited; for **sensors only** (no actuators). :contentReference[oaicite:2]{index=2} |
-| **User Buttons** | 4 | SW1…SW4 for acknowledge/override (configurable). :contentReference[oaicite:3]{index=3} |
-| **User LEDs** | 4 (+ status) | User LEDs for groups/any/override; **PWR** steady; **TX/RX** blink on bus activity. :contentReference[oaicite:4]{index=4} |
-| **Field Bus** | 1 | **RS-485 (A/B/COM)** with TVS & PTC protection; termination/bias per trunk design. :contentReference[oaicite:5]{index=5} |
-| **Service** | 1 | **USB-C** for Web-Serial configuration and diagnostics (ESD-protected). :contentReference[oaicite:6]{index=6} |
+| **Digital Inputs (IN1…IN17)** | 17 | Opto-isolated to **GND_ISO**; dry contacts / isolated LV signals; per-channel conditioning + surge protection. |
+| **Relays (RLY1…RLY3)** | 3 | **SPDT dry contacts (COM/NO/NC)** with transistor + opto drivers; onboard contact suppression—add external RC/TVS for inductive loads. |
+| **Isolated Sensor Rails** | 2 | **+12 V (PS/1)** and **+5 V (PS/2)**, isolated & fuse-limited; for **sensors only** (no actuators). |
+| **User Buttons** | 4 | SW1…SW4 for acknowledge/override (configurable). |
+| **User LEDs** | 4 (+ status) | User LEDs for groups/any/override; **PWR** steady; **TX/RX** blink on bus activity. |
+| **Field Bus** | 1 | **RS-485 (A/B/COM)** with TVS & PTC protection; termination/bias per trunk design. |
+| **Service** | 1 | **USB-C** for Web-Serial configuration and diagnostics (ESD-protected). |
 
 ---
 
 ## 5.4 Terminals & Pinout (Field Side)
 
-<img src="Images/photo1.png" align="left" width="660" alt="ALM-173-R1 module photo">
+<img src="Images/photo1.png" align="left" width="660" alt="ALM-173-R1 module front with terminal labeling">
 
 ### Connector Map (front label reference)
-> Use the front silkscreen to match terminals during wiring.
+> Use the front silkscreen to match terminals during wiring. In the enclosure view: **DI1…DI10** are on the top row with paired GNDs, **DI11…DI17** are on the bottom row with paired GNDs.
 
-- **POWER — 24 Vdc (V+, 0 V):** Primary SELV supply. Verify polarity; isolate before service. :contentReference[oaicite:7]{index=7}  
-- **DIGITAL INPUTS — IN1…IN17 (with GND_ISO groups):** Dry-contact / isolated LV inputs. Keep **GND_ISO** separate from logic ground unless intentionally bonded. :contentReference[oaicite:8]{index=8}  
-- **RELAY1…RELAY3 — COM/NO/NC:** SPDT dry outputs. Observe ratings; snub inductive loads; avoid mains unless permitted by code and relay datasheet. :contentReference[oaicite:9]{index=9}  
-- **OUTPUT 12 Vdc (PS/1) / OUTPUT 5 Vdc (PS/2):** Isolated sensor supplies; fuse-limited; **no backfeeding/paralleling**. :contentReference[oaicite:10]{index=10}  
-- **RS-485 — COM, B, A:** Modbus RTU field bus. Twisted pair; correct A/B polarity; one-point shield bond; termination per trunk design. :contentReference[oaicite:11]{index=11}  
-- **USB (Service):** Web-Serial configuration; not a field power source. :contentReference[oaicite:12]{index=12}  
-- **PWR/TX/RX LEDs:** **PWR** steady ON; **TX/RX** blink on traffic. If not blinking, check polarity, termination, address. :contentReference[oaicite:13]{index=13}
+- **POWER — 24 Vdc (V+, 0 V):** Primary SELV supply. Verify polarity; isolate before service.  
+- **DIGITAL INPUTS — IN1…IN17 (with GND_ISO pairs):** Dry-contact / isolated LV inputs. Keep **GND_ISO** separate from logic ground unless intentionally bonded.  
+- **RELAY1…RELAY3 — COM/NO/NC:** SPDT dry outputs. Observe ratings; snub inductive loads; avoid mains unless permitted by code and relay datasheet.  
+- **OUTPUT 12 Vdc (PS/1) / OUTPUT 5 Vdc (PS/2):** Isolated sensor supplies; fuse-limited; **no backfeeding/paralleling**.  
+- **RS-485 — COM, B, A:** Modbus RTU field bus. Twisted pair; correct A/B polarity; one-point shield bond; termination per trunk design.  
+- **USB (Service):** Web-Serial configuration; not a field power source.  
+- **PWR/TX/RX LEDs:** **PWR** steady ON; **TX/RX** blink on traffic. If not blinking, check polarity, termination, address.
 
 <br clear="left"/>
 
@@ -583,122 +583,124 @@ For **RLY1…RLY3**:
 ## 5.5 Electrical
 
 ### 5.5.1 Power & Regulation
-- **Input:** **24 VDC** nominal; input fuse, reverse-polarity & surge protection. :contentReference[oaicite:14]{index=14}  
+- **Input:** **24 VDC** nominal; input fuse, reverse-polarity & surge protection  
 - **Rails:**  
-  - **Buck 24 V → 5 V** (logic) via **AP64501**  
-  - **LDO 5 V → 3.3 V** (MCU & logic) via **AMS1117-3.3**  
-  - **Isolated rails:** **+12 V ISO / +5 V ISO** via **B2412S-2WR3 / B2405S-2WR3** with LC filtering & PTC fusing. 
+  - **Buck 24 V → 5 V** (logic)  
+  - **LDO 5 V → 3.3 V** (MCU & logic)  
+  - **Isolated rails:** **+12 V ISO / +5 V ISO** via isolated DC-DCs with LC filtering & PTC fusing
 
 ### 5.5.2 Digital Inputs
-- Per-channel **SFH6156-3** opto-isolators + resistor/cap networks for noise immunity. :contentReference[oaicite:16]{index=16}  
-- **Surge/ESD** protection on lines (per-channel **SMAJ6.8CA** TVS), common feeders protected by **1206L150THWR** PTCs; referenced to **GND_ISO** groups. :contentReference[oaicite:17]{index=17}  
-- Firmware options per input: **Enable**, **Invert**, **Group (1/2/3/None)**; debounce handled in logic.
+- Per-channel **opto-isolators** + resistor networks for noise immunity  
+- **Surge/ESD** protection on lines; referenced to **GND_ISO** groups  
+- Firmware options per input: **Enable**, **Invert**, **Group (1/2/3/None)**, debounce in logic
 
 ### 5.5.3 Relay Outputs
-- **HF115F/005-1ZS3** SPDT relays; transistor drivers with opto isolation; coil flyback diodes. :contentReference[oaicite:18]{index=18}  
-- Contact suppression network onboard (RV1–RV6 noted as **~115 pF @ 1 kHz**); fit **external RC/TVS** for inductive loads. :contentReference[oaicite:19]{index=19}  
-- Wire loads to **COM/NO/NC**; keep load currents off logic returns.
+- **HF115F** SPDT relays; transistor drivers with opto isolation  
+- Contact suppression network onboard; fit **external RC/TVS** for inductive loads  
+- Wire loads to **COM/NO/NC**; keep load currents off logic returns
 
 ### 5.5.4 RS-485 (Modbus RTU)
-- **MAX485** half-duplex transceiver; DE/RE controlled; fail-safe biasing. :contentReference[oaicite:20]{index=20}  
-- Protection: **TVS**, bias/series elements, and **PTC** resettable fuses on field side. :contentReference[oaicite:21]{index=21}  
-- Indicators: **TX/RX LEDs** reflect line activity. :contentReference[oaicite:22]{index=22}
+- **MAX485-class** transceiver, DE/RE control  
+- Protection: **TVS diodes**, series elements, bias network, **PTC** resettable fuses  
+- Indicators: **TX/RX LEDs** reflect line activity
 
 ### 5.5.5 USB-C (Service/Config)
-- **PRTR5V0U2X** ESD protection on D±/VBUS; 27 Ω series on D±; Schottky protection on VBUS. :contentReference[oaicite:23]{index=23}  
-- Intended for configuration/diagnostics; **not** for powering field loads.
+- **ESD/EMI** protection on D±/VBUS; CC pulldowns; reverse-current protection to 5 V rail  
+- Intended for configuration/diagnostics; **not** for powering field loads
 
 ---
 
 ## 5.6 MCU & Storage
-- **MCU:** **Raspberry Pi RP2350A**, dual-core. :contentReference[oaicite:24]{index=24}  
-- **Flash:** **W25Q32** (32-Mbit QSPI NOR) for firmware & config. :contentReference[oaicite:25]{index=25}  
-- **Clock/Debug:** 12 MHz crystal; **SWD** header for service. :contentReference[oaicite:26]{index=26}  
-- **I/O Expansion:** **PCF8574** I²C expanders for inputs/relays/LEDs/buttons. :contentReference[oaicite:27]{index=27}
+- **MCU:** **Raspberry Pi RP2350A**, dual-core  
+- **Flash:** **W25Q32** (32-Mbit QSPI NOR) for firmware & config  
+- **Clock/Debug:** 12 MHz crystal; **SWD** header for service  
+- **I/O Expansion:** **PCF8574** I²C expanders for inputs/relays/LEDs/buttons
 
 ---
 
 ## 5.7 Reliability & Protections
-- **Galvanic isolation:** Dedicated **GND_ISO** domain; isolated +12 V/+5 V sensor rails. :contentReference[oaicite:28]{index=28}  
-- **Surge/ESD:** Per-input TVS (**SMAJ6.8CA**), RS-485/USB ESD clamps (**PRTR5V0U2X**), PTCs on sensor rails and bus.   
-- **Contact life:** Onboard suppression + guidance to add external snubbers for inductive loads. :contentReference[oaicite:30]{index=30}
+- **Galvanic isolation:** Dedicated **GND_ISO** domain; isolated +12 V/+5 V sensor rails  
+- **Surge/ESD:** TVS arrays on RS-485 & USB; RC/series networks on data lines; **PTC** fuses on field rails and bus  
+- **Contact life:** Onboard suppression + guidance to add external snubbers for inductive loads
 
 ---
 
 ## 5.8 Firmware / Functional Overview
-- **Alarm engine:** Inputs → **Group 1/2/3** with modes **Active-while** or **Latched-until-ack**; **Any Alarm** summary.  
-- **Actuation:** Per-relay **Enable/Invert/Group**; **Buttons** for acknowledge / manual override; **User LEDs** for groups/any/override (Steady/Blink).  
-- **Setup & Telemetry:** Web-Serial UI (USB-C) for **Modbus addr/baud**, live input/relay/group status, safe reset; runs stand-alone under PLC/HMI supervision over Modbus.
+- **Alarm engine:** Inputs → **Group 1/2/3** with modes **Active-while** or **Latched-until-ack**; **Any Alarm** summary  
+- **Actuation:** Per-relay **Enable/Invert/Group**; **Buttons** for acknowledge / manual override; **User LEDs** for groups/any/override (Steady/Blink)  
+- **Setup & Telemetry:** Web-Serial UI (USB-C) for **Modbus addr/baud**, live input/relay/group status, safe reset; runs stand-alone under PLC/HMI supervision over Modbus
 
 ---
 
 ## 5.9 Absolute Electrical Specifications
 
-> Values consolidated from the datasheet and schematics. Where the datasheet is definitive (e.g., relay contacts, power), those figures are shown; channel-level thresholds for inputs are implementation-dependent and should be validated per installation. :contentReference[oaicite:31]{index=31}
+> Values consolidated from project documentation. Where channel-level thresholds depend on installation (e.g., dry contact vs. isolated LV), validate on site.
 
 | Parameter | Min | Typ | Max | Notes |
 |---|---:|---:|---:|---|
-| **Supply voltage (V+)** | 20 V | 24 V | 30 V | SELV; reverse/surge protection on input. :contentReference[oaicite:32]{index=32} |
-| **Power consumption** | — | 1.85 W | 3.0 W | Module only (no external loads). :contentReference[oaicite:33]{index=33} |
-| **Logic rails** | — | 5 V / 3.3 V | — | AP64501 buck, AMS1117-3.3 LDO. :contentReference[oaicite:34]{index=34} |
-| **Isolated sensor rails** | — | +12 V ISO / +5 V ISO | — | From **B2412S-2WR3 / B2405S-2WR3**; fused & LC-filtered. (Specify available current per DC-DC variant used.) :contentReference[oaicite:35]{index=35} |
-| **Digital inputs (IN1…IN17)** | — | — | — | Opto-isolated (**SFH6156-3**), per-channel TVS (**SMAJ6.8CA**); VIH/VIL depend on field wiring (dry contact or isolated LV). Provide site-specific characterization if required.  |
-| **Relay contacts (RLY1…RLY3)** | — | — | — | **HF115F/005-1ZS3**: **250 VAC 16 A (cosφ=1)**, **250 VAC 9 A (cosφ=0.4)**, **30 VDC 10 A**. For loads >5 A, use coupling relays as recommended. :contentReference[oaicite:37]{index=37} |
-| **RS-485 interface** | — | 115.2 kbps | — | Half-duplex; short-circuit current limited; fail-safe; surge-protected. :contentReference[oaicite:38]{index=38} |
-| **USB** | 5 V | — | — | USB 2.0 device; ESD-protected; CP2102N bridge. :contentReference[oaicite:39]{index=39} |
-| **Operating temperature** | 0 °C | — | 40 °C | Non-condensing ≤95% RH. :contentReference[oaicite:40]{index=40} |
+| **Supply voltage (V+)** | 20 V | 24 V | 30 V | SELV; reverse/surge protected input. |
+| **Power consumption** | — | 1.85 W | 3.0 W | Module only (no external loads). |
+| **Logic rails** | — | 5 V / 3.3 V | — | Buck + LDO derived. |
+| **Isolated sensor rails** | — | +12 V ISO / +5 V ISO | — | Fused & LC-filtered (specify available current per DC-DC variant). |
+| **Digital inputs (IN1…IN17)** | — | — | — | Opto-isolated; per-channel TVS; VIH/VIL per application (dry contact or isolated LV). |
+| **Relay contacts (RLY1…RLY3)** | — | — | — | HF115F: 250 VAC 16 A (cosφ=1), 250 VAC 9 A (cosφ=0.4), 30 VDC 10 A. Use external coupling relays for high/inductive loads. |
+| **RS-485 interface** | — | 115.2 kbps | — | Half-duplex; fail-safe; short-circuit current limited; surge-protected. |
+| **USB** | 5 V | — | — | USB 2.0 device; ESD-protected. |
+| **Operating temperature** | 0 °C | — | 40 °C | ≤95% RH, non-condensing. |
 
-> **Installer note:** Provide upstream fusing on the 24 V feed and respect relay contact derating for inductive loads (add external RC/TVS). :contentReference[oaicite:41]{index=41}
+> **Installer note:** Provide upstream fusing on the 24 V feed and respect relay derating for inductive loads (add external RC/TVS).
 
 ---
 
 ## 5.10 Connector / Terminal Map (Field Side)
 
-> External terminals are pluggable 5.08 mm pitch blocks (300 V, 20 A, 26–12 AWG, torque 0.5–0.6 Nm). Internal board-to-board headers **H1/H2** carry IO and rails between MCU and Field boards. 
+> External terminals are pluggable 5.08 mm pitch blocks (300 V, 20 A, 26–12 AWG, torque 0.5–0.6 Nm). Internal board-to-board headers carry IO and rails between MCU and Field boards.
 
-| Block / Label | Pin(s) | Function / Signal | Limits / Notes |
+| Block / Label | Pin(s) (left→right) | Function / Signal | Limits / Notes |
 |---|---|---|---|
-| **POWER** | V+ / 0V | 24 VDC SELV input | Reverse-polarity & surge protected; fuse upstream. :contentReference[oaicite:43]{index=43} |
-| **RS-485** | A / B / COM | Modbus RTU bus | Twisted pair; one-end shield bond; termination per trunk. :contentReference[oaicite:44]{index=44} |
-| **DIGITAL INPUTS** | IN1…IN17 | Opto-isolated inputs | Per-channel TVS (**SMAJ6.8CA**), RC filter; returns via **GND_ISO** groups. :contentReference[oaicite:45]{index=45} |
-| **GND_ISO** | — | Isolated returns | Keep isolated from logic GND unless intentionally bonded. :contentReference[oaicite:46]{index=46} |
-| **PS/1** | +12 V ISO / GND_ISO | Isolated sensor rail | Fused (PTC + inline fuses). For sensors, not actuators. :contentReference[oaicite:47]{index=47} |
-| **PS/2** | +5 V ISO / GND_ISO | Isolated sensor rail | Fused; LC-filtered. :contentReference[oaicite:48]{index=48} |
-| **RELAY 1** | NC / COM / NO | SPDT dry contact | Onboard suppression (RV1); coil opto-isolated. :contentReference[oaicite:49]{index=49} |
-| **RELAY 2** | NC / COM / NO | SPDT dry contact | Onboard suppression (RV2). :contentReference[oaicite:50]{index=50} |
-| **RELAY 3** | NC / COM / NO | SPDT dry contact | Onboard suppression (RV3). :contentReference[oaicite:51]{index=51} |
-| **USB-C (Service)** | — | Web-Serial config | PRTR5V0U2X ESD, 27 Ω D± series, Schottky on VBUS. :contentReference[oaicite:52]{index=52} |
+| **POWER** | V+, 0V | 24 VDC SELV input | Reverse-polarity & surge protected; fuse upstream. |
+| **DIGITAL INPUTS – TOP** | GND, I.1, GND, I.2, …, GND, I.10 | DI1…DI10 with paired grounds | Keep grounds with their channel to minimize noise. |
+| **RELAY1 (top row)** | **NC, C, NO** | SPDT dry contact | Terminal order as printed on front label. |
+| **RELAY3 (top row)** | **NC, C, NO** | SPDT dry contact | Terminal order as printed on front label. |
+| **PS/1 (bottom)** | +, − | +12 V ISO sensor rail | Fused; for sensors only. |
+| **PS/2 (bottom)** | +, − | +5 V ISO sensor rail | Fused; for sensors only. |
+| **PS/1 (bottom, second pair)** | +, − | +12 V ISO sensor rail | Second outlet, same limits. |
+| **PS/2 (bottom, second pair)** | +, − | +5 V ISO sensor rail | Second outlet, same limits. |
+| **RS-485 (bottom)** | **COM, B, A** | Modbus RTU bus | Match A/B polarity; one-end shield bond. |
+| **DIGITAL INPUTS – BOTTOM** | DI11, GND I.11, DI12, GND I.12, …, DI17, GND I.17 | DI11…DI17 with paired grounds | Follow label order left→right. |
+| **RELAY2 (bottom row)** | **NO, C, NC** | SPDT dry contact | Note different terminal order (NO–C–NC). |
+| **USB-C (Service)** | — | Web-Serial config | ESD protected; not a field power source. |
 
 ---
 
 ## 5.11 Reliability & Protection Specifics
 
-- **Primary input protection:** **STPS340U** reverse path, **SMBJ33A** TVS on 24 V, MOSFET high-side (**DMP3013SFV**), distributed **0154001.DR** fuses. :contentReference[oaicite:53]{index=53}  
-- **Isolated rails:** **B2412S-2WR3 / B2405S-2WR3** with LC output filters (L4–L7, C9–C13), isolated returns **GND_ISO**; outputs fuse-limited. :contentReference[oaicite:54]{index=54}  
-- **Inputs:** Per-channel **SMAJ6.8CA** TVS; RC conditioning (e.g., **4.7 nF** + **~49.9 Ω** series); common feeders protected by **1206L150THWR** PTCs; isolation via **SFH6156-3** optocouplers. :contentReference[oaicite:55]{index=55}  
-- **Relays:** Coils driven by **S8050** BJTs through **SFH6156-3** optos; coil flyback diodes (**BAV103** family); contact snubbers **RV1–RV6 (~115 pF @ 1 kHz)** across paths. :contentReference[oaicite:56]{index=56}  
-- **RS-485:** **MAX485** with biasing; front-end surge/ESD clamps; visual **TX/RX** LEDs. :contentReference[oaicite:57]{index=57}  
-- **USB:** **PRTR5V0U2X** ESD + Schottky protection; CC pull-downs; series D± resistors. :contentReference[oaicite:58]{index=58}
+- **Primary input protection:** Reverse-path diode, TVS on 24 V, MOSFET high-side, distributed inline fuses.  
+- **Isolated rails:** Independent +12 V / +5 V DC-DCs with LC output filters; isolated returns **GND_ISO**; outputs fuse-limited.  
+- **Inputs:** Per-channel TVS; RC conditioning; common feeders protected by resettable PTCs; isolation via optocouplers.  
+- **Relays:** Coils driven by BJTs through optos; coil flyback diodes; contact snubbers across paths.  
+- **RS-485:** Fail-safe transceiver with biasing; front-end surge/ESD clamps; visual TX/RX LEDs.  
+- **USB:** ESD protection on D±/VBUS; CC pull-downs; series D± resistors.
 
 ---
 
 ## 5.12 Mechanical Details
 
-- **Mounting:** DIN rail **EN 50022, 35 mm**. :contentReference[oaicite:59]{index=59}  
-- **Enclosure material/finish:** **PC/ABS, V-0**, matte; light gray/black with smoke panel. :contentReference[oaicite:60]{index=60}  
-- **Dimensions (L×W×H):** **157.4 × 91 × 58.4 mm**, **9 division units**; **Net 420 g**. :contentReference[oaicite:61]{index=61}  
-- **Terminals:** **300 V / 20 A**, **26–12 AWG (2.5 mm²)**, **pitch 5.08 mm**, **torque 0.5–0.6 Nm**. :contentReference[oaicite:62]{index=62}  
-- **Front I/O:** USB-C; external **SMA-male** Wi-Fi antenna feed-through. :contentReference[oaicite:63]{index=63}
+- **Mounting:** DIN rail **EN 50022, 35 mm**  
+- **Enclosure material/finish:** **PC/ABS, V-0**, matte; light gray/black with smoke panel  
+- **Dimensions (L×W×H):** **157.4 × 91 × 58.4 mm**, **9 division units**; **Net 420 g**  
+- **Terminals:** **300 V / 20 A**, **26–12 AWG (2.5 mm²)**, **pitch 5.08 mm**, **torque 0.5–0.6 Nm**  
+- **Front I/O:**
 
 ---
 
 ## 5.13 Environmental & Compliance
 
-- **Operating temperature:** **0…40 °C**; **Humidity ≤ 95 % RH (non-condensing)**. :contentReference[oaicite:64]{index=64}  
-- **Ingress / safety class:** **IP20**; **Operation Type 1** (UL60730-1 / CSA E60730-1). :contentReference[oaicite:65]{index=65}  
-- **Impulse / altitude / pollution:** **Rated impulse 2.5 kV** (digital output), **max altitude 2000 m**, **Pollution degree 2**. :contentReference[oaicite:66]{index=66}  
-- **Certifications:** **CE**, **UL60730-1**, **CSA E60730-1**. :contentReference[oaicite:67]{index=67}  
-- **Installation:** Must be installed by qualified personnel per local codes; SELV only. :contentReference[oaicite:68]{index=68}
+- **Operating temperature:** **0…40 °C**; **Humidity ≤ 95 % RH (non-condensing)**  
+- **Ingress / safety class:** **IP20**; **Operation Type 1**  
+- **Impulse / altitude / pollution:** **Rated impulse 2.5 kV** (digital output), **max altitude 2000 m**, **Pollution degree 2**  
+- **Installation:** Must be installed by qualified personnel per local codes; SELV only
+
 
 
 <a id="6-modbus-rtu-communication"></a>
