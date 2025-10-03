@@ -15,15 +15,12 @@ The **ALM-173-R1** is a configurable **alarm I/O module** with **17 opto-isolate
 - [2. Use Cases](#2-use-cases-1)
 - [3. Safety Information](#3-safety-information-1)
 - [4. Installation & Quick Start](#4-getting-started-1)
-- [5. Software & UI Configuration](#5-software-ui-configuration-1)
-- [6. ALM-173-R1 — Technical Specification](#6-technical-specification-1)
-- [7. Modbus RTU Communication](#7-modbus-rtu-communication-1)
-- [8. ESPHome Integration Guide (MicroPLC/MiniPLC + ALM-173-R1)](#8-esphome-integration-guide-microplcminiplc-alm-173-r1-1)
-- [9. Programming & Customization](#9-programming-customization-1)
-- [10. Maintenance & Troubleshooting](#10-maintenance-troubleshooting-1)
-- [11. Open Source & Licensing](#11-open-source-licensing-1)
-- [12. Downloads](#12-downloads-1)
-- [13. Support](#13-support-1)
+- [5. ALM-173-R1 — Technical Specification](#6-technical-specification-1)
+- [6. Modbus RTU Communication](#7-modbus-rtu-communication-1)
+- [7. ESPHome Integration Guide (MicroPLC/MiniPLC + ALM-173-R1)](#8-esphome-integration-guide-microplcminiplc-alm-173-r1-1)
+- [8. Programming & Customization](#9-programming-customization-1)
+- [9. Maintenance & Troubleshooting](#10-maintenance-troubleshooting-1)
+- [10. Open Source & Licensing/Downloads/Support](#11-open-source-licensing-1)
 
 <br clear="left"/>
 ---
@@ -346,9 +343,190 @@ The ALM-173-R1 communicates with the controller over **RS-485 (Modbus RTU)** and
 - If the **Connect** button is disabled, ensure you’re using Chrome/Edge and that the browser has permission to access serial devices. On macOS/Linux, ensure your user has the required USB serial permissions.
 
 ---
+<a id="5-wiring-1"></a>
+## 4.4. Installation & Wiring
 
-<a id="4-4-getting-started"></a>
-# 4.4  Getting Started
+> ⚠️ **Safety first.** Work must be performed by qualified personnel. De-energize the panel and verify with a meter before wiring. The ALM-173-R1 is a **SELV/low-voltage** device; do not connect mains to any logic/input terminal.
+
+---
+
+### 4.4.1 RS-485 Field Bus (Modbus RTU)
+
+![RS-485 wiring to controller with 120Ω end-of-line termination](Images/ALM_RS485Connection.png)
+
+The controller is wired to the ALM-173-R1 using a twisted pair for **A/B** plus a **COM/GND** reference. A **120 Ω** end-of-line resistor is installed across **A–B** at the far end of the trunk.
+
+**How to wire**
+
+1. Use shielded twisted pair (e.g., 24–22 AWG).  
+2. Wire **A → A**, **B → B**, **COM/GND → COM**; keep polarity consistent on all nodes.  
+3. Terminate the **two physical ends** of the trunk with **120 Ω** between **A–B**.  
+4. Bond the cable shield at **one point** only (usually at the controller) to avoid ground loops.  
+5. Daisy-chain topology is recommended; avoid star wiring.
+
+---
+
+### 4.4.2 Primary Power (24 VDC)
+
+![24 VDC power wiring to V+ and 0V](Images/ALM_24Vdc_PowerSupply.png)
+
+A regulated **24 VDC** supply connects to the top-left **POWER** terminals: **V+** (red) and **0 V** (blue).
+
+**How to wire**
+
+- Provide a clean SELV **24 VDC** source sized for the ALM plus any sensors powered from its isolated rails.  
+- Observe polarity (**V+ / 0 V**).  
+- Use an upstream fuse or breaker and proper panel bonding.  
+
+---
+
+### 4.4.3 Digital Inputs (IN1…IN17)
+
+![Dry-contact sensors to inputs with per-group returns](Images/ALM_DigitalInputs.png)
+
+Dry-contact sensors are wired between each **INx** and the matching **GND I.x** return on the lower terminal row.
+
+**How to wire**
+
+- Inputs are **opto-isolated** and expect **dry contacts** or isolated low-voltage signals.  
+- For each input, connect the sensor between **INx** and its **GND I.x** return as labeled on the front panel.  
+- Do **not** inject external voltage into the inputs.  
+- Use shielded cable for long runs and keep input wiring away from high-dv/dt conductors.  
+- Configure each input in the WebConfig UI (**Enable / Invert / Group**) and verify with the live state dot.
+
+---
+
+### 4.4.4 Relay Outputs (RLY1…RLY3, COM/NO/NC)
+
+![Relays used as dry contacts to switch an external AC line via breaker](Images/ALM_RelayConnection.png)
+
+Each relay operates as a **dry contact** to switch an external supply. The example shows **NO** used to switch an AC line from a breaker (**L**) to the loads, with **N** routed directly.
+
+**How to wire**
+
+1. Bring the external supply **line (L)** to the relay **COM** terminal.  
+2. From **NO** (or **NC** if fail-active behavior is needed) go to the load; return the other side of the load to **N/0 V** of the external supply.  
+3. The relays **do not source power**—they only switch your external circuit.  
+4. Respect relay voltage/current ratings and local electrical codes.  
+5. Fit **RC snubbers or TVS** across inductive loads (locks, sirens, coils) to minimize arcing and EMI.
+
+---
+
+### 4.4.5 Final Checks
+
+- All terminals torqued; strain relief applied.  
+- **Isolation boundaries** respected (no unintended bonds between **GND_ISO** and logic ground).  
+- RS-485 polarity, termination, and biasing verified.  
+- Relays wired with the correct **COM/NO/NC** choice; snubbers fitted where needed.  
+- Power up: **PWR** LED steady **ON**; **TX/RX** **blink** when the controller communicates.
+
+<a id="5-software-ui-configuration-1"></a>
+## 4.5. Software & UI Configuration
+
+### 4.5.1 How to Connect to the Module
+
+![ALM-173-R1 WebConfig — Active Modbus Configuration](Images/webconfig1.png)
+
+1. **Plug in USB-C.** Connect your computer to the ALM-173-R1’s USB-C port.  
+2. **Open the config page.** In a Chromium-based browser (Chrome/Edge), open  
+   **https://www.home-master.eu/configtool-alm-173-r1**  
+3. **Click “Connect”.** When prompted, allow the browser to access the serial device.  
+4. **Confirm connection.** The **Serial Log** shows events and the banner displays the **Active Modbus Configuration** (current **Address** and **Baud Rate**).  
+5. **(Optional) Reset Device.** Click **Reset Device** for a safe reboot; the serial link will drop and then reconnect automatically.
+
+> If you cannot connect to the module, check that no other app (serial console, uploader, etc.) is already using the USB port, and verify the browser has permission to access it. On macOS/Linux, ensure your user has the required USB serial permissions.
+
+### 4.5.2 How to Configure Modbus
+
+Use the top **Modbus Address** and **Baud Rate** selectors. Changes are sent to the device immediately; the **Serial Log** confirms with messages like “Modbus configuration updated” and “Configuration saved.”
+
+- **Set Address (1…255):** Choose a **unique** Modbus RTU address for this module.  
+- **Set Baud:** Pick one of the supported rates: **9600**, **19200** (default), **38400**, **57600**, **115200**.  
+- **Verify live status:** The banner updates to show **Address** and **Baud Rate** currently active on the device.  
+- **Controller match:** In your controller’s ESPHome YAML, ensure `uart` settings match your RS-485 pins/speed and set `alm_address` to the same address you chose here (e.g., `alm_address: "6"`).
+
+> You can revisit this page anytime to adjust Modbus parameters. Configuration persists in the module’s flash memory.
+
+### 4.5.3 How to Set Alarm Modes
+
+Use the **Mode – Group 1/2/3** dropdowns to select the behavior for each group:
+- **None** — group disabled.
+- **Active while condition is active** — turns ON only while mapped inputs are active.
+- **Latched until acknowledged** — stays ON after a trigger until acknowledged.
+
+Top-row dots show live status for **Any Alarm**, **Group 1**, **Group 2**, **Group 3** (gray = idle, lit = active).
+![Alarm Status & Modes panel](Images/webconfig2.png)
+
+### 4.5.4 How to Configure Digital Inputs
+
+![Digital Inputs — WebConfig](./Images/webconfig3.png)
+
+For each input **IN1…IN17**:
+
+- **Enabled** — check to activate the input. (Unchecked = ignored by the alarm engine.)
+- **Inverted** — check if the sensor is **NC** (closed = normal). This makes “open” read as **active**.
+- **Alarm Group** — choose **None**, **1**, **2**, or **3** to route the input into a group.
+
+The small dot in the top-right of each card shows the **live state** (off = idle, on = active) so you can verify wiring immediately.
+
+### 4.5.5 How to Configure Relays
+
+![Relays — WebConfig](./Images/webconfig4.png)
+
+
+For each **Relay 1…3**:
+
+- **Enabled** — allow the relay to operate. (Unchecked = relay forced **OFF**.)
+- **Inverted** — flips the logic so the **energized** state reads opposite (useful for field wiring that is active-low).
+- **Alarm Group** — choose how the relay is driven:
+  - **None (0)** — relay does **not** follow any group; use only for manual/PLC control.
+  - **Group 1 / Group 2 / Group 3 (1–3)** — relay **follows** the selected group’s state (including **latched** behavior if that mode is chosen).
+  - **Modbus/Master (4)** — relay is **controller-controlled** (ESPHome/PLC writes it directly).
+
+> Tip: For maintenance tests, assign a front-panel **Button** to “Relay x override (manual)” so you can toggle the relay locally while commissioning.
+
+---
+
+
+### 4.5.6 How to Configure LEDs and Buttons
+
+![LEDs — WebConfig](./Images/webconfig5.png)
+
+#### LEDs (4)
+ 
+For each **User LED 1…4**:
+
+- **Mode** — how the LED behaves when its source is active:
+  - **Steady (when active)**
+  - **Blink (when active)**
+- **Trigger source** — what drives the LED:
+  - **Any alarm**
+  - **Group 1**, **Group 2**, **Group 3**
+  - **Relay 1 overridden**, **Relay 2 overridden**, **Relay 3 overridden**
+  - **None**
+- The dot in the top-right shows the LED’s **live state** (off = inactive, on = active).
+
+---
+
+#### Buttons (4)
+
+For each **Button 1…4**:
+
+- **Action** — choose what the button does when pressed:
+  - **All acknowledge**
+  - **Alarm group 1 acknowledge**
+  - **Alarm group 2 acknowledge**
+  - **Alarm group 3 acknowledge**
+  - **Relay 1 override (manual)**
+  - **Relay 2 override (manual)**
+  - **Relay 3 override (manual)**
+  - **None**
+- The small dot in the card shows the **live press** state (off = idle, on = pressed).
+
+---
+
+<a id="4-6-getting-started"></a>
+## 4.6  Getting Started
 
 **Phase 1 — Physical Wiring**
 
@@ -393,189 +571,6 @@ _For wiring safety, terminal maps, and cable practices, see your **[Installation
 - **Inputs:** short/open a few inputs and confirm the **live dots** and **Group/Any** indicators react accordingly.
 - **Relays:** command each relay from the UI or controller and verify field wiring (use a meter or indicator load).
 - **Buttons/LEDs:** press front buttons to **acknowledge** or **override** as configured; confirm user LEDs reflect the chosen sources and modes.
-
-<a id="5-wiring-1"></a>
-## 4.5. Installation & Wiring
-
-> ⚠️ **Safety first.** Work must be performed by qualified personnel. De-energize the panel and verify with a meter before wiring. The ALM-173-R1 is a **SELV/low-voltage** device; do not connect mains to any logic/input terminal.
-
----
-
-### 4.5.1 RS-485 Field Bus (Modbus RTU)
-
-![RS-485 wiring to controller with 120Ω end-of-line termination](Images/ALM_RS485Connection.png)
-
-The controller is wired to the ALM-173-R1 using a twisted pair for **A/B** plus a **COM/GND** reference. A **120 Ω** end-of-line resistor is installed across **A–B** at the far end of the trunk.
-
-**How to wire**
-
-1. Use shielded twisted pair (e.g., 24–22 AWG).  
-2. Wire **A → A**, **B → B**, **COM/GND → COM**; keep polarity consistent on all nodes.  
-3. Terminate the **two physical ends** of the trunk with **120 Ω** between **A–B**.  
-4. Bond the cable shield at **one point** only (usually at the controller) to avoid ground loops.  
-5. Daisy-chain topology is recommended; avoid star wiring.
-
----
-
-### 4.5.2 Primary Power (24 VDC)
-
-![24 VDC power wiring to V+ and 0V](Images/ALM_24Vdc_PowerSupply.png)
-
-A regulated **24 VDC** supply connects to the top-left **POWER** terminals: **V+** (red) and **0 V** (blue).
-
-**How to wire**
-
-- Provide a clean SELV **24 VDC** source sized for the ALM plus any sensors powered from its isolated rails.  
-- Observe polarity (**V+ / 0 V**).  
-- Use an upstream fuse or breaker and proper panel bonding.  
-
----
-
-### 4.5.3 Digital Inputs (IN1…IN17)
-
-![Dry-contact sensors to inputs with per-group returns](Images/ALM_DigitalInputs.png)
-
-Dry-contact sensors are wired between each **INx** and the matching **GND I.x** return on the lower terminal row.
-
-**How to wire**
-
-- Inputs are **opto-isolated** and expect **dry contacts** or isolated low-voltage signals.  
-- For each input, connect the sensor between **INx** and its **GND I.x** return as labeled on the front panel.  
-- Do **not** inject external voltage into the inputs.  
-- Use shielded cable for long runs and keep input wiring away from high-dv/dt conductors.  
-- Configure each input in the WebConfig UI (**Enable / Invert / Group**) and verify with the live state dot.
-
----
-
-### 4.5.4 Relay Outputs (RLY1…RLY3, COM/NO/NC)
-
-![Relays used as dry contacts to switch an external AC line via breaker](Images/ALM_RelayConnection.png)
-
-Each relay operates as a **dry contact** to switch an external supply. The example shows **NO** used to switch an AC line from a breaker (**L**) to the loads, with **N** routed directly.
-
-**How to wire**
-
-1. Bring the external supply **line (L)** to the relay **COM** terminal.  
-2. From **NO** (or **NC** if fail-active behavior is needed) go to the load; return the other side of the load to **N/0 V** of the external supply.  
-3. The relays **do not source power**—they only switch your external circuit.  
-4. Respect relay voltage/current ratings and local electrical codes.  
-5. Fit **RC snubbers or TVS** across inductive loads (locks, sirens, coils) to minimize arcing and EMI.
-
----
-
-### 4.5.5 Final Checks
-
-- All terminals torqued; strain relief applied.  
-- **Isolation boundaries** respected (no unintended bonds between **GND_ISO** and logic ground).  
-- RS-485 polarity, termination, and biasing verified.  
-- Relays wired with the correct **COM/NO/NC** choice; snubbers fitted where needed.  
-- Power up: **PWR** LED steady **ON**; **TX/RX** **blink** when the controller communicates.
-
-
-<a id="5-software-ui-configuration-1"></a>
-# 5. Software & UI Configuration
-
-## 5.1 How to Connect to the Module
-
-![ALM-173-R1 WebConfig — Active Modbus Configuration](Images/webconfig1.png)
-
-1. **Plug in USB-C.** Connect your computer to the ALM-173-R1’s USB-C port.  
-2. **Open the config page.** In a Chromium-based browser (Chrome/Edge), open  
-   **https://www.home-master.eu/configtool-alm-173-r1**  
-3. **Click “Connect”.** When prompted, allow the browser to access the serial device.  
-4. **Confirm connection.** The **Serial Log** shows events and the banner displays the **Active Modbus Configuration** (current **Address** and **Baud Rate**).  
-5. **(Optional) Reset Device.** Click **Reset Device** for a safe reboot; the serial link will drop and then reconnect automatically.
-
-> If you cannot connect to the module, check that no other app (serial console, uploader, etc.) is already using the USB port, and verify the browser has permission to access it. On macOS/Linux, ensure your user has the required USB serial permissions.
-
-## 5.2 How to Configure Modbus
-
-Use the top **Modbus Address** and **Baud Rate** selectors. Changes are sent to the device immediately; the **Serial Log** confirms with messages like “Modbus configuration updated” and “Configuration saved.”
-
-- **Set Address (1…255):** Choose a **unique** Modbus RTU address for this module.  
-- **Set Baud:** Pick one of the supported rates: **9600**, **19200** (default), **38400**, **57600**, **115200**.  
-- **Verify live status:** The banner updates to show **Address** and **Baud Rate** currently active on the device.  
-- **Controller match:** In your controller’s ESPHome YAML, ensure `uart` settings match your RS-485 pins/speed and set `alm_address` to the same address you chose here (e.g., `alm_address: "6"`).
-
-> You can revisit this page anytime to adjust Modbus parameters. Configuration persists in the module’s flash memory.
-
-## 5.3 How to Set Alarm Modes
-
-Use the **Mode – Group 1/2/3** dropdowns to select the behavior for each group:
-- **None** — group disabled.
-- **Active while condition is active** — turns ON only while mapped inputs are active.
-- **Latched until acknowledged** — stays ON after a trigger until acknowledged.
-
-Top-row dots show live status for **Any Alarm**, **Group 1**, **Group 2**, **Group 3** (gray = idle, lit = active).
-![Alarm Status & Modes panel](Images/webconfig2.png)
-
-## 5.4 How to Configure Digital Inputs
-
-![Digital Inputs — WebConfig](./Images/webconfig3.png)
-
-For each input **IN1…IN17**:
-
-- **Enabled** — check to activate the input. (Unchecked = ignored by the alarm engine.)
-- **Inverted** — check if the sensor is **NC** (closed = normal). This makes “open” read as **active**.
-- **Alarm Group** — choose **None**, **1**, **2**, or **3** to route the input into a group.
-
-The small dot in the top-right of each card shows the **live state** (off = idle, on = active) so you can verify wiring immediately.
-
-## 5.5 How to Configure Relays
-
-![Relays — WebConfig](./Images/webconfig4.png)
-
-
-For each **Relay 1…3**:
-
-- **Enabled** — allow the relay to operate. (Unchecked = relay forced **OFF**.)
-- **Inverted** — flips the logic so the **energized** state reads opposite (useful for field wiring that is active-low).
-- **Alarm Group** — choose how the relay is driven:
-  - **None (0)** — relay does **not** follow any group; use only for manual/PLC control.
-  - **Group 1 / Group 2 / Group 3 (1–3)** — relay **follows** the selected group’s state (including **latched** behavior if that mode is chosen).
-  - **Modbus/Master (4)** — relay is **controller-controlled** (ESPHome/PLC writes it directly).
-
-> Tip: For maintenance tests, assign a front-panel **Button** to “Relay x override (manual)” so you can toggle the relay locally while commissioning.
-
----
-
-
-## 5.6 How to Configure LEDs and Buttons
-
-![LEDs — WebConfig](./Images/webconfig5.png)
-
-### LEDs (4)
- 
-For each **User LED 1…4**:
-
-- **Mode** — how the LED behaves when its source is active:
-  - **Steady (when active)**
-  - **Blink (when active)**
-- **Trigger source** — what drives the LED:
-  - **Any alarm**
-  - **Group 1**, **Group 2**, **Group 3**
-  - **Relay 1 overridden**, **Relay 2 overridden**, **Relay 3 overridden**
-  - **None**
-- The dot in the top-right shows the LED’s **live state** (off = inactive, on = active).
-
----
-
-### Buttons (4)
-
-For each **Button 1…4**:
-
-- **Action** — choose what the button does when pressed:
-  - **All acknowledge**
-  - **Alarm group 1 acknowledge**
-  - **Alarm group 2 acknowledge**
-  - **Alarm group 3 acknowledge**
-  - **Relay 1 override (manual)**
-  - **Relay 2 override (manual)**
-  - **Relay 3 override (manual)**
-  - **None**
-- The small dot in the card shows the **live press** state (off = idle, on = pressed).
-
----
 
 <a id="6-technical-specification-1"></a>
 # 6. ALM-173-R1 — Technical Specification
