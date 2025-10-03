@@ -1,5 +1,11 @@
 **Firmware Version:** 2025-10 snapshot
 
+![Firmware Version](https://img.shields.io/badge/Firmware-2025--10-blue)
+![Modbus](https://img.shields.io/badge/Protocol-Modbus%20RTU-brightgreen)
+![License](https://img.shields.io/badge/License-GPLv3%20%2F%20CERN--OHL--W-blue)
+
+
+
 # ALM-173-R1 Module for Alarm Systems
 
 **HOMEMASTER – Modular control. Custom logic.**
@@ -18,9 +24,8 @@ The **ALM-173-R1** is a configurable **alarm I/O module** with **17 opto-isolate
 * [2. Use Cases](#2-use-cases)
 * [3. Safety Information](#3-safety-information)
 * [4. Installation & Quick Start](#4-installation-quick-start)
-
   * [4.4 Installation & Wiring](#installation-wiring)
-  * [4.5 Software & UI Configuration](#software-ui-configuration)
+  * [4.5 WebConfig (Software)](#software-ui-configuration)
   * [4.6 Getting Started](#4-6-getting-started)
 * [5. ALM-173-R1 — Technical Specification](#5-technical-specification)
 * [6. Modbus RTU Communication](#6-modbus-rtu-communication)
@@ -90,7 +95,7 @@ The **ALM-173-R1** is a standalone, intelligent Modbus slave. It runs group logi
 | **Default Modbus ID**  | `3` (changeable per install) |
 | **Daisy-Chaining**     | Multiple modules can share the bus with unique IDs |
 
-> ⚠️ If multiple ALMs are on the same RS-485 line, assign unique Modbus addresses to each in WebConfig.
+> > ⚠️ If multiple ALMs are on the same RS-485 line, assign unique Modbus addresses to each in WebConfig.
 
 
 ---
@@ -176,14 +181,14 @@ Each case uses built-in firmware features via the Web Serial UI:
 
 ---
 
-> 💡 Tip: “Any Alarm” is always available via Modbus and can be mapped to a summary relay or LED.
+> > 💡 **Tip:** “Any Alarm” is always available via Modbus and can be mapped to a summary relay or LED.
 
 
 # 3. Safety Information
 
 These safety guidelines apply to the **ALM-173-R1** alarm I/O module. Ignoring them may result in **equipment damage**, **system failure**, or **personal injury**.
 
-> ⚠️ **Low-Voltage (SELV) only** — This module is intended **only** for Safety Extra-Low Voltage (SELV) systems. Never connect mains or high-voltage circuits.
+> > ⚠️ **Low-Voltage (SELV) only** — This module is intended **only** for Safety Extra-Low Voltage (SELV) systems. Never connect mains or high-voltage circuits.
 
 ---
 
@@ -289,7 +294,7 @@ The **ALM-173-R1** joins your system over **RS-485 (Modbus RTU)**. Setup has two
 
 > **LEDs:** **PWR** steady ON in normal operation. **TX/RX** blink with RS‑485 activity.
 
-> **Quick path:** mount → wire **24 VDC** & **RS-485 (A/B/COM)** → connect **USB‑C** → WebConfig: set **Address/Baud** & map **inputs → groups → relays/LEDs** → disconnect USB → hand over to controller.
+> > **Quick path:** mount → wire **24 VDC** & **RS-485 (A/B/COM)** → connect **USB‑C** → WebConfig: set **Address/Baud** & map **inputs → groups → relays/LEDs** → disconnect USB → hand over to controller.
 
 ---
 
@@ -414,7 +419,7 @@ Runtime control is via **RS‑485 (Modbus RTU)**; **USB‑C** is for local setup
 
 <a id="software-ui-configuration"></a>
 
-## 4.5 WebConfig (Software)
+## 4.5 Software & UI Configuration
 
 ### 4.5.1 Connect
 ![Active Modbus Configuration](Images/webconfig1.png)
@@ -932,6 +937,18 @@ These appear as ESPHome switches/scripts usable in HA automations.
 <p align="center">
   <img src="Images/buttons1.png" alt="Button Layout" width="320">
 </p>
+
+
+## 8.4 Firmware Updates
+
+To update the firmware, use the Arduino IDE or PlatformIO via USB-C:
+
+1. Connect the USB‑C cable to the module.
+2. Press **Buttons 1 + 2** together to enter **BOOT mode**.
+3. Upload the updated binary located in `Firmware/default_alm_173_r1/`.
+
+⚠️ Configuration stored in EEPROM is preserved during firmware updates unless manually cleared.
+
 
 ## 8.3 Arduino
 
