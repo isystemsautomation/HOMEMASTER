@@ -229,7 +229,7 @@ This section outlines essential safety guidelines specific to the **ALM-173-R1**
 ---
 
 <a id="4-getting-started-1"></a>
-# 4. Getting Started
+# 4. Installation & Quick Start
 
 The **ALM-173-R1** integrates into the HomeMaster system over the **RS-485 Modbus** bus. Initial setup has two parts: **physical wiring** and **digital configuration** (WebConfig + ESPHome).
 
@@ -347,7 +347,7 @@ The ALM-173-R1 communicates with the controller over **RS-485 (Modbus RTU)** and
 
 ---
 
-# 4  Getting Started
+# 4.4  Getting Started
 
 **Phase 1 — Physical Wiring**
 
@@ -393,14 +393,13 @@ _For wiring safety, terminal maps, and cable practices, see your **[Installation
 - **Relays:** command each relay from the UI or controller and verify field wiring (use a meter or indicator load).
 - **Buttons/LEDs:** press front buttons to **acknowledge** or **override** as configured; confirm user LEDs reflect the chosen sources and modes.
 
-<a id="7-wiring-1"></a>
-# 6. Installation & Wiring
+# 4.5. Installation & Wiring
 
 > ⚠️ **Safety first.** Work must be performed by qualified personnel. De-energize the panel and verify with a meter before wiring. The ALM-173-R1 is a **SELV/low-voltage** device; do not connect mains to any logic/input terminal.
 
 ---
 
-## 7.1 RS-485 Field Bus (Modbus RTU)
+## 4.5.1 RS-485 Field Bus (Modbus RTU)
 
 ![RS-485 wiring to controller with 120Ω end-of-line termination](Images/ALM_RS485Connection.png)
 
@@ -416,7 +415,7 @@ The controller is wired to the ALM-173-R1 using a twisted pair for **A/B** plus 
 
 ---
 
-## 7.2 Primary Power (24 VDC)
+## 4.5.2 Primary Power (24 VDC)
 
 ![24 VDC power wiring to V+ and 0V](Images/ALM_24Vdc_PowerSupply.png)
 
@@ -430,7 +429,7 @@ A regulated **24 VDC** supply connects to the top-left **POWER** terminals: **V+
 
 ---
 
-## 7.3 Digital Inputs (IN1…IN17)
+## 4.5.3 Digital Inputs (IN1…IN17)
 
 ![Dry-contact sensors to inputs with per-group returns](Images/ALM_DigitalInputs.png)
 
@@ -446,7 +445,7 @@ Dry-contact sensors are wired between each **INx** and the matching **GND I.x** 
 
 ---
 
-## 7.4 Relay Outputs (RLY1…RLY3, COM/NO/NC)
+## 4.5.4 Relay Outputs (RLY1…RLY3, COM/NO/NC)
 
 ![Relays used as dry contacts to switch an external AC line via breaker](Images/ALM_RelayConnection.png)
 
@@ -462,7 +461,7 @@ Each relay operates as a **dry contact** to switch an external supply. The examp
 
 ---
 
-## 7.5 Final Checks
+## 4.5.5 Final Checks
 
 - All terminals torqued; strain relief applied.  
 - **Isolation boundaries** respected (no unintended bonds between **GND_ISO** and logic ground).  
@@ -471,10 +470,10 @@ Each relay operates as a **dry contact** to switch an external supply. The examp
 - Power up: **PWR** LED steady **ON**; **TX/RX** **blink** when the controller communicates.
 
 
-<a id="7-software-ui-configuration-1"></a>
+<a id="6-software-ui-configuration-1"></a>
 # 7Software & UI Configuration
 
-## 7.1 How to Connect to the Module
+## 6.1 How to Connect to the Module
 
 ![ALM-173-R1 WebConfig — Active Modbus Configuration](Images/webconfig1.png)
 
@@ -487,7 +486,7 @@ Each relay operates as a **dry contact** to switch an external supply. The examp
 
 > If you cannot connect to the module, check that no other app (serial console, uploader, etc.) is already using the USB port, and verify the browser has permission to access it. On macOS/Linux, ensure your user has the required USB serial permissions.
 
-## 7.2 How to Configure Modbus
+## 6.2 How to Configure Modbus
 
 Use the top **Modbus Address** and **Baud Rate** selectors. Changes are sent to the device immediately; the **Serial Log** confirms with messages like “Modbus configuration updated” and “Configuration saved.”
 
@@ -498,7 +497,7 @@ Use the top **Modbus Address** and **Baud Rate** selectors. Changes are sent to 
 
 > You can revisit this page anytime to adjust Modbus parameters. Configuration persists in the module’s flash memory.
 
-## 7.3 How to Set Alarm Modes
+## 6.3 How to Set Alarm Modes
 
 Use the **Mode – Group 1/2/3** dropdowns to select the behavior for each group:
 - **None** — group disabled.
@@ -514,7 +513,7 @@ Use the **Mode – Group 1/2/3** dropdowns to select the behavior for each group
 - **Active while condition is active** — turns ON only while mapped inputs are active.
 - **Latched until acknowledged** — stays ON after a trigger until acknowledged.
 
-## 7.4 How to Configure Digital Inputs
+## 6.4 How to Configure Digital Inputs
 
 ![Digital Inputs — WebConfig](./Images/webconfig3.png)
 
@@ -526,7 +525,7 @@ For each input **IN1…IN17**:
 
 The small dot in the top-right of each card shows the **live state** (off = idle, on = active) so you can verify wiring immediately.
 
-## 7.5 How to Configure Relays
+## 6.5 How to Configure Relays
 
 ![Relays — WebConfig](./Images/webconfig4.png)
 
@@ -545,7 +544,7 @@ For each **Relay 1…3**:
 ---
 
 
-## 7.6 How to Configure LEDs and Buttons
+## 6.6 How to Configure LEDs and Buttons
 
 ![LEDs — WebConfig](./Images/webconfig5.png)
 
@@ -582,8 +581,8 @@ For each **Button 1…4**:
 
 ---
 
-<a id="8-system-overview-1"></a>
-# 8. ALM-173-R1 — Technical Specification
+<a id="7-system-overview-1"></a>
+# 7. ALM-173-R1 — Technical Specification
 ## 3.3 Diagrams & Pinouts
 <div align="center">
   <table>
@@ -719,7 +718,7 @@ For each **Button 1…4**:
 
 ---
 
-## 9.1 Input Registers (Read-Only)
+## 8.1 Input Registers (Read-Only)
 
 Live, read-only snapshots convenient for dashboards and fast polling.
 
@@ -737,7 +736,7 @@ Live, read-only snapshots convenient for dashboards and fast polling.
 
 ---
 
-## 9.2 Holding Registers (Read/Write)
+## 8.2 Holding Registers (Read/Write)
 
 Configuration + low-rate control values (persisted by firmware where applicable).
 
@@ -753,7 +752,7 @@ Configuration + low-rate control values (persisted by firmware where applicable)
 
 ---
 
-## 9.3 Discrete Inputs & Coils
+## 8.3 Discrete Inputs & Coils
 
 ### Discrete Inputs (read-only flags)
 
@@ -782,13 +781,13 @@ Configuration + low-rate control values (persisted by firmware where applicable)
 
 ---
 
-## 9.4 Scaling Summary
+## 8.4 Scaling Summary
 
 No engineering scaling is required for ALM core points. All values are **boolean/bitfield** or **enum codes** as defined above.
 
 ---
 
-## 9.5 Basics & Function Codes
+## 8.5 Basics & Function Codes
 
 - **Physical:** RS-485 half-duplex; 120 Ω termination at both ends; consistent **A/B** polarity; shared COM/GND recommended if separate PSUs.  
 - **Function codes:** `0x01` Read Coils, `0x02` Read Discrete Inputs, `0x03` Read Holding, `0x04` Read Input (if utilized), `0x05/0x0F` Write Coils, `0x06/0x10` Write Holding.  
@@ -796,7 +795,7 @@ No engineering scaling is required for ALM core points. All values are **boolean
 
 ---
 
-## 9.6 Register Map (Summary)
+## 8.6 Register Map (Summary)
 ```
 Discrete Inputs
 00001..00017 DI1..DI17 state
@@ -837,10 +836,10 @@ Holding Registers (R/W)
 ```
 ---
 
-## 9.7 Override Priority
+## 8.7 Override Priority
 
-<a id="10-esphome-integration-guide-microplcminiplc-alm-173-r1-1"></a>
-# 10. [ESPHome Integration Guide (MicroPLC/MiniPLC + ALM-173-R1)]
+<a id="9-esphome-integration-guide-microplcminiplc-alm-173-r1-1"></a>
+# 9. [ESPHome Integration Guide (MicroPLC/MiniPLC + ALM-173-R1)]
 
 The **ALM-173-R1** integrates with **Home Assistant (HA)** through the **HomeMaster controller (MiniPLC/MicroPLC)** running **ESPHome**. The controller acts as a **Modbus RTU master** over RS-485, periodically polling the ALM-173-R1 and publishing friendly entities to HA. No custom add-ons are required on HA—everything is handled on the controller.
 
@@ -881,7 +880,7 @@ The **ALM-173-R1** integrates with **Home Assistant (HA)** through the **HomeMas
 
 > You do **not** need to include firmware examples or a Modbus register table in this README. The ESPHome profile for ALM-173-R1 encapsulates the mapping and exposes ready-to-use entities and actions to Home Assistant.
 
-## 10.1 Hardware & RS-485 Wiring
+## 9.1 Hardware & RS-485 Wiring
 
 1) **Power**  
 - **ALM-173-R1:** supply **24 V DC** to **V+ / 0 V**.  
@@ -899,7 +898,7 @@ The **ALM-173-R1** integrates with **Home Assistant (HA)** through the **HomeMas
 
 ---
 
-## 10.2 ESPHome (PLC): Enable Modbus RTU & Import the ALM Package
+## 9.2 ESPHome (PLC): Enable Modbus RTU & Import the ALM Package
 
 Your MiniPLC usually already defines UART+Modbus. Import the **ALM** package and use the **exact variable names** shown (`alm_prefix`, `alm_id`, `alm_address`):
 
@@ -933,7 +932,7 @@ packages:
 
 ---
 
-## 10.3 What the External ALM Package Exposes (Entities)
+## 9.3 What the External ALM Package Exposes (Entities)
 
 The bundled **`default_alm_173_r1_plc.yaml`** publishes ready-to-use entities; addressing is embedded, so you don’t hand-map registers.
 
@@ -955,7 +954,7 @@ The bundled **`default_alm_173_r1_plc.yaml`** publishes ready-to-use entities; a
 
 ---
 
-## 10.4 Command Coils You Can Use (Writes; FC05 / Read via FC01)
+## 9.4 Command Coils You Can Use (Writes; FC05 / Read via FC01)
 
 The package implements **pulse-safe** helpers (they auto-release after writing):
 
@@ -975,7 +974,7 @@ These appear as internal ESPHome switches or scripts that you can call from HA a
 
 ---
 
-## 10.5 Using Your MiniPLC YAML with ALM
+## 9.5 Using Your MiniPLC YAML with ALM
 
 1) Keep the existing **UART/Modbus** blocks (pins/baud).  
 2) Add the **`packages:`** block above and set **`alm_address`** to the ALM’s address from WebConfig.  
@@ -984,7 +983,7 @@ These appear as internal ESPHome switches or scripts that you can call from HA a
 
 ---
 
-## 10.6 Home Assistant Integration
+## 9.6 Home Assistant Integration
 
 1) **Add the ESPHome device** in HA (`Settings → Devices & Services → ESPHome`) using your controller’s hostname/IP.  
 2) **Dashboards**
@@ -998,7 +997,7 @@ These appear as internal ESPHome switches or scripts that you can call from HA a
 
 ---
 
-## 10.7 Troubleshooting & Tips
+## 9.7 Troubleshooting & Tips
 
 - **No data / timeouts**: check **A/B polarity**, shared **COM/GND** (when PSUs differ), and **termination/bias**.  
 - **Wrong package vars**: use **`alm_prefix` / `alm_id` / `alm_address`** (not older variable names).  
@@ -1008,7 +1007,7 @@ These appear as internal ESPHome switches or scripts that you can call from HA a
 
 ---
 
-## 10.8 Version & compatibility
+## 9.8 Version & compatibility
 
 - Tested with ESPHome 2025.8.0.
 - The controller YAML uses ESP‑IDF; Arduino also works if preferred (adjust platform accordingly).
@@ -1017,12 +1016,12 @@ These appear as internal ESPHome switches or scripts that you can call from HA a
 <a id="11-programming-customization-1"></a>
 # 11. Programming & Customization
 
-## 11.1 Supported Languages
+## 10.1 Supported Languages
 - **MicroPython** (pre‑installed)  
 - **C/C++**  
 - **Arduino IDE**
 
-## 11.2 Flashing via USB-C
+## 10.2 Flashing via USB-C
 1. Connect USB‑C.  
 2. Enter boot/flash mode if required.  
 3. Upload the provided firmware/source.
@@ -1038,7 +1037,7 @@ These appear as internal ESPHome switches or scripts that you can call from HA a
   <img src="Images/buttons1.png" alt="Button Layout" width="320">
 </p>
 
-## 11.3 Arduino
+## 10.3 Arduino
 - Select the appropriate board profile (Generic RP2350).  
 - In the Tools select Flash size 2MB (Sketch: 1MB, FS: 1MB )
 - Add 
@@ -1054,18 +1053,18 @@ These appear as internal ESPHome switches or scripts that you can call from HA a
 
 
 
-<a id="12-maintenance-troubleshooting-1"></a>
-# 12. Maintenance & Troubleshooting
+<a id="11-maintenance-troubleshooting-1"></a>
+# 11. Maintenance & Troubleshooting
 
 
 <a id="13-open-source-licensing-1"></a>
-# 13. Open Source & Licensing
+# 12. Open Source & Licensing
 
 - **Hardware:** **CERN‑OHL‑W 2.0**  
 - **Firmware & code samples:** **GPLv3** (unless otherwise noted)
 
 <a id="14-downloads-1"></a>
-# 14. Downloads
+# 13. Downloads
 
 The following key project resources are included in this repository:
 
@@ -1085,8 +1084,8 @@ The following key project resources are included in this repository:
   Contains PDF datasheets or technical overviews, if applicable.
 
 
-<a id="15-support-1"></a>
-# 15. Support
+<a id="14-support-1"></a>
+# 14. Support
 
 If you need help using or configuring the ALM-173-R1 module, the following resources are available:
 
