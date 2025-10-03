@@ -41,79 +41,57 @@ The **ALM-173-R1** is a configurable **alarm I/O module** with **17 opto-isolate
 
 ## 1.1 Overview of the ALM-173-R1 Module 🚨
 
-The **ALM-173-R1** is a compact alarm I/O module for intrusion/safety panels and PLC-backed systems. It exposes **17 opto-isolated digital inputs** for dry contacts and detectors, **3 relay outputs** for sirens/arming lines, plus a **local HMI** (4 buttons, 4 user LEDs) and **Modbus RTU (RS-485)**.
-Configuration and live status are available from any Chromium-based browser via **Web Serial**, letting you set Modbus address/baud, map inputs and relays to **three alarm groups**, and choose **latched** or **non-latched** alarm behavior—all without special software.
+The **ALM-173-R1** is a modular alarm I/O device for **intrusion detection**, **fault annunciation**, and **local supervision**. It features:
 
-| Component               |         Quantity         | Key Functionality                                                                                                                                                                                   |
-| :---------------------- | :----------------------: | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Digital Inputs (DI)** |          **17**          | **Opto-isolated** dry-contact inputs; each input can be enabled, inverted, debounced, and assigned to **Alarm Group 1/2/3**. Ideal for PIRs, door contacts, tamper loops, and general status lines. |
-| **Relays (RLY)**        |           **3**          | Industrial SPDT relays for sirens, strobes, arm/disarm lines, or general outputs; per-relay enable/invert/group mapping.                                                                            |
-| **Alarm Engine**        |    **3 groups + Any**    | Per-group **mode**: **Active while condition** (non-latched) or **Latched until acknowledged**; “Any Alarm” summary indicator for system-wide signaling.                                            |
-| **Local Interface**     |   **4 Buttons, 4 LEDs**  | Buttons can be assigned to **alarm acknowledge (all or per-group)** or **manual relay override**; user LEDs can mirror group/relay states with **steady/blink** modes.                              |
-| **Configuration UI**    |      **Web Serial**      | In-browser tool to set **Modbus address & baud**, view **live status**, push/save config, and **factory reset**—no drivers or installers required.                                                  |
-| **Field Bus**           |  **RS-485 (Modbus RTU)** | Robust multi-drop bus for PLC/SCADA integration; supports standard Modbus RTU registers and coil/DI maps.                                                                                           |
-| **Service Port**        |         **USB-C**        | Protected USB-C for setup and service access.                                                                                                                                                       |
-| **Controller**          | **RP2350A + QSPI Flash** | Dual-core MCU with external QSPI flash for firmware and configuration storage.                                                                                                                      |
-| **Power**               |       **24 VDC In**      | On-board **24 V→5 V** buck and **5 V→3.3 V** LDO for logic; **isolated 12 V / 5 V** rails for field side.                                                                                           |
-| **Protection**          |       **TVS + PTC**      | Surge/ESD protection and resettable fuses on field I/O and relay outputs for rugged installations.                                                                                                  |
+- **17 opto-isolated digital inputs**
+- **3 SPDT relays**
+- **4 configurable buttons**
+- **4 user LEDs**
+- **RS-485 (Modbus RTU)** interface
+- **WebConfig UI** over USB-C using **Web Serial** (Chromium browser)
 
-> **Typical workflow:**
-> Wire detectors & outputs → set Modbus address/baud → assign inputs/relays to groups → choose **latched/non-latched** behavior → map buttons to **acknowledge** / **manual override** → monitor alarms locally (LEDs) and centrally via PLC/HMI over **Modbus RTU**.
+It integrates with **MiniPLC/MicroPLC** controllers or any Modbus master. Configuration requires no special software—just a browser.
 
-## 1.2 Architecture & Modular Design
-
-The **ALM-173-R1 (Alarm I/O, 17 Inputs, 3 Relays)** is a DIN-rail Modbus extension module for distributed alarm and annunciator tasks. It’s configured entirely from a browser via **Web Serial**, exposing a clear model of **inputs → alarm groups → relays/LEDs**, plus local **buttons** for acknowledgments and manual overrides.
-
-### Core I/O & Indicators
-
-* **17× Digital Inputs (IN1…IN17):** each input can be **Enabled**, **Inverted**, and assigned to **Alarm Group 1/2/3** or **None**. The UI shows a live dot for every input.
-* **3× Relays (RLY1…RLY3):** per-relay **Enable**, **Invert**, and **Group** mapping; live state feedback shown in the UI.
-* **4× Buttons:** assign actions such as **All acknowledge**, **Group 1/2/3 acknowledge**, or **Relay 1/2/3 override (manual)**; button press state is shown live.
-* **4× User LEDs:** pick **Mode** (*Steady* / *Blink*) and **Source** (*Any alarm*, *Group 1/2/3*, *Relay 1/2/3 overridden*); live LED state is indicated.
-* **Alarm Engine:** **Any Alarm** summary plus **Group 1/2/3** with per-group **Mode**: *None*, *Active while condition is active (non-latched)*, or *Latched until acknowledged*. Group status indicators are displayed at the top of the UI.
-
-### Communication & Setup
-
-* **RS-485 / Modbus RTU:** Polled by a PLC/HMI (HomeMaster Mini/Micro or any Modbus master). UI provides **Address (1…255)** and **Baud** selections (9600, 19200, 38400, 57600, 115200).
-* **WebConfig over USB-C:** One-click **Connect**, view **Active Modbus Configuration** (address/baud), stream a **Serial Log**, and issue a confirmed **Reset Device**.
-
-### Local Resilience & Behavior
-
-* **On-device mappings** let inputs assert alarm groups and drive relays/LEDs without a PC, while a PLC orchestrates higher-level logic over Modbus.
-* **Buttons** provide local **acknowledge** and **manual relay override** functions for maintenance and operator workflows.
-* **Real-time telemetry** mirrors the device: **input states**, **relay states**, **button presses**, **LED states**, and **alarm group/summary status**. Configuration changes are sent immediately as lists (e.g., *inputEnable*, *inputInvert*, *inputGroup*, *relays*, *buttons*, *leds*, *alarms*).
+> **Quick use case:**  
+> Wire inputs → assign to alarm groups → choose latched/non-latched logic → map to relays/LEDs → connect to PLC/SCADA → monitor and acknowledge alarms locally or via Modbus.
 
 ---
 
-### Quick Capability Table
+## 1.2 Features & Architecture
 
-| Subsystem          |    Quantity   | Key Options in UI                                                                | Live Status               |
-| :----------------- | :-----------: | :------------------------------------------------------------------------------- | :------------------------ |
-| **Digital Inputs** |       17      | Enable • Invert • Group (*None/1/2/3*)                                           | Per-input dot (ON/OFF)    |
-| **Relays**         |       3       | Enable • Invert • Group (*None/1/2/3*)                                           | Per-relay checkbox/state  |
-| **Buttons**        |       4       | Action: *All ack*, *G1 ack*, *G2 ack*, *G3 ack*, *Relay 1/2/3 override*          | Per-button dot            |
-| **User LEDs**      |       4       | Mode: *Steady/Blink* • Source: *Any*, *G1*, *G2*, *G3*, *Relay 1/2/3 overridden* | Per-LED dot               |
-| **Alarm Groups**   | 3 (+ **Any**) | Mode per group: *None* / *Active while* / *Latched until acknowledged*           | Any/G1/G2/G3 dots         |
-| **Modbus Setup**   |       1       | Address 1…255 • Baud 9600…115200 • Connect/Reset                                 | Live address & baud panel |
+### 🔧 Core Capabilities
+
+| Subsystem         | Qty            | Description |
+|------------------|----------------|-------------|
+| **Digital Inputs** | 17 opto-isolated | Dry contact sensors (PIR, door, fault). Per-input enable, invert, debounce, group assignment (1/2/3) |
+| **Relays**         | 3 SPDT          | Controlled via alarm group logic or Modbus master; logic invert and enable per channel |
+| **Alarm Groups**   | 3 + Any summary | Group logic modes: *Active while* (momentary), *Latched until acknowledged* |
+| **User Buttons**   | 4               | Actions: acknowledge (All or per group) or manual relay override |
+| **User LEDs**      | 4               | Blink/steady, driven by group/alarm/override state |
+| **Config UI**      | Web Serial      | WebConfig: in-browser setup via USB-C (Modbus addr/baud, group logic, live status, reset) |
+| **Modbus RTU**     | RS-485          | Multi-drop slave. Address 1–255, baud 9600–115200 |
+| **MCU**            | RP2350 + QSPI   | Dual-core MCU; external flash; resilient field I/O control |
+| **Power**          | 24 VDC in       | Internal 24→5→3.3V regulators + isolated sensor rails (12V, 5V) |
+| **Protection**     | TVS, PTC        | Surge/ESD protection and resettable fuses on all field connections |
 
 ---
 
-## 1.3 ALM-173-R1 — System Role & Communication 🔌
+## 1.3 System Role & Communication 🔌
 
-The **ALM-173-R1** is an intelligent expansion module for the **HomeMaster MiniPLC / MicroPLC Modular Smart Control System**.
+The **ALM-173-R1** is a standalone, intelligent Modbus slave. It runs group logic locally and mirrors all status to a PLC or SCADA system.
 
-### MiniPLC / MicroPLC (via Modbus RTU)
+| Role                  | Description |
+|-----------------------|-------------|
+| **System Position**    | Expansion module on RS-485 trunk |
+| **Master Controller**  | MiniPLC / MicroPLC or third-party Modbus RTU master |
+| **Address / Baud**     | Configurable via WebConfig (1–255, 9600–115200 baud) |
+| **Bus Type**           | RS-485 multi-drop (A/B/COM terminals) |
+| **USB-C Port**         | For setup/diagnostics via Chromium browser |
+| **Default Modbus ID**  | `3` (changeable per install) |
+| **Daisy-Chaining**     | Multiple modules can share the bus with unique IDs |
 
-| Feature                | Specification                                                                                                                                    |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Controller Role**    | Operates as a **Modbus Slave**. The MiniPLC/MicroPLC acts as the **Modbus Master** for network and system logic management.                      |
-| **Communication**      | **Modbus RTU** (Serial).                                                                                                                         |
-| **Physical Interface** | **RS-485** bus (using dedicated **UART2** pins).                                                                                                 |
-| **Function**           | Master can **read** all I/O data (Flow, Heat, Leak Status) and **write** commands to actuate **Relays R1, R2** and control **irrigation zones**. |
-| **Modular Design**     | RS-485 architecture supports **daisy-chaining** multiple ALM-173-R1 modules and other expansion units for scalable I/O.                          |
-| **Default ID**         | Factory-set **Modbus Slave ID: 3**.                                                                                                              |
+> ⚠️ If multiple ALMs are on the same RS-485 line, assign unique Modbus addresses to each in WebConfig.
 
-> **Note:** If multiple ALM-173-R1 modules share the same RS-485 segment, change the slave ID on each unit to avoid address conflicts.
 
 ---
 
