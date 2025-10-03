@@ -689,6 +689,13 @@ For **RLY1…RLY3**:
 - **Terminals:** **300 V / 20 A**, **26–12 AWG (2.5 mm²)**, **pitch 5.08 mm**, **torque 0.5–0.6 Nm**  
 - **Front I/O:**
 
+### Enclosure Dimensions
+
+<div align="center">
+  <img src="Images/ALMMDimensions.png" alt="ALM-173-R1 Dimensions" width="660">
+  <p><em>ALM-173-R1 Physical Dimensions (DIN-rail enclosure)</em></p>
+</div>
+
 ---
 
 ## 5.13 Environmental & Compliance
