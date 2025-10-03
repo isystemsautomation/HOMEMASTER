@@ -760,79 +760,46 @@ Holding Registers (R/W)
 ## 6.7 Override Priority
 
 <a id="7-esphome-integration-guide"></a>
-
 # 7. ESPHome Integration Guide (MicroPLC/MiniPLC + ALM-173-R1)
 
-The **ALM-173-R1** integrates with **Home Assistant (HA)** through the **HomeMaster controller (MiniPLC/MicroPLC)** running **ESPHome**. The controller acts as a **Modbus RTU master** over RS-485, periodically polling the ALM-173-R1 and publishing friendly entities to HA. No custom add-ons are required on HA—everything is handled on the controller.
-
-### Communication Path
-
-* **Topology:** Home Assistant ↔ ESPHome (on HomeMaster) ↔ RS-485 ↔ ALM-173-R1
-* **Role split:**
-
-  * **ALM-173-R1:** executes local alarm logic (inputs → groups → relays/LEDs, buttons for ack/override).
-  * **ESPHome:** performs Modbus reads/writes and exposes states/actions as HA entities.
-  * **Home Assistant:** dashboards, notifications, automations, scenes.
-
-### What Home Assistant Sees (via ESPHome)
-
-* **Binary sensors**
-
-  * **Inputs:** DI1…DI17 as individual `binary_sensor` entities (open/closed, active/inactive).
-  * **Alarm groups:** Group 1, Group 2, Group 3, and **Any Alarm** summary for annunciation and logic.
-  * **Optional:** Button press states (useful for diagnostics/maintenance).
-* **Switches**
-
-  * **Relays:** R1…R3 as `switch` entities for manual testing or HA-driven actuation.
-  * **Actions as switches/scripts:** “Acknowledge All”, “Acknowledge Group 1/2/3”, and **manual relay override** can be exposed as HA `switch` or `script` entities that perform the underlying Modbus command.
-* **Device health**
-
-  * **Availability:** ESPHome marks entities unavailable if the Modbus link is down; HA can alert on loss of comms.
-  * **Diagnostics (optional):** readback of active baud/address and last update timestamp, surfaced as HA attributes.
-
-> Note: The ALM’s **LED sources/modes** and **mapping** are configured on the device/UI and typically not changed from HA during normal operation. HA consumes the resulting **group/any** status to drive notifications and scenes.
-
-### Recommended HA Automations (Examples of Behavior)
-
-* **Alarm annunciation:** When **Any Alarm** turns ON, send a **mobile push** with a list of active inputs; optionally flash a smart light or activate a siren **only if** “Service Mode” is OFF.
-* **Per-group workflows:** If **Group 1** (e.g., intrusion) goes **latched**, notify security and highlight the zone on a dashboard; expose an **Acknowledge Group 1** action.
-* **Night mode:** Use an HA `input_boolean.night_mode` to suppress local siren relays (keep logging/notifications active). HA can still command remote notifiers (e.g., GSM dialer) via the controller.
-* **Maintenance mode:** Temporarily inhibit relays from HA while keeping inputs visible; show a banner on the dashboard reminding operators that outputs are inhibited.
-* **Watchdog:** If entities become **unavailable** (Modbus fault), raise a **Critical** alert and create a persistent HA notification.
-
-### Best Practices
-
-* **Let the ALM do the fast/critical work** (local group logic and latching). Use HA for **orchestration**: notifications, schedules, and mode management.
-* **Keep a single source of truth** for acknowledges and overrides (prefer ALM/ESPHome actions; reflect state in HA).
-* **Use HA helpers** (`input_boolean`, `input_select`) for modes like **Night** or **Maintenance**, gating HA’s decision to drive relays.
-* **Secure the service port** (USB) and require operator authentication for any HA dashboard actions that acknowledge alarms or force overrides.
-
-> You do **not** need to include firmware examples or a Modbus register table in this README. The ESPHome profile for ALM-173-R1 encapsulates the mapping and exposes ready-to-use entities and actions to Home Assistant.
-
-## 7.1 Hardware & RS-485 Wiring
-
-1. **Power**
-
-* **ALM-173-R1:** supply **24 V DC** to **V+ / 0 V**.
-* **MicroPLC/MiniPLC:** per controller spec.
-* If the ALM and PLC have different PSUs, also share the **COM/GND** reference between devices.
-
-2. **RS-485**
-
-* Wire **A↔A**, **B↔B** with a twisted pair; terminate the two bus ends (~**120 Ω**), bias at the master.
-* Default serial (firmware/UI): **19200 8N1**; device **address** is configurable (examples below use `5`).
-
-3. **Field I/O (typical)**
-
-* **IN1…IN17:** dry contacts (door/PIR/tamper/aux). Map each to **Group 1/2/3** in WebConfig.
-* **Relays RLY1…RLY3:** siren/lock/indicator (dry contacts).
-* **Buttons/LEDs:** local **acknowledge** / **manual override** and visual status (Any/Group/Override).
+The **HomeMaster controller (MiniPLC/MicroPLC)** running **ESPHome** acts as the **Modbus RTU master** on RS‑485. It polls the **ALM-173-R1** and publishes entities to **Home Assistant (HA)**. No HA add‑ons are required—everything runs on the controller.
 
 ---
 
-## 7.2 ESPHome (PLC): Enable Modbus RTU & Import the ALM Package
+## 7.1 Architecture & Data Flow
 
-Your MiniPLC usually already defines UART+Modbus. Import the **ALM** package and use the **exact variable names** shown (`alm_prefix`, `alm_id`, `alm_address`):
+- **Topology:** Home Assistant ↔ ESPHome (controller) ↔ RS‑485 ↔ **ALM-173-R1**
+- **Roles:**
+  - **ALM-173-R1:** local alarm logic (inputs → groups → relays/LEDs; buttons for ack/override)
+  - **ESPHome:** Modbus I/O; exposes entities/actions to HA
+  - **Home Assistant:** dashboards, notifications, automations
+
+> Configure LED sources/modes and I/O mapping on the ALM via **WebConfig**; HA mainly **consumes** the resulting states.
+
+---
+
+## 7.2 Prerequisites (Power, Bus, I/O)
+
+1) **Power**  
+- **ALM:** 24 VDC → **V+ / 0 V**  
+- **Controller:** per spec  
+- If supplies differ, share **COM/GND** between devices
+
+2) **RS‑485**  
+- **A↔A**, **B↔B** (twisted pair), **COM** shared  
+- Terminate two physical ends (~**120 Ω**), bias at master  
+- Default serial: **19200 8N1**; set **address** in WebConfig (examples use `5`)
+
+3) **Field I/O (typical)**  
+- **IN1…IN17:** dry contacts → map to **Group 1/2/3**  
+- **RLY1…RLY3:** siren/lock/indicator (dry contacts)  
+- **Buttons/LEDs:** local ack/override & status
+
+---
+
+## 7.3 ESPHome Minimal Config (Enable Modbus + Import ALM Package)
+
+Use these exact variable names: `alm_prefix`, `alm_id`, `alm_address`.
 
 ```yaml
 uart:
@@ -854,104 +821,86 @@ packages:
     files:
       - path: ALM-173-R1/Firmware/default_alm_173_r1_plc/default_alm_173_r1_plc.yaml
         vars:
-          alm_prefix: "ALM#1"   # appears in HA entity names
+          alm_prefix: "ALM#1"   # shown in HA entity names
           alm_id: alm_1         # unique internal ID
-          alm_address: 5        # set to your module’s Modbus ID
+          alm_address: 5        # ALM Modbus ID from WebConfig
     refresh: 1d
 ```
 
-> Add multiple ALMs by duplicating the `alm1:` block (`alm2:`, `alm3:`…) with unique `alm_id` / `alm_address` / `alm_prefix`.
+> For multiple ALMs, duplicate the `alm1:` block (`alm2:`, `alm3:`…) with unique `alm_id` / `alm_prefix` / `alm_address`.
 
 ---
 
-## 7.3 What the External ALM Package Exposes (Entities)
+## 7.4 Entities Exposed by the Package
 
-The bundled **`default_alm_173_r1_plc.yaml`** publishes ready-to-use entities; addressing is embedded, so you don’t hand-map registers.
+- **Binary sensors**
+  - **IN1…IN17** (debounced)
+  - **Any Alarm**, **Group 1**, **Group 2**, **Group 3**
+  - **Buttons pressed** (BTN1…BTN4, optional diagnostics)
+  - **Relay/LED mirrors** (dashboard readback)
 
-* **Binary sensors**
+- **Switches**
+  - **RLY1…RLY3** (manual/HA actuation)
+  - **Acknowledge** (All / G1 / G2 / G3)
+  - **Override** (force R1/R2/R3 ON/OFF, then release)
 
-  * **IN1…IN17** (debounced digital inputs).
-  * **Alarm summary & groups:** **Any Alarm**, **Group 1**, **Group 2**, **Group 3**.
-  * **Buttons pressed:** BTN1…BTN4 (diagnostics).
-  * **Relay/LED mirrors:** readbacks for dashboards.
-
-* **Switches**
-
-  * **RLY1…RLY3** (ON/OFF) for manual or HA-driven actuation.
-  * **Acknowledge** actions (All / G1 / G2 / G3) as script/switch helpers.
-  * **Override** actions for **Relay 1/2/3** (force ON/OFF, then release).
-
-* **Numbers/Selects (optional)**
-
-  * Readbacks for **address/baud**, group **modes**, and per-channel **enable/invert/group** (mostly for diagnostics or advanced provisioning).
-
-> The ALM’s **LED sources/modes** and input/relay **group mapping** are usually configured in WebConfig; HA consumes the resulting states.
+- **Numbers/Selects (optional)**
+  - Readbacks for address/baud, group modes, and per‑channel enable/invert/group (for diagnostics/provisioning)
 
 ---
 
-## 7.4 Command Coils You Can Use (Writes; FC05 / Read via FC01)
+## 7.5 Command Helpers (Writes)
 
-The package implements **pulse-safe** helpers (they auto-release after writing):
+Package includes **pulse‑safe** helpers (auto‑release):
 
-* **Relays**
+- **Relays:** R1/R2/R3 **ON** / **OFF**
+- **Overrides:** **Override ON/OFF** for R1/R2/R3 (forces relay regardless of group until released)
+- **Acknowledges:** **Ack All**, **Ack G1**, **Ack G2**, **Ack G3**
+- **(Optional) Inputs:** **Enable/Disable INx** commissioning pulses
 
-  * **R1 ON** / **OFF**, **R2 ON** / **OFF**, **R3 ON** / **OFF**
-
-* **Overrides**
-
-  * **Override ON** / **Override OFF** for **R1/R2/R3** (forces relay regardless of group/master until released)
-
-* **Acknowledges**
-
-  * **Ack All**, **Ack Group 1**, **Ack Group 2**, **Ack Group 3**
-
-* **Input helpers (optional)**
-
-  * **Enable/Disable INx** pulses for commissioning workflows
-
-These appear as internal ESPHome switches or scripts that you can call from HA automations.
+These appear as ESPHome switches/scripts usable in HA automations.
 
 ---
 
-## 7.5 Using Your MiniPLC YAML with ALM
+## 7.6 Using Your MiniPLC YAML with ALM
 
-1. Keep the existing **UART/Modbus** blocks (pins/baud).
-2. Add the **`packages:`** block above and set **`alm_address`** to the ALM’s address from WebConfig.
-3. Flash the controller; ESPHome will discover entities under **`alm_prefix`** (e.g., `ALM#1 IN1`, `ALM#1 Any Alarm`, `ALM#1 Relay 1`).
-4. Place the entities on dashboards and wire up acknowledge/override actions as HA buttons.
-
----
-
-## 7.6 Home Assistant Integration
-
-1. **Add the ESPHome device** in HA (`Settings → Devices & Services → ESPHome`) using your controller’s hostname/IP.
-2. **Dashboards**
-
-   * **Annunciator**: tiles for **Any/Group1/2/3**, plus a button for **Ack All**.
-   * **Zones**: show **IN1…IN17** grouped by area; add **Relay 1/2/3** toggles for tests.
-   * **Service mode**: a helper (boolean) that gates HA from energizing sirens; use **Overrides** sparingly.
-3. **Automations**
-
-   * On **Any Alarm → ON**: push notification + flash a smart light; if **service_mode = off**, energize **Relay 1** for the siren.
-   * On **Group X → ON** and **latched**: prompt an **Ack Group X** action.
-   * On **Modbus unavailable**: raise a critical alert.
+1. Keep your existing `uart:` and `modbus:` blocks.  
+2. Add the `packages:` block (above) and set `alm_address` to the device address in WebConfig.  
+3. Flash the controller. ESPHome discovers entities under `alm_prefix` (e.g., `ALM#1 IN1`, `ALM#1 Relay 1`).  
+4. Build dashboards and add buttons for **Ack** / **Override** actions as needed.
 
 ---
 
-## 7.7 Troubleshooting & Tips
+## 7.7 Home Assistant Setup & Automations
 
-* **No data / timeouts**: check **A/B polarity**, shared **COM/GND** (when PSUs differ), and **termination/bias**.
-* **Wrong package vars**: use **`alm_prefix` / `alm_id` / `alm_address`** (not older variable names).
-* **Relays not responding**: verify the relay is **Enabled** in WebConfig and **not overridden**.
-* **Latched alarms won’t clear**: inputs must be normal **and** you must send the corresponding **Ack**.
-* **Multiple ALMs**: give each a unique **Modbus address** and **`alm_prefix`**.
+1) **Add device:** `Settings → Devices & Services → ESPHome` → add by hostname/IP.  
+
+2) **Dashboards**
+- **Annunciator:** tiles for **Any/G1/G2/G3**, plus **Ack All** button
+- **Zones:** IN1…IN17 grouped by area; toggles for **RLY1/2/3**
+- **Service/Night Mode:** helper booleans that gate siren/override logic
+
+3) **Automations (examples)**
+- **Any Alarm → ON:** push notification + optional light flash; if `service_mode = off` then energize **Relay 1** (siren)
+- **Group X (latched) → ON:** prompt **Ack Group X**
+- **Modbus unavailable:** critical alert + persistent HA notification
 
 ---
 
-## 7.8 Version & compatibility
+## 7.8 Troubleshooting
 
-* Tested with ESPHome 2025.8.0.
-* The controller YAML uses ESP‑IDF; Arduino also works if preferred (adjust platform accordingly).
+- **No data/timeouts:** check **A/B polarity**, **COM/GND** reference (if separate PSUs), termination/bias.  
+- **Wrong package vars:** must use `alm_prefix`, `alm_id`, `alm_address` (exact names).  
+- **Relays not responding:** ensure **Enabled** in WebConfig and **not overridden**.  
+- **Latched alarms won’t clear:** input must be normal **and** an appropriate **Ack** must be sent.  
+- **Multiple ALMs:** each needs a unique Modbus **address** and **alm_prefix**.
+
+---
+
+## 7.9 Version & Compatibility
+
+- Tested with **ESPHome 2025.8.0**  
+- Controller YAML typically uses **ESP‑IDF**; Arduino works if preferred (adjust platform)
 
 ---
 
