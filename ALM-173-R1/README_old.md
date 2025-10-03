@@ -11,21 +11,7 @@
 The **ALM-173-R1** is a configurable **alarm I/O module** with **17 opto-isolated inputs**, **3 SPDT relays**, plus **4 buttons** and **4 LEDs** for on-panel control. It connects to a **MicroPLC/MiniPLC** via **RS-485 (Modbus RTU)** and is set up through a USB-C **WebConfig** UI (Web Serial) to define Modbus params, invert/enable inputs, group them into **three alarm groups** (latched or momentary), map groups to relays, assign button roles (acknowledge, manual relay override), and choose LED modes—with live status and quick **device reset**. The design features a **galvanically isolated field side**, and an **RP2350 MCU** with **MAX485** and **PCF8574** expanders running from **24 V**. Modbus registers expose inputs, group/alarm bits, and relay states, making integration with **Home Assistant** straightforward.
 
 
-- [1. ALM-173-R1 Module for Alarm Systems](#1-introduction-1)
-- [2. Use Cases & Alarm Logic Examples]
-- [3. Safety Information(#2-safety-information-1)
-- [4. Quick Start Guide] (From old 4.4, the Phase 1/2/3 checklist)
-5. System Role & Home Assistant Integration (From old 1.2 & 3.2, merged)
-6. Detailed Installation & Wiring (From old 5.0)
-7. WebConfig UI Setup (From old 6.0)
-8. Hardware & Technical Specification (Reference) (From old 3.1 & 3.4, merged)
-- [9. Modbus Register Map](#8-modbus-rtu-communication-1)
-- [10. ESPHome Integration Guide (MicroPLC/MiniPLC + ALM-173-R1)](#10-esphome-integration-guide-microplcminiplc-alm-173-r1-1)
-- [11. Programming & Customization](119-programming-customization-1)
-- [12. Maintenance & Troubleshooting](#12-maintenance-troubleshooting-1)
-- [13. Open Source & Licensing](#13-open-source-licensing-1)
-- [14. Downloads](#14-downloads-1)
-- [15. Support](#15-support-1)
+
 <br clear="left"/>
 
 ## Table of Contents
@@ -71,43 +57,10 @@ Configuration and live status are available from any Chromium-based browser via 
 > **Typical workflow:**  
 > Wire detectors & outputs → set Modbus address/baud → assign inputs/relays to groups → choose **latched/non-latched** behavior → map buttons to **acknowledge** / **manual override** → monitor alarms locally (LEDs) and centrally via PLC/HMI over **Modbus RTU**.
 
-## 1.2 Architecture & Modular Design
-
-The **ALM-173-R1 (Alarm I/O, 17 Inputs, 3 Relays)** is a DIN-rail Modbus extension module for distributed alarm and annunciator tasks. It’s configured entirely from a browser via **Web Serial**, exposing a clear model of **inputs → alarm groups → relays/LEDs**, plus local **buttons** for acknowledgments and manual overrides.
-
-### Core I/O & Indicators
-- **17× Digital Inputs (IN1…IN17):** each input can be **Enabled**, **Inverted**, and assigned to **Alarm Group 1/2/3** or **None**. The UI shows a live dot for every input.
-- **3× Relays (RLY1…RLY3):** per-relay **Enable**, **Invert**, and **Group** mapping; live state feedback shown in the UI.
-- **4× Buttons:** assign actions such as **All acknowledge**, **Group 1/2/3 acknowledge**, or **Relay 1/2/3 override (manual)**; button press state is shown live.
-- **4× User LEDs:** pick **Mode** (*Steady* / *Blink*) and **Source** (*Any alarm*, *Group 1/2/3*, *Relay 1/2/3 overridden*); live LED state is indicated.
-- **Alarm Engine:** **Any Alarm** summary plus **Group 1/2/3** with per-group **Mode**: *None*, *Active while condition is active (non-latched)*, or *Latched until acknowledged*. Group status indicators are displayed at the top of the UI.
-
-### Communication & Setup
-- **RS-485 / Modbus RTU:** Polled by a PLC/HMI (HomeMaster Mini/Micro or any Modbus master). UI provides **Address (1…255)** and **Baud** selections (9600, 19200, 38400, 57600, 115200).
-- **WebConfig over USB-C:** One-click **Connect**, view **Active Modbus Configuration** (address/baud), stream a **Serial Log**, and issue a confirmed **Reset Device**.
-
-### Local Resilience & Behavior
-- **On-device mappings** let inputs assert alarm groups and drive relays/LEDs without a PC, while a PLC orchestrates higher-level logic over Modbus.
-- **Buttons** provide local **acknowledge** and **manual relay override** functions for maintenance and operator workflows.
-- **Real-time telemetry** mirrors the device: **input states**, **relay states**, **button presses**, **LED states**, and **alarm group/summary status**. Configuration changes are sent immediately as lists (e.g., *inputEnable*, *inputInvert*, *inputGroup*, *relays*, *buttons*, *leds*, *alarms*).
 
 ---
 
-### Quick Capability Table
-
-| Subsystem | Quantity | Key Options in UI | Live Status |
-| :--- | :---: | :--- | :--- |
-| **Digital Inputs** | 17 | Enable • Invert • Group (*None/1/2/3*) | Per-input dot (ON/OFF) |
-| **Relays** | 3 | Enable • Invert • Group (*None/1/2/3*) | Per-relay checkbox/state |
-| **Buttons** | 4 | Action: *All ack*, *G1 ack*, *G2 ack*, *G3 ack*, *Relay 1/2/3 override* | Per-button dot |
-| **User LEDs** | 4 | Mode: *Steady/Blink* • Source: *Any*, *G1*, *G2*, *G3*, *Relay 1/2/3 overridden* | Per-LED dot |
-| **Alarm Groups** | 3 (+ **Any**) | Mode per group: *None* / *Active while* / *Latched until acknowledged* | Any/G1/G2/G3 dots |
-| **Modbus Setup** | 1 | Address 1…255 • Baud 9600…115200 • Connect/Reset | Live address & baud panel |
-
-
----
-
-## 1.3 ALM-173-R1 — System Role & Communication 🔌
+## 1.2 ALM-173-R1 — Supported Controllers 🔌
 
 
 The **ALM-173-R1** is an intelligent expansion module for the **HomeMaster MiniPLC / MicroPLC Modular Smart Control System**.
@@ -125,137 +78,10 @@ The **ALM-173-R1** is an intelligent expansion module for the **HomeMaster MiniP
 
 > **Note:** If multiple ALM-173-R1 modules share the same RS-485 segment, change the slave ID on each unit to avoid address conflicts.
 
-<a id="3-system-overview-1"></a>
-# 3. System Overview
-## 
-
-## 3.3 Diagrams & Pinouts
-<div align="center">
-  <table>
-    <tr>
-      <td align="center">
-        <strong>ALM System Diagram</strong><br>
-        <img src="Images/ALM_SystemBlockDiagram.png" alt="ALM System Diagram" width="360">
-      </td>
-      <td align="center">
-        <strong>RP2350 MCU Pinout</strong><br>
-        <img src="Images/ALM_MCU_Pinouts.png" alt="MCU Pinouts" width="360">
-      </td>
-    </tr>
-    <tr>
-      <td align="center">
-        <strong>Field Board Layout</strong><br>
-        <img src="Images/FieldBoard-Diagram.png" alt="Field Board Diagram" width="360">
-      </td>
-      <td align="center">
-        <strong>MCU Board Layout</strong><br>
-        <img src="Images/MCUBoard-Diagram.png" alt="MCU Board Diagram" width="360">
-      </td>
-    </tr>
-  </table>
-</div>
-
-#4 ALM-173-R1 — Technical Specification
-
-## Overview
-
-- **Function:** Alarm and annunciation I/O module with **17× opto-isolated digital inputs** and **3× SPDT relay outputs**  
-- **System role:** RS-485 **Modbus RTU** slave for MicroPLC/MiniPLC and Home Automation 
-- **Form factor:** DIN-rail module (compact multi-gang footprint), USB-C service port for Web-Serial setup
 
 ---
 
-## I/O Summary
-
-| Interface | Qty | Electrical / Notes |
-|---|---:|---|
-| **Digital Inputs (IN1…IN17)** | 17 | **Opto-isolated** inputs referenced to **GND_ISO**; suited for dry contacts and other isolated low-voltage signals. Per-channel conditioning and surge protection. |
-| **Relays (RLY1…RLY3)** | 3 | **SPDT dry contacts** (COM/NO/NC) with transistor + opto drivers and contact suppression. Use snubbers/TVS for inductive loads; observe relay datasheet ratings (HF115F series). |
-| **Isolated sensor rails** | 2 | **+12 V (PS/1)** and **+5 V (PS/2)**, each **isolated** and fuse-limited for powering field sensors (not actuators). |
-| **User Buttons** | 4 | Front-panel buttons (SW1…SW4) to acknowledge alarms or manually override relays (configurable in UI). |
-| **User LEDs** | 4 (+ status) | Front LEDs indicate groups/any alarm and overrides; **PWR** steady-on, **TX/RX** blink on bus activity. |
-| **Field bus** | 1 | **RS-485 (A/B/COM)** with ESD/TVS and PTC protection; bias/termination per site design. |
-| **Service** | 1 | **USB-C** with ESD protection for Web-Serial configuration and diagnostics. |
-
----
-
-## Terminals & Pinout (field side)
-
-<img src="Images/photo1.png" align="left" width="660" alt="ALM-173-R1 module photo">
-
-### Connector Map (front label reference)
-> Use the front silkscreen to match terminals during wiring.
-
-| Area (Front Label) | Purpose | Notes |
-| :--- | :--- | :--- |
-| **POWER — 24 Vdc (V+, 0 V)** | Primary SELV supply. | Verify polarity; isolate before service. |
-| **DIGITAL INPUTS — IN1…IN17 (with GND_ISO groups)** | Dry-contact / isolated low-voltage inputs. | Use only within SELV limits; keep **GND_ISO** separate from logic ground unless design requires bonding. |
-| **RELAY1…RELAY3 — C/NO/NC** | SPDT dry-contact outputs. | Observe relay ratings; snub inductive loads; avoid switching mains unless permitted by code and relay datasheet. |
-| **OUTPUT 12 Vdc (PS/1)** | Isolated sensor supply (12 V). | Fuse-limited; no backfeeding or paralleling with other rails. |
-| **OUTPUT 5 Vdc (PS/2)** | Isolated sensor supply (5 V). | Fuse-limited; for sensors only. |
-| **RS-485 — COM, B, A** | Modbus RTU field bus. | Twisted pair; correct A/B polarity; one-point shield bond; termination per trunk design. |
-| **USB (Service)** | Web-Serial configuration. | For service only; not a field power source. |
-| **PWR/TX/RX LEDs** | Power and bus activity. | **PWR** = steady ON; **TX/RX** = **blink** when communication is active. If not blinking (stuck OFF/solid), isolate and check wiring, polarity, termination, and addressing. |
-
-<br clear="left"/>
-
----
-
-## Electrical
-
-### Power & Regulation
-- **Primary input:** **24 VDC** nominal with input fuse, reverse-polarity protection, and surge suppression  
-- **DC/DC & rails:**  
-  - **Buck 24 V → +5 V** (primary logic rail)  
-  - **LDO +5 V → +3.3 V** (MCU and logic)  
-  - **Isolated rails:** **+12 V ISO** and **+5 V ISO** via isolated DC-DC modules with LC filtering and PTC fusing
-
-### Digital Inputs
-- **Opto-isolators** per channel with series/network resistors for noise immunity  
-- **Surge/ESD protection** on input lines; inputs referenced to **GND_ISO** return groups  
-- Firmware options per input: **Enable**, **Invert**, **Group assignment (1/2/3/None)**, debounce in logic
-
-### Relay Outputs
-- **HF115F series** SPDT relays with transistor drivers and opto-isolation on control side  
-- **Contact suppression** network to reduce EMI/arcing; fit external snubbers/TVS for coils, locks, sirens  
-- Wire loads directly to **COM/NO/NC**; keep load currents off logic returns
-
-### RS-485 (Modbus RTU)
-- **MAX485-class** transceiver with DE/RE control  
-- **Protection:** TVS diodes on A/B, series elements, bias network, and **PTC** resettable fuses on the bus  
-- **Indicators:** **TX/RX LEDs** reflect line activity
-
-### USB-C (service/config)
-- **ESD/EMI** protection array on D± and VBUS, CC pull-downs; reverse-current protection to the +5 V rail  
-- Intended for **configuration and diagnostics**; not for powering external loads
-
----
-
-##MCU & Storage
-
-- **Controller:** **Raspberry Pi RP2350A** dual-core MCU  
-- **External storage:** **W25Q32** (32-Mbit QSPI NOR flash) for firmware/config  
-- **Clocking & debug:** 12 MHz crystal; **SWD** header for development/service access  
-- **I/O expansion:** **PCF8574** I²C expanders for input/relay/LED/button matrixing
-
----
-
-## Protections & Design for Reliability
-
-- **Galvanic isolation:** Dedicated **GND_ISO** domain and **isolated +12 V/+5 V** rails for sensors  
-- **Surge/ESD:** TVS arrays on RS-485 and USB; RC/series networks on data lines; **PTC** resettable fuses on field rails and bus  
-- **Contact life:** Built-in suppression and guidance to apply external snubbers for inductive loads
-
----
-
-## Firmware / Function (high-level)
-
-- **Alarm engine:** map inputs → **Group 1/2/3** with modes **Active-while** or **Latched-until-ack**; **Any Alarm** summary  
-- **Actuation:** per-relay **Enable/Invert/Group**; **Buttons** for acknowledges and manual relay overrides; **User LEDs** sourced to groups/any/override with **Steady/Blink**  
-- **Setup & telemetry:** Web-Serial UI (USB-C) for **Modbus address/baud**, live input/relay/group status, and safe reset; operates stand-alone with a PLC/HMI supervising over Modbus
----
-
-## 2 Use Cases 🛠️
+## 1.3 Use Cases 🛠️
 
 Below are practical ways to deploy the **ALM-173-R1** with the HomeMaster Mini/Micro PLC (or any Modbus RTU master). Each recipe uses only features available in the firmware + Web Serial UI: **Input Enable/Invert/Group**, **Relay Enable/Invert/Group**, **Alarm Modes** (*None / Active while condition* / *Latched until acknowledged*), **Buttons** (ack & manual relay override), and **User LEDs** (steady/blink; sources like *Any Alarm*, *Group 1..3*, *Relay overridden*).
 
@@ -319,8 +145,8 @@ Below are practical ways to deploy the **ALM-173-R1** with the HomeMaster Mini/M
 ---
 
 
-<a id="3-safety-information-1"></a>
-# 3. Safety Information
+<a id="2-safety-information-1"></a>
+# 2. Safety Information
 
 This section outlines essential safety guidelines specific to the **ALM-173-R1** alarm I/O module. Failure to follow these instructions may result in equipment damage, system failure, or personal injury.
 
@@ -328,7 +154,7 @@ This section outlines essential safety guidelines specific to the **ALM-173-R1**
 
 ---
 
-## 3.1 General Electrical Safety
+## 2.1 General Electrical Safety
 
 | Warning | Requirement |
 | :--- | :--- |
@@ -340,7 +166,7 @@ This section outlines essential safety guidelines specific to the **ALM-173-R1**
 
 ---
 
-## 3.2 Handling & Installation
+## 2.2 Handling & Installation
 
 | Requirement | Detail |
 | :--- | :--- |
@@ -352,7 +178,7 @@ This section outlines essential safety guidelines specific to the **ALM-173-R1**
 
 ---
 
-## 3.3 Device-Specific Warnings
+## 2.3 Device-Specific Warnings
 
 | Component / Area | Warning |
 | :--- | :--- |
@@ -373,6 +199,213 @@ This section outlines essential safety guidelines specific to the **ALM-173-R1**
 > - Relays wired with correct **COM/NO/NC** choice and snubbers fitted  
 > - RS-485 polarity and termination verified  
 > - Sensor loads on **PS/1 (12 V)** and **PS/2 (5 V)** within budget
+
+
+
+
+<a id="3-system-overview-1"></a>
+# 3. System Overview
+## 3.1 Architecture & Modular Design
+
+The **ALM-173-R1 (Alarm I/O, 17 Inputs, 3 Relays)** is a DIN-rail Modbus extension module for distributed alarm and annunciator tasks. It’s configured entirely from a browser via **Web Serial**, exposing a clear model of **inputs → alarm groups → relays/LEDs**, plus local **buttons** for acknowledgments and manual overrides.
+
+### Core I/O & Indicators
+- **17× Digital Inputs (IN1…IN17):** each input can be **Enabled**, **Inverted**, and assigned to **Alarm Group 1/2/3** or **None**. The UI shows a live dot for every input.
+- **3× Relays (RLY1…RLY3):** per-relay **Enable**, **Invert**, and **Group** mapping; live state feedback shown in the UI.
+- **4× Buttons:** assign actions such as **All acknowledge**, **Group 1/2/3 acknowledge**, or **Relay 1/2/3 override (manual)**; button press state is shown live.
+- **4× User LEDs:** pick **Mode** (*Steady* / *Blink*) and **Source** (*Any alarm*, *Group 1/2/3*, *Relay 1/2/3 overridden*); live LED state is indicated.
+- **Alarm Engine:** **Any Alarm** summary plus **Group 1/2/3** with per-group **Mode**: *None*, *Active while condition is active (non-latched)*, or *Latched until acknowledged*. Group status indicators are displayed at the top of the UI.
+
+### Communication & Setup
+- **RS-485 / Modbus RTU:** Polled by a PLC/HMI (HomeMaster Mini/Micro or any Modbus master). UI provides **Address (1…255)** and **Baud** selections (9600, 19200, 38400, 57600, 115200).
+- **WebConfig over USB-C:** One-click **Connect**, view **Active Modbus Configuration** (address/baud), stream a **Serial Log**, and issue a confirmed **Reset Device**.
+
+### Local Resilience & Behavior
+- **On-device mappings** let inputs assert alarm groups and drive relays/LEDs without a PC, while a PLC orchestrates higher-level logic over Modbus.
+- **Buttons** provide local **acknowledge** and **manual relay override** functions for maintenance and operator workflows.
+- **Real-time telemetry** mirrors the device: **input states**, **relay states**, **button presses**, **LED states**, and **alarm group/summary status**. Configuration changes are sent immediately as lists (e.g., *inputEnable*, *inputInvert*, *inputGroup*, *relays*, *buttons*, *leds*, *alarms*).
+
+---
+
+### Quick Capability Table
+
+| Subsystem | Quantity | Key Options in UI | Live Status |
+| :--- | :---: | :--- | :--- |
+| **Digital Inputs** | 17 | Enable • Invert • Group (*None/1/2/3*) | Per-input dot (ON/OFF) |
+| **Relays** | 3 | Enable • Invert • Group (*None/1/2/3*) | Per-relay checkbox/state |
+| **Buttons** | 4 | Action: *All ack*, *G1 ack*, *G2 ack*, *G3 ack*, *Relay 1/2/3 override* | Per-button dot |
+| **User LEDs** | 4 | Mode: *Steady/Blink* • Source: *Any*, *G1*, *G2*, *G3*, *Relay 1/2/3 overridden* | Per-LED dot |
+| **Alarm Groups** | 3 (+ **Any**) | Mode per group: *None* / *Active while* / *Latched until acknowledged* | Any/G1/G2/G3 dots |
+| **Modbus Setup** | 1 | Address 1…255 • Baud 9600…115200 • Connect/Reset | Live address & baud panel |
+
+
+## 3.2 Integration with Home Assistant
+
+The **ALM-173-R1** integrates with **Home Assistant (HA)** through the **HomeMaster controller (MiniPLC/MicroPLC)** running **ESPHome**. The controller acts as a **Modbus RTU master** over RS-485, periodically polling the ALM-173-R1 and publishing friendly entities to HA. No custom add-ons are required on HA—everything is handled on the controller.
+
+### Communication Path
+- **Topology:** Home Assistant ↔ ESPHome (on HomeMaster) ↔ RS-485 ↔ ALM-173-R1  
+- **Role split:**  
+  - **ALM-173-R1:** executes local alarm logic (inputs → groups → relays/LEDs, buttons for ack/override).  
+  - **ESPHome:** performs Modbus reads/writes and exposes states/actions as HA entities.  
+  - **Home Assistant:** dashboards, notifications, automations, scenes.
+
+### What Home Assistant Sees (via ESPHome)
+- **Binary sensors**
+  - **Inputs:** DI1…DI17 as individual `binary_sensor` entities (open/closed, active/inactive).
+  - **Alarm groups:** Group 1, Group 2, Group 3, and **Any Alarm** summary for annunciation and logic.
+  - **Optional:** Button press states (useful for diagnostics/maintenance).
+- **Switches**
+  - **Relays:** R1…R3 as `switch` entities for manual testing or HA-driven actuation.
+  - **Actions as switches/scripts:** “Acknowledge All”, “Acknowledge Group 1/2/3”, and **manual relay override** can be exposed as HA `switch` or `script` entities that perform the underlying Modbus command.
+- **Device health**
+  - **Availability:** ESPHome marks entities unavailable if the Modbus link is down; HA can alert on loss of comms.
+  - **Diagnostics (optional):** readback of active baud/address and last update timestamp, surfaced as HA attributes.
+
+> Note: The ALM’s **LED sources/modes** and **mapping** are configured on the device/UI and typically not changed from HA during normal operation. HA consumes the resulting **group/any** status to drive notifications and scenes.
+
+### Recommended HA Automations (Examples of Behavior)
+- **Alarm annunciation:** When **Any Alarm** turns ON, send a **mobile push** with a list of active inputs; optionally flash a smart light or activate a siren **only if** “Service Mode” is OFF.
+- **Per-group workflows:** If **Group 1** (e.g., intrusion) goes **latched**, notify security and highlight the zone on a dashboard; expose an **Acknowledge Group 1** action.
+- **Night mode:** Use an HA `input_boolean.night_mode` to suppress local siren relays (keep logging/notifications active). HA can still command remote notifiers (e.g., GSM dialer) via the controller.
+- **Maintenance mode:** Temporarily inhibit relays from HA while keeping inputs visible; show a banner on the dashboard reminding operators that outputs are inhibited.
+- **Watchdog:** If entities become **unavailable** (Modbus fault), raise a **Critical** alert and create a persistent HA notification.
+
+
+### Best Practices
+- **Let the ALM do the fast/critical work** (local group logic and latching). Use HA for **orchestration**: notifications, schedules, and mode management.
+- **Keep a single source of truth** for acknowledges and overrides (prefer ALM/ESPHome actions; reflect state in HA).
+- **Use HA helpers** (`input_boolean`, `input_select`) for modes like **Night** or **Maintenance**, gating HA’s decision to drive relays.
+- **Secure the service port** (USB) and require operator authentication for any HA dashboard actions that acknowledge alarms or force overrides.
+
+> You do **not** need to include firmware examples or a Modbus register table in this README. The ESPHome profile for ALM-173-R1 encapsulates the mapping and exposes ready-to-use entities and actions to Home Assistant.
+
+
+## 3.3 Diagrams & Pinouts
+<div align="center">
+  <table>
+    <tr>
+      <td align="center">
+        <strong>ALM System Diagram</strong><br>
+        <img src="Images/ALM_SystemBlockDiagram.png" alt="ALM System Diagram" width="360">
+      </td>
+      <td align="center">
+        <strong>RP2350 MCU Pinout</strong><br>
+        <img src="Images/ALM_MCU_Pinouts.png" alt="MCU Pinouts" width="360">
+      </td>
+    </tr>
+    <tr>
+      <td align="center">
+        <strong>Field Board Layout</strong><br>
+        <img src="Images/FieldBoard-Diagram.png" alt="Field Board Diagram" width="360">
+      </td>
+      <td align="center">
+        <strong>MCU Board Layout</strong><br>
+        <img src="Images/MCUBoard-Diagram.png" alt="MCU Board Diagram" width="360">
+      </td>
+    </tr>
+  </table>
+</div>
+
+## 3.4 ALM-173-R1 — Technical Specification
+
+### Overview
+
+- **Function:** Alarm and annunciation I/O module with **17× opto-isolated digital inputs** and **3× SPDT relay outputs**  
+- **System role:** RS-485 **Modbus RTU** slave for MicroPLC/MiniPLC and Home Automation 
+- **Form factor:** DIN-rail module (compact multi-gang footprint), USB-C service port for Web-Serial setup
+
+---
+
+### I/O Summary
+
+| Interface | Qty | Electrical / Notes |
+|---|---:|---|
+| **Digital Inputs (IN1…IN17)** | 17 | **Opto-isolated** inputs referenced to **GND_ISO**; suited for dry contacts and other isolated low-voltage signals. Per-channel conditioning and surge protection. |
+| **Relays (RLY1…RLY3)** | 3 | **SPDT dry contacts** (COM/NO/NC) with transistor + opto drivers and contact suppression. Use snubbers/TVS for inductive loads; observe relay datasheet ratings (HF115F series). |
+| **Isolated sensor rails** | 2 | **+12 V (PS/1)** and **+5 V (PS/2)**, each **isolated** and fuse-limited for powering field sensors (not actuators). |
+| **User Buttons** | 4 | Front-panel buttons (SW1…SW4) to acknowledge alarms or manually override relays (configurable in UI). |
+| **User LEDs** | 4 (+ status) | Front LEDs indicate groups/any alarm and overrides; **PWR** steady-on, **TX/RX** blink on bus activity. |
+| **Field bus** | 1 | **RS-485 (A/B/COM)** with ESD/TVS and PTC protection; bias/termination per site design. |
+| **Service** | 1 | **USB-C** with ESD protection for Web-Serial configuration and diagnostics. |
+
+---
+
+### Terminals & Pinout (field side)
+
+<img src="Images/photo1.png" align="left" width="660" alt="ALM-173-R1 module photo">
+
+#### Connector Map (front label reference)
+> Use the front silkscreen to match terminals during wiring.
+
+| Area (Front Label) | Purpose | Notes |
+| :--- | :--- | :--- |
+| **POWER — 24 Vdc (V+, 0 V)** | Primary SELV supply. | Verify polarity; isolate before service. |
+| **DIGITAL INPUTS — IN1…IN17 (with GND_ISO groups)** | Dry-contact / isolated low-voltage inputs. | Use only within SELV limits; keep **GND_ISO** separate from logic ground unless design requires bonding. |
+| **RELAY1…RELAY3 — C/NO/NC** | SPDT dry-contact outputs. | Observe relay ratings; snub inductive loads; avoid switching mains unless permitted by code and relay datasheet. |
+| **OUTPUT 12 Vdc (PS/1)** | Isolated sensor supply (12 V). | Fuse-limited; no backfeeding or paralleling with other rails. |
+| **OUTPUT 5 Vdc (PS/2)** | Isolated sensor supply (5 V). | Fuse-limited; for sensors only. |
+| **RS-485 — COM, B, A** | Modbus RTU field bus. | Twisted pair; correct A/B polarity; one-point shield bond; termination per trunk design. |
+| **USB (Service)** | Web-Serial configuration. | For service only; not a field power source. |
+| **PWR/TX/RX LEDs** | Power and bus activity. | **PWR** = steady ON; **TX/RX** = **blink** when communication is active. If not blinking (stuck OFF/solid), isolate and check wiring, polarity, termination, and addressing. |
+
+<br clear="left"/>
+
+---
+
+### Electrical
+
+#### Power & Regulation
+- **Primary input:** **24 VDC** nominal with input fuse, reverse-polarity protection, and surge suppression  
+- **DC/DC & rails:**  
+  - **Buck 24 V → +5 V** (primary logic rail)  
+  - **LDO +5 V → +3.3 V** (MCU and logic)  
+  - **Isolated rails:** **+12 V ISO** and **+5 V ISO** via isolated DC-DC modules with LC filtering and PTC fusing
+
+#### Digital Inputs
+- **Opto-isolators** per channel with series/network resistors for noise immunity  
+- **Surge/ESD protection** on input lines; inputs referenced to **GND_ISO** return groups  
+- Firmware options per input: **Enable**, **Invert**, **Group assignment (1/2/3/None)**, debounce in logic
+
+#### Relay Outputs
+- **HF115F series** SPDT relays with transistor drivers and opto-isolation on control side  
+- **Contact suppression** network to reduce EMI/arcing; fit external snubbers/TVS for coils, locks, sirens  
+- Wire loads directly to **COM/NO/NC**; keep load currents off logic returns
+
+#### RS-485 (Modbus RTU)
+- **MAX485-class** transceiver with DE/RE control  
+- **Protection:** TVS diodes on A/B, series elements, bias network, and **PTC** resettable fuses on the bus  
+- **Indicators:** **TX/RX LEDs** reflect line activity
+
+#### USB-C (service/config)
+- **ESD/EMI** protection array on D± and VBUS, CC pull-downs; reverse-current protection to the +5 V rail  
+- Intended for **configuration and diagnostics**; not for powering external loads
+
+---
+
+### MCU & Storage
+
+- **Controller:** **Raspberry Pi RP2350A** dual-core MCU  
+- **External storage:** **W25Q32** (32-Mbit QSPI NOR flash) for firmware/config  
+- **Clocking & debug:** 12 MHz crystal; **SWD** header for development/service access  
+- **I/O expansion:** **PCF8574** I²C expanders for input/relay/LED/button matrixing
+
+---
+
+### Protections & Design for Reliability
+
+- **Galvanic isolation:** Dedicated **GND_ISO** domain and **isolated +12 V/+5 V** rails for sensors  
+- **Surge/ESD:** TVS arrays on RS-485 and USB; RC/series networks on data lines; **PTC** resettable fuses on field rails and bus  
+- **Contact life:** Built-in suppression and guidance to apply external snubbers for inductive loads
+
+---
+
+### Firmware / Function (high-level)
+
+- **Alarm engine:** map inputs → **Group 1/2/3** with modes **Active-while** or **Latched-until-ack**; **Any Alarm** summary  
+- **Actuation:** per-relay **Enable/Invert/Group**; **Buttons** for acknowledges and manual relay overrides; **User LEDs** sourced to groups/any/override with **Steady/Blink**  
+- **Setup & telemetry:** Web-Serial UI (USB-C) for **Modbus address/baud**, live input/relay/group status, and safe reset; operates stand-alone with a PLC/HMI supervising over Modbus
+
 
 ---
 
@@ -495,7 +528,7 @@ The ALM-173-R1 communicates with the controller over **RS-485 (Modbus RTU)** and
 
 ---
 
-# 4  Getting Started
+## 4.4 Quick Setup
 
 **Phase 1 — Physical Wiring**
 
@@ -730,8 +763,8 @@ For each **Button 1…4**:
 
 ---
 
-<a id="9-modbus-rtu-communication-1"></a>
-# 9 Modbus RTU Communication
+<a id="7-modbus-rtu-communication-1"></a>
+# 7 Modbus RTU Communication
 
 **Slave role:** Modbus RTU over RS-485 (8N1, selectable **9600…115200** baud; typical **19200**).  
 **Address:** **1…255** (set via WebConfig).  
@@ -741,7 +774,7 @@ For each **Button 1…4**:
 
 ---
 
-## 9.1 Input Registers (Read-Only)
+## 7.1 Input Registers (Read-Only)
 
 Live, read-only snapshots convenient for dashboards and fast polling.
 
@@ -759,7 +792,7 @@ Live, read-only snapshots convenient for dashboards and fast polling.
 
 ---
 
-## 9.2 Holding Registers (Read/Write)
+## 7.2 Holding Registers (Read/Write)
 
 Configuration + low-rate control values (persisted by firmware where applicable).
 
@@ -775,7 +808,7 @@ Configuration + low-rate control values (persisted by firmware where applicable)
 
 ---
 
-## 9.3 Discrete Inputs & Coils
+## 7.3 Discrete Inputs & Coils
 
 ### Discrete Inputs (read-only flags)
 
@@ -804,13 +837,13 @@ Configuration + low-rate control values (persisted by firmware where applicable)
 
 ---
 
-## 9.4 Scaling Summary
+## 7.4 Scaling Summary
 
 No engineering scaling is required for ALM core points. All values are **boolean/bitfield** or **enum codes** as defined above.
 
 ---
 
-## 9.5 Basics & Function Codes
+## 7.5 Basics & Function Codes
 
 - **Physical:** RS-485 half-duplex; 120 Ω termination at both ends; consistent **A/B** polarity; shared COM/GND recommended if separate PSUs.  
 - **Function codes:** `0x01` Read Coils, `0x02` Read Discrete Inputs, `0x03` Read Holding, `0x04` Read Input (if utilized), `0x05/0x0F` Write Coils, `0x06/0x10` Write Holding.  
@@ -818,7 +851,7 @@ No engineering scaling is required for ALM core points. All values are **boolean
 
 ---
 
-## 9.6 Register Map (Summary)
+## 7.6 Register Map (Summary)
 ```
 Discrete Inputs
 00001..00017 DI1..DI17 state
@@ -859,51 +892,12 @@ Holding Registers (R/W)
 ```
 ---
 
-## 9.7 Override Priority
+## 7.7 Override Priority
 
-<a id="10-esphome-integration-guide-microplcminiplc-alm-173-r1-1"></a>
-# 10. [ESPHome Integration Guide (MicroPLC/MiniPLC + ALM-173-R1)]
+<a id="8-esphome-integration-guide-microplcminiplc-alm-173-r1-1"></a>
+# 8. [ESPHome Integration Guide (MicroPLC/MiniPLC + ALM-173-R1)]
 
-The **ALM-173-R1** integrates with **Home Assistant (HA)** through the **HomeMaster controller (MiniPLC/MicroPLC)** running **ESPHome**. The controller acts as a **Modbus RTU master** over RS-485, periodically polling the ALM-173-R1 and publishing friendly entities to HA. No custom add-ons are required on HA—everything is handled on the controller.
-
-### Communication Path
-- **Topology:** Home Assistant ↔ ESPHome (on HomeMaster) ↔ RS-485 ↔ ALM-173-R1  
-- **Role split:**  
-  - **ALM-173-R1:** executes local alarm logic (inputs → groups → relays/LEDs, buttons for ack/override).  
-  - **ESPHome:** performs Modbus reads/writes and exposes states/actions as HA entities.  
-  - **Home Assistant:** dashboards, notifications, automations, scenes.
-
-### What Home Assistant Sees (via ESPHome)
-- **Binary sensors**
-  - **Inputs:** DI1…DI17 as individual `binary_sensor` entities (open/closed, active/inactive).
-  - **Alarm groups:** Group 1, Group 2, Group 3, and **Any Alarm** summary for annunciation and logic.
-  - **Optional:** Button press states (useful for diagnostics/maintenance).
-- **Switches**
-  - **Relays:** R1…R3 as `switch` entities for manual testing or HA-driven actuation.
-  - **Actions as switches/scripts:** “Acknowledge All”, “Acknowledge Group 1/2/3”, and **manual relay override** can be exposed as HA `switch` or `script` entities that perform the underlying Modbus command.
-- **Device health**
-  - **Availability:** ESPHome marks entities unavailable if the Modbus link is down; HA can alert on loss of comms.
-  - **Diagnostics (optional):** readback of active baud/address and last update timestamp, surfaced as HA attributes.
-
-> Note: The ALM’s **LED sources/modes** and **mapping** are configured on the device/UI and typically not changed from HA during normal operation. HA consumes the resulting **group/any** status to drive notifications and scenes.
-
-### Recommended HA Automations (Examples of Behavior)
-- **Alarm annunciation:** When **Any Alarm** turns ON, send a **mobile push** with a list of active inputs; optionally flash a smart light or activate a siren **only if** “Service Mode” is OFF.
-- **Per-group workflows:** If **Group 1** (e.g., intrusion) goes **latched**, notify security and highlight the zone on a dashboard; expose an **Acknowledge Group 1** action.
-- **Night mode:** Use an HA `input_boolean.night_mode` to suppress local siren relays (keep logging/notifications active). HA can still command remote notifiers (e.g., GSM dialer) via the controller.
-- **Maintenance mode:** Temporarily inhibit relays from HA while keeping inputs visible; show a banner on the dashboard reminding operators that outputs are inhibited.
-- **Watchdog:** If entities become **unavailable** (Modbus fault), raise a **Critical** alert and create a persistent HA notification.
-
-
-### Best Practices
-- **Let the ALM do the fast/critical work** (local group logic and latching). Use HA for **orchestration**: notifications, schedules, and mode management.
-- **Keep a single source of truth** for acknowledges and overrides (prefer ALM/ESPHome actions; reflect state in HA).
-- **Use HA helpers** (`input_boolean`, `input_select`) for modes like **Night** or **Maintenance**, gating HA’s decision to drive relays.
-- **Secure the service port** (USB) and require operator authentication for any HA dashboard actions that acknowledge alarms or force overrides.
-
-> You do **not** need to include firmware examples or a Modbus register table in this README. The ESPHome profile for ALM-173-R1 encapsulates the mapping and exposes ready-to-use entities and actions to Home Assistant.
-
-## 10.1 Hardware & RS-485 Wiring
+## 8.1 Hardware & RS-485 Wiring
 
 1) **Power**  
 - **ALM-173-R1:** supply **24 V DC** to **V+ / 0 V**.  
@@ -921,7 +915,7 @@ The **ALM-173-R1** integrates with **Home Assistant (HA)** through the **HomeMas
 
 ---
 
-## 10.2 ESPHome (PLC): Enable Modbus RTU & Import the ALM Package
+## 8.2 ESPHome (PLC): Enable Modbus RTU & Import the ALM Package
 
 Your MiniPLC usually already defines UART+Modbus. Import the **ALM** package and use the **exact variable names** shown (`alm_prefix`, `alm_id`, `alm_address`):
 
@@ -955,7 +949,7 @@ packages:
 
 ---
 
-## 10.3 What the External ALM Package Exposes (Entities)
+## 8.3 What the External ALM Package Exposes (Entities)
 
 The bundled **`default_alm_173_r1_plc.yaml`** publishes ready-to-use entities; addressing is embedded, so you don’t hand-map registers.
 
@@ -977,7 +971,7 @@ The bundled **`default_alm_173_r1_plc.yaml`** publishes ready-to-use entities; a
 
 ---
 
-## 10.4 Command Coils You Can Use (Writes; FC05 / Read via FC01)
+## 8.4 Command Coils You Can Use (Writes; FC05 / Read via FC01)
 
 The package implements **pulse-safe** helpers (they auto-release after writing):
 
@@ -997,7 +991,7 @@ These appear as internal ESPHome switches or scripts that you can call from HA a
 
 ---
 
-## 10.5 Using Your MiniPLC YAML with ALM
+## 8.5 Using Your MiniPLC YAML with ALM
 
 1) Keep the existing **UART/Modbus** blocks (pins/baud).  
 2) Add the **`packages:`** block above and set **`alm_address`** to the ALM’s address from WebConfig.  
@@ -1006,7 +1000,7 @@ These appear as internal ESPHome switches or scripts that you can call from HA a
 
 ---
 
-## 10.6 Home Assistant Integration
+## 8.6 Home Assistant Integration
 
 1) **Add the ESPHome device** in HA (`Settings → Devices & Services → ESPHome`) using your controller’s hostname/IP.  
 2) **Dashboards**
@@ -1020,7 +1014,7 @@ These appear as internal ESPHome switches or scripts that you can call from HA a
 
 ---
 
-## 10.7 Troubleshooting & Tips
+## 8.7 Troubleshooting & Tips
 
 - **No data / timeouts**: check **A/B polarity**, shared **COM/GND** (when PSUs differ), and **termination/bias**.  
 - **Wrong package vars**: use **`alm_prefix` / `alm_id` / `alm_address`** (not older variable names).  
@@ -1030,21 +1024,21 @@ These appear as internal ESPHome switches or scripts that you can call from HA a
 
 ---
 
-## 10.8 Version & compatibility
+## 8.8 Version & compatibility
 
 - Tested with ESPHome 2025.8.0.
 - The controller YAML uses ESP‑IDF; Arduino also works if preferred (adjust platform accordingly).
 
 ---
-<a id="11-programming-customization-1"></a>
-# 11. Programming & Customization
+<a id="9-programming-customization-1"></a>
+# 9. Programming & Customization
 
-## 11.1 Supported Languages
+## 9.1 Supported Languages
 - **MicroPython** (pre‑installed)  
 - **C/C++**  
 - **Arduino IDE**
 
-## 11.2 Flashing via USB-C
+## 9.2 Flashing via USB-C
 1. Connect USB‑C.  
 2. Enter boot/flash mode if required.  
 3. Upload the provided firmware/source.
@@ -1060,7 +1054,7 @@ These appear as internal ESPHome switches or scripts that you can call from HA a
   <img src="Images/buttons1.png" alt="Button Layout" width="320">
 </p>
 
-## 11.3 Arduino
+## 9.3 Arduino
 - Select the appropriate board profile (Generic RP2350).  
 - In the Tools select Flash size 2MB (Sketch: 1MB, FS: 1MB )
 - Add 
@@ -1076,18 +1070,18 @@ These appear as internal ESPHome switches or scripts that you can call from HA a
 
 
 
-<a id="12-maintenance-troubleshooting-1"></a>
-# 12. Maintenance & Troubleshooting
+<a id="10-maintenance-troubleshooting-1"></a>
+# 10. Maintenance & Troubleshooting
 
 
-<a id="13-open-source-licensing-1"></a>
-# 13. Open Source & Licensing
+<a id="11-open-source-licensing-1"></a>
+# 11. Open Source & Licensing
 
 - **Hardware:** **CERN‑OHL‑W 2.0**  
 - **Firmware & code samples:** **GPLv3** (unless otherwise noted)
 
-<a id="14-downloads-1"></a>
-# 14. Downloads
+<a id="12-downloads-1"></a>
+# 12. Downloads
 
 The following key project resources are included in this repository:
 
@@ -1107,8 +1101,8 @@ The following key project resources are included in this repository:
   Contains PDF datasheets or technical overviews, if applicable.
 
 
-<a id="15-support-1"></a>
-# 15. Support
+<a id="13-support-1"></a>
+# 13. Support
 
 If you need help using or configuring the ALM-173-R1 module, the following resources are available:
 
