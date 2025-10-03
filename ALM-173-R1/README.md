@@ -1,4 +1,4 @@
-**Firmware Version:** 2025-09 snapshot
+**Firmware Version:** 2025-10 snapshot.
 
 # ALM-173-R1 Module for Alarm Systems
 
@@ -11,23 +11,24 @@
 The **ALM-173-R1** is a configurable **alarm I/O module** with **17 opto-isolated inputs**, **3 SPDT relays**, plus **4 buttons** and **4 LEDs** for on-panel control. It connects to a **MicroPLC/MiniPLC** via **RS-485 (Modbus RTU)** and is set up through a USB-C **WebConfig** UI (Web Serial) to define Modbus params, invert/enable inputs, group them into **three alarm groups** (latched or momentary), map groups to relays, assign button roles (acknowledge, manual relay override), and choose LED modes—with live status and quick **device reset**. The design features a **galvanically isolated field side**, and an **RP2350 MCU** with **MAX485** and **PCF8574** expanders running from **24 V**. Modbus registers expose inputs, group/alarm bits, and relay states, making integration with **Home Assistant** straightforward.
 
 ## Table of Contents
-- [1. ALM-173-R1 Module for Alarm Systems](#1-introduction-1)
-- [2. Use Cases & Alarm Logic Examples]
-- [3. Safety Information(#2-safety-information-1)
-- [4. Quick Start Guide]
-- [5. WebConfig UI Setup](#7-software-ui-configuration-1)
-- [6. Hardware & Technical Specification]
-- [7. Modbus Register Map](#8-modbus-rtu-communication-1)
-- [8. ESPHome Integration Guide (MicroPLC/MiniPLC + ALM-173-R1)](#10-esphome-integration-guide-microplcminiplc-alm-173-r1-1)
-- [9. Programming & Customization](119-programming-customization-1)
-- [10. Maintenance & Troubleshooting](#12-maintenance-troubleshooting-1)
-- [11. Open Source & Licensing](#13-open-source-licensing-1)
-- [12. Downloads](#14-downloads-1)
-- [13. Support](#15-support-1)
+- [1. Introduction](#1-introduction-1)
+- [2. Use Cases](#2-use-cases-1)
+- [3. Safety Information](#3-safety-information-1)
+- [4. Installation & Quick Start](#4-getting-started-1)
+- [5. Software & UI Configuration](#5-software-ui-configuration-1)
+- [6. ALM-173-R1 — Technical Specification](#6-technical-specification-1)
+- [7. Modbus RTU Communication](#7-modbus-rtu-communication-1)
+- [8. ESPHome Integration Guide (MicroPLC/MiniPLC + ALM-173-R1)](#8-esphome-integration-guide-microplcminiplc-alm-173-r1-1)
+- [9. Programming & Customization](#9-programming-customization-1)
+- [10. Maintenance & Troubleshooting](#10-maintenance-troubleshooting-1)
+- [11. Open Source & Licensing](#11-open-source-licensing-1)
+- [12. Downloads](#12-downloads-1)
+- [13. Support](#13-support-1)
+
 <br clear="left"/>
 ---
 <a id="1-introduction-1"></a>
-# 1. [Introduction]
+# 1. Introduction
 ## 1.1 Overview of the ALM-173-R1 Module 🚨
 
 The **ALM-173-R1** is a compact alarm I/O module for intrusion/safety panels and PLC-backed systems. It exposes **17 opto-isolated digital inputs** for dry contacts and detectors, **3 relay outputs** for sirens/arming lines, plus a **local HMI** (4 buttons, 4 user LEDs) and **Modbus RTU (RS-485)**.  
@@ -105,6 +106,7 @@ The **ALM-173-R1** is an intelligent expansion module for the **HomeMaster MiniP
 
 ---
 
+<a id="2-use-cases-1"></a>
 ## 2 Use Cases 🛠️
 
 Below are practical ways to deploy the **ALM-173-R1** with the HomeMaster Mini/Micro PLC (or any Modbus RTU master). Each recipe uses only features available in the firmware + Web Serial UI: **Input Enable/Invert/Group**, **Relay Enable/Invert/Group**, **Alarm Modes** (*None / Active while condition* / *Latched until acknowledged*), **Buttons** (ack & manual relay override), and **User LEDs** (steady/blink; sources like *Any Alarm*, *Group 1..3*, *Relay overridden*).
@@ -341,10 +343,11 @@ The ALM-173-R1 communicates with the controller over **RS-485 (Modbus RTU)** and
 5. Use **Serial Log** for diagnostics.
 
 **Troubleshooting**
-- If the **Connect** button is disabled, ensure you’re using Chrome/Edge and that the browser has permission to access serial devices.
+- If the **Connect** button is disabled, ensure you’re using Chrome/Edge and that the browser has permission to access serial devices. On macOS/Linux, ensure your user has the required USB serial permissions.
 
 ---
 
+<a id="4-4-getting-started"></a>
 # 4.4  Getting Started
 
 **Phase 1 — Physical Wiring**
@@ -355,7 +358,7 @@ The ALM-173-R1 communicates with the controller over **RS-485 (Modbus RTU)** and
 - **Relays:** wire loads to **RLY1…RLY3 (COM/NO/NC)**. Use external **RC snubbers/TVS** for coils, locks, sirens, etc. Observe relay voltage/current ratings.
 - **Isolated sensor power (optional):** low-power sensors can be fed from **PS/1 = +12 V iso** and **PS/2 = +5 V iso**. Do **not** backfeed or parallel these rails.
 
-_For wiring safety, terminal maps, and cable practices, see your **[Installation & Wiring](#5-wiring-1)**
+_For wiring safety, terminal maps, and cable practices, see your **[Installation & Wiring](#5-wiring-1)**_
 
 ---
 
@@ -370,7 +373,7 @@ _For wiring safety, terminal maps, and cable practices, see your **[Installation
 - **User LEDs (4):** choose **Mode** (*Steady* / *Blink*) and **Source** (*Any alarm*, *Group 1/2/3*, *Relay 1/2/3 overridden*). Live LED status is shown.
 - (Optional) **Reset Device** from the confirmation dialog if you need to restart the module; the browser will reconnect.
 
-> For more details about **WebConfig** cards and fields, see **[Software & UI Configuration](#6-software--ui-configuration)**.
+> For more details about **WebConfig** cards and fields, see **[Software & UI Configuration](#5-software-ui-configuration-1)**.
 
 ---
 
@@ -391,6 +394,7 @@ _For wiring safety, terminal maps, and cable practices, see your **[Installation
 - **Relays:** command each relay from the UI or controller and verify field wiring (use a meter or indicator load).
 - **Buttons/LEDs:** press front buttons to **acknowledge** or **override** as configured; confirm user LEDs reflect the chosen sources and modes.
 
+<a id="5-wiring-1"></a>
 ## 4.5. Installation & Wiring
 
 > ⚠️ **Safety first.** Work must be performed by qualified personnel. De-energize the panel and verify with a meter before wiring. The ALM-173-R1 is a **SELV/low-voltage** device; do not connect mains to any logic/input terminal.
@@ -468,8 +472,8 @@ Each relay operates as a **dry contact** to switch an external supply. The examp
 - Power up: **PWR** LED steady **ON**; **TX/RX** **blink** when the controller communicates.
 
 
-<a id="6-software-ui-configuration-1"></a>
-# 7Software & UI Configuration
+<a id="5-software-ui-configuration-1"></a>
+# 5. Software & UI Configuration
 
 ## 5.1 How to Connect to the Module
 
@@ -504,12 +508,6 @@ Use the **Mode – Group 1/2/3** dropdowns to select the behavior for each group
 
 Top-row dots show live status for **Any Alarm**, **Group 1**, **Group 2**, **Group 3** (gray = idle, lit = active).
 ![Alarm Status & Modes panel](Images/webconfig2.png)
-
-
-Use the **Mode – Group 1/2/3** dropdowns to select the behavior for each group:
-- **None** — group disabled.
-- **Active while condition is active** — turns ON only while mapped inputs are active.
-- **Latched until acknowledged** — stays ON after a trigger until acknowledged.
 
 ## 5.4 How to Configure Digital Inputs
 
@@ -579,7 +577,7 @@ For each **Button 1…4**:
 
 ---
 
-<a id="6-system-overview-1"></a>
+<a id="6-technical-specification-1"></a>
 # 6. ALM-173-R1 — Technical Specification
 ## 6.1 Diagrams & Pinouts
 <div align="center">
@@ -681,7 +679,7 @@ For each **Button 1…4**:
 
 ---
 
-##MCU & Storage
+## MCU & Storage
 
 - **Controller:** **Raspberry Pi RP2350A** dual-core MCU  
 - **External storage:** **W25Q32** (32-Mbit QSPI NOR flash) for firmware/config  
@@ -837,7 +835,7 @@ Holding Registers (R/W)
 ## 7.7 Override Priority
 
 <a id="8-esphome-integration-guide-microplcminiplc-alm-173-r1-1"></a>
-# 8. [ESPHome Integration Guide (MicroPLC/MiniPLC + ALM-173-R1)]
+# 8. ESPHome Integration Guide (MicroPLC/MiniPLC + ALM-173-R1)
 
 The **ALM-173-R1** integrates with **Home Assistant (HA)** through the **HomeMaster controller (MiniPLC/MicroPLC)** running **ESPHome**. The controller acts as a **Modbus RTU master** over RS-485, periodically polling the ALM-173-R1 and publishing friendly entities to HA. No custom add-ons are required on HA—everything is handled on the controller.
 
