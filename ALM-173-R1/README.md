@@ -265,363 +265,245 @@ Ensure the following before applying power:
 
 # 4. Installation & Quick Start
 
-The **ALM-173-R1** integrates into the HomeMaster system over the **RS-485 Modbus** bus. Initial setup has two parts: **physical wiring** and **digital configuration** (WebConfig + ESPHome).
+The **ALM-173-R1** joins your system over **RS-485 (Modbus RTU)**. Setup has two parts:
+1) **Physical wiring**, 2) **Digital configuration** (WebConfig → optional ESPHome/PLC).
 
 ---
 
 ## 4.1 What You Need
 
-| Category                | Item                               | Details                                                                                                                                                           |
-| ----------------------- | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Hardware**            | **ALM-173-R1 Module**              | DIN-rail alarm I/O module with **17× opto-isolated DIs**, **3× SPDT relays**, **4 buttons**, **4 user LEDs**, **RS-485**, and **USB-C** service port.             |
-|                         | **HomeMaster Controller**          | MiniPLC/MicroPLC (or any Modbus RTU master) to poll the ALM over RS-485 and integrate with HA/SCADA.                                                              |
-|                         | **24 VDC Power Supply**            | Regulated SELV **24 VDC** wired to **V+ / 0V** terminals. Size for ALM + any sensors powered from the module’s isolated rails.                                    |
-|                         | **RS-485 Cabling**                 | Twisted pair for **A/B** plus **COM/GND** reference; use **120 Ω** termination at the ends of the trunk and biasing per site design.                              |
-|                         | **USB-C Cable**                    | Connects the ALM to a PC for setup via **Web Serial** (Chrome/Edge). Service use only.                                                                            |
-|                         | **Panel Enclosure & DIN Rail**     | 35 mm DIN rail in a dry, clean enclosure with cable strain relief and shield management.                                                                          |
-| **Software**            | **WebConfig Tool (browser page)**  | Set **Modbus Address & Baud**, configure **Inputs/Relays/Buttons/LEDs**, select **Alarm Modes**, view **live status**, and **Reset Device**. No drivers required. |
-|                         | **ESPHome (optional)**             | If using Home Assistant, run ESPHome on the controller to expose ALM states/actions as HA entities.                                                               |
-| **I/O & Field Wiring**  | **Dry-contact Sensors**            | Door/PIR/tamper/aux contacts to **IN1…IN17**; use the labeled **GND I.x** returns; keep within SELV limits.                                                       |
-|                         | **Loads on Relays**                | Siren/lock/indicator to **RLY1…RLY3 (COM/NO/NC)**; **observe relay ratings**. Fit **RC snubbers or TVS** across inductive loads.                                  |
-|                         | **Isolated Sensor Power**          | Use module outputs **PS/1 = +12 V iso** and **PS/2 = +5 V iso** for low-power sensors only; do **not** backfeed or parallel rails.                                |
-| **Tools & Accessories** | **Screwdrivers & Ferrules**        | Correctly torque terminal screws; ferrules recommended for stranded wire.                                                                                         |
-|                         | **Multimeter**                     | Verify polarity, continuity, and RS-485 A/B orientation during commissioning.                                                                                     |
-|                         | **120 Ω Resistors / Bias Network** | For RS-485 termination (ends of line) and biasing if not provided elsewhere on the trunk.                                                                         |
-|                         | **Surge/EMC Aids**                 | Cable shields, gland plates; optional surge protectors for long outdoor runs.                                                                                     |
+| Category | Item | Details |
+|---|---|---|
+| **Hardware** | **ALM-173-R1** | DIN-rail module with **17 opto DI**, **3 SPDT relays**, **4 buttons**, **4 LEDs**, **RS-485**, **USB‑C**. |
+|  | **Controller (master)** | HomeMaster MiniPLC/MicroPLC or any Modbus RTU master. |
+|  | **24 VDC PSU (SELV)** | Regulated **24 VDC** to **V+ / 0V**; size for ALM + sensor rails. |
+|  | **RS‑485 cable** | Twisted pair for **A/B** + **COM/GND** reference; **120 Ω** end‑termination and proper bias. |
+|  | **USB‑C cable** | For WebConfig via Chromium browser (service only). |
+|  | **Enclosure & DIN rail** | Clean/dry enclosure; strain relief and shield management. |
+| **Software** | **WebConfig (browser)** | Set **Address/Baud**, map **Inputs/Relays/Buttons/LEDs**, pick **Alarm Modes**, live status, device reset. |
+|  | **ESPHome (optional)** | On the controller; exposes ALM entities to Home Assistant. |
+| **Field I/O** | **Dry contacts** | IN1…IN17 with matching **GND I.x** returns (SELV). |
+|  | **Loads on relays** | RLY1…RLY3 (COM/NO/NC); observe ratings; add RC/TVS snubbers on inductive loads. |
+|  | **Isolated sensor power** | **PS/1 = +12 V iso**, **PS/2 = +5 V iso** for **low-power sensors only** (no backfeed/parallel). |
+| **Tools** | **Screwdrivers/ferrules, multimeter** | Torque terminals; verify polarity and A/B. Optional: **120 Ω** resistors, surge/EMC aids. |
 
-> **LED behavior:** **PWR** = steady ON in normal operation. **TX/RX** blink when RS-485 communication is active.
+> **LEDs:** **PWR** steady ON in normal operation. **TX/RX** blink with RS‑485 activity.
 
-> **Quick start:** mount on DIN rail → wire **24 VDC** and RS-485 (**A/B/COM**) → connect **USB-C** and open WebConfig → set **Address/Baud** → configure **inputs → groups → relays/LEDs** → disconnect USB and hand over to the controller.
-
-## 4.2 Powering the Devices
-
-The ALM-173-R1 is powered from a **24 VDC primary input** on the field board. On-board regulators generate the internal rails for logic and provide **isolated 5 V / 12 V auxiliary rails** intended for low-power sensors.
-
-> Relays are **dry contacts** (SPDT). Do **not** power valves/motors/lamps from the module’s internal rails; use a dedicated external supply and switch it via the relay contacts.
+> **Quick path:** mount → wire **24 VDC** & **RS-485 (A/B/COM)** → connect **USB‑C** → WebConfig: set **Address/Baud** & map **inputs → groups → relays/LEDs** → disconnect USB → hand over to controller.
 
 ---
 
-### 4.2.1 Power Supply Types
+## 4.2 Power
 
-* **Regulated 24 VDC DIN-rail PSU:** Connect to the module’s **+V / 0V** power terminals. Size the PSU for the module plus any externally powered devices.
-* **No power over RS-485:** The RS-485 bus carries signals only. Always provide local 24 VDC power to the module.
-* **Sensor power from module:** Use the **isolated** rails — **+5 V** and **+12 V** — to power **low-power field sensors** connected to the DI terminals.
+The module uses **24 VDC** primary. Onboard regulation supplies logic and **isolated 12 V / 5 V** rails for *sensors only*.
 
----
+- **No power over RS‑485**: the bus carries data only.  
+- **Relays are dry contacts**: do **not** power loads from internal rails.
 
-### 4.2.2 Current Consumption
+### 4.2.1 Supply Types
+- **24 VDC DIN-rail PSU** → **V+ / 0V**.
+- **Sensor power** → **+12 V ISO / +5 V ISO** (low-power, fuse/ptc limited).
 
-Actual current depends on configuration and what’s attached. Budget for:
+### 4.2.2 Sizing
+Account for:
+- Base electronics
+- Relay **coil** current (per energized relay)
+- **Sensor rails** draw (+12/+5 ISO)
 
-* **Base electronics (logic/MCU/LEDs).**
-* **Relays:** add coil current for each energized relay.
-* **Sensor rails:** total draw of any devices on the isolated **+5 V / +12 V** rails.
+**Rule of thumb:** base load + worst-case relays + sensors, then add **≥30% headroom**.
 
-**Sizing tip:** choose a 24 V supply that covers base load + worst-case **both relays ON** + all sensor current, with at least **30% headroom** for startup and temperature.
-
----
-
-### 4.2.3 Power Safety Tips
-
-* **Polarity & grounds:** Observe **24 V polarity** and keep logic ground and isolated sensor ground separate as designed.
-* **Fusing & protection:** Keep upstream over-current protection (fuse/breaker). Do not bypass on-board protective elements.
-* **Relay contact ratings:** Treat relay outputs as isolated contacts; follow the contact rating from the relay datasheet and local electrical codes.
-* **Use sensor rails only for sensors:** Do **not** power valves, pumps, or sirens from the module’s **+5 V / +12 V** sensor rails.
-* **De-energize before wiring:** Power down the 24 V supply before changing wiring. Double-check for shorts before re-energizing.
+### 4.2.3 Power Safety
+- Correct **polarity**; keep **logic** and **GND_ISO** separate unless intentionally bonded.
+- Keep upstream **fusing/breaker** in place.
+- Respect **relay contact ratings**; snub inductive loads.
+- Use **isolated rails only for sensors**.
+- **De-energize** before wiring; check for shorts.
 
 ---
 
-### 4.3 Networking & Communication
+## 4.3 Networking & Communication
 
-The ALM-173-R1 communicates with the controller over **RS-485 (Modbus RTU)** and exposes a **USB-C** port for local configuration via a browser (**Web Serial**). RS-485 is used for runtime control/telemetry; USB-C is used for setup, diagnostics, and safe resets. RS-485 carries **signals only** (no power).
+Runtime control is via **RS‑485 (Modbus RTU)**; **USB‑C** is for local setup/diagnostics (Web Serial).
 
----
-
-#### 4.3.1 RS-485 Modbus
-
-**Physical layer**
-
-* **Terminals:** **A**, **B**, **COM (GND)** on the field board.
-* **Cabling:** 2-wire twisted pair for **A/B** plus a **common reference (COM/GND)**.
-* **Termination:** 120 Ω at the two ends of the bus. Keep stubs short.
-* **Protection & robustness:** On-board surge suppressors/TVS and self-resetting fuses protect the transceiver; biasing and a MAX485-class transceiver handle the differential link.
+### 4.3.1 RS‑485 (Modbus RTU)
+**Physical**
+- Terminals: **A**, **B**, **COM (GND)**.
+- Cable: twisted pair (preferably shielded) for **A/B** + common reference.
+- Termination: **120 Ω** at both physical ends; keep stubs short.
 
 **Protocol**
+- Role: **RTU slave**; controller is **master**.
+- Address: **1–255**; Baud: **9600–115200** (typ. **19200**, 8N1).
+- Provide **local 24 VDC** power (bus is data-only).
 
-* **Role:** Modbus **RTU slave** on the RS-485 multi-drop bus; your MicroPLC/MiniPLC acts as **master**.
-* **Address & speed:** Set **Address (1–255)** and **Baud** in WebConfig. Default/common speed is **19200**, 8N1.
-* **No power over RS-485:** Provide 24 VDC locally to the module; RS-485 only carries data.
+**ESPHome (controller)**
+- Configure `uart:` pins and `modbus_controller:` for ALM.
+- `alm_address` in YAML must match WebConfig.
+- Polls discrete/holding; exposes relays, inputs, alarms to HA.
 
-**Controller (ESPHome) notes**
+**RS‑485 wiring checklist**
+- **A→A**, **B→B**, **COM→COM**
+- Two end terminations; avoid star topologies
+- Consistent **A/B** polarity end-to-end
 
-* In your ESPHome YAML, configure `uart:` pins for the RS-485 transceiver and add a `modbus_controller:` for this device.
-* Ensure the `alm_address` in YAML matches the address set in WebConfig.
-* The controller will poll coils/holding registers and expose relays, DI states and alarms status as Home Assistant entities.
+### 4.3.2 USB‑C (WebConfig)
+**Purpose:** Chromium (Chrome/Edge) **Web Serial** setup/diagnostics.
 
-**Wiring checklist**
+**Steps**
+1. Connect **USB‑C** to the module.
+2. Open **https://www.home-master.eu/configtool-alm-173-r1** and click **Connect**.
+3. Set **Modbus Address** & **Baud** (header shows **Active Modbus Configuration**).
+4. Configure **Inputs / Relays / LEDs / Buttons**; changes apply live.
+5. Use **Serial Log**; **Reset Device** if needed (auto-reconnect).
 
-* A→A, B→B, COM↔COM between controller and module.
-* Terminate the two bus ends; avoid star topologies.
-* Keep A/B polarity consistent end-to-end.
-
----
-
-#### 4.3.2 USB-C Configuration
-
-**Purpose**
-
-* Local setup and diagnostics via a **Chromium-based browser** (Chrome/Edge) using the **Web Serial API**. No drivers needed.
-
-**How to use**
-
-1. Connect a **USB-C** cable from your computer to the module.
-2. Open the configuration page and click **Connect**.
-3. Use the **Modbus** card to set **Address** and **Baud**; the header shows **Active Modbus Configuration**.
-4. Configure **Digital Inputs**, **Relays**, **LEDs/Buttons**. Changes are applied live.
-5. Use **Serial Log** for diagnostics.
-
-**Troubleshooting**
-
-* If the **Connect** button is disabled, ensure you’re using Chrome/Edge and that the browser has permission to access serial devices. On macOS/Linux, ensure your user has the required USB serial permissions.
+**If Connect is disabled:** ensure Chromium + serial permission; on macOS/Linux verify user serial permissions and that no other app is holding the port.
 
 ---
 
 <a id="installation-wiring"></a>
 
-## 4.4. Installation & Wiring
+## 4.4 Installation & Wiring
 
-> ⚠️ **Safety first.** Work must be performed by qualified personnel. De-energize the panel and verify with a meter before wiring. The ALM-173-R1 is a **SELV/low-voltage** device; do not connect mains to any logic/input terminal.
+> ⚠️ **Qualified personnel only.** De-energize the panel; verify with a meter. The ALM-173-R1 is **SELV**—never connect mains to logic/input terminals.
 
----
+### 4.4.1 RS‑485 Field Bus
+![RS‑485 wiring](Images/ALM_RS485Connection.png)
 
-### 4.4.1 RS-485 Field Bus (Modbus RTU)
-
-![RS-485 wiring to controller with 120Ω end-of-line termination](Images/ALM_RS485Connection.png)
-
-The controller is wired to the ALM-173-R1 using a twisted pair for **A/B** plus a **COM/GND** reference. A **120 Ω** end-of-line resistor is installed across **A–B** at the far end of the trunk.
-
-**How to wire**
-
-1. Use shielded twisted pair (e.g., 24–22 AWG).
-2. Wire **A → A**, **B → B**, **COM/GND → COM**; keep polarity consistent on all nodes.
-3. Terminate the **two physical ends** of the trunk with **120 Ω** between **A–B**.
-4. Bond the cable shield at **one point** only (usually at the controller) to avoid ground loops.
-5. Daisy-chain topology is recommended; avoid star wiring.
-
----
+**How**
+1. Shielded twisted pair (24–22 AWG recommended).
+2. **A→A**, **B→B**, **COM/GND→COM**; keep polarity consistent.
+3. **120 Ω** at both physical ends of the trunk.
+4. Single-point shield bond (usually at the controller).
+5. Daisy-chain topology preferred (avoid stars).
 
 ### 4.4.2 Primary Power (24 VDC)
+![24 VDC power](Images/ALM_24Vdc_PowerSupply.png)
 
-![24 VDC power wiring to V+ and 0V](Images/ALM_24Vdc_PowerSupply.png)
-
-A regulated **24 VDC** supply connects to the top-left **POWER** terminals: **V+** (red) and **0 V** (blue).
-
-**How to wire**
-
-* Provide a clean SELV **24 VDC** source sized for the ALM plus any sensors powered from its isolated rails.
-* Observe polarity (**V+ / 0 V**).
-* Use an upstream fuse or breaker and proper panel bonding.
-
----
+**How**
+- Clean SELV **24 VDC** to **V+ / 0V**.
+- Observe polarity.
+- Upstream fuse/breaker; proper panel bonding.
 
 ### 4.4.3 Digital Inputs (IN1…IN17)
+![Digital Inputs](Images/ALM_DigitalInputs.png)
 
-![Dry-contact sensors to inputs with per-group returns](Images/ALM_DigitalInputs.png)
+**How**
+- Wire each **INx** to its matching **GND I.x** return (dry contact / isolated low-voltage).
+- Do **not** inject external voltage.
+- Use shielded cable for long runs; avoid high‑dv/dt routes.
+- Set **Enable / Invert / Group** in WebConfig; confirm via live dot.
 
-Dry-contact sensors are wired between each **INx** and the matching **GND I.x** return on the lower terminal row.
+### 4.4.4 Relays (RLY1…RLY3, COM/NO/NC)
+![Relays](Images/ALM_RelayConnection.png)
 
-**How to wire**
-
-* Inputs are **opto-isolated** and expect **dry contacts** or isolated low-voltage signals.
-* For each input, connect the sensor between **INx** and its **GND I.x** return as labeled on the front panel.
-* Do **not** inject external voltage into the inputs.
-* Use shielded cable for long runs and keep input wiring away from high-dv/dt conductors.
-* Configure each input in the WebConfig UI (**Enable / Invert / Group**) and verify with the live state dot.
-
----
-
-### 4.4.4 Relay Outputs (RLY1…RLY3, COM/NO/NC)
-
-![Relays used as dry contacts to switch an external AC line via breaker](Images/ALM_RelayConnection.png)
-
-Each relay operates as a **dry contact** to switch an external supply. The example shows **NO** used to switch an AC line from a breaker (**L**) to the loads, with **N** routed directly.
-
-**How to wire**
-
-1. Bring the external supply **line (L)** to the relay **COM** terminal.
-2. From **NO** (or **NC** if fail-active behavior is needed) go to the load; return the other side of the load to **N/0 V** of the external supply.
-3. The relays **do not source power**—they only switch your external circuit.
-4. Respect relay voltage/current ratings and local electrical codes.
-5. Fit **RC snubbers or TVS** across inductive loads (locks, sirens, coils) to minimize arcing and EMI.
-
----
+**How**
+1. External supply **L** → **COM**.
+2. **NO** (or **NC** if fail-active required) → load; return to **N/0 V**.
+3. Relays **switch only** (no internal power).
+4. Respect contact ratings/codes.
+5. Fit **RC/TVS** across inductive loads.
 
 ### 4.4.5 Final Checks
+- Terminals torqued; strain relief applied.
+- Isolation boundaries respected (**GND_ISO** vs logic).
+- RS‑485 polarity/termination/biasing correct.
+- Relays wired to proper **COM/NO/NC**; snubbers fitted.
+- Power on: **PWR** steady; **TX/RX** blink under comms.
 
-* All terminals torqued; strain relief applied.
-* **Isolation boundaries** respected (no unintended bonds between **GND_ISO** and logic ground).
-* RS-485 polarity, termination, and biasing verified.
-* Relays wired with the correct **COM/NO/NC** choice; snubbers fitted where needed.
-* Power up: **PWR** LED steady **ON**; **TX/RX** **blink** when the controller communicates.
+---
 
 <a id="software-ui-configuration"></a>
 
-## 4.5. Software & UI Configuration
+## 4.5 WebConfig (Software)
 
-### 4.5.1 How to Connect to the Module
+### 4.5.1 Connect
+![Active Modbus Configuration](Images/webconfig1.png)
 
-![ALM-173-R1 WebConfig — Active Modbus Configuration](Images/webconfig1.png)
+1) Plug **USB‑C** → 2) open the config page → 3) **Connect** → 4) verify **Active Modbus Configuration** in header → 5) use **Serial Log** / optional **Reset Device**.
 
-1. **Plug in USB-C.** Connect your computer to the ALM-173-R1’s USB-C port.
-2. **Open the config page.** In a Chromium-based browser (Chrome/Edge), open
-   **[https://www.home-master.eu/configtool-alm-173-r1](https://www.home-master.eu/configtool-alm-173-r1)**
-3. **Click “Connect”.** When prompted, allow the browser to access the serial device.
-4. **Confirm connection.** The **Serial Log** shows events and the banner displays the **Active Modbus Configuration** (current **Address** and **Baud Rate**).
-5. **(Optional) Reset Device.** Click **Reset Device** for a safe reboot; the serial link will drop and then reconnect automatically.
+### 4.5.2 Modbus Settings
+- **Address (1…255)** → pick a **unique** RTU address.
+- **Baud** → **9600**, **19200** (default), **38400**, **57600**, **115200**.
+- Ensure the controller YAML (`uart`, `modbus_controller`, `alm_address`) matches.
 
-> If you cannot connect to the module, check that no other app (serial console, uploader, etc.) is already using the USB port, and verify the browser has permission to access it. On macOS/Linux, ensure your user has the required USB serial permissions.
+> Changes persist in flash; you can revisit anytime.
 
-### 4.5.2 How to Configure Modbus
+### 4.5.3 Alarm Modes
+- **None** (disabled)
+- **Active while condition is active** (momentary)
+- **Latched until acknowledged**
 
-Use the top **Modbus Address** and **Baud Rate** selectors. Changes are sent to the device immediately; the **Serial Log** confirms with messages like “Modbus configuration updated” and “Configuration saved.”
+Top-row indicators show live **Any / G1 / G2 / G3** status.  
+![Alarm modes panel](Images/webconfig2.png)
 
-* **Set Address (1…255):** Choose a **unique** Modbus RTU address for this module.
-* **Set Baud:** Pick one of the supported rates: **9600**, **19200** (default), **38400**, **57600**, **115200**.
-* **Verify live status:** The banner updates to show **Address** and **Baud Rate** currently active on the device.
-* **Controller match:** In your controller’s ESPHome YAML, ensure `uart` settings match your RS-485 pins/speed and set `alm_address` to the same address you chose here (e.g., `alm_address: "6"`).
+### 4.5.4 Digital Inputs
+![Inputs](Images/webconfig3.png)
 
-> You can revisit this page anytime to adjust Modbus parameters. Configuration persists in the module’s flash memory.
+For each **IN1…IN17**:
+- **Enabled**, **Inverted** (for NC), **Alarm Group** (*None/1/2/3*).
+- Live state dot = quick wiring check.
 
-### 4.5.3 How to Set Alarm Modes
+### 4.5.5 Relays
+![Relays](Images/webconfig4.png)
 
-Use the **Mode – Group 1/2/3** dropdowns to select the behavior for each group:
+For **RLY1…RLY3**:
+- **Enabled**, **Inverted**, **Alarm Group**:
+  - **None (0)** → relay ignores groups (PLC/manual only)
+  - **Group 1/2/3 (1–3)** → follows group state (incl. latching)
+  - **Modbus/Master (4)** → controller-controlled
 
-* **None** — group disabled.
-* **Active while condition is active** — turns ON only while mapped inputs are active.
-* **Latched until acknowledged** — stays ON after a trigger until acknowledged.
+> Tip: assign a **Button** to “Relay x override (manual)” for quick field tests.
 
-Top-row dots show live status for **Any Alarm**, **Group 1**, **Group 2**, **Group 3** (gray = idle, lit = active).
-![Alarm Status & Modes panel](Images/webconfig2.png)
+### 4.5.6 LEDs & Buttons
+![LEDs](Images/webconfig5.png)
 
-### 4.5.4 How to Configure Digital Inputs
+**LEDs (1–4)**  
+- **Mode:** Steady / Blink  
+- **Source:** Any / Group 1/2/3 / Relay 1–3 overridden / None  
+- Live state dot shows activity.
 
-![Digital Inputs — WebConfig](./Images/webconfig3.png)
-
-For each input **IN1…IN17**:
-
-* **Enabled** — check to activate the input. (Unchecked = ignored by the alarm engine.)
-* **Inverted** — check if the sensor is **NC** (closed = normal). This makes “open” read as **active**.
-* **Alarm Group** — choose **None**, **1**, **2**, or **3** to route the input into a group.
-
-The small dot in the top-right of each card shows the **live state** (off = idle, on = active) so you can verify wiring immediately.
-
-### 4.5.5 How to Configure Relays
-
-![Relays — WebConfig](./Images/webconfig4.png)
-
-For each **Relay 1…3**:
-
-* **Enabled** — allow the relay to operate. (Unchecked = relay forced **OFF**.)
-* **Inverted** — flips the logic so the **energized** state reads opposite (useful for field wiring that is active-low).
-* **Alarm Group** — choose how the relay is driven:
-
-  * **None (0)** — relay does **not** follow any group; use only for manual/PLC control.
-  * **Group 1 / Group 2 / Group 3 (1–3)** — relay **follows** the selected group’s state (including **latched** behavior if that mode is chosen).
-  * **Modbus/Master (4)** — relay is **controller-controlled** (ESPHome/PLC writes it directly).
-
-> Tip: For maintenance tests, assign a front-panel **Button** to “Relay x override (manual)” so you can toggle the relay locally while commissioning.
-
----
-
-### 4.5.6 How to Configure LEDs and Buttons
-
-![LEDs — WebConfig](./Images/webconfig5.png)
-
-#### LEDs (4)
-
-For each **User LED 1…4**:
-
-* **Mode** — how the LED behaves when its source is active:
-
-  * **Steady (when active)**
-  * **Blink (when active)**
-* **Trigger source** — what drives the LED:
-
-  * **Any alarm**
-  * **Group 1**, **Group 2**, **Group 3**
-  * **Relay 1 overridden**, **Relay 2 overridden**, **Relay 3 overridden**
-  * **None**
-* The dot in the top-right shows the LED’s **live state** (off = inactive, on = active).
-
----
-
-#### Buttons (4)
-
-For each **Button 1…4**:
-
-* **Action** — choose what the button does when pressed:
-
-  * **All acknowledge**
-  * **Alarm group 1 acknowledge**
-  * **Alarm group 2 acknowledge**
-  * **Alarm group 3 acknowledge**
-  * **Relay 1 override (manual)**
-  * **Relay 2 override (manual)**
-  * **Relay 3 override (manual)**
-  * **None**
-* The small dot in the card shows the **live press** state (off = idle, on = pressed).
+**Buttons (1–4)**  
+- **Action:** Ack All / Ack G1–G3 / Relay 1–3 override / None  
+- Live press dot indicates input.
 
 ---
 
 <a id="4-6-getting-started"></a>
 
-## 4.6  Getting Started
+## 4.6 Getting Started (3 Phases)
 
-**Phase 1 — Physical Wiring**
+**Phase 1 — Wire**
+- **24 VDC** to **V+ / 0V**
+- **RS‑485** **A/B/COM** (terminated ends, consistent polarity)
+- **Inputs** to **IN1…IN17** with **GND I.x** returns
+- **Relays** to **COM/NO/NC** (snub inductive loads)
+- (Optional) **PS/1 +12 V ISO / PS/2 +5 V ISO** for sensors
 
-* **Power:** connect a regulated **24 VDC** supply to the **V+ / 0 V** POWER terminals.
-* **RS-485:** wire **A → A**, **B → B**, and **COM/GND** between the **ALM-173-R1** and your controller. Keep polarity consistent. Terminate the two ends of the bus with **120 Ω** and apply biasing per your trunk design.
-* **Digital inputs:** connect dry-contact/isolated signals to **IN1…IN17**; use the matching **GND I.x** returns printed on the lower terminal row.
-* **Relays:** wire loads to **RLY1…RLY3 (COM/NO/NC)**. Use external **RC snubbers/TVS** for coils, locks, sirens, etc. Observe relay voltage/current ratings.
-* **Isolated sensor power (optional):** low-power sensors can be fed from **PS/1 = +12 V iso** and **PS/2 = +5 V iso**. Do **not** backfeed or parallel these rails.
+*See: **[Installation & Wiring](#installation-wiring)***
 
-*For wiring safety, terminal maps, and cable practices, see **[Installation & Wiring](#installation-wiring)***
+**Phase 2 — Configure (WebConfig)**
+- Set **Address/Baud**
+- Pick **Alarm modes** (G1–G3)
+- Map **Inputs / Relays / LEDs / Buttons**
+- (Optional) **Reset Device**
 
----
+*See: **[WebConfig](#software-ui-configuration)***
 
-**Phase 2 — Module Configuration (WebConfig)**
+**Phase 3 — Integrate (Controller)**
+- Controller polls ALM via **RS‑485**
+- Match **Address** and **Baud**
+- Commission: read inputs & alarms; toggle relays; expose Ack/Override actions
 
-* **Connect:** plug a **USB-C** cable into the front service port and open the **ALM-173-R1 Config Tool** in a Chromium-based browser. Click **Connect**.
-* **Set Modbus:** choose a unique **Modbus Address (1–255)** and a **Baud** rate (e.g., 9600/19200/38400/57600/115200). The header shows the **Active Modbus Configuration**.
-* **Alarm modes:** for **Group 1/2/3**, pick **None**, **Active while condition is active (non-latched)**, or **Latched until acknowledged**.
-* **Digital Inputs (IN1…IN17):** per input, set **Enabled**, **Inverted**, and **Alarm Group** (*None/1/2/3*). Watch the live state dot to verify wiring.
-* **Relays (RLY1…RLY3):** set **Enabled**, **Inverted**, and **Alarm Group** mapping. The UI shows each relay’s live state.
-* **Buttons (4):** assign actions such as **All acknowledge**, **Group 1/2/3 acknowledge**, or **Relay 1/2/3 override (manual)**.
-* **User LEDs (4):** choose **Mode** (*Steady* / *Blink*) and **Source** (*Any alarm*, *Group 1/2/3*, *Relay 1/2/3 overridden*). Live LED status is shown.
-* (Optional) **Reset Device** from the confirmation dialog if you need to restart the module; the browser will reconnect.
-
-> For more details about **WebConfig** cards and fields, see **[Software & UI Configuration](#software-ui-configuration)**.
-
----
-
-**Phase 3 — Controller Integration**
-
-* **Controller role:** your MiniPLC/MicroPLC (or any Modbus master) polls the ALM-173-R1 over **RS-485** and exposes states/actions to your HMI or Home Assistant (via ESPHome on the controller, if used).
-* **Match parameters:** ensure the controller’s **address** and **baud** match what you set in WebConfig.
-* **Commission:** read DI and Alarm Group states from the controller; toggle relays for a functional test; expose “Acknowledge” and “Override” actions if desired.
-
-> For protocol details and end-to-end examples, see **[Modbus RTU Communication](#6-modbus-rtu-communication)** and **[ESPHome Integration Guide (MicroPLC/MiniPLC + ALM-173-R1)](#7-esphome-integration-guide)**.
+*See: **[Modbus RTU Communication](#6-modbus-rtu-communication)** and **[ESPHome Integration Guide](#7-esphome-integration-guide)***
 
 ---
 
-**Verify**
+## Verify
 
-* **LEDs:** **PWR** should be **steady ON**; **TX/RX** should **blink** when the controller is communicating.
-* **Inputs:** short/open a few inputs and confirm the **live dots** and **Group/Any** indicators react accordingly.
-* **Relays:** command each relay from the UI or controller and verify field wiring (use a meter or indicator load).
-* **Buttons/LEDs:** press front buttons to **acknowledge** or **override** as configured; confirm user LEDs reflect the chosen sources and modes.
-
-<a id="5-technical-specification"></a>
+- **LEDs:** **PWR** ON; **TX/RX** blink on comms  
+- **Inputs:** toggle a few contacts; confirm live dots and **Any/Gx** indicators  
+- **Relays:** actuate from UI/controller; confirm field wiring (meter/indicator)  
+- **Buttons/LEDs:** test **Ack/Override**; confirm LED sources/modes
 
 # 5. ALM-173-R1 — Technical Specification
 
@@ -652,109 +534,96 @@ For each **Button 1…4**:
   </table>
 </div>
 
-## Overview
+## 5.2 Overview
 
-* **Function:** Alarm and annunciation I/O module with **17× opto-isolated digital inputs** and **3× SPDT relay outputs**
-* **System role:** RS-485 **Modbus RTU** slave for MicroPLC/MiniPLC and Home Automation
-* **Form factor:** DIN-rail module (compact multi-gang footprint), USB-C service port for Web-Serial setup
-
----
-
-## I/O Summary
-
-| Interface                     |          Qty | Electrical / Notes                                                                                                                                                               |
-| ----------------------------- | -----------: | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Digital Inputs (IN1…IN17)** |           17 | **Opto-isolated** inputs referenced to **GND_ISO**; suited for dry contacts and other isolated low-voltage signals. Per-channel conditioning and surge protection.               |
-| **Relays (RLY1…RLY3)**        |            3 | **SPDT dry contacts** (COM/NO/NC) with transistor + opto drivers and contact suppression. Use snubbers/TVS for inductive loads; observe relay datasheet ratings (HF115F series). |
-| **Isolated sensor rails**     |            2 | **+12 V (PS/1)** and **+5 V (PS/2)**, each **isolated** and fuse-limited for powering field sensors (not actuators).                                                             |
-| **User Buttons**              |            4 | Front-panel buttons (SW1…SW4) to acknowledge alarms or manually override relays (configurable in UI).                                                                            |
-| **User LEDs**                 | 4 (+ status) | Front LEDs indicate groups/any alarm and overrides; **PWR** steady-on, **TX/RX** blink on bus activity.                                                                          |
-| **Field bus**                 |            1 | **RS-485 (A/B/COM)** with ESD/TVS and PTC protection; bias/termination per site design.                                                                                          |
-| **Service**                   |            1 | **USB-C** with ESD protection for Web-Serial configuration and diagnostics.                                                                                                      |
+- **Function:** Alarm/annunciator I/O module with **17 opto‑isolated DIs** and **3 SPDT relays**  
+- **Role:** RS‑485 **Modbus RTU** slave for MicroPLC/MiniPLC/SCADA  
+- **Form factor:** DIN‑rail; **USB‑C** service port for Web‑Serial setup
 
 ---
 
-## Terminals & Pinout (field side)
+## 5.3 I/O Summary
+
+| Interface | Qty | Electrical / Notes |
+|---|---:|---|
+| **Digital Inputs (IN1…IN17)** | 17 | Opto‑isolated to **GND_ISO**; dry contacts / isolated LV signals; per‑channel conditioning + surge protection. |
+| **Relays (RLY1…RLY3)** | 3 | **SPDT dry contacts (COM/NO/NC)** with transistor + opto drivers; contact suppression onboard—add external RC/TVS for inductive loads; observe datasheet ratings (HF115F). |
+| **Isolated Sensor Rails** | 2 | **+12 V (PS/1)** and **+5 V (PS/2)**, isolated & fuse‑limited; for **sensors only** (no actuators). |
+| **User Buttons** | 4 | SW1…SW4 for acknowledge/override (configurable). |
+| **User LEDs** | 4 (+ status) | User LEDs for groups/any/override; **PWR** steady; **TX/RX** blink on bus activity. |
+| **Field Bus** | 1 | **RS‑485 (A/B/COM)** with TVS & PTC protection; termination/bias per trunk design. |
+| **Service** | 1 | **USB‑C** for Web‑Serial configuration and diagnostics (ESD‑protected). |
+
+---
+
+## 5.4 Terminals & Pinout (Field Side)
 
 <img src="Images/photo1.png" align="left" width="660" alt="ALM-173-R1 module photo">
 
 ### Connector Map (front label reference)
-
 > Use the front silkscreen to match terminals during wiring.
 
-| Area (Front Label)                                  | Purpose                                    | Notes                                                                                                                                                                        |
-| :-------------------------------------------------- | :----------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **POWER — 24 Vdc (V+, 0 V)**                        | Primary SELV supply.                       | Verify polarity; isolate before service.                                                                                                                                     |
-| **DIGITAL INPUTS — IN1…IN17 (with GND_ISO groups)** | Dry-contact / isolated low-voltage inputs. | Use only within SELV limits; keep **GND_ISO** separate from logic ground unless design requires bonding.                                                                     |
-| **RELAY1…RELAY3 — C/NO/NC**                         | SPDT dry-contact outputs.                  | Observe relay ratings; snub inductive loads; avoid switching mains unless permitted by code and relay datasheet.                                                             |
-| **OUTPUT 12 Vdc (PS/1)**                            | Isolated sensor supply (12 V).             | Fuse-limited; no backfeeding or paralleling with other rails.                                                                                                                |
-| **OUTPUT 5 Vdc (PS/2)**                             | Isolated sensor supply (5 V).              | Fuse-limited; for sensors only.                                                                                                                                              |
-| **RS-485 — COM, B, A**                              | Modbus RTU field bus.                      | Twisted pair; correct A/B polarity; one-point shield bond; termination per trunk design.                                                                                     |
-| **USB (Service)**                                   | Web-Serial configuration.                  | For service only; not a field power source.                                                                                                                                  |
-| **PWR/TX/RX LEDs**                                  | Power and bus activity.                    | **PWR** = steady ON; **TX/RX** = **blink** when communication is active. If not blinking (stuck OFF/solid), isolate and check wiring, polarity, termination, and addressing. |
+- **POWER — 24 Vdc (V+, 0 V):** Primary SELV supply. Verify polarity; isolate before service.  
+- **DIGITAL INPUTS — IN1…IN17 (with GND_ISO groups):** Dry-contact / isolated LV inputs. Keep **GND_ISO** separate from logic ground unless intentionally bonded.  
+- **RELAY1…RELAY3 — COM/NO/NC:** SPDT dry outputs. Observe ratings; snub inductive loads; avoid mains unless permitted by code and relay datasheet.  
+- **OUTPUT 12 Vdc (PS/1) / OUTPUT 5 Vdc (PS/2):** Isolated sensor supplies; fuse‑limited; **no backfeeding/paralleling**.  
+- **RS‑485 — COM, B, A:** Modbus RTU field bus. Twisted pair; correct A/B polarity; one‑point shield bond; termination per trunk design.  
+- **USB (Service):** Web‑Serial configuration; not a field power source.  
+- **PWR/TX/RX LEDs:** **PWR** steady ON; **TX/RX** blink on traffic. If not blinking, check polarity, termination, address.
 
 <br clear="left"/>
 
 ---
 
-## Electrical
+## 5.5 Electrical
 
-### Power & Regulation
+### 5.5.1 Power & Regulation
+- **Input:** **24 VDC** nominal; input fuse, reverse‑polarity & surge protection  
+- **Rails:**  
+  - **Buck 24 V → 5 V** (logic)  
+  - **LDO 5 V → 3.3 V** (MCU & logic)  
+  - **Isolated rails:** **+12 V ISO / +5 V ISO** via isolated DC‑DCs with LC filtering & PTC fusing
 
-* **Primary input:** **24 VDC** nominal with input fuse, reverse-polarity protection, and surge suppression
-* **DC/DC & rails:**
+### 5.5.2 Digital Inputs
+- Per‑channel **opto‑isolators** + resistor networks for noise immunity  
+- **Surge/ESD** protection on lines; referenced to **GND_ISO** groups  
+- Firmware options per input: **Enable**, **Invert**, **Group (1/2/3/None)**, debounce in logic
 
-  * **Buck 24 V → +5 V** (primary logic rail)
-  * **LDO +5 V → +3.3 V** (MCU and logic)
-  * **Isolated rails:** **+12 V ISO** and **+5 V ISO** via isolated DC-DC modules with LC filtering and PTC fusing
+### 5.5.3 Relay Outputs
+- **HF115F** SPDT relays; transistor drivers with opto isolation  
+- Contact suppression network onboard; fit **external RC/TVS** for coils/locks/sirens  
+- Wire loads to **COM/NO/NC**; keep load currents off logic returns
 
-### Digital Inputs
+### 5.5.4 RS‑485 (Modbus RTU)
+- **MAX485‑class** transceiver, DE/RE control  
+- Protection: **TVS diodes**, series elements, bias network, **PTC** resettable fuses  
+- Indicators: **TX/RX LEDs** reflect line activity
 
-* **Opto-isolators** per channel with series/network resistors for noise immunity
-* **Surge/ESD protection** on input lines; inputs referenced to **GND_ISO** return groups
-* Firmware options per input: **Enable**, **Invert**, **Group assignment (1/2/3/None)**, debounce in logic
-
-### Relay Outputs
-
-* **HF115F series** SPDT relays with transistor drivers and opto-isolation on control side
-* **Contact suppression** network to reduce EMI/arcing; fit external snubbers/TVS for coils, locks, sirens
-* Wire loads directly to **COM/NO/NC**; keep load currents off logic returns
-
-### RS-485 (Modbus RTU)
-
-* **MAX485-class** transceiver with DE/RE control
-* **Protection:** TVS diodes on A/B, series elements, bias network, and **PTC** resettable fuses on the bus
-* **Indicators:** **TX/RX LEDs** reflect line activity
-
-### USB-C (service/config)
-
-* **ESD/EMI** protection array on D± and VBUS, CC pull-downs; reverse-current protection to the +5 V rail
-* Intended for **configuration and diagnostics**; not for powering external loads
+### 5.5.5 USB‑C (Service/Config)
+- **ESD/EMI** protection on D±/VBUS; CC pulldowns; reverse‑current protection to 5 V rail  
+- Intended for configuration/diagnostics; **not** for powering field loads
 
 ---
 
-## MCU & Storage
-
-* **Controller:** **Raspberry Pi RP2350A** dual-core MCU
-* **External storage:** **W25Q32** (32-Mbit QSPI NOR flash) for firmware/config
-* **Clocking & debug:** 12 MHz crystal; **SWD** header for development/service access
-* **I/O expansion:** **PCF8574** I²C expanders for input/relay/LED/button matrixing
-
----
-
-## Protections & Design for Reliability
-
-* **Galvanic isolation:** Dedicated **GND_ISO** domain and **isolated +12 V/+5 V** rails for sensors
-* **Surge/ESD:** TVS arrays on RS-485 and USB; RC/series networks on data lines; **PTC** resettable fuses on field rails and bus
-* **Contact life:** Built-in suppression and guidance to apply external snubbers for inductive loads
+## 5.6 MCU & Storage
+- **MCU:** **Raspberry Pi RP2350A**, dual‑core  
+- **Flash:** **W25Q32** (32‑Mbit QSPI NOR) for firmware & config  
+- **Clock/Debug:** 12 MHz crystal; **SWD** header for service  
+- **I/O Expansion:** **PCF8574** I²C expanders for inputs/relays/LEDs/buttons
 
 ---
 
-## Firmware / Function (high-level)
+## 5.7 Reliability & Protections
+- **Galvanic isolation:** Dedicated **GND_ISO** domain; isolated +12 V/+5 V sensor rails  
+- **Surge/ESD:** TVS arrays on RS‑485 & USB; RC/series networks on data lines; **PTC** fuses on field rails and bus  
+- **Contact life:** Onboard suppression + guidance to add external snubbers for inductive loads
 
-* **Alarm engine:** map inputs → **Group 1/2/3** with modes **Active-while** or **Latched-until-ack**; **Any Alarm** summary
-* **Actuation:** per-relay **Enable/Invert/Group**; **Buttons** for acknowledges and manual relay overrides; **User LEDs** sourced to groups/any/override with **Steady/Blink**
-* **Setup & telemetry:** Web-Serial UI (USB-C) for **Modbus address/baud**, live input/relay/group status, and safe reset; operates stand-alone with a PLC/HMI supervising over Modbus
+---
+
+## 5.8 Firmware / Functional Overview
+- **Alarm engine:** Inputs → **Group 1/2/3** with modes **Active‑while** or **Latched‑until‑ack**; **Any Alarm** summary  
+- **Actuation:** Per‑relay **Enable/Invert/Group**; **Buttons** for acknowledge / manual override; **User LEDs** for groups/any/override (Steady/Blink)  
+- **Setup & Telemetry:** Web‑Serial UI (USB‑C) for **Modbus addr/baud**, live input/relay/group status, safe reset; runs stand‑alone under PLC/HMI supervision over Modbus
 
 <a id="6-modbus-rtu-communication"></a>
 
