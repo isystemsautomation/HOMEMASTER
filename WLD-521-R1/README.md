@@ -1017,34 +1017,91 @@ packages:
 
 ---
 
+<a id="8-programming--customization"></a>
+
+# 8. Programming & Customization
+
+> This section matches the style shown in your screenshot and **includes the missing items** (MicroPython note, USB‑C flashing steps, button reference image, and Arduino include list).
+
+## 8.1 Supported Languages
+
+- **MicroPython (pre‑installed)** — quick scripting for tests and diagnostics
+- **C/C++** — production firmware
+- **Arduino IDE** — easy sketches & examples
+
+---
+
+## 8.2 Flashing via USB‑C
+
+1. **Connect USB‑C** from PC to the module.
+2. Enter **boot/flash mode** if required (see combinations below).
+3. Upload the provided firmware (WebConfig Uploader, PlatformIO, or Arduino IDE).
+
+**Boot/Reset combinations (handled in hardware):**
+- **Buttons 1 + 2** → forces the module into **BOOT** mode.
+- **Buttons 3 + 4** → triggers a **hardware RESET**.
+
+Use these combinations during firmware flashing or to restart the device manually.
+
+**Button numbering reference:**  
+<img src="Images/photo1.png" width="420" alt="Front panel with button numbering U1..U4"/>
+
+---
+
+## 8.3 Arduino / PlatformIO Notes
+
+- **Board profile:** `Generic RP2350` (RP2 family, dual‑core)  
+- **Flash layout:** 2 MB total (suggested **Sketch: 1 MB**, **FS: 1 MB**)
+- **Toolchains:** Arduino IDE 2.x or PlatformIO (`platform = raspberrypi`)
+
+**Required libraries (typical project):**
+- `Arduino.h`
+- `ModbusSerial.h`
+- `SimpleWebSerial.h`
+- `Arduino_JSON.h`
+- `LittleFS.h`
+- `OneWire.h`
+- `hardware/watchdog.h`
+
+---
+
+## 8.4 Firmware Updates
+
+- Use the **WebConfig Uploader** (browser) or **PlatformIO/Arduino** to flash new builds.
+- **Config persistence:** device configuration is stored in flash and **survives updates**.
+- **Recovery:** if an update fails, hold **Buttons 1+2** (BOOT), re‑connect USB‑C, and re‑flash. Use **Buttons 3+4** for a hard reset.
+- **Factory default:** WebConfig can restore base defaults if settings are corrupted.
+
+---
+
 <a id="9-maintenance--troubleshooting"></a>
 
 # 9. Maintenance & Troubleshooting
 
 ## 9.1 Status LED Meanings
 
-| LED | Meaning |
-|-----|---------|
-| **PWR** | Steady ON = Power OK |
-| **TX/RX** | Blinks on RS-485 activity |
-| **USB** | Lit when WebConfig is connected |
-| **LED1–4** | Mapped per UI config: relay, DI, irrigation status, or override |
+| LED      | Meaning |
+|----------|---------|
+| **PWR**  | Steady ON = power OK |
+| **TX/RX**| Blink on RS‑485 activity |
+| **USB**  | Lit when WebConfig is connected |
+| **LED1–4** | Mapped per UI config (DI/Relay/Irrigation/Override) |
 
 ## 9.2 Reset Methods
 
-- **Soft reset**: via WebConfig → Reset Device
-- **Hard reset**: Buttons 3 + 4 (3 sec)
-- **Factory reset**: Use firmware jumper or special USB bootload tool (future support)
+- **Soft reset:** WebConfig → *Reset Device*
+- **Hard reset:** hold **Buttons 3 + 4** for ~3 s
+- **Bootloader:** hold **Buttons 1 + 2** while powering the device
 
 ## 9.3 Common Issues
 
-| Issue | Cause & Fix |
-|-------|-------------|
-| No Modbus reply | Check A/B polarity, address/baud mismatch, missing GND (COM) |
-| Relays won’t trigger | Check relay override or ownership set to “None” |
-| Flow stuck at 0 | Check PPL, DI type = Water counter, pulse edges present |
-| 1-Wire temp missing | Check sensor wiring, pull-up, or 5V/GND isolation |
-| WebConfig won’t connect | Use Chromium browser + allow USB Serial; close other serial apps |
+| Symptom | Likely Cause → Fix |
+|--------|---------------------|
+| No Modbus comms | A/B swapped, missing **COM** reference, wrong baud/address |
+| Relay won’t trigger | Relay in **override**, or **Owner** set to *None/Logic* |
+| Flow stays 0 | DI not set to *Water counter*, wrong PPL, no pulses |
+| 1‑Wire not found | Wiring to +5V/D/GND, long bus, or pull‑up issue |
+| WebConfig not connecting | Use Chrome/Edge; close other serial apps; try new cable/port |
 
 ---
 
@@ -1052,11 +1109,11 @@ packages:
 
 # 10. Open Source & Licensing
 
-- **Hardware**: Licensed under **CERN-OHL-W v2**
-- **Firmware & Core Logic**: **GPLv3**
-- **WebConfig Tool & UI Scripts**: **MIT**
+- **Hardware:** **CERN‑OHL‑W v2**
+- **Firmware:** **GPLv3**
+- **Config Tools (WebConfig)**: **MIT**
 
-> This repository contains all design files, firmware sources, and configuration tools under open-source licenses. Forks and community contributions are welcome.
+> The repository contains design files, firmware, and tools. Contributions are welcome.
 
 ---
 
@@ -1064,14 +1121,12 @@ packages:
 
 # 11. Downloads
 
-| Resource | Link |
-|---------|------|
-| **Firmware Binaries** | [`Firmware/default_wld_521_r1/`](Firmware/default_wld_521_r1/) |
-| **ESPHome YAML Configs** | [`Firmware/default_wld_521_r1_plc/`](Firmware/default_wld_521_r1_plc/) |
-| **WebConfig Tool (HTML)** | [`Firmware/ConfigToolPage.html`](Firmware/ConfigToolPage.html) |
-| **Schematic PDFs** | [`Schematics/WLD-521-R1-FieldBoard.pdf`](Schematics/WLD-521-R1-FieldBoard.pdf), [`Schematics/WLD-521-R1-MCUBoard.pdf`](Schematics/WLD-521-R1-MCUBoard.pdf) |
-| **Images & UI Screenshots** | [`Images/`](Images/) |
-| **Datasheet / Module Manual** | [`Manuals/WLD-521-R1 Datasheet.pdf`](Manuals/WLD-521-R1 Datasheet.pdf) |
+- **Firmware binaries** — `Firmware/default_wld_521_r1/`
+- **ESPHome YAML configs** — `Firmware/default_wld_521_r1_plc/`
+- **WebConfig Tool** — `Firmware/ConfigToolPage.html`
+- **Schematics** — `Schematics/WLD-521-R1-FieldBoard.pdf`, `Schematics/WLD-521-R1-MCUBoard.pdf`
+- **Images & diagrams** — `Images/`
+- **Datasheet** — `Manuals/WLD-521-R1 Datasheet.pdf`
 
 ---
 
@@ -1079,11 +1134,10 @@ packages:
 
 # 12. Support
 
-If you need help or want to report an issue, visit the official support channels below:
+- **Support Portal:** https://www.home-master.eu/support
+- **WebConfig:** https://www.home-master.eu/configtool-wld-521-r1
+- **YouTube:** https://youtube.com/@HomeMaster
+- **Hackster:** https://hackster.io/homemaster
+- **Reddit:** https://reddit.com/r/HomeMaster
+- **Instagram:** https://instagram.com/home_master.eu
 
-- 🌐 [Support Portal](https://www.home-master.eu/support)
-- 🧰 [WebConfig Tool](https://www.home-master.eu/configtool-wld-521-r1)
-- 📹 [YouTube Channel](https://youtube.com/@HomeMaster)
-- 🧠 [Hackster.io](https://hackster.io/homemaster)
-- 💬 [Reddit Community](https://reddit.com/r/HomeMaster)
-- 📸 [Instagram](https://instagram.com/home_master.eu)
