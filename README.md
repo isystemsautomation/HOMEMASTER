@@ -26,28 +26,38 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
 
 ```mermaid
 %%{init: {
-  "flowchart": { "nodeSpacing": 30, "rankSpacing": 40, "htmlLabels": true },
-  "themeVariables": { "fontSize": "12px", "padding": 6, "nodeBorderRadius": 4 }
+  "flowchart": { "htmlLabels": true, "nodeSpacing": 50, "rankSpacing": 60 },
+  "themeVariables": { "fontSize": "16px", "padding": 12, "nodeBorderRadius": 8 }
 }}%%
 
 flowchart TD
-  classDef module fill:#EEF3FF,stroke:#6B6BE8,stroke-width:1px,color:#111,font-size:12px;
-  classDef hub fill:#ECECEC,stroke:#888,stroke-width:1px,color:#111,font-weight:bold;
+  %% Classes
+  classDef hub fill:#EDEFFB,stroke:#6B72FF,stroke-width:1.2px,color:#111,font-weight:bold;
+  /* Double-size nodes (≈double font + padding) */
+  classDef big fill:#EDEFFB,stroke:#1F35FF,stroke-width:2.5px,color:#111,font-weight:bold,font-size:28px;
+  /* Yellow module nodes */
+  classDef mod fill:#FFF7CC,stroke:#E0B100,stroke-width:1.2px,color:#111;
 
-  HA[Home Assistant]:::hub --> PLC[MiniPLC / MicroPLC]:::hub
+  %% Make HA and PLC "double" by using the big class + 2 line breaks to increase height
+  HA["Home Assistant<br/><br/>"]:::big --> PLC["MiniPLC / MicroPLC<br/><br/>"]:::big
   PLC --> RS485[RS-485 Bus]:::hub
 
-  subgraph Extension Modules
-    ENM[ENM-223-R1<br/>Energy Meter]:::module
-    ALM[ALM-173-R1<br/>Alarm I/O]:::module
-    DIM[DIM-420-R1<br/>AC Dimmer]:::module
-    AIO[AIO-422-R1<br/>Analog I/O]:::module
-    RGB[RGB-621-R1<br/>LED Controller]:::module
-    DIO[DIO-430-R1<br/>Digital I/O]:::module
-    STR[STR-3221-R1<br/>Staircase LED]:::module
-    WLD[WLD-521-R1<br/>Leak Detection]:::module
+  %% Subgraph, styled yellow; node heights doubled by adding <br/><br/> to each label
+  subgraph Mods["Extension Modules"]
+    ENM["ENM-223-R1<br/>Energy Meter<br/><br/>"]:::mod
+    ALM["ALM-173-R1<br/>Alarm I/O<br/><br/>"]:::mod
+    DIM["DIM-420-R1<br/>AC Dimmer<br/><br/>"]:::mod
+    AIO["AIO-422-R1<br/>Analog I/O<br/><br/>"]:::mod
+    RGB["RGB-621-R1<br/>LED Controller<br/><br/>"]:::mod
+    DIO["DIO-430-R1<br/>Digital I/O<br/><br/>"]:::mod
+    STR["STR-3221-R1<br/>Staircase LED<br/><br/>"]:::mod
+    WLD["WLD-521-R1<br/>Leak Detection<br/><br/>"]:::mod
   end
 
+  %% Yellow frame for the whole subgraph
+  style Mods fill:#FFF7CC,stroke:#E0B100,stroke-width:1.5px
+
+  %% Edges
   RS485 --> ENM
   RS485 --> ALM
   RS485 --> DIM
