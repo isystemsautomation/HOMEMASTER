@@ -22,9 +22,6 @@ The module connects over **RS-485 (Modbus RTU)** to a **MicroPLC or MiniPLC**, e
 * [2. Use Cases](#2-use-cases)
 * [3. Safety Information](#3-safety-information)
 * [4. Installation & Quick Start](#4-installation-quick-start)
-  * [4.4 Installation & Wiring](#installation-wiring)
-  * [4.5 Software & UI Configuration](#software-ui-configuration)
-  * [4.6 Getting Started](#4-6-getting-started)
 * [5. MODULE-CODE — Technical Specification](#5-module-code--technical-specification)
 * [6. Modbus RTU Communication](#6-modbus-rtu-communication)
 * [7. ESPHome Integration Guide (if applicable)](#7-esphome-integration-guide)
@@ -42,40 +39,43 @@ The module connects over **RS-485 (Modbus RTU)** to a **MicroPLC or MiniPLC**, e
 
 # 1. Introduction
 
-## 1.1 Overview of the MODULE-CODE
+## 1.1 Overview of the WLD-521-R1
 
-Briefly explain what the module does in 1–2 paragraphs:
-- What kind of I/O it exposes (e.g. DI, AO, relays, LEDs, buttons)
-- What systems it integrates with (PLC, SCADA, HA)
-- Configuration mechanism (Web Serial, USB-C, etc.)
-- One-sentence summary of its main purpose or role
+The **WLD-521-R1** is a DIN‑rail smart I/O module for **leak detection**, **pulse water metering**, **ΔT heat monitoring**, and **local irrigation control**. It exposes **5 opto‑isolated digital inputs**, **2 SPDT relays**, **4 user buttons**, and **4 status LEDs** and is serviced over **USB‑C**.
+
+It integrates with a **MiniPLC/MicroPLC** (or other PLC/SCADA/HA controllers) via **Modbus RTU over RS‑485**. Configuration is done in a browser using the **WebConfig** tool (Web Serial over USB‑C): set Modbus params, choose per‑input modes (sensor/counter), link 1‑Wire temperature sensors, and enable autonomous irrigation/flow‑safety logic.  
+**In one line:** a resilient water‑safety/flow module with local logic that still plays perfectly with your PLC and Home Assistant stack.
+
+---
 
 ## 1.2 Features & Architecture
 
-Include a table like this:
+| Subsystem       | Qty      | Description |
+|-----------------|----------|-------------|
+| **Digital Inputs** | 5        | Opto‑isolated dry‑contact / pulse (flow meters); debounced, noise‑protected |
+| **Analog Outputs** | 0        | — |
+| **Relays**         | 2        | **SPDT** dry contacts, ~3 A @ 250 VAC (valves/pumps/siren) |
+| **LEDs**           | 4 + status | Solid/Blink modes, sources: DI, Relays, Irrigation, Overrides |
+| **Buttons**        | 4        | Acknowledge/override/user actions (toggle/pulse, start/stop zones) |
+| **Modbus RTU**     | Yes      | RS‑485, slave device; typical **19200 8N1** |
+| **USB‑C**          | Yes      | WebConfig over **Web Serial** (driverless in Chrome/Edge) |
+| **Power**          | 24 VDC   | Fused & reverse‑protected; isolated **+5 V / +12 V** sensor rails |
+| **MCU**            | RP2350A  | Dual‑core MCU with external QSPI flash |
+| **Protection**     | TVS, PTC | ESD/surge on RS‑485 & USB; opto‑isolated inputs; snubbed relays |
 
-| Subsystem         | Qty | Description |
-|------------------|-----|-------------|
-| Digital Inputs    | X   | Opto-isolated, dry contacts, noise-protected |
-| Analog Outputs    | X   | 0–10V or 4–20mA, isolated |
-| Relays            | X   | SPST/SPDT, dry contacts |
-| LEDs              | X   | Steady/Blink modes, configurable sources |
-| Buttons           | X   | Acknowledge, override, user input |
-| Modbus RTU        | Yes | RS-485 interface |
-| USB-C             | Yes | WebConfig over Web Serial |
-| Power             | 24 VDC | Fused, reverse-protected |
-| MCU               | e.g. RP2350 | Dual-core with QSPI flash |
-| Protection        | TVS, PTC | ESD, surge, short-circuit |
+> Optional: **1‑Wire bus** for DS18B20 sensors (ΔT calorimetry support).
+
+---
 
 ## 1.3 System Role & Communication
 
-Explain:
-- How the module connects to RS-485 bus
-- Whether it's standalone logic or master-controlled
-- Communication with controller, polling setup
-- Default address/baudrate
+- **Bus connection:** Wire **A↔A**, **B↔B**, and a common reference (**COM/GND**) to the RS‑485 trunk; terminate both bus ends with ~**120 Ω**.  
+- **Control model:** The module is a **Modbus RTU slave**. It can run **standalone local logic** (leak→relay, 2 irrigation zones with flow supervision & interlocks) while the **PLC/ESPHome** polls telemetry and issues commands. Local **override** and **zone ownership** take priority to ensure safety.  
+- **Polling & entities:** Masters typically read **coils/discrete/holding** at ~1 s for live DI, flow rate/total, ΔT, zone state; write coils for **relay ON/OFF**, **zone START/STOP/RESET**, and optional **midnight sync**.  
+- **Defaults:** **Address = 3**, **Baud = 19200**, **8N1**. Change these in **WebConfig** over USB‑C, then match the settings in your controller YAML.
 
 ---
+
 
 <a id="2-use-cases"></a>
 
