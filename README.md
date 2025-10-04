@@ -25,19 +25,27 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
 ### System Architecture
 
 ```mermaid
-graph TD
-  HA[Home Assistant] --> PLC[MiniPLC / MicroPLC]
-  PLC --> RS485[RS‑485 Bus]
+%%{init: {
+  "flowchart": { "nodeSpacing": 30, "rankSpacing": 40, "htmlLabels": true },
+  "themeVariables": { "fontSize": "12px", "padding": 6, "nodeBorderRadius": 4 }
+}}%%
+
+flowchart TD
+  classDef module fill:#EEF3FF,stroke:#6B6BE8,stroke-width:1px,color:#111,font-size:12px;
+  classDef hub fill:#ECECEC,stroke:#888,stroke-width:1px,color:#111,font-weight:bold;
+
+  HA[Home Assistant]:::hub --> PLC[MiniPLC / MicroPLC]:::hub
+  PLC --> RS485[RS-485 Bus]:::hub
 
   subgraph Extension Modules
-    ENM[ENM‑223‑R1<br>⚡ Energy Meter]
-    ALM[ALM‑173‑R1<br>🚨 Alarm I/O]
-    DIM[DIM‑420‑R1<br>💡 AC Dimmer]
-    AIO[AIO‑422‑R1<br>🌡️ Analog I/O]
-    RGB[RGB‑621‑R1<br>🎨 LED Controller]
-    DIO[DIO‑430‑R1<br>🔌 Digital I/O]
-    STR[STR‑3221‑R1<br>💫 Staircase LED]
-    WLD[WLD‑521‑R1<br>💧 Leak Detection]
+    ENM[ENM-223-R1<br/>Energy Meter]:::module
+    ALM[ALM-173-R1<br/>Alarm I/O]:::module
+    DIM[DIM-420-R1<br/>AC Dimmer]:::module
+    AIO[AIO-422-R1<br/>Analog I/O]:::module
+    RGB[RGB-621-R1<br/>LED Controller]:::module
+    DIO[DIO-430-R1<br/>Digital I/O]:::module
+    STR[STR-3221-R1<br/>Staircase LED]:::module
+    WLD[WLD-521-R1<br/>Leak Detection]:::module
   end
 
   RS485 --> ENM
