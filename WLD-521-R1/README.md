@@ -253,25 +253,84 @@ These safety instructions apply to the **WLD‑521‑R1** module. Improper handl
 
 ## 4.1 What You Need
 
-| Item | Description |
-|------|-------------|
-| Module | MODULE-CODE unit |
-| Controller | MiniPLC/MicroPLC or Modbus RTU master |
-| PSU | Regulated 24 VDC |
-| Cable | USB-C and RS-485 twisted pair |
-| Software | Browser with Web Serial support |
+| Category     | Item                           | Details |
+|--------------|--------------------------------|---------|
+| **Hardware** | **WLD‑521‑R1**                 | DIN‑rail module with **5 opto DIs**, **2 SPDT relays**, **4 buttons**, **4 LEDs**, **RS‑485**, **USB‑C**, **1‑Wire**, and **isolated +5 V / +12 V sensor rails**. |
+|              | Controller (master)           | HomeMaster MiniPLC/MicroPLC or any Modbus RTU master device. |
+|              | 24 VDC PSU (SELV)              | Regulated **24 VDC** supply to **V+ / 0V**; size to include module + sensors. |
+|              | RS‑485 cable                  | Shielded twisted pair for **A/B + COM (GND)**; use **120 Ω termination** at both bus ends. |
+|              | USB‑C cable                   | Used for setup/config via **WebConfig** in Chromium browser. |
+|              | DIN enclosure                 | Dry, clean cabinet with **DIN rail**; provide strain relief and shield grounding. |
+| **Software** | WebConfig (browser)           | Configure **Address / Baud**, assign **Inputs / Relays / Buttons / LEDs**, irrigation zones, sensors, etc. |
+|              | ESPHome (optional)            | On controller: polls Modbus, exposes WLD sensors and relays to Home Assistant. |
+| **Field I/O**| Dry contacts                  | Inputs DI1…DI5 return to **GND_ISO**; supports leak probes, flow meters, or buttons. |
+|              | Relay loads                   | RLY1/RLY2: **COM/NO/NC** dry contacts; up to **3 A @ 250 VAC**. Use RC/TVS snubbers for inductive loads. |
+|              | Sensor power (isolated)       | Bottom-right **+12 V / +5 V ISO** terminals for **low-power sensors only**. Not for actuators. |
+| **Tools**    | Screwdrivers, ferrules, meter | Verify terminal torque, polarity, and RS‑485 A/B wiring. Use **120 Ω resistors** and surge protectors if needed. |
+
+> **Status LEDs:**  
+> • **PWR** – steady ON when powered  
+> • **TX/RX** – blink on RS‑485 activity  
+> • **USB** – active when connected for WebConfig
+
+---
 
 ## 4.2 Power
 
-- Describe 24 VDC input
-- List expected current
-- Explain isolated sensor power if present
+The WLD‑521‑R1 operates from a **regulated 24 VDC supply** connected to the top terminals labeled `V+` and `0V`. The power supply should be SELV-rated and appropriately sized.
+
+### Power Supply Notes
+
+- Input: **24 VDC**, reverse-protected and fused onboard
+- Internal regulation:  
+  - **5 V logic** (buck regulated via AP64501)  
+  - **3.3 V logic** (via AMS1117-3.3)
+  - **+12 V ISO** (for field sensors via B2412S‑2WR3)  
+  - **+5 V ISO** (via B2405S‑2WR3)
+
+### Power Budget (Estimates)
+
+| Load                | Typical Current |
+|---------------------|-----------------|
+| Base logic + LEDs   | ~50 mA          |
+| Each relay (coil)   | ~40–60 mA       |
+| Sensor rails (total) | ≤150 mA (shared between +5 V ISO / +12 V ISO) |
+
+**Recommended PSU:** ≥300 mA per module (with 30% headroom).
+
+> ⚠️ Only use the **sensor rails** for **low-power sensors** like leak probes and flow meters.  
+> Never power relays, valves, or actuators from the module’s +5 V / +12 V outputs.
+
+---
 
 ## 4.3 Communication
 
-- RS-485 pinout
-- Address & baudrate setup
-- Use of COM/GND reference
+The WLD‑521‑R1 uses **Modbus RTU** over RS‑485 for all runtime communication, and **USB‑C** for setup via browser.
+
+### RS‑485 Pinout (Bottom Left Terminals)
+
+| Terminal | Function          |
+|----------|-------------------|
+| **A**    | RS‑485 A (Data +) |
+| **B**    | RS‑485 B (Data –) |
+| **COM**  | RS‑485 reference ground (connect to controller GND) |
+
+- Wire **A → A**, **B → B**, **COM → COM**
+- Use **twisted-pair** cable and **terminate** at both ends (120 Ω)
+- Avoid star topologies; keep stubs short
+- Shielded cable is recommended for EMI immunity
+
+### Modbus Settings
+
+| Parameter     | Default | Range         |
+|---------------|---------|---------------|
+| **Address**   | 3       | 1–255 (set via WebConfig) |
+| **Baudrate**  | 19200   | 9600–115200 (WebConfig) |
+| **Format**    | 8N1     | 8 data bits, no parity, 1 stop bit |
+
+> WebConfig allows you to set the **Modbus address** and **baudrate** via USB‑C before connecting to a PLC or ESPHome controller.
+
+---
 
 <a id="installation-wiring"></a>
 
@@ -288,11 +347,108 @@ Use diagrams and explain:
 
 ## 4.5 Software & UI Configuration
 
-Cover:
-- WebConfig setup (address, baud)
-- Input enable/invert/group
-- Relay logic mode (group/manual)
-- LED and Button mapping
+The **WLD-521-R1** is configured entirely via **WebConfig** — a USB-C based browser interface that runs in **Chrome or Edge** using **Web Serial API**. No drivers or software installs are required.
+
+---
+
+### 🔧 WebConfig Setup
+
+1. Plug a **USB-C cable** from your PC into the module.
+2. Open **WebConfig** in Chrome/Edge:
+   [`https://www.home-master.eu/configtool-wld-521-r1`](https://www.home-master.eu/configtool-wld-521-r1)
+3. Click **Connect** and select the serial port.
+4. Configure:
+   - **Modbus Address** (1–255)
+   - **Baud Rate** (9600–115200, default: 19200)
+5. View confirmation in the header:  
+   _Active Modbus Configuration: Address `X`, Baud `Y`_
+
+📸  
+![Modbus Address and Baud Configuration](Images/webconfig1.png)
+
+---
+
+### 🎛 Input Configuration
+
+Each of the **5 digital inputs (DI1–DI5)** can be configured individually.
+
+- **Enable / Invert** input
+- **Type**:
+  - Water sensor (leak probe)
+  - Soil moisture
+  - Water counter (pulse input for flow meter)
+- **Action (non-counter types)**:
+  - Toggle / Pulse
+  - Relay Target: R1, R2, All, None
+
+📸  
+![DI Configuration](Images/webconfig3.png)
+
+Counter inputs support:
+
+- **Pulses per Liter**
+- **Rate × / Total × calibration**
+- **Live Rate / Total**
+- **Reset / External sync**
+- (Optional) **Heat Energy** with 1-Wire sensors:
+  - Configure cp, ρ, Sensor A/B
+
+📸  
+![Heat Energy Panel](Images/webconfig4.png)
+
+---
+
+### ⚙️ Relay Logic Modes
+
+Each relay (R1, R2) can be:
+
+- **Enabled / Inverted**
+- **Owned by**:
+  - Modbus (default)
+  - Local logic (e.g., irrigation)
+  - None (for manual override only)
+
+You can also:
+
+- **Set override ON/OFF**
+- **Latch override**
+- **View live state**
+
+📸  
+![Relay Configuration](Images/webconfig5.png)
+
+---
+
+### 🔵 LED Mapping
+
+Each of the **4 user LEDs** can:
+
+- Blink or stay solid
+- Reflect a live source:
+  - Relay state, Input state, Irrigation zone, or Override
+
+📸  
+![LED Mapping](Images/webconfig6.png)
+
+---
+
+### 🔘 Button Mapping
+
+Each of the **4 front buttons** can be assigned to:
+
+- Relay control (Toggle/Pulse)
+- Manual override
+- Start/Stop irrigation zones
+
+Press/hold behaviors are supported for entering and exiting override mode.
+
+📸  
+![Button Mapping](Images/webconfig6.png)
+
+---
+
+> All changes are applied live and persist in module memory.
+
 
 <a id="4-6-getting-started"></a>
 
