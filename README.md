@@ -42,31 +42,15 @@ graph TB
 
 ### Controller Comparison
 
-<table>
-<tr>
-<td align="center" width="50%">
-  <strong>🔵 MicroPLC</strong><br>
-  <a href="./MicroPLC/Images/MicroPLC.png">
-    <img src="./MicroPLC/Images/MicroPLC.png" alt="MicroPLC" height="220">
-  </a><br><sub>Click to view full size</sub>
-</td>
-<td align="center" width="50%">
-  <strong>🟢 MiniPLC</strong><br>
-  <a href="./MiniPLC/Images/MiniPLC2.png">
-    <img src="./MiniPLC/Images/MiniPLC2.png" alt="MiniPLC" height="220">
-  </a><br><sub>Click to view full size</sub>
-</td>
-</tr>
-</table>
+| Feature / Use Case | 🟢 **MiniPLC** <br> <a href="./MiniPLC/Images/MiniPLC2.png"><img src="./MiniPLC/Images/MiniPLC2.png" alt="MiniPLC" height="140"/></a> | 🔵 **MicroPLC** <br> <a href="./MicroPLC/Images/MicroPLC.png"><img src="./MicroPLC/Images/MicroPLC.png" alt="MicroPLC" height="140"/></a> |
+|--------------------|----------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------|
+| **Size**           | Full‑width DIN enclosure                                                                                                         | Compact DIN enclosure                                                                                 |
+| **Onboard I/O**    | 6× Relays, 4× DI, 2× RTD, 2× AI/O, Display, RTC                                                                                   | 1× Relay, 1× DI, 1‑Wire, RTC                                                                          |
+| **Connectivity**   | Ethernet, USB‑C, Wi‑Fi, BLE + Improv                                                                                             | USB‑C, Wi‑Fi, BLE + Improv                                                                           |
+| **Storage**        | microSD card slot                                                                                                                | Internal flash only                                                                                  |
+| **Ideal For**      | Full homes, labs, HVAC/solar, automation pros                                                                                    | Makers, room‑level, modular expansion setups                                                         |
+| **Power Input**    | AC/DC wide range or 24 VDC                                                                                                       | 24 VDC only                                                                                           |
 
-| Feature / Use Case | 🟢 **MiniPLC** | 🔵 **MicroPLC** |
-|--------------------|----------------|-----------------|
-| **Size**           | Full‑width DIN enclosure | Compact DIN enclosure |
-| **Onboard I/O**    | 6× Relays, 4× DI, 2× RTD, 2× AI/O, Display, RTC | 1× Relay, 1× DI, 1‑Wire, RTC |
-| **Connectivity**   | Ethernet, USB‑C, Wi‑Fi, BLE + Improv | USB‑C, Wi‑Fi, BLE + Improv |
-| **Storage**        | microSD card slot | Internal flash only |
-| **Ideal For**      | Full homes, labs, HVAC/solar, automation pros | Makers, room‑level, modular expansion setups |
-| **Power Input**    | AC/DC wide range or 24 VDC | 24 VDC only |
 
 
 ### Module Overview
