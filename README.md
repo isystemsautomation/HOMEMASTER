@@ -26,13 +26,13 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
 
 ```mermaid
 %%{init: {
-  "flowchart": { "nodeSpacing": 60, "rankSpacing": 80, "htmlLabels": true, "useMaxWidth": true },
-  "themeVariables": { "fontSize": "14px", "padding": 12, "nodeBorderRadius": 8 }
+  "flowchart": { "nodeSpacing": 30, "rankSpacing": 40, "htmlLabels": true },
+  "themeVariables": { "fontSize": "12px", "padding": 6, "nodeBorderRadius": 4 }
 }}%%
 
-flowchart LR
-  classDef module fill:#F4F7FF,stroke:#6477F2,stroke-width:1.5px,color:#111,font-size:14px;
-  classDef hub fill:#F2F2F2,stroke:#777,stroke-width:1.2px,font-weight:bold;
+flowchart TD
+  classDef module fill:#EEF3FF,stroke:#6B6BE8,stroke-width:1px,color:#111,font-size:12px;
+  classDef hub fill:#ECECEC,stroke:#888,stroke-width:1px,color:#111,font-weight:bold;
 
   HA[Home Assistant]:::hub --> PLC[MiniPLC / MicroPLC]:::hub
   PLC --> RS485[RS-485 Bus]:::hub
@@ -56,6 +56,7 @@ flowchart LR
   RS485 --> DIO
   RS485 --> STR
   RS485 --> WLD
+
 ```
 
 #### 🎯 Quick Module Selector
