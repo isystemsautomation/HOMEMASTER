@@ -52,46 +52,114 @@ It integrates with a **MiniPLC/MicroPLC** (or other PLC/SCADA/HA controllers) vi
 
 | Subsystem         | Qty        | Description |
 |-------------------|------------|-------------|
-| **Digital Inputs** | 5          | **Opto‑isolated** inputs (SFH6156‑3) with MOSFET front‑ends, debouncing and isolated return (**GND_ISO**); suited for dry contacts or pulse flowmeters. :contentReference[oaicite:0]{index=0} |
+| **Digital Inputs** | 5          | Opto‑isolated inputs with MOSFET front‑ends, debouncing, and isolated return (**GND_ISO**); suitable for dry contacts or pulse flowmeters. |
 | **Analog Outputs** | 0          | — |
-| **Relays**         | 2          | **SPDT** dry contacts (**HF115F/005‑1ZS3**), opto‑driven with transistor stages and RC/snubber network for EMI suppression; terminals **NO/COM/NC** exposed. :contentReference[oaicite:1]{index=1} |
-| **1‑Wire Bus**     | 1          | Protected by **DS9503** with **BSS138** level shifting; 3‑pin header **(+5 V / DATA / GND)** for DS18B20 sensors (ΔT calorimetry support). :contentReference[oaicite:2]{index=2} |
-| **LEDs**           | 4 user + status | **4 user LEDs** driven via S8050 transistors; additional **status LEDs** for power and RS‑485 TX/RX activity on the MCU board. :contentReference[oaicite:3]{index=3} |
-| **Buttons**        | 4          | Front‑panel pushbuttons (**TS‑1095** series) wired to MCU GPIO for local override/control. :contentReference[oaicite:4]{index=4} |
-| **Modbus RTU**     | Yes        | **RS‑485** interface built on **MAX485** with level shifting, biasing, TVS surge diodes and polyfuse protection; DE/RE controlled by MCU. Typical **19200 8N1**. :contentReference[oaicite:5]{index=5} |
-| **USB‑C**          | Yes        | **Type‑C** port for WebConfig over **Web Serial**; ESD protected (**PRTR5V0U2X**), Schottky‑diode power path and series data resistors. :contentReference[oaicite:6]{index=6} |
-| **Power**          | 24 VDC     | Input protected (fuse, surge clamp); buck **AP64501** → **+5 V**, then **AMS1117‑3.3** → **+3.3 V**. Isolated sensor rails: **B2405S‑2WR3 (+5 V_ISO)** and **B2412S‑2WR3 (+12 V_ISO)**, both fuse/LC‑filtered.  |
-| **MCU**            | RP2350A    | Dual‑core MCU with external **W25Q32** QSPI flash and 12 MHz crystal; SWD header for debug. :contentReference[oaicite:8]{index=8} |
-| **Protection**     | TVS, PTC, ESD | **SMAJ6.8** on RS‑485, **CG0603MLC** ESD on USB, polyfuses on bus lines, opto‑isolated inputs, and relay snubbers; isolated sensor rails for field wiring robustness. 
+| **Relays**         | 2          | SPDT dry contacts (~3 A @ 250 VAC); driven via opto‑isolated stages and RC/snubber-protected. Terminals NO/COM/NC exposed. |
+| **1‑Wire Bus**     | 1          | Protected 3‑pin header (+5 V / DATA / GND) with level shifting and ESD protection; supports DS18B20 sensors. |
+| **LEDs**           | 4 user + status | 4 user LEDs controlled via transistor drivers; additional LEDs for power and RS‑485 TX/RX activity. |
+| **Buttons**        | 4          | Front-panel tactile buttons connected to MCU GPIOs for relay override, irrigation control, and test functions. |
+| **Modbus RTU**     | Yes        | RS‑485 transceiver with surge/bias/ESD protection and DE/RE control. Typical config: 19200 baud, 8N1. |
+| **USB‑C**          | Yes        | Type-C port with ESD protection and Web Serial interface; used for configuration via WebConfig. |
+| **Power**          | 24 VDC     | Fused, reverse-protected input. Internal buck regulator provides +5 V and +3.3 V. Isolated +5 V and +12 V rails available for sensor power. |
+| **MCU**            | RP2350A    | Dual-core MCU with QSPI flash and 12 MHz crystal; SWD debug header available. |
+| **Protection**     | TVS, PTC, ESD | Multi-stage protection on RS‑485 and USB lines; isolated sensor rails; opto-isolated inputs; snubbers on relays. |
+
+> Optional: **1‑Wire bus** for DS18B20 sensors (e.g. supply/return temperatures for heat energy monitoring).
 
 ---
 
-## 1.3 System Role & Communication
+## 1.3 System Role & Communication 💧
 
-- **Bus connection:** Wire **A↔A**, **B↔B**, and a common reference (**COM/GND**) to the RS‑485 trunk; terminate both bus ends with ~**120 Ω**.  
-- **Control model:** The module is a **Modbus RTU slave**. It can run **standalone local logic** (leak→relay, 2 irrigation zones with flow supervision & interlocks) while the **PLC/ESPHome** polls telemetry and issues commands. Local **override** and **zone ownership** take priority to ensure safety.  
-- **Polling & entities:** Masters typically read **coils/discrete/holding** at ~1 s for live DI, flow rate/total, ΔT, zone state; write coils for **relay ON/OFF**, **zone START/STOP/RESET**, and optional **midnight sync**.  
-- **Defaults:** **Address = 3**, **Baud = 19200**, **8N1**. Change these in **WebConfig** over USB‑C, then match the settings in your controller YAML.
+The **WLD-521-R1** is a smart Modbus RTU slave. It can operate autonomously for leak/flow/irrigation safety logic, while exposing its I/O and sensors to a PLC, ESPHome controller, or SCADA system.
+
+| Role                | Description |
+|---------------------|-------------|
+| **System Position** | Expansion module on RS-485 trunk |
+| **Master Controller** | MiniPLC / MicroPLC or any third-party Modbus RTU master |
+| **Address / Baud**  | Configurable via WebConfig (1–255, 9600–115200 baud) |
+| **Bus Type**        | RS‑485 multi-drop (A/B/COM terminals) |
+| **USB‑C Port**      | For configuration/diagnostics using Web Serial (Chrome/Edge) |
+| **Default Modbus ID** | `3` (user-changeable per module) |
+| **Daisy-Chaining**  | Multiple modules supported; assign unique IDs to each device |
+
+> ⚠️ **Note:** If multiple WLD modules are connected to the same RS‑485 segment, make sure to assign **unique Modbus addresses** using WebConfig.
+
 
 ---
-
 
 <a id="2-use-cases"></a>
 
 # 2. Use Cases
 
-Document **3–5 real-world examples**, such as:
-- Safety zone monitoring
-- Relay control with manual override
-- Environmental alarms (e.g. temperature + smoke)
-- Staged automation
-
-Each example should include:
-- A title (e.g., “Zone Alarm with Manual Reset”)
-- 1–2 lines of what it does
-- A step-by-step bullet list of setup instructions
+The **WLD-521-R1** supports a range of real-world applications in leak detection, flow metering, hydronic energy monitoring, and irrigation control. Below are practical scenarios with step-by-step configuration.
 
 ---
+
+### 💧 1) Basement Leak Alarm + Auto Shut-off
+
+**Goal:** Detect water leaks and immediately shut off the water supply using a relay-controlled valve.
+
+**Steps:**
+- Set **DI1** as **Water sensor**
+- Enable DI1 and set **Action = Toggle**
+- Set **Control target = Relay 1**
+- Wire a **motorized shut-off valve** (normally open) to **R1**
+- (Optional) Assign **LED1** to blink on **DI1** or **R1**
+
+---
+
+### 🌿 2) Garden Irrigation with Flow Supervision
+
+**Goal:** Automate watering safely with flow monitoring and environmental interlocks.
+
+**Steps:**
+- Go to **Irrigation → Zone 1**
+- Set **Valve relay = Relay 2**, **Flow DI = DI2**
+- Enable **Use flow supervision**
+- Configure:
+  - **Min rate = 0.2 L/min**
+  - **Grace = 8 s**
+  - **Timeout = 1200 s**
+  - **Target liters = 50**
+- Add interlocks:
+  - **DI_moist = DI3** (dry = run)
+  - **DI_rain = DI4** (rain = block)
+  - **R_pump = Relay 1** (pump ON when watering)
+- Enable **Window: 06:00–08:00** with **Auto-start**
+
+---
+
+### 📈 3) Water Consumption Metering (Billing)
+
+**Goal:** Track water usage in liters using pulse flow meters.
+
+**Steps:**
+- Set **DI2** to **Water counter**
+- Enter **Pulses per liter = 450** (typical)
+- Adjust **Rate × / Total ×** as needed for calibration
+- Use **Reset total** to baseline reading
+- Use **Calc from external** after external validation
+- View **Live rate (L/min)** and **Total (L)** in WebConfig
+
+---
+
+### 🔥 4) Heat Energy Monitoring (Hydronic ΔT Loops)
+
+**Goal:** Measure heat power and energy from flow and temperature sensors.
+
+**Steps:**
+- Set **DI3 = Water counter**
+- Enable **Heat** on DI3
+- Assign **Sensor A = #1 (supply)**, **Sensor B = #2 (return)**
+- Set thermal constants:
+  - **cp = 4186 J/kg·°C**
+  - **ρ = 1.0 kg/L**
+- Adjust **Calibration ×** if needed
+- View **TA**, **TB**, **ΔT**, **Power (W)**, **Energy (J/kWh)**
+- Use **Reset energy** to zero counters
+
+---
+
 
 <a id="3-safety-information"></a>
 
