@@ -23,6 +23,7 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
 > **Local resilience:** Modules include onboard logic and continue functioning even if the controller or network is offline.
 
 ### System Architecture
+```mermaid
 flowchart TD
   HA[Home Assistant] --> PLC[MiniPLC / MicroPLC]
   PLC --> RS485[RS-485 Bus]
@@ -47,7 +48,7 @@ flowchart TD
   RS485 --> STR
   RS485 --> WLD
 
-  %% Optional: clickable nodes to folders (works on GitHub Mermaid)
+  %% Clickable nodes to folders (works on GitHub)
   click ENM href "./ENM-223-R1/"
   click ALM href "./ALM-173-R1/"
   click DIM href "./DIM-420-R1/"
@@ -56,7 +57,7 @@ flowchart TD
   click DIO href "./DIO-430-R1/"
   click STR href "./STR-3221-R1/"
   click WLD href "./WLD-521-R1/"
-
+```
 
 #### 🎯 Quick Module Selector
 - 💡 **Lighting Control** → DIM‑420‑R1, RGB‑621‑R1, STR‑3221‑R1  
