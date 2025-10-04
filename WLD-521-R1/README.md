@@ -938,25 +938,7 @@ packages:
 
 ---
 
-## 7.3 Modbus Command Coils
-
-These coils are automatically exposed as **internal switch helpers** in ESPHome (momentary toggles):
-
-| Coil Address | Action |
-|--------------|--------|
-| 200 / 201 | Relay ON (R1/R2) |
-| 210 / 211 | Relay OFF (R1/R2) |
-| 300–304   | Enable DI1–5 |
-| 320–324   | Disable DI1–5 |
-| 340–344   | Reset DI counter |
-| **360**   | Midnight pulse (resets daily logic) |
-| 370–371   | Irrigation start (Z1/Z2) |
-| 380–381   | Irrigation stop |
-| 390–391   | Irrigation reset |
-
----
-
-## 7.4 Home Assistant Tips
+## 7.3 Home Assistant Tips
 
 - Use **ESPHome + Home Assistant integration** to auto-discover the controller and all WLD entities.
 - In **ESPHome > Services**, call `esphome.device_name_switch.turn_on` for internal switches (like `Midnight pulse`).
@@ -973,7 +955,7 @@ These coils are automatically exposed as **internal switch helpers** in ESPHome 
 
 ---
 
-## 7.5 Troubleshooting
+## 7.4 Troubleshooting
 
 | Problem | Fix |
 |--------|-----|
@@ -985,7 +967,7 @@ These coils are automatically exposed as **internal switch helpers** in ESPHome 
 
 ---
 
-## 7.6 Compatibility
+## 7.5 Compatibility
 
 | Platform | Status |
 |----------|--------|
