@@ -28,9 +28,9 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
 %%{init: {"flowchart":{"htmlLabels":true,"nodeSpacing":50,"rankSpacing":60}}}%%
 flowchart TD
   %% Classes
-  classDef hub fill:#FFFFFF,stroke:#6B72FF,stroke-width:1.2px,color:#111,font-weight:bold;
+  classDef hub fill:#EDEFFB,stroke:#6B72FF,stroke-width:1.2px,color:#111,font-weight:bold;
   classDef big fill:#EDEFFB,stroke:#1F35FF,stroke-width:3px,color:#111,font-weight:bold,font-size:28px;
-  classDef mod fill:#ffffff,stroke:#E0B100,stroke-width:1.2px,color:#1111;
+  classDef mod fill:#FFF7CC,stroke:#E0B100,stroke-width:1.2px,color:#1111;
   classDef ghost fill:transparent,stroke:transparent,color:transparent;
 
   %% Double-sized HA and PLC (bigger font + extra line breaks)
@@ -39,17 +39,17 @@ flowchart TD
 
   %% Subgraph with taller nodes; extra <br/> increases node height
   subgraph Mods["Extension Modules"]
-    ENM["ENM-223-R1<br/>Energy Meter<br/><br/>"]:::mod
-    ALM["ALM-173-R1<br/>Alarm I/O<br/><br/>"]:::mod
-    DIM["DIM-420-R1<br/>AC Dimmer<br/><br/>"]:::mod
-    AIO["AIO-422-R1<br/>Analog I/O<br/><br/>"]:::mod
-    RGB["RGB-621-R1<br/>LED Controller<br/><br/>"]:::mod
-    DIO["DIO-430-R1<br/>Digital I/O<br/><br/>"]:::mod
-    STR["STR-3221-R1<br/>Staircase LED<br/><br/>"]:::mod
-    WLD["WLD-521-R1<br/>Leak Detection<br/><br/>"]:::mod
+    ENM[ENM‑223‑R1<br>⚡ Energy Meter]:::mod
+    ALM[ALM‑173‑R1<br>🚨 Alarm I/O]:::mod
+    DIM[DIM‑420‑R1<br>💡 AC Dimmer]:::mod
+    AIO[AIO‑422‑R1<br>🌡️ Analog I/O]:::mod
+    RGB[RGB‑621‑R1<br>🎨 LED Controller]:::mod
+    DIO[DIO‑430‑R1<br>🔌 Digital I/O]:::mod
+    STR[STR‑3221‑R1<br>💫 Staircase LED]:::mod
+    WLD[WLD‑521‑R1<br>💧 Leak Detection]:::mod
     SP1["<br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/>"]:::ghost
   end
-  style Mods fill:#FFF7CC,stroke:#E0B100,stroke-width:1.5px
+  style Mods fill:#FFFFF,stroke:#E0B100,stroke-width:1.5px
 
   %% Edges
   RS485 --> ENM
