@@ -165,33 +165,85 @@ The **WLD-521-R1** supports a range of real-world applications in leak detection
 
 # 3. Safety Information
 
+These safety instructions apply to the **WLD‑521‑R1** module. Improper handling or wiring can cause **equipment damage**, **system failure**, or **personal injury**.
+
+⚠️ **SELV only** — This device operates on **Safety Extra Low Voltage (24 VDC only)**. Never apply AC mains or high-voltage sources.
+
+---
+
 ## 3.1 General Requirements
 
-| Requirement            | Detail |
-|------------------------|--------|
-| Qualified Personnel     | Required for all installation tasks |
-| Power Isolation         | Disconnect before working on terminals |
-| Rated Voltages Only     | SELV only; no mains |
-| Grounding               | Proper panel grounding |
-| Enclosure               | Use clean/dry cabinet; avoid dust/moisture |
+| Requirement         | Detail |
+|---------------------|--------|
+| **Qualified Personnel** | Only trained installers or technicians may handle wiring and system integration. |
+| **Power Isolation**     | Disconnect **24 VDC** power before modifying terminals or servicing the device. |
+| **Environmental Limits**| Install inside a **dry, clean DIN enclosure**. Avoid condensation, dust, or vibration. |
+| **Grounding**           | Connect **0 V**, **RS-485 COM**, and **GND_ISO** appropriately. Maintain logic and sensor isolation. |
+| **Voltage Compliance**  | Observe electrical ratings: **24 VDC supply**, **5/12 V sensor outputs**, **max 3 A relay load**. |
+
+---
 
 ## 3.2 Installation Practices
 
-Give best practices for:
-- DIN mounting
-- Isolation domain respect (e.g., GND vs GND_ISO)
-- Relay wiring
-- Sensor power connection
+| Task                | Guidance |
+|---------------------|----------|
+| **DIN Mounting**     | Secure module on **35 mm DIN rail**. Apply strain relief to all wiring. |
+| **ESD Precaution**   | Use anti-static strap and handle boards by casing only. |
+| **Power Wiring**     | Connect regulated **24 VDC** to `V+ / 0V` terminals. Fuse upstream. |
+| **Relay Wiring**     | Use `NO / COM / NC` terminals for each relay. Relays are **dry contact SPDT** only. External loads must have their own power. |
+| **Digital Inputs**   | Connect dry-contact sensors or open-collector devices to `I1–I5`, with return to **GND_ISO** (not 0V). |
+| **Sensor Power**     | Use **+5 V** or **+12 V** outputs (right-side terminals) for low-power field sensors only. |
+| **GND Domains**      | Keep **GND_ISO** (inputs) and **0 V / GND (logic)** isolated unless explicitly bridged. |
+| **RS-485 Wiring**    | Wire `A/B/COM` to RS‑485 master. Maintain A↔A, B↔B polarity. COM = signal reference. Terminate both ends with ~120 Ω. |
+| **Commissioning**    | Before applying power: verify polarity, relay contact wiring, RS‑485 line, and ensure sensor loads are within spec. |
 
-## 3.3 Interface Warnings
+---
 
-Create tables for:
+## 3.3 I/O & Interface Warnings
 
-- Power (24 VDC, 12 V sensor rail)
-- Inputs (dry contact only, debounce notes)
-- Relays (max current/voltage, snubber required)
-- RS-485 (termination, A/B polarity)
-- USB-C (setup only, not for field devices)
+### 🔌 Power
+
+| Interface             | Warning |
+|-----------------------|---------|
+| **V+ / 0V (Top-left)** | Connect only regulated **24 VDC**. Reverse protected. Never exceed 30 V. |
+| **+5 V / +12 V (Bottom-right)** | Isolated sensor supply. Use for dry-contact sensors only. Protected by DC-DC and fuses. Not for powering relays or actuators. |
+
+---
+
+### ⏸ Inputs & Relays
+
+| Interface              | Warning |
+|------------------------|---------|
+| **Inputs I1–I5 (Top row)** | Opto-isolated channels. Connect only dry-contact or open-collector sources. Return via **GND (top right)** (this is **GND_ISO**, not logic ground). |
+| **Relays (Bottom row)**   | `NC / COM / NO` per relay. Dry contact only. Max: **3 A @ 250 VAC / 30 VDC**. Use snubbers for inductive loads (e.g. pumps, valves). |
+| **Relay Power**           | Relay contacts are **not powered**. External load must have its own power source. |
+
+---
+
+### 🔗 Communication & USB
+
+| Interface           | Warning |
+|---------------------|---------|
+| **RS‑485 A/B/COM (Bottom left)** | Use twisted pair for A/B. COM is signal ground. Protect against surges. Not suitable for long unshielded runs or outdoor wiring. |
+| **USB‑C (Front panel)**   | For **setup only** using Web Serial in Chrome/Edge. ESD protected. Not for field use or runtime connection. Disconnect after configuration. |
+
+---
+
+### 🔘 User Interface
+
+| Element           | Notes |
+|-------------------|-------|
+| **Buttons (U1–U4)** | Configurable: relay override, irrigation start/stop. Button press may override Modbus or automation logic. |
+| **LEDs (U1–U4)**    | Configurable for DI, Relay, or Irrigation indication. Driven from MCU via transistors. |
+
+---
+
+### 🛡 Shielding & EMC
+
+| Area              | Recommendation |
+|-------------------|----------------|
+| **Cable Shielding**| Use shielded cable for RS‑485 and sensor lines. Terminate shield at controller end only. Avoid routing near motors/VFDs. |
+| **Inductive Loads**| Use RC snubbers or TVS across relay contacts for solenoids, pumps, or coils. |
 
 ---
 
