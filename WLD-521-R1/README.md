@@ -347,107 +347,158 @@ Use diagrams and explain:
 
 ## 4.5 Software & UI Configuration
 
-The **WLD-521-R1** is configured entirely via **WebConfig** — a USB-C based browser interface that runs in **Chrome or Edge** using **Web Serial API**. No drivers or software installs are required.
+The WLD‑521‑R1 is configured using **WebConfig** — a driverless USB‑C interface that runs in Chrome/Edge via Web Serial. All settings apply immediately and are saved to the module's flash.
 
 ---
 
-### 🔧 WebConfig Setup
+### 🔌 WebConfig Setup
 
-1. Plug a **USB-C cable** from your PC into the module.
-2. Open **WebConfig** in Chrome/Edge:
-   [`https://www.home-master.eu/configtool-wld-521-r1`](https://www.home-master.eu/configtool-wld-521-r1)
-3. Click **Connect** and select the serial port.
-4. Configure:
-   - **Modbus Address** (1–255)
-   - **Baud Rate** (9600–115200, default: 19200)
-5. View confirmation in the header:  
-   _Active Modbus Configuration: Address `X`, Baud `Y`_
+1. Connect the module to your PC using a **USB-C** cable.
+2. Open **https://www.home-master.eu/configtool-wld-521-r1** in Chrome or Edge.
+3. Click **“Connect”** and select the serial device.
+4. The header will show the **Active Modbus Configuration** (Address, Baudrate).
 
-📸  
-![Modbus Address and Baud Configuration](Images/webconfig1.png)
+> You can safely reset or update Modbus settings at any time.
 
 ---
 
-### 🎛 Input Configuration
+### 🧩 Modbus Address & Baudrate
 
-Each of the **5 digital inputs (DI1–DI5)** can be configured individually.
+In the **Modbus** panel:
 
-- **Enable / Invert** input
+- **Set Address (1–255)**: each module must have a unique address.
+- **Set Baudrate**: choose between **9600–115200** (default: 19200).
+- Confirm the updated settings in the banner and **Serial Log**.
+
+📸 ![WebConfig – Modbus](Images/webconfig1.png)
+
+---
+
+### 🔁 Input Configuration (DI1–DI5)
+
+Each DI has:
+
+- **Enable / Invert**
 - **Type**:
-  - Water sensor (leak probe)
-  - Soil moisture
-  - Water counter (pulse input for flow meter)
-- **Action (non-counter types)**:
-  - Toggle / Pulse
-  - Relay Target: R1, R2, All, None
+  - `Water sensor`
+  - `Soil moisture`
+  - `Water counter` (flow meter input)
 
-📸  
-![DI Configuration](Images/webconfig3.png)
+#### For `Water sensor` / `Soil moisture`:
 
-Counter inputs support:
+- **Action**:
+  - `None`, `Toggle`, or `Pulse`
+- **Control Target**:
+  - `All`, `Relay 1`, `Relay 2`, `None`
 
-- **Pulses per Liter**
-- **Rate × / Total × calibration**
-- **Live Rate / Total**
-- **Reset / External sync**
-- (Optional) **Heat Energy** with 1-Wire sensors:
-  - Configure cp, ρ, Sensor A/B
+#### For `Water counter`:
 
-📸  
-![Heat Energy Panel](Images/webconfig4.png)
+- **Pulses per Liter (PPL)**: e.g., 450
+- **Rate × / Total ×**: calibration scalars
+- **Live Flow**:
+  - **Rate (L/min)**
+  - **Total (L)**
+- **Reset Total / Reset Pulses**
+- **Calc from External**: align module total with external meter
 
----
-
-### ⚙️ Relay Logic Modes
-
-Each relay (R1, R2) can be:
-
-- **Enabled / Inverted**
-- **Owned by**:
-  - Modbus (default)
-  - Local logic (e.g., irrigation)
-  - None (for manual override only)
-
-You can also:
-
-- **Set override ON/OFF**
-- **Latch override**
-- **View live state**
-
-📸  
-![Relay Configuration](Images/webconfig5.png)
+📸 ![WebConfig – Inputs](Images/webconfig3.png)
 
 ---
 
-### 🔵 LED Mapping
+### 🔥 Heat Energy Calculation (Optional on Counter DIs)
 
-Each of the **4 user LEDs** can:
+Enable **Heat** on a DI to calculate:
 
-- Blink or stay solid
-- Reflect a live source:
-  - Relay state, Input state, Irrigation zone, or Override
+- **ΔT** from 1-Wire `Sensor A` – `Sensor B`
+- **Power (W)** and **Energy (J / kWh)** using:
+  - **cp** (J/kg·°C), **ρ** (kg/L), **Calibration ×**
 
-📸  
-![LED Mapping](Images/webconfig6.png)
+→ Formula:  
+`Power = cp × ρ × ΔT × FlowRate`  
+`Energy = ∑ Power × Δt`
 
----
+You can:
+- View **TA**, **TB**, **ΔT**
+- Reset energy counters
 
-### 🔘 Button Mapping
-
-Each of the **4 front buttons** can be assigned to:
-
-- Relay control (Toggle/Pulse)
-- Manual override
-- Start/Stop irrigation zones
-
-Press/hold behaviors are supported for entering and exiting override mode.
-
-📸  
-![Button Mapping](Images/webconfig6.png)
+📸 ![WebConfig – Heat Panel](Images/webconfig4.png)
 
 ---
 
-> All changes are applied live and persist in module memory.
+### ⚙️ Relay Logic Configuration (Relay 1 & 2)
+
+- **Enable / Invert**
+- **Control Source**:
+  - `Modbus`, `Local Logic`, or `None`
+- **Manual Override**
+  - ON/OFF switch
+  - **Latch** override to persist across Modbus commands
+
+> Relays are dry contact. Wire loads to `NO / NC / COM`.
+
+📸 ![WebConfig – Relays](Images/webconfig5.png)
+
+---
+
+### 🔵 LED Mapping (LED1–LED4)
+
+Each LED can be:
+
+- **Mode**: `Solid` or `Blink`
+- **Source**:
+  - `DI1–DI5`, `Relay 1/2`, `Irrig 1/2`, `Override R1/R2`
+
+> The **State Dot** shows live ON/OFF.
+
+📸 ![WebConfig – LEDs](Images/webconfig6.png)
+
+---
+
+### 🔘 Button Configuration (BTN1–BTN4)
+
+Each button triggers an **Action**:
+
+- **Relays**:
+  - `Toggle R1/R2`, `Pulse R1/R2`
+- **Irrigation**:
+  - `Start/Stop Zone 1/2`
+- **Manual Override**:
+  - `R1/R2 Override Toggle`
+
+#### Button Press Behavior
+
+- **Short press** = toggle state  
+- **Long press (3s)** = enter/exit override mode  
+- **In override**, relay ignores Modbus/logic control
+
+📸 ![WebConfig – Buttons](Images/webconfig6.png)
+
+---
+
+### 🧪 Testing & Diagnostics
+
+Use:
+
+- **Serial Log** to watch changes live
+- **Status pills** on every component card to view DI/relay/button states
+- **Reset Device** to safely reboot the module
+
+---
+
+### ⏰ Clock & Home Assistant Sync
+
+If using **irrigation windows** or **daily counters**:
+
+- Use **coil 360** = `CMD_TIME_MIDNIGHT` to sync at 00:00
+- Optionally set:
+  - **Minute of day** (`HREG 1100`)
+  - **Day index** (`HREG 1101`)
+
+> This ensures irrigation windows behave predictably and counters roll over cleanly.
+
+---
+
+✅ WebConfig saves all changes immediately to flash. You can disconnect USB-C after setup — the device runs autonomously and responds to Modbus polling.
 
 
 <a id="4-6-getting-started"></a>
