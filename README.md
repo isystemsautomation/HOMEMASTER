@@ -30,6 +30,15 @@
 ---
 
 ## 🛠️ Hardware Guide
+HomeMaster is an **industrial‑grade, modular automation system** for smart homes, labs, and professional installations. It features:
+
+- ESP32‑based PLC controllers (**MiniPLC & MicroPLC**) — same platform & memory class
+- A family of smart I/O modules (energy monitoring, lighting, alarms, analog I/O, etc.)
+- **RS‑485 Modbus RTU** communication
+- **ESPHome** compatibility for **Home Assistant**
+- **USB‑C** & **WebConfig** UI for driverless configuration
+
+> **Local resilience:** Modules include onboard logic and continue functioning even if the controller or network is offline.
 
 ### System Architecture
 ```mermaid
