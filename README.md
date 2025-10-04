@@ -38,8 +38,9 @@ graph TB
   PLC --> RS485[RS-485 Bus]
   RS485 --> ENM[ENM‑223‑R1 Energy Meter]
   RS485 --> ALM[ALM‑173‑R1 Alarm I/O]
-  RS485 --> DIM[.. etc.]
-
+  RS485 --> DIM[DIM‑420‑R1 AC Dimmer]
+  RS485 --> AIO[AIO‑422‑R1 Analog I/O]
+  RS485 --> RGB[etc.]
 ```
 
 #### 🎯 Quick Module Selector
