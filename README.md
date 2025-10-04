@@ -60,7 +60,7 @@ graph TD
   RS485 --> DIO
   RS485 --> STR
   RS485 --> WLD
-
+```
 
 #### 🎯 Quick Module Selector
 - 💡 **Lighting Control** → DIM‑420‑R1, RGB‑621‑R1, STR‑3221‑R1  
