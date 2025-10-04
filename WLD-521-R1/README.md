@@ -50,20 +50,19 @@ It integrates with a **MiniPLC/MicroPLC** (or other PLC/SCADA/HA controllers) vi
 
 ## 1.2 Features & Architecture
 
-| Subsystem       | Qty      | Description |
-|-----------------|----------|-------------|
-| **Digital Inputs** | 5        | Opto‑isolated dry‑contact / pulse (flow meters); debounced, noise‑protected |
-| **Analog Outputs** | 0        | — |
-| **Relays**         | 2        | **SPDT** dry contacts, ~3 A @ 250 VAC (valves/pumps/siren) |
-| **LEDs**           | 4 + status | Solid/Blink modes, sources: DI, Relays, Irrigation, Overrides |
-| **Buttons**        | 4        | Acknowledge/override/user actions (toggle/pulse, start/stop zones) |
-| **Modbus RTU**     | Yes      | RS‑485, slave device; typical **19200 8N1** |
-| **USB‑C**          | Yes      | WebConfig over **Web Serial** (driverless in Chrome/Edge) |
-| **Power**          | 24 VDC   | Fused & reverse‑protected; isolated **+5 V / +12 V** sensor rails |
-| **MCU**            | RP2350A  | Dual‑core MCU with external QSPI flash |
-| **Protection**     | TVS, PTC | ESD/surge on RS‑485 & USB; opto‑isolated inputs; snubbed relays |
-
-> Optional: **1‑Wire bus** for DS18B20 sensors (ΔT calorimetry support).
+| Subsystem         | Qty        | Description |
+|-------------------|------------|-------------|
+| **Digital Inputs** | 5          | **Opto‑isolated** inputs (SFH6156‑3) with MOSFET front‑ends, debouncing and isolated return (**GND_ISO**); suited for dry contacts or pulse flowmeters. :contentReference[oaicite:0]{index=0} |
+| **Analog Outputs** | 0          | — |
+| **Relays**         | 2          | **SPDT** dry contacts (**HF115F/005‑1ZS3**), opto‑driven with transistor stages and RC/snubber network for EMI suppression; terminals **NO/COM/NC** exposed. :contentReference[oaicite:1]{index=1} |
+| **1‑Wire Bus**     | 1          | Protected by **DS9503** with **BSS138** level shifting; 3‑pin header **(+5 V / DATA / GND)** for DS18B20 sensors (ΔT calorimetry support). :contentReference[oaicite:2]{index=2} |
+| **LEDs**           | 4 user + status | **4 user LEDs** driven via S8050 transistors; additional **status LEDs** for power and RS‑485 TX/RX activity on the MCU board. :contentReference[oaicite:3]{index=3} |
+| **Buttons**        | 4          | Front‑panel pushbuttons (**TS‑1095** series) wired to MCU GPIO for local override/control. :contentReference[oaicite:4]{index=4} |
+| **Modbus RTU**     | Yes        | **RS‑485** interface built on **MAX485** with level shifting, biasing, TVS surge diodes and polyfuse protection; DE/RE controlled by MCU. Typical **19200 8N1**. :contentReference[oaicite:5]{index=5} |
+| **USB‑C**          | Yes        | **Type‑C** port for WebConfig over **Web Serial**; ESD protected (**PRTR5V0U2X**), Schottky‑diode power path and series data resistors. :contentReference[oaicite:6]{index=6} |
+| **Power**          | 24 VDC     | Input protected (fuse, surge clamp); buck **AP64501** → **+5 V**, then **AMS1117‑3.3** → **+3.3 V**. Isolated sensor rails: **B2405S‑2WR3 (+5 V_ISO)** and **B2412S‑2WR3 (+12 V_ISO)**, both fuse/LC‑filtered.  |
+| **MCU**            | RP2350A    | Dual‑core MCU with external **W25Q32** QSPI flash and 12 MHz crystal; SWD header for debug. :contentReference[oaicite:8]{index=8} |
+| **Protection**     | TVS, PTC, ESD | **SMAJ6.8** on RS‑485, **CG0603MLC** ESD on USB, polyfuses on bus lines, opto‑isolated inputs, and relay snubbers; isolated sensor rails for field wiring robustness. 
 
 ---
 
