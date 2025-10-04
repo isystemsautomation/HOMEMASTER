@@ -878,13 +878,122 @@ These registers expose flow, heat, irrigation state, 1‑Wire temperatures, and 
 
 # 7. ESPHome Integration Guide
 
-Only if supported. Cover:
-- YAML setup (`uart`, `modbus`, `package`)
-- Entity list (inputs, relays, buttons, LEDs)
-- Acknowledge, override controls
-- Home Assistant integration tips
+The WLD‑521‑R1 works seamlessly with **ESPHome** through the HomeMaster MiniPLC/MicroPLC, acting as a Modbus master. The module exposes all I/O and telemetry via **Modbus RTU**, which ESPHome maps into **entities** for Home Assistant.
 
 ---
+
+## 7.1 ESPHome YAML Setup
+
+Here is a typical ESPHome configuration that connects the controller to the WLD‑521‑R1 via RS‑485:
+
+```yaml
+uart:
+  id: uart_modbus
+  tx_pin: 17
+  rx_pin: 16
+  baud_rate: 19200
+  parity: NONE
+  stop_bits: 1
+
+modbus:
+  id: modbus_bus
+  uart_id: uart_modbus
+
+packages:
+  wld1:
+    url: https://github.com/isystemsautomation/HOMEMASTER
+    ref: main
+    files:
+      - path: WLD-521-R1/Firmware/default_wld_521_r1_plc/default_wld_521_r1_plc.yaml
+        vars:
+          wld_prefix: "WLD#1"
+          wld_id: wld_1
+          wld_address: 4     # Match this with WebConfig address
+    refresh: 1d
+```
+
+> Replace `wld_address` with your module's actual Modbus ID (default is `3`).  
+> You can add more modules by duplicating the package block with unique `wld_id`, `wld_address`, and `wld_prefix`.
+
+---
+
+## 7.2 Exposed Entities (via ESPHome)
+
+### 🔧 Binary Sensors
+- `DI1` to `DI5` — leak detection, float switch, or pulse edges
+- Relay mirror (read-only)
+- Buttons (`BTN1`–`BTN4`) — short press detection
+- Irrigation: Zone state, sensor OK flags, window status
+
+### 📊 Sensors
+- Flow rate (L/min) and total (liters) per DI
+- 1-Wire temperature probes (°C)
+- ΔT, Power (W), Energy (Wh/kWh) for heat metering
+- Irrigation: elapsed time, total liters, real-time flow
+
+### 🔀 Switches
+- Relay 1 and Relay 2
+- Optional: expose override toggles as separate switches
+- Irrigation zone start/stop (via internal helpers or scripts)
+
+---
+
+## 7.3 Modbus Command Coils
+
+These coils are automatically exposed as **internal switch helpers** in ESPHome (momentary toggles):
+
+| Coil Address | Action |
+|--------------|--------|
+| 200 / 201 | Relay ON (R1/R2) |
+| 210 / 211 | Relay OFF (R1/R2) |
+| 300–304   | Enable DI1–5 |
+| 320–324   | Disable DI1–5 |
+| 340–344   | Reset DI counter |
+| **360**   | Midnight pulse (resets daily logic) |
+| 370–371   | Irrigation start (Z1/Z2) |
+| 380–381   | Irrigation stop |
+| 390–391   | Irrigation reset |
+
+---
+
+## 7.4 Home Assistant Tips
+
+- Use **ESPHome + Home Assistant integration** to auto-discover the controller and all WLD entities.
+- In **ESPHome > Services**, call `esphome.device_name_switch.turn_on` for internal switches (like `Midnight pulse`).
+- Create **automations**:
+  - At `00:00`, pulse **coil 360** to reset daily irrigation state.
+  - On leak detection (`DI1`=ON), turn on relay/siren and notify.
+  - If `FlowX Rate` drops to 0 during irrigation, stop zone and alert.
+
+### Suggested Cards
+- **Entities card**: DI inputs, relays, override status
+- **Gauge/Stat card**: Flow totals, ΔT, or Energy
+- **History graph**: Flow rate, Irrigation status
+- **Button card**: Zone Start/Stop via internal switch helpers
+
+---
+
+## 7.5 Troubleshooting
+
+| Problem | Fix |
+|--------|-----|
+| No entities show | Check RS‑485 wiring, A/B polarity, and COM ground |
+| Coil writes fail | Make sure relay isn’t in override or owned by irrigation logic |
+| Midnight reset missing | Add automation to pulse coil `360` nightly |
+| Wrong DI naming | Use `wld_prefix` in `packages:` to namespace entities uniquely |
+| Flow stuck at 0 | Confirm flow DI is in `Water counter` mode and receiving pulses |
+
+---
+
+## 7.6 Compatibility
+
+| Platform | Status |
+|----------|--------|
+| **ESPHome 2025.8+** | ✅ Supported |
+| **Home Assistant** | ✅ via ESPHome integration |
+| **Multiple WLDs** | ✅ supported via multiple `packages:` |
+
+> Always ensure the controller’s YAML uses the correct `uart`, `modbus`, and `wld_address`. One misalignment can break polling.
 
 <a id="8-programming--customization"></a>
 
