@@ -28,7 +28,7 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
 %%{init: {"flowchart":{"htmlLabels":true,"nodeSpacing":50,"rankSpacing":60}}}%%
 flowchart TD
   %% Classes
-  classDef hub fill:#EDEFFB,stroke:#6B72FF,stroke-width:1.2px,color:#111,font-weight:bold;
+  classDef hub fill:#FFFFFF,stroke:#6B72FF,stroke-width:1.2px,color:#111,font-weight:bold;
   classDef big fill:#EDEFFB,stroke:#1F35FF,stroke-width:3px,color:#111,font-weight:bold,font-size:28px;
   classDef mod fill:#ffffff,stroke:#E0B100,stroke-width:1.2px,color:#1111;
   classDef ghost fill:transparent,stroke:transparent,color:transparent;
