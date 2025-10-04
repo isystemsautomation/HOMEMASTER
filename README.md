@@ -30,7 +30,7 @@ flowchart TD
   %% Classes
   classDef hub fill:#EDEFFB,stroke:#6B72FF,stroke-width:1.2px,color:#111,font-weight:bold;
   classDef big fill:#EDEFFB,stroke:#1F35FF,stroke-width:3px,color:#111,font-weight:bold,font-size:28px;
-  classDef mod fill:#FFFffC,stroke:#E0B100,stroke-width:1.2px,color:#111,font-weight:bold,font-size:28px;
+  classDef mod fill:#FFFffC,stroke:#E0B100,stroke-width:1.2px,color:#111,font-weight:bold,font-size:22px;
   classDef ghost fill:transparent,stroke:transparent,color:transparent;
 
   %% Double-sized HA and PLC (bigger font + extra line breaks)
@@ -49,7 +49,7 @@ flowchart TD
     WLD[WLD‑521‑R1<br>💧 Leak Detection]:::mod
     SP1["<br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/>"]:::ghost
   end
-  style Mods fill:#FFFFFF,stroke:#E0B100,stroke-width:1.5px, font-weight:bold,font-size:28px
+  style Mods fill:#FFFFFF,stroke:#E0B100,stroke-width:1.5px, font-weight:bold,font-size:22px
 
   %% Edges
   RS485 --> ENM
