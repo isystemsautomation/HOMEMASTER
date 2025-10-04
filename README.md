@@ -12,31 +12,6 @@
 
 ---
 
-## 📑 Table of Contents
-- [🚀 Quick Start](#-quick-start)
-- [🛠️ Hardware Guide](#️-hardware-guide)
-  - [System Architecture](#system-architecture)
-  - [Controller Comparison](#controller-comparison)
-  - [Module Overview](#module-overview)
-  - [Recommended Setups](#recommended-setups)
-- [⚙️ Configuration](#️-configuration)
-  - [Compatibility](#compatibility)
-  - [Controller Setup](#controller-setup)
-  - [Module Configuration (WebConfig)](#module-configuration-webconfig)
-  - [Networking](#networking)
-- [🔧 Advanced](#-advanced)
-  - [Firmware Development](#firmware-development)
-  - [USB‑C Flashing](#usb-c-flashing)
-  - [Customization Example (ESPHome)](#customization-example-esphome)
-- [📚 Resources](#-resources)
-- [🤝 Contributing](#-contributing)
-- [❓ FAQ](#-frequently-asked-questions)
-- [⚠️ Safety Information](#️-safety-information)
-- [📄 Licensing](#-licensing)
-- [🔄 Version Info](#-version-info)
-
----
-
 ## 🚀 Quick Start
 
 ### 5‑Minute Setup
@@ -63,12 +38,8 @@ graph TB
   PLC --> RS485[RS-485 Bus]
   RS485 --> ENM[ENM‑223‑R1 Energy Meter]
   RS485 --> ALM[ALM‑173‑R1 Alarm I/O]
-  RS485 --> DIM[DIM‑420‑R1 AC Dimmer]
-  RS485 --> AIO[AIO‑422‑R1 Analog I/O]
-  RS485 --> RGB[RGB‑621‑R1 LED Control]
-  RS485 --> DIO[DIO‑430‑R1 Digital I/O]
-  RS485 --> STR[STR‑3221‑R1 Stair LED]
-  RS485 --> WLD[WLD‑521‑R1 Leak Detection]
+  RS485 --> DIM[.. etc.]
+
 ```
 
 #### 🎯 Quick Module Selector
