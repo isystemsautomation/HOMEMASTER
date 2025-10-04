@@ -1067,13 +1067,14 @@ Use these combinations during firmware flashing or to restart the device manuall
 
 ## 8.4 Firmware Updates
 
-- Use the **WebConfig Uploader** (browser) or **PlatformIO/Arduino** to flash new builds.
-- **Config persistence:** device configuration is stored in flash and **survives updates**.
-- **Recovery:** if an update fails, hold **Buttons 1+2** (BOOT), re‑connect USB‑C, and re‑flash. Use **Buttons 3+4** for a hard reset.
-- **Factory default:** WebConfig can restore base defaults if settings are corrupted.
+To update the firmware, use the **Arduino IDE** or **PlatformIO** via **USB‑C**:
+
+1. Connect the **USB‑C** cable to the module.
+2. Press **Buttons 1 + 2** together to enter **BOOT mode**, re‑connect USB‑C, and re‑flash. Use **Buttons 3+4** for a hard reset.
+3. Upload the updated binary located in  
+   `Firmware/default_wld_521_r1/`.
 
 ---
-
 <a id="9-maintenance--troubleshooting"></a>
 
 # 9. Maintenance & Troubleshooting
