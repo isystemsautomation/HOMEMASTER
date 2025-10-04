@@ -3,8 +3,6 @@
 ![License: CERN-OHL-W v2 + GPLv3 + MIT](https://img.shields.io/badge/license-CERN--OHL--W_v2%20%7C%20GPLv3%20%7C%20MIT-informational)
 ![Status: Open Hardware](https://img.shields.io/badge/hardware-open--source-brightgreen)
 ![Works with: ESPHome & Home Assistant](https://img.shields.io/badge/works%20with-ESPHome%20%26%20Home%20Assistant-blue)
-![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
-![Documentation](https://img.shields.io/badge/docs-complete-green)
 ![Home Assistant](https://img.shields.io/badge/HA%20version-2024.12%2B-blue)
 
 > **Releases:** see the latest tagged build on GitHub Releases. Versioning uses **YYYY‑MM**.  
@@ -12,22 +10,6 @@
 
 ---
 
-## 🚀 Quick Start
-
-### 5‑Minute Setup
-1. **Power the controller** — **ESPHome is pre‑installed** on MiniPLC and MicroPLC.  
-2. **Join Wi‑Fi with Improv** — Use **Improv** (BLE **or** Serial) to set Wi‑Fi and adopt the device.  
-3. **Wire RS‑485** — A/B differential pair; **120 Ω termination** at both bus ends.  
-4. **Configure each module** — Connect via **USB‑C** and use **WebConfig** to set **Modbus address and module settings** (calibration, mapping, rules).  
-5. **Open Home Assistant** — Add the ESPHome controller; modules appear as entities via the controller config.
-
-### 🔗 Quick Links
-- 📥 **Latest Release:** https://github.com/isystemsautomation/HOMEMASTER/releases
-- 🛠️ **Config Tools:** `./tools/`
-- 📖 **Full Documentation:** `./Manuals/`
-- 🐛 **Report Issues:** https://github.com/isystemsautomation/HOMEMASTER/issues
-
----
 
 ## 🛠️ Hardware Guide
 HomeMaster is an **industrial‑grade, modular automation system** for smart homes, labs, and professional installations. It features:
@@ -54,10 +36,9 @@ graph TB
 
 #### 🎯 Quick Module Selector
 - 💡 **Lighting Control** → DIM‑420‑R1, RGB‑621‑R1, STR‑3221‑R1  
-- ⚡ **Energy Monitoring** → ENM‑223‑R1  
-- 🚨 **Security/Alarms** → ALM‑173‑R1, WLD‑521‑R1  
-- 🌡️ **Environmental** → AIO‑422‑R1  
-- 🔌 **General I/O** → DIO‑430‑R1  
+- ⚡ **Measurment & Protecion** → ENM‑223‑R1 , WLD‑521‑R1 
+- 🚨 **Security/Alarms** → ALM‑173‑R1
+- 🔌 **General I/O** → DIO‑430‑R1, AIO‑422‑R1   
 
 ### Controller Comparison
 | Feature / Use Case | 🟢 **MiniPLC** | 🔵 **MicroPLC** |
@@ -94,6 +75,14 @@ graph TB
   _Complete lighting control with scenes and animations_
 
 ---
+
+## 🚀 Quick Start
+### 5‑Minute Setup
+1. **Power the controller** — **ESPHome is pre‑installed** on MiniPLC and MicroPLC.  
+2. **Join Wi‑Fi with Improv** — Use **Improv** (BLE **or** Serial) to set Wi‑Fi and adopt the device.  
+3. **Wire RS‑485** — A/B differential pair; **120 Ω termination** at both bus ends.  
+4. **Configure each module** — Connect via **USB‑C** and use **WebConfig** to set **Modbus address and module settings** (calibration, mapping, rules).  
+5. **Open Home Assistant** — Add the ESPHome controller; modules appear as entities via the controller config.
 
 ## ⚙️ Configuration
 
