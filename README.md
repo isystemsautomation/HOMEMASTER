@@ -30,7 +30,7 @@ flowchart TD
   %% Classes
   classDef hub fill:#EDEFFB,stroke:#6B72FF,stroke-width:1.2px,color:#111,font-weight:bold;
   classDef big fill:#EDEFFB,stroke:#1F35FF,stroke-width:3px,color:#111,font-weight:bold,font-size:28px;
-  classDef mod fill:#FFF7CC,stroke:#E0B100,stroke-width:1.2px,color:#111;
+  classDef mod fill:#FFF7CC,stroke:#E0B100,stroke-width:1.2px,color:#red;
   classDef ghost fill:transparent,stroke:transparent,color:transparent;
 
   %% Double-sized HA and PLC (bigger font + extra line breaks)
