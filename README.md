@@ -24,19 +24,32 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
 
 ### System Architecture
 ```mermaid
-flowchart TD
-  HA[Home Assistant] --> PLC[MiniPLC / MicroPLC]
+graph TB
+  HA[Home Assistant] --> PLC[Mini/Micro PLC]
   PLC --> RS485[RS-485 Bus]
+  RS485 --> ENM[ENM‑223‑R1 Energy Meter]
+  RS485 --> ALM[ALM‑173‑R1 Alarm I/O]
+  RS485 --> DIM[DIM‑420‑R1 AC Dimmer]
+  RS485 --> AIO[AIO‑422‑R1 Analog I/O]
+  RS485 --> RGB[etc.]
+```
 
-  subgraph Mods[Extension Modules]
-    ENM[ENM-223-R1<br/>Energy Meter]
-    ALM[ALM-173-R1<br/>Alarm I/O]
-    DIM[DIM-420-R1<br/>AC Dimmer]
-    AIO[AIO-422-R1<br/>Analog I/O]
-    RGB[RGB-621-R1<br/>LED Controller]
-    DIO[DIO-430-R1<br/>Digital I/O]
-    STR[STR-3221-R1<br/>Staircase LED]
-    WLD[WLD-521-R1<br/>Leak Detection]
+### System Architecture
+
+```mermaid
+graph TD
+  HA[Home Assistant] --> PLC[MiniPLC / MicroPLC]
+  PLC --> RS485[RS‑485 Bus]
+
+  subgraph Extension Modules
+    ENM[ENM‑223‑R1<br>⚡ Energy Meter]
+    ALM[ALM‑173‑R1<br>🚨 Alarm I/O]
+    DIM[DIM‑420‑R1<br>💡 AC Dimmer]
+    AIO[AIO‑422‑R1<br>🌡️ Analog I/O]
+    RGB[RGB‑621‑R1<br>🎨 LED Controller]
+    DIO[DIO‑430‑R1<br>🔌 Digital I/O]
+    STR[STR‑3221‑R1<br>💫 Staircase LED]
+    WLD[WLD‑521‑R1<br>💧 Leak Detection]
   end
 
   RS485 --> ENM
@@ -47,16 +60,6 @@ flowchart TD
   RS485 --> DIO
   RS485 --> STR
   RS485 --> WLD
-
-  %% Clickable nodes to folders (works on GitHub)
-  click ENM href "./ENM-223-R1/"
-  click ALM href "./ALM-173-R1/"
-  click DIM href "./DIM-420-R1/"
-  click AIO href "./AIO-422-R1/"
-  click RGB href "./RGB-621-R1/"
-  click DIO href "./DIO-430-R1/"
-  click STR href "./STR-3221-R1/"
-  click WLD href "./WLD-521-R1/"
 ```
 
 #### 🎯 Quick Module Selector
