@@ -505,52 +505,273 @@ If using **irrigation windows** or **daily counters**:
 
 ## 4.6 Getting Started
 
-Summarize steps in 3 phases:
-1. Wiring
-2. Configuration
-3. Integration
+The WLD‑521‑R1 setup process can be broken into **3 clear phases**: wiring, configuration, and integration.
+
+---
+
+### 🧰 Phase 1: Wiring
+
+1. **Power**
+   - Connect regulated **24 VDC** to the **V+ / 0V** terminals on the top-left.
+   - Use a clean, fused, SELV supply.
+
+2. **RS‑485 Bus**
+   - Wire `A → A`, `B → B`, and `COM → COM` to your controller.
+   - Use shielded twisted pair cable and terminate both bus ends with ~**120 Ω** resistors.
+
+3. **Digital Inputs (DI1–DI5)**
+   - Connect leak probes, buttons, or flow sensors to DI1–DI5.
+   - Each input returns to **GND_ISO** (not logic GND).
+
+4. **Relays**
+   - Wire actuators (valves, pumps, sirens) to `R1/R2 COM / NO / NC` terminals.
+   - Relays are **dry contact SPDT** and do not supply power.
+
+5. **1‑Wire Bus (optional)**
+   - Connect DS18B20 temperature sensors to `+5V / DATA / GND`.
+   - This is **non-isolated** logic power (do not cross with DI sensor GND).
+
+6. **Sensor Power**
+   - Use the **+5 V ISO** or **+12 V ISO** outputs for powering external low-power sensors (e.g., flow meters).
+   - Never use these rails for actuators or high-current loads.
+
+---
+
+### 🧭 Phase 2: Configuration (WebConfig)
+
+1. **Connect via USB-C**
+   - Use Chrome or Edge to open  
+     **https://www.home-master.eu/configtool-wld-521-r1**
+
+2. **Modbus Setup**
+   - Set a unique **Modbus address (1–255)**
+   - Select baudrate (default: **19200**, supports 9600–115200)
+   - Verify connection status in the header
+
+3. **Configure Inputs**
+   - Enable/disable each DI, assign sensor type (`Water sensor`, `Water counter`, etc.)
+   - Calibrate flow meters using **Pulses per Liter**
+   - Set up optional **Heat Energy** logic (Sensor A/B, cp, ρ, etc.)
+
+4. **Relay Behavior**
+   - Set control source: `Modbus`, `Local Logic`, or `(none)`
+   - Assign manual override settings and test ON/OFF state
+
+5. **LEDs & Buttons**
+   - Map LEDs to DI/Relay/Irrigation states with `Blink` or `Solid`
+   - Assign button actions: Relay Toggle, Irrigation Start/Stop, or Override Toggle
+
+6. **Irrigation Zones**
+   - Map zone valves to relays, assign flow input
+   - Set thresholds: `Min rate`, `Timeout`, `Target Liters`, `Window`, interlocks
+   - (Optional) set `Auto-start` for scheduled watering
+
+---
+
+### 🌐 Phase 3: Integration (PLC / ESPHome / HA)
+
+1. **Connect to MiniPLC / MicroPLC**
+   - Ensure RS‑485 A/B/COM are correctly wired and terminated
+   - Confirm baudrate and Modbus ID match controller config
+
+2. **ESPHome Setup**
+   - Add WLD module to your controller YAML via `packages:` block
+   - Set `wld_address`, `wld_prefix`, `wld_id`
+   - Modbus controller will read sensors and relay states, and control outputs
+
+3. **Home Assistant Integration (optional)**
+   - ESPHome exposes sensors (flow, DI), switches (relays), and status to HA
+   - Use automations, dashboards, and schedules (e.g., daily reset via `coil 360`)
+
+4. **Validation**
+   - Use WebConfig serial log to view real-time I/O changes
+   - Confirm:
+     - DI → status changes
+     - Flow meter → counts / L/min
+     - Relays respond to HA/PLC control
+     - Irrigation logic follows thresholds
+
+---
+
+> ⏱ Tip: If using irrigation windows or daily counters, schedule a midnight **coil 360** sync in HA to keep local time aligned.
+
 
 ---
 
 <a id="5-module-code--technical-specification"></a>
 
-# 5. MODULE-CODE — Technical Specification
+# 5. WLD‑521‑R1 — Technical Specification
+
+> This section consolidates diagrams, I/O, electrical limits, firmware behavior, connector map, mechanics, and compliance for quick reference.
+
+---
 
 ## 5.1 Diagrams & Pinouts
 
-Add photos/diagrams:
-- System block diagram
-- Board layouts
-- Terminal maps
+### 📦 System Overview
+<img src="Images/WLD_Diagram.png" alt="WLD-521-R1 System Diagram" width="720" />
+
+### 📐 Terminal Map (Front Panel)
+<img src="Images/photo1.png" alt="WLD-521-R1 Terminals & Front Labels" width="720" />
+
+**Top row (left → right):** `V+`, `0V`, `I1`, `I2`, `I3`, `I4`, `I5`, `GND`(ISO), `+5V`, `D`, `GND` (1‑Wire)  
+**Bottom row (left → right):** `RS‑485: B, A, COM` • `RELAY1: NO, C, NC` • `RELAY2: NO, C, NC` • `PS: +5 V ISO, +12 V ISO`
+
+### 🧩 PCB Layouts
+<table>
+<tr>
+<td align="center"><img src="Images/FieldBoard_Diagram.png" width="360" alt="Field Board" /><br/><sub>Field Board: inputs, relays, iso. rails</sub></td>
+<td align="center"><img src="Images/MCUBoard_Diagram.png" width="360" alt="MCU Board" /><br/><sub>MCU Board: RP2350, RS‑485, USB‑C, 1‑Wire</sub></td>
+</tr>
+</table>
+
+---
 
 ## 5.2 I/O Summary
 
-Summarize in a table:
+| Interface            | Qty | Description |
+|---------------------|-----|-------------|
+| **Digital Inputs**  | 5   | Opto‑isolated DI (dry contact / open‑collector / pulse for flow meters); isolated return (GND_ISO). |
+| **Relay Outputs**   | 2   | SPDT dry contact (NO/C/NC); snubbered; local/Modbus/logic control. |
+| **User LEDs**       | 4   | Configurable (Solid/Blink) for DI/Relay/Irrigation/Override feedback. |
+| **User Buttons**    | 4   | Assignable actions (Relay toggle/pulse, Override, Irrigation start/stop). |
+| **RS‑485 (Modbus)** | 1   | Half‑duplex multi‑drop; A/B/COM terminals; fail‑safe & surge‑protected. |
+| **USB‑C**           | 1   | Service/setup via WebConfig (Web Serial). |
+| **1‑Wire Bus**      | 1   | +5 V / DATA / GND (logic domain) for DS18B20 sensors. |
+| **Sensor Power**    | 2   | Isolated +12 V / +5 V rails for **low‑power sensors only** (fused, filtered). |
 
-| Interface | Qty | Description |
-|-----------|-----|-------------|
-| Inputs |   | Opto-isolated |
-| Relays |   | SPST/SPDT |
-| LEDs |   | Status indication |
-| USB-C | 1 | Setup only |
+---
 
-## 5.3 Electrical Specs
+## 5.3 Electrical Specifications
 
-Cover:
-- Input voltage range
-- Current consumption
-- Sensor rail current
-- Relay contact ratings
-- Isolation details
+### Power & Rails
+| Parameter                    | Min | Typ | Max | Notes |
+|-----------------------------|-----|-----|-----|------|
+| **Supply voltage (V+)**     | 20 V | 24 V | 30 V | SELV; reverse/surge protected input. |
+| **Power consumption**       | —   | 1.85 W | 3.0 W | Module only (no external loads). |
+| **Logic rails**             | —   | 5 V / 3.3 V | — | Buck + LDO derived. |
+| **Isolated sensor rails**   | —   | +12 V ISO / +5 V ISO | — | Fused, LC‑filtered; for sensors only (≤ ~150 mA shared). |
+| **1‑Wire bus power**        | —   | +5 V (logic) | — | Non‑isolated, for 1‑Wire devices only. |
+
+### Digital Inputs (DI1…DI5)
+| Parameter            | Value / Behavior |
+|----------------------|------------------|
+| Type                 | Opto‑isolated; dry contact / open‑collector / pulse. |
+| Threshold            | Low‑voltage, sensor‑level (use GND_ISO return). |
+| Debounce             | Firmware‑controlled. |
+| Pulse rate (counter) | ~ up to 9–10 Hz practical for flow meters. |
+| Isolation            | Field domain to logic via opto barrier. |
+
+### Relay Outputs (R1, R2)
+| Parameter            | Value / Behavior |
+|----------------------|------------------|
+| Type                 | SPDT, dry contact (NO/C/NC). |
+| Ratings (contacts)   | **250 VAC 16 A** (cosφ=1), **250 VAC 9 A** (cosφ=0.4), **30 VDC 10 A**. |
+| Protection           | RC / varistor snubbers for inductive loads. |
+| Recommendation       | Use coupling relays for inductive or >5 A continuous loads. |
+
+### Communications
+| Interface | Details |
+|----------|---------|
+| **RS‑485** | Modbus RTU, half‑duplex; 9600–115200 bps (default **19200**, **8N1**); fail‑safe, short‑circuit limited, surge‑protected. |
+| **USB‑C** | USB 2.0 device for WebConfig (setup only); ESD‑protected; CP2102N bridge. |
+
+### Environment & Compliance
+| Parameter                  | Value |
+|----------------------------|-------|
+| Operating temperature      | 0…40 °C |
+| Humidity                   | ≤95 % RH, non‑condensing |
+| Ingress / Safety class     | IP20; Operation Type 1 |
+| Rated impulse (outputs)    | 2.5 kV |
+| Max altitude / pollution   | 2000 m / Degree 2 |
+
+---
 
 ## 5.4 Firmware Behavior
 
-Explain:
-- Alarm logic (latched/momentary)
-- Override priority
-- LED feedback modes
+### Input → Action & Alarm Logic
+- **DI Types:** *Water sensor*, *Soil moisture*, *Water counter* (flow).  
+- **Enable / Invert** per channel; debounce configurable.  
+- **Non‑counter actions:** `None`, `Toggle`, `Pulse` with **Control Target** (`Relay 1`, `Relay 2`, `All`, `None`).  
+- **Counter channels:** set **Pulses per Liter (PPL)**, **Rate× / Total×** calibration; expose **Rate (L/min)** & **Total (L)**.  
+- **Heat energy (optional):** enable on a counter; assign 1‑Wire **Sensor A/B**; set **cp** (J/kg·°C), **ρ** (kg/L), and **Calibration×**.  
+  - `Power (W) = cp × ρ × ΔT × FlowRate`  
+  - `Energy = ∑ Power × Δt`  
+  - Live values: **TA**, **TB**, **ΔT**, **Power**, **Energy**; **Reset** available.
+
+### Relay Ownership & Overrides
+- **Control Source** per relay: `Modbus` (default), `Local Logic` (e.g., irrigation), or `None`.  
+- **Override:** immediate ON/OFF with **Latch** option; **override state supersedes** Modbus and local logic until cleared.  
+- **Safety:** relays are dry contact; external loads must be powered from a separate supply.
+
+### LEDs & Buttons
+- **LEDs (4):** map to DI, Relays, Irrigation Zones, or Override; **Solid** or **Blink** modes.  
+- **Buttons (4):** assign `Toggle/Pulse R1/R2`, `Override Toggle R1/R2`, `Irrigation Zone 1/2 Start/Stop`.  
+  - **Short press:** action (toggle/pulse).  
+  - **Long press (~3 s):** enter/exit override mode for the mapped relay.
+
+### Modbus Defaults & Persistence
+- **Defaults:** Address `3`, Baud `19200`, **8N1**.  
+- **WebConfig:** all changes apply live and are **persisted to flash**.  
+- **Daily sync:** optional midnight sync (**coil 360**) for counters/windows when used with Home Assistant.
 
 ---
+
+## 5.5 Absolute Electrical Specifications
+
+| Parameter                     | Min | Typ | Max | Notes |
+|-------------------------------|-----|-----|-----|------|
+| **Supply voltage (V+)**       | 20 V | 24 V | 30 V | SELV; reverse/surge protected input. |
+| **Power consumption**         | —   | 1.85 W | 3.0 W | Module only (no external loads). |
+| **Logic rails**               | —   | 5 V / 3.3 V | — | Buck + LDO derived. |
+| **Isolated sensor rails**     | —   | +12 V ISO / +5 V ISO | — | Fused & LC‑filtered; specify budget per install. |
+| **Digital inputs**            | —   | —   | —   | Opto‑isolated; per‑channel surge protection. |
+| **Relay contacts (R1–R2)**    | —   | —   | 250 VAC 16 A / 30 VDC 10 A | Use external snubbers; derate for inductive loads. |
+| **RS‑485 interface**          | —   | 115200 bps | — | Half‑duplex; fail‑safe; short‑circuit limited; surge‑protected. |
+| **USB‑C**                     | 5 V | —   | — | USB 2.0 device; ESD‑protected; setup only. |
+| **Operating temperature**     | 0 °C | — | 40 °C | ≤95 % RH, non‑condensing. |
+
+> **Installer note:** Fuse the 24 VDC feed upstream and add **RC/TVS snubbers** for inductive loads (pumps, valves).
+
+---
+
+## 5.6 Connector / Terminal Map (Field Side)
+
+External terminals are 5.08 mm pitch pluggable blocks (300 V / 20 A, 26–12 AWG, torque 0.5–0.6 Nm).
+
+| Block / Label              | Pin(s) (left → right)             | Function / Signal                      | Limits / Notes |
+|---------------------------|------------------------------------|----------------------------------------|----------------|
+| **POWER**                 | `V+`, `0V`                         | 24 VDC SELV input                      | Reverse & surge protected; **fuse upstream**. |
+| **DIGITAL INPUTS – TOP**  | `I1…I5`, `GND` (ISO)               | DI1…DI5 with isolated return           | Keep returns on GND_ISO; dry‑contact/open‑collector only. |
+| **RELAY1**                | `NO`, `C`, `NC`                    | SPDT dry contact                       | Follow front label order. |
+| **RELAY2**                | `NO`, `C`, `NC`                    | SPDT dry contact                       | Follow front label order. |
+| **RS‑485 (bottom left)**  | `B`, `A`, `COM`                    | Modbus RTU bus                         | Match A/B polarity; COM = reference GND; terminate bus ends. |
+| **1‑WIRE (top right)**    | `+5V`, `D`, `GND`                  | 1‑Wire bus (logic domain)              | For DS18B20; not isolated from logic. |
+| **SENSOR POWER (bottom right)** | `+5 V ISO`, `+12 V ISO`, `GND_ISO` | Isolated sensor rails                  | For **sensors only**; fused; no actuators. |
+| **USB‑C (front)**         | —                                  | Web‑Serial config                      | ESD‑protected; not a field power source. |
+
+---
+
+## 5.7 Mechanical Details
+
+- **Mounting:** DIN rail EN 50022, 35 mm  
+- **Enclosure:** PC/ABS, V‑0, light gray/black, matte  
+- **Dimensions (L×W×H):** **157.4 × 91 × 58.4 mm** (≈ 9 M width)  
+- **Net weight:** **≈420 g** (≈580 g packed)  
+- **Terminals:** 5.08 mm pitch; 26–12 AWG (to 2.5 mm²); **0.5–0.6 Nm** torque
+
+---
+
+## 5.8 Environmental & Compliance
+
+- **Operating temperature:** 0…40 °C; **Humidity:** ≤95 % RH (non‑condensing)  
+- **Ingress / Safety class:** **IP20**; **Operation Type 1**  
+- **Impulse / Altitude / Pollution:** 2.5 kV rated impulse (digital output), max altitude 2000 m, Pollution degree 2  
+- **Certifications:** CE, UL60730‑1, CSA E60730‑1  
+- **Installation:** SELV only; by qualified personnel per local codes
+
+---
+
 
 <a id="6-modbus-rtu-communication"></a>
 
