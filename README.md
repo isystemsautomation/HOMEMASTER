@@ -38,7 +38,7 @@ flowchart TD
   PLC --> RS485[RS-485 Bus]:::hub
 
   %% Subgraph with taller nodes; extra <br/> increases node height
-  subgraph Mods["Extension Modules"]
+  subgraph Mods["Extension"]
     ENM[ENM‑223‑R1<br>⚡ Energy Meter]:::mod
     ALM[ALM‑173‑R1<br>🚨 Alarm I/O]:::mod
     DIM[DIM‑420‑R1<br>💡 AC Dimmer]:::mod
