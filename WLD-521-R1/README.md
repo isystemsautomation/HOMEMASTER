@@ -1,22 +1,20 @@
-**Firmware Version:** YYYY-MM snapshot
+**Firmware Version:** 2025-10 snapshot
 
-![Firmware Version](https://img.shields.io/badge/Firmware-YYYY--MM-blue)
+![Firmware Version](https://img.shields.io/badge/Firmware-2025--10-blue)
 ![Modbus](https://img.shields.io/badge/Protocol-Modbus%20RTU-brightgreen)
 ![License](https://img.shields.io/badge/License-GPLv3%20%2F%20CERN--OHL--W-blue)
 
-# MODULE-CODE — Module for XYZ Functionality
+# WLD-521-R1 — Water Meter & Leak Detection Module
 
 **HOMEMASTER – Modular control. Custom logic.**
 
-<img src="Images/photo1.png" align="right" width="440" alt="MODULE photo">
+<img src="Images/photo1.png" align="right" width="440" alt="WLD-521-R1 module photo">
 
 ### Module Description
 
-The **MODULE-CODE** is a configurable smart I/O module designed for **[INSERT FUNCTION]**.  
-It includes **[# inputs/outputs]**, **[# relays]**, and optional **buttons/LEDs**, with configuration via **WebConfig** using **USB-C (Web Serial)**.  
-It connects over **RS-485 (Modbus RTU)** to a **MicroPLC/MiniPLC**, enabling use in **[insert example application like HVAC, lighting, alarms, etc.]**.
-
----
+The **WLD-521-R1** is a configurable smart I/O module designed for **leak detection**, **water flow metering**, **heat energy monitoring**, and **local irrigation control**.  
+It includes **5 opto-isolated digital inputs**, **2 SPDT relays**, and optional **4 buttons and 4 LEDs** for manual control and local status indication. Configuration is performed via the **WebConfig interface** over **USB-C (Web Serial)**.  
+The module connects over **RS-485 (Modbus RTU)** to a **MicroPLC or MiniPLC**, enabling deployment in **water management**, **hydronic heating**, **garden irrigation**, and **safety automation systems**.
 
 ## Table of Contents
 
