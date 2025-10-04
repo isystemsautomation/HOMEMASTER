@@ -55,8 +55,6 @@ graph TB
 
 ### Module Overview
 
-### Module Overview
-
 | Image | Module | Inputs | Outputs | Key Features | Best For |
 |---|---|---|---|---|---|
 | <a href="./ENM-223-R1/"><img src="./ENM-223-R1/Images/photo1.png" alt="ENM‑223‑R1" height="80"/></a> | [**ENM‑223‑R1**](./ENM-223-R1/) | 3‑Phase CTs | 2 Relays | Per‑phase power metrics | Solar, grid monitoring |
