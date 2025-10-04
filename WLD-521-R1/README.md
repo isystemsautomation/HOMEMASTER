@@ -680,8 +680,6 @@ External terminals are 5.08 mm pitch pluggable blocks (300 V / 20 A, 26–
 
 - **Mounting:** DIN rail EN 50022, 35 mm  
 - **Enclosure:** PC/ABS, V‑0, light gray/black, matte  
-- **Dimensions (L×W×H):** **157.4 × 91 × 58.4 mm** (≈ 9 M width)  
-- **Net weight:** **≈420 g** (≈580 g packed)  
 - **Terminals:** 5.08 mm pitch; 26–12 AWG (to 2.5 mm²); **0.5–0.6 Nm** torque
 
 ---
@@ -691,7 +689,6 @@ External terminals are 5.08 mm pitch pluggable blocks (300 V / 20 A, 26–
 - **Operating temperature:** 0…40 °C; **Humidity:** ≤95 % RH (non‑condensing)  
 - **Ingress / Safety class:** **IP20**; **Operation Type 1**  
 - **Impulse / Altitude / Pollution:** 2.5 kV rated impulse (digital output), max altitude 2000 m, Pollution degree 2  
-- **Certifications:** CE, UL60730‑1, CSA E60730‑1  
 - **Installation:** SELV only; by qualified personnel per local codes
 
 ---
