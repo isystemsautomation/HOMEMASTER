@@ -33,11 +33,11 @@ flowchart TD
   classDef mod fill:#FFF7CC,stroke:#E0B100,stroke-width:1.2px,color:#111;
   classDef ghost fill:transparent,stroke:transparent,color:transparent;
 
-  %% "Double" HA and PLC with bigger font + extra line breaks to add height
+  %% Double-sized HA and PLC (bigger font + extra line breaks)
   HA["Home Assistant<br/><br/>"]:::big --> PLC["MiniPLC / MicroPLC<br/><br/>"]:::big
   PLC --> RS485[RS-485 Bus]:::hub
 
-  %% Subgraph; module nodes get extra <br/> to increase their height
+  %% Subgraph with taller nodes; extra <br/> increases node height
   subgraph Mods["Extension Modules"]
     ENM["ENM-223-R1<br/>Energy Meter<br/><br/>"]:::mod
     ALM["ALM-173-R1<br/>Alarm I/O<br/><br/>"]:::mod
@@ -47,10 +47,11 @@ flowchart TD
     DIO["DIO-430-R1<br/>Digital I/O<br/><br/>"]:::mod
     STR["STR-3221-R1<br/>Staircase LED<br/><br/>"]:::mod
     WLD["WLD-521-R1<br/>Leak Detection<br/><br/>"]:::mod
-    SP1["<br/><br/><br/>"]:::ghost  %% invisible spacer to further increase subgraph height
+    SP1["<br/><br/><br/>"]:::ghost
   end
   style Mods fill:#FFF7CC,stroke:#E0B100,stroke-width:1.5px
 
+  %% Edges
   RS485 --> ENM
   RS485 --> ALM
   RS485 --> DIM
@@ -59,7 +60,6 @@ flowchart TD
   RS485 --> DIO
   RS485 --> STR
   RS485 --> WLD
-
 ```
 
 #### 🎯 Quick Module Selector
