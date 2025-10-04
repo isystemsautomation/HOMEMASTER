@@ -47,7 +47,7 @@ flowchart TD
     DIO["DIO-430-R1<br/>Digital I/O<br/><br/>"]:::mod
     STR["STR-3221-R1<br/>Staircase LED<br/><br/>"]:::mod
     WLD["WLD-521-R1<br/>Leak Detection<br/><br/>"]:::mod
-    SP1["<br/><br/><br/>"]:::ghost
+    SP1["<br/><br/><br/><br/><br/><br/>"]:::ghost
   end
   style Mods fill:#FFF7CC,stroke:#E0B100,stroke-width:1.5px
 
