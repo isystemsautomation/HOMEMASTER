@@ -47,9 +47,9 @@ flowchart TD
     DIO[DIO‑430‑R1<br>🔌 Digital I/O]:::mod
     STR[STR‑3221‑R1<br>💫 Staircase LED]:::mod
     WLD[WLD‑521‑R1<br>💧 Leak Detection]:::mod
-    SP1["<br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/>"]:::ghost
+    SP1["<br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/>"]:::ghost
   end
-  style Mods fill:#FFFFF,stroke:#E0B100,stroke-width:1.5px
+  style Mods fill:#FFFFFF,stroke:#E0B100,stroke-width:1.5px
 
   %% Edges
   RS485 --> ENM
