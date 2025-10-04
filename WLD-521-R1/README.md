@@ -505,96 +505,10 @@ If using **irrigation windows** or **daily counters**:
 
 ## 4.6 Getting Started
 
-The WLD‑521‑R1 setup process can be broken into **3 clear phases**: wiring, configuration, and integration.
-
----
-
-### 🧰 Phase 1: Wiring
-
-1. **Power**
-   - Connect regulated **24 VDC** to the **V+ / 0V** terminals on the top-left.
-   - Use a clean, fused, SELV supply.
-
-2. **RS‑485 Bus**
-   - Wire `A → A`, `B → B`, and `COM → COM` to your controller.
-   - Use shielded twisted pair cable and terminate both bus ends with ~**120 Ω** resistors.
-
-3. **Digital Inputs (DI1–DI5)**
-   - Connect leak probes, buttons, or flow sensors to DI1–DI5.
-   - Each input returns to **GND_ISO** (not logic GND).
-
-4. **Relays**
-   - Wire actuators (valves, pumps, sirens) to `R1/R2 COM / NO / NC` terminals.
-   - Relays are **dry contact SPDT** and do not supply power.
-
-5. **1‑Wire Bus (optional)**
-   - Connect DS18B20 temperature sensors to `+5V / DATA / GND`.
-   - This is **non-isolated** logic power (do not cross with DI sensor GND).
-
-6. **Sensor Power**
-   - Use the **+5 V ISO** or **+12 V ISO** outputs for powering external low-power sensors (e.g., flow meters).
-   - Never use these rails for actuators or high-current loads.
-
----
-
-### 🧭 Phase 2: Configuration (WebConfig)
-
-1. **Connect via USB-C**
-   - Use Chrome or Edge to open  
-     **https://www.home-master.eu/configtool-wld-521-r1**
-
-2. **Modbus Setup**
-   - Set a unique **Modbus address (1–255)**
-   - Select baudrate (default: **19200**, supports 9600–115200)
-   - Verify connection status in the header
-
-3. **Configure Inputs**
-   - Enable/disable each DI, assign sensor type (`Water sensor`, `Water counter`, etc.)
-   - Calibrate flow meters using **Pulses per Liter**
-   - Set up optional **Heat Energy** logic (Sensor A/B, cp, ρ, etc.)
-
-4. **Relay Behavior**
-   - Set control source: `Modbus`, `Local Logic`, or `(none)`
-   - Assign manual override settings and test ON/OFF state
-
-5. **LEDs & Buttons**
-   - Map LEDs to DI/Relay/Irrigation states with `Blink` or `Solid`
-   - Assign button actions: Relay Toggle, Irrigation Start/Stop, or Override Toggle
-
-6. **Irrigation Zones**
-   - Map zone valves to relays, assign flow input
-   - Set thresholds: `Min rate`, `Timeout`, `Target Liters`, `Window`, interlocks
-   - (Optional) set `Auto-start` for scheduled watering
-
----
-
-### 🌐 Phase 3: Integration (PLC / ESPHome / HA)
-
-1. **Connect to MiniPLC / MicroPLC**
-   - Ensure RS‑485 A/B/COM are correctly wired and terminated
-   - Confirm baudrate and Modbus ID match controller config
-
-2. **ESPHome Setup**
-   - Add WLD module to your controller YAML via `packages:` block
-   - Set `wld_address`, `wld_prefix`, `wld_id`
-   - Modbus controller will read sensors and relay states, and control outputs
-
-3. **Home Assistant Integration (optional)**
-   - ESPHome exposes sensors (flow, DI), switches (relays), and status to HA
-   - Use automations, dashboards, and schedules (e.g., daily reset via `coil 360`)
-
-4. **Validation**
-   - Use WebConfig serial log to view real-time I/O changes
-   - Confirm:
-     - DI → status changes
-     - Flow meter → counts / L/min
-     - Relays respond to HA/PLC control
-     - Irrigation logic follows thresholds
-
----
-
-> ⏱ Tip: If using irrigation windows or daily counters, schedule a midnight **coil 360** sync in HA to keep local time aligned.
-
+Summarize steps in 3 phases:
+1. Wiring
+2. Configuration
+3. Integration
 
 ---
 
@@ -608,22 +522,32 @@ The WLD‑521‑R1 setup process can be broken into **3 clear phases**: wiring, 
 
 ## 5.1 Diagrams & Pinouts
 
-### 📦 System Overview
-<img src="Images/WLD_Diagram.png" alt="WLD-521-R1 System Diagram" width="720" />
+<div align="center">
+  <table>
+    <tr>
+      <td align="center">
+        <strong>System Block Diagram</strong><br>
+        <img src="Images/WLD_Diagram.png" alt="System Diagram" width="360">
+      </td>
+      <td align="center">
+        <strong>Terminal Map</strong><br>
+        <img src="Images/photo1.png" alt="Module Photo and Terminal Map" width="360">
+      </td>
+    </tr>
+    <tr>
+      <td align="center">
+        <strong>Field Board Layout</strong><br>
+        <img src="Images/FieldBoard_Diagram.png" alt="Field Board" width="360">
+      </td>
+      <td align="center">
+        <strong>MCU Board Layout</strong><br>
+        <img src="Images/MCUBoard_Diagram.png" alt="MCU Board" width="360">
+      </td>
+    </tr>
+  </table>
+</div>
 
-### 📐 Terminal Map (Front Panel)
-<img src="Images/photo1.png" alt="WLD-521-R1 Terminals & Front Labels" width="720" />
-
-**Top row (left → right):** `V+`, `0V`, `I1`, `I2`, `I3`, `I4`, `I5`, `GND`(ISO), `+5V`, `D`, `GND` (1‑Wire)  
-**Bottom row (left → right):** `RS‑485: B, A, COM` • `RELAY1: NO, C, NC` • `RELAY2: NO, C, NC` • `PS: +5 V ISO, +12 V ISO`
-
-### 🧩 PCB Layouts
-<table>
-<tr>
-<td align="center"><img src="Images/FieldBoard_Diagram.png" width="360" alt="Field Board" /><br/><sub>Field Board: inputs, relays, iso. rails</sub></td>
-<td align="center"><img src="Images/MCUBoard_Diagram.png" width="360" alt="MCU Board" /><br/><sub>MCU Board: RP2350, RS‑485, USB‑C, 1‑Wire</sub></td>
-</tr>
-</table>
+---
 
 ---
 
