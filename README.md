@@ -34,6 +34,34 @@ graph TB
   RS485 --> RGB[etc.]
 ```
 
+### System Architecture
+
+```mermaid
+graph TD
+  HA[Home Assistant] --> PLC[MiniPLC / MicroPLC]
+  PLC --> RS485[RS‑485 Bus]
+
+  subgraph Extension Modules
+    ENM[ENM‑223‑R1<br>⚡ Energy Meter]
+    ALM[ALM‑173‑R1<br>🚨 Alarm I/O]
+    DIM[DIM‑420‑R1<br>💡 AC Dimmer]
+    AIO[AIO‑422‑R1<br>🌡️ Analog I/O]
+    RGB[RGB‑621‑R1<br>🎨 LED Controller]
+    DIO[DIO‑430‑R1<br>🔌 Digital I/O]
+    STR[STR‑3221‑R1<br>💫 Staircase LED]
+    WLD[WLD‑521‑R1<br>💧 Leak Detection]
+  end
+
+  RS485 --> ENM
+  RS485 --> ALM
+  RS485 --> DIM
+  RS485 --> AIO
+  RS485 --> RGB
+  RS485 --> DIO
+  RS485 --> STR
+  RS485 --> WLD
+
+
 #### 🎯 Quick Module Selector
 - 💡 **Lighting Control** → DIM‑420‑R1, RGB‑621‑R1, STR‑3221‑R1  
 - ⚡ **Measurment & Protecion** → ENM‑223‑R1 , WLD‑521‑R1 
