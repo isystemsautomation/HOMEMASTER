@@ -55,16 +55,19 @@ graph TB
 
 ### Module Overview
 
-| Module | Inputs | Outputs | Key Features | Best For |
-|---|---|---|---|---|
-| [<img src="./ENM-223-R1/Images/photo1.png" alt="ENM-223-R1" height="80"/><br>**ENM‑223‑R1**](./ENM-223-R1/) | 3‑Phase CTs | 2 Relays | Per‑phase power metrics | Solar, grid monitoring |
-| [<img src="./ALM-173-R1/Images/photo1.png" alt="ALM-173-R1" height="80"/><br>**ALM‑173‑R1**](./ALM-173-R1/) | 17 DI | 3 Relays | AUX power, alarm logic | Security systems |
-| [<img src="./DIM-420-R1/Images/photo1.png" alt="DIM-420-R1" height="80"/><br>**DIM‑420‑R1**](./DIM-420-R1/) | 4 DI | 2 Dimming | Phase‑cut dimming | Lighting control |
-| [<img src="./AIO-422-R1/Images/photo1.png" alt="AIO-422-R1" height="80"/><br>**AIO‑422‑R1**](./AIO-422-R1/) | 4 AI + 2 RTD | 2 AO | 0‑10V I/O, PT100/1000 | HVAC, sensors |
-| [<img src="./DIO-430-R1/Images/photo1.png" alt="DIO-430-R1" height="80"/><br>**DIO‑430‑R1**](./DIO-430-R1/) | 4 DI | 3 Relays | Override buttons, logic mapping | General control |
-| [<img src="./RGB-621-R1/Images/photo1.png" alt="RGB-621-R1" height="80"/><br>**RGB‑621‑R1**](./RGB-621-R1/) | 2 DI | 5 PWM + 1 Relay | RGB+CCT, smooth fades | Color lighting |
-| [<img src="./STR-3221-R1/Images/photo1.png" alt="STR-3221-R1" height="80"/><br>**STR‑3221‑R1**](./STR-3221-R1/) | 3 DI | 32 LED Channels | Animated sequences | Architectural lighting |
-| [<img src="./WLD-521-R1/Images/photo1.png" alt="WLD-521-R1" height="80"/><br>**WLD‑521‑R1**](./WLD-521-R1/) | 5 DI + Temp | 2 Relays | Leak detection, pulse metering | Safety systems |
+### Module Overview
+
+| Image | Module | Inputs | Outputs | Key Features | Best For |
+|---|---|---|---|---|---|
+| <a href="./ENM-223-R1/"><img src="./ENM-223-R1/Images/photo1.png" alt="ENM‑223‑R1" height="80"/></a> | [**ENM‑223‑R1**](./ENM-223-R1/) | 3‑Phase CTs | 2 Relays | Per‑phase power metrics | Solar, grid monitoring |
+| <a href="./ALM-173-R1/"><img src="./ALM-173-R1/Images/photo1.png" alt="ALM‑173‑R1" height="80"/></a> | [**ALM‑173‑R1**](./ALM-173-R1/) | 17 DI | 3 Relays | AUX power, alarm logic | Security systems |
+| <a href="./DIM-420-R1/"><img src="./DIM-420-R1/Images/photo1.png" alt="DIM‑420‑R1" height="80"/></a> | [**DIM‑420‑R1**](./DIM-420-R1/) | 4 DI | 2 Dimming | Phase‑cut dimming | Lighting control |
+| <a href="./AIO-422-R1/"><img src="./AIO-422-R1/Images/photo1.png" alt="AIO‑422‑R1" height="80"/></a> | [**AIO‑422‑R1**](./AIO-422-R1/) | 4 AI + 2 RTD | 2 AO | 0‑10V I/O, PT100/1000 | HVAC, sensors |
+| <a href="./DIO-430-R1/"><img src="./DIO-430-R1/Images/photo1.png" alt="DIO‑430‑R1" height="80"/></a> | [**DIO‑430‑R1**](./DIO-430-R1/) | 4 DI | 3 Relays | Override buttons, logic mapping | General control |
+| <a href="./RGB-621-R1/"><img src="./RGB-621-R1/Images/photo1.png" alt="RGB‑621‑R1" height="80"/></a> | [**RGB‑621‑R1**](./RGB-621-R1/) | 2 DI | 5 PWM + 1 Relay | RGB+CCT, smooth fades | Color lighting |
+| <a href="./STR-3221-R1/"><img src="./STR-3221-R1/Images/photo1.png" alt="STR‑3221‑R1" height="80"/></a> | [**STR‑3221‑R1**](./STR-3221-R1/) | 3 DI | 32 LED Channels | Animated sequences | Architectural lighting |
+| <a href="./WLD-521-R1/"><img src="./WLD-521-R1/Images/photo1.png" alt="WLD‑521‑R1" height="80"/></a> | [**WLD‑521‑R1**](./WLD-521-R1/) | 5 DI + Temp | 2 Relays | Leak detection, pulse metering | Safety systems |
+
 
 ### Recommended Setups
 - 🏠 **Starter (Lighting + I/O)** — MicroPLC + DIO‑430‑R1 + RGB‑621‑R1  
