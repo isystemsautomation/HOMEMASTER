@@ -698,14 +698,181 @@ External terminals are 5.08 mm pitch pluggable blocks (300 V / 20 A, 26–
 
 # 6. Modbus RTU Communication
 
-Include:
-- Address range and map
-- Input/holding register layout
-- Coil/discrete inputs
-- Register use examples
-- Polling recommendations
+The WLD‑521‑R1 communicates as a **Modbus RTU slave** over **RS‑485**, exposing its digital inputs, counters, flow data, heat metrics, relays, LEDs, irrigation state, and 1‑Wire temperatures.
 
 ---
+
+## 6.1 Modbus Basics
+
+| Parameter     | Value |
+|---------------|-------|
+| **Interface** | RS‑485 (half-duplex) |
+| **Baudrate**  | 9600–115200 (default: **19200**) |
+| **Address**   | 1–255 (default: **3**) |
+| **Parity**    | 8N1 |
+| **Role**      | Slave (responds to master requests) |
+| **Supported FCs** | `0x01` Read Coils, `0x02` Read Discrete Inputs, `0x03` Read Holding, `0x04` Read Input, `0x05/0x0F` Write Coils, `0x06/0x10` Write Holding |
+
+> 🧩 Address and baudrate are configured via USB-C using WebConfig.
+
+---
+
+## 6.2 Address Map Overview
+
+| Function | Range       | Description |
+|----------|-------------|-------------|
+| **Coils** (FC01/05) | `200–399`   | Control commands: relay ON/OFF, irrigation, reset |
+| **Discrete Inputs** (FC02) | `1–103`     | Real-time state of DI, relays, LEDs, buttons |
+| **Holding Registers** (FC03/16) | `1100+`    | Flow, temperature, energy, configuration |
+| **Input Registers** (FC04) | *same as holding* | Optional mirror of Holding (read-only) |
+
+---
+
+## 6.3 Coils (Write – Single/Multiple)
+
+| Coil Address | Description |
+|--------------|-------------|
+| 200–201 | **Relay ON** (Relay 1/2) |
+| 210–211 | **Relay OFF** (Relay 1/2) |
+| 300–304 | Enable DI1…DI5 |
+| 320–324 | Disable DI1…DI5 |
+| 340–344 | **Reset DI counter** |
+| 360     | `CMD_TIME_MIDNIGHT` (pulse at 00:00 to sync time) |
+| 370–371 | Irrigation **START** Z1/Z2 |
+| 380–381 | Irrigation **STOP** Z1/Z2 |
+| 390–391 | Irrigation **RESET** Z1/Z2 |
+
+> Coils are **pulse-operated** (write `TRUE`, then `FALSE`).  
+> **Manual overrides** may block Modbus control until cleared.
+
+---
+
+## 6.4 Discrete Inputs (Read-only Flags)
+
+| Address | Bit | Function |
+|---------|-----|----------|
+| 1–5     | 1–5 | DI1…DI5 (debounced) |
+| 60–61   | —   | Relay 1/2 state |
+| 90–93   | —   | LED1…LED4 (mapped source ON) |
+| 100–103 | —   | BTN1…BTN4 (pressed = 1) |
+
+---
+
+## 6.5 Holding Registers (Read/Write)
+
+These registers expose flow, heat, irrigation state, 1‑Wire temperatures, and runtime status.
+
+### 📊 Input / Flow / Energy Registers
+
+| Address | Description | Format | Unit | Notes |
+|---------|-------------|--------|------|-------|
+| 1100    | Minute of day | `U16` | min (0–1439) | Local module clock |
+| 1101    | Day index     | `U16` | days | Increments daily |
+
+#### Flow Rate & Totals (per DI1–5)
+| Address | Description | Format | Notes |
+|---------|-------------|--------|-------|
+| 1120–1129 | Flow rate (L/min ×1000) | `U32` ×5 | 2 registers each |
+| 1140–1149 | Flow total (L ×1000)    | `U32` ×5 | 2 registers each |
+
+#### Heat Energy (if enabled)
+| Address | Description | Format | Notes |
+|---------|-------------|--------|-------|
+| 1200–1209 | Power (W)        | `S32` ×5 | ΔT × cp × ρ × flow |
+| 1220–1229 | Energy (Wh ×1000) | `U32` ×5 | Accumulator |
+| 1240–1249 | ΔT (°C ×1000)     | `S32` ×5 | TA–TB |
+
+---
+
+### 🌱 Irrigation Zones (Z1 / Z2)
+
+| Address     | Description               | Format |
+|-------------|---------------------------|--------|
+| 1300–1301   | Zone state (0=idle, 1=run, 2=alarm) | `U16` |
+| 1310–1313   | Accumulated liters         | `U32` |
+| 1320–1323   | Elapsed time (s)           | `U32` |
+| 1330–1333   | Flow rate (L/min ×1000)    | `U32` |
+| 1340–1341   | Window Open flag           | `U16` |
+| 1342–1343   | Sensors OK flag            | `U16` |
+
+---
+
+### 🌡 1-Wire Temperatures
+
+| Address     | Description         | Format | Notes |
+|-------------|---------------------|--------|-------|
+| 1500–1519   | Temp #1…#10 (°C ×1000) | `S32` | 2 regs per sensor |
+
+---
+
+## 6.6 Register Use Examples
+
+### ✅ Read DI1 flow total
+- Read `HREG 1140/1141` (2x U16 = U32)
+- Divide result by **1000** → Liters
+
+### ✅ Reset DI3 pulse counter
+- Write `TRUE` → Coil `343`  
+- Then write `FALSE` to return
+
+### ✅ Start irrigation on Zone 1
+- Write `TRUE → FALSE` to **coil 370**
+
+### ✅ Sync module time from Home Assistant
+- Write `0` to `HREG 1100` at midnight  
+- Pulse `coil 360` to trigger time sync
+
+---
+
+## 6.7 Polling Recommendations
+
+| Data Type        | Suggested Rate | Notes |
+|------------------|----------------|-------|
+| **DI / Relay / LED / Button** | 1 s | Coils, discrete inputs |
+| **Flow / Counters**           | 2–5 s | Holding or input regs |
+| **1‑Wire Temps**              | 10–20 s | Poll less frequently to avoid bus errors |
+| **Irrigation state**          | 1–2 s | Needed if controller drives automation |
+| **Heat power/energy**        | 5–10 s | Internal logic updates per cycle |
+
+---
+
+## 6.8 Full Register Summary
+
+### Discrete Inputs (FC02)
+- `00001–00005`: DI1–DI5 state  
+- `00060–00061`: Relay 1/2 mirror  
+- `00090–00093`: LED state mirror  
+- `00100–00103`: Button press flags
+
+### Coils (FC01/05)
+- `00200–00201`: Relay ON  
+- `00210–00211`: Relay OFF  
+- `00300–00304`: Enable DI  
+- `00320–00324`: Disable DI  
+- `00340–00344`: Reset DI Counter  
+- `00360`: CMD_TIME_MIDNIGHT  
+- `00370–00371`: Irrigation START  
+- `00380–00381`: Irrigation STOP  
+- `00390–00391`: Irrigation RESET
+
+### Holding/Input Registers (FC03/04)
+- `01100–01101`: Clock  
+- `01120–01129`: Flow rates  
+- `01140–01149`: Flow totals  
+- `01200–01209`: Heat power  
+- `01220–01229`: Heat energy  
+- `01240–01249`: ΔT  
+- `01300–01301`: Irrigation state  
+- `01310–01313`: Irrigation liters  
+- `01320–01323`: Irrigation elapsed  
+- `01330–01333`: Irrigation flow rate  
+- `01340–01343`: Window & sensor status  
+- `01500–01519`: 1-Wire temperatures
+
+---
+
+> 💡 All scaling is based on ×1000 (flow, temp, energy). Use ESPHome or controller math to convert to engineering units.
+
 
 <a id="7-esphome-integration-guide"></a>
 
