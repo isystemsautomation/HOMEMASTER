@@ -120,84 +120,69 @@ Each module includes **USB WebConfig** — no drivers needed:
 ## 🔧 Advanced
 
 ### Firmware Development
-Supported development platforms:
-| Platform | Controllers | Modules | Use Case |
-|---|---|---|---|
-| **ESPHome** | ✅ Pre‑installed | ✅ Configurable | Home Automation |
-| **Arduino IDE** | ✅ ESP32 | ✅ RP2350 | Custom Logic |
-| **PlatformIO** | ✅ Full | ✅ Full | Professional |
-| **MicroPython** | ✅ ESP32 | ✅ RP2350 | Scripting |
-| **CircuitPython** | ❌ | ✅ RP2350 | Education |
+All HomeMaster controllers and modules support firmware customization via **USB‑C**.
 
-### USB‑C Flashing
-No buttons needed — automatic reset via USB‑C:
-- **Controllers:** ESP32‑based, use Arduino IDE / PlatformIO / ESPHome
-- **Modules:** RP2350‑based, drag‑and‑drop **UF2** flashing
+- **ESPHome YAML** (pre-installed on controllers)
+- **Arduino IDE** (both ESP32 and RP2040/RP2350)
+- **PlatformIO** (cross-platform)
+- **MicroPython** (via Thonny)
+- **ESP-IDF** (for ESP32-based controllers)
+- **Pico SDK / CircuitPython** (for RP2350-based modules)
 
-> ⚠️ All devices ship with fully functional firmware. Flashing is for advanced customization only.
+### USB‑C Developer Flashing
+Both controllers and modules support easy flashing and auto-reset via **USB‑C**, with no need to press BOOT or RESET buttons.
 
-### Customization Example (ESPHome)
+- **ESP32-based controllers** (MiniPLC, MicroPLC): programmable using Arduino IDE, PlatformIO, ESP-IDF, or ESPHome Dashboard.
+- **RP2350-based modules**: support drag‑and‑drop **UF2 flashing** and tools from the RP2040 ecosystem (e.g., Pico SDK, CircuitPython).
+
+> ⚠️ Note: All controllers and modules ship with pre-installed firmware.  
+> - **Controllers** are ESPHome-ready and appear in Home Assistant.
+> - **Modules** are fully functional out-of-the-box and configurable via the **WebConfig Tool**.
+
+Flashing is only required for advanced users who want to replace default firmware.
+
+### Arduino & PlatformIO Notes
+- Clone the firmware repository
+- Use the provided `default_xxx.ino` sketches per module or controller
+- Add libraries as needed:  
+  `ModbusSerial`, `LittleFS`, `Arduino_JSON`, `SimpleWebSerial`
+
+### Home Assistant Example (ESPHome)
 ```yaml
-# Example ESPHome configuration for energy meter
-modbus_controller:
-  - id: energymeter
-    address: 0x01
-    sensors:
-      - name: "Grid Power"
-        address: 0x0000
-        unit_of_measurement: "W"
+# Example ESPHome configuration for Alarm Module
+uart:
+  id: uart_modbus
+  tx_pin: 17
+  rx_pin: 16
+  baud_rate: 19200
+  parity: NONE
+  stop_bits: 1
+
+modbus:
+  id: modbus_bus
+  uart_id: uart_modbus
+
+# ---------- Pull ALM Modbus entities from GitHub ----------
+packages:
+
+  alm1:
+    url: https://github.com/isystemsautomation/HOMEMASTER
+    ref: main
+    files:
+      - path: ALM-173-R1/Firmware/default_alm_173_r1_plc/default_alm_173_r1_plc.yaml
 ```
 
 ---
 
 ## 📚 Resources
 
-### 📥 Downloads
-- 🧩 **Firmware:** INO / YAML examples  
-- 🛠️ **Config Tools:** HTML WebConfig  
-- 📷 **Images & Diagrams:** Visual assets  
-- 📐 **Schematics:** Hardware designs  
-- 📖 **Manuals:** PDF documentation
-
 ### 🎓 Learning & Community
 - 🌐 **Official Support:** https://home-master.eu/support  
-- 🧠 **Hackster.io:** Projects & tutorials  
-- 🎥 **YouTube:** Video guides  
-- 💬 **Reddit:** r/HomeMaster  
-- 📷 **Instagram:** @home_master.eu
+- 🧠 **Hackster.io:** [Projects & tutorials](https://www.hackster.io/homemaster)  
+- 🎥 **YouTube:** [Video guides](https://www.youtube.com/@HomeMasterAutomation)  
+- 💬 **Reddit:** [r/HomeMaster ](https://www.reddit.com/r/HomeMaster) 
+- 📷 **Instagram:** [@home_master.eu](https://www.instagram.com/home_master.eu)
 
----
-
-## 🤝 Contributing
-We welcome contributions! Please see our:
-- **Contributing Guidelines**
-- **Code of Conduct**
-- **Development Guide**
-
----
-
-## ❓ Frequently Asked Questions
-
-**Q: Can I use modules without a controller?**  
-A: Modules require a PLC controller for network connectivity and ESPHome integration. They have local logic but need a controller for Home Assistant.
-
-**Q: What's the maximum RS‑485 bus length?**  
-A: Up to 1200 m at 19200 baud with proper termination and biasing.
-
-**Q: Can I create custom modules?**  
-A: Yes! All hardware is open‑source. Check our development guide for creating custom modules.
-
-**Q: Is cloud required?**  
-A: No! HomeMaster works 100% locally. Cloud services are optional.
-
-**Q: What CTs are supported?**  
-A: Standard 333 mV or 1 V output CTs. Never connect 5 A CTs directly.
-
-**Q: Can I expand beyond 8 modules?**  
-A: Yes, Modbus supports up to 247 devices. Practical limits depend on cable quality and baud rate.
-
-**Q: How do I update firmware?**  
-A: Controllers update via ESPHome OTA. Modules use USB‑C WebConfig or UF2 flashing.
 
 ---
 
