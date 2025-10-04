@@ -23,18 +23,6 @@ HomeMaster is an **industrial‑grade, modular automation system** for smart hom
 > **Local resilience:** Modules include onboard logic and continue functioning even if the controller or network is offline.
 
 ### System Architecture
-```mermaid
-graph TB
-  HA[Home Assistant] --> PLC[Mini/Micro PLC]
-  PLC --> RS485[RS-485 Bus]
-  RS485 --> ENM[ENM‑223‑R1 Energy Meter]
-  RS485 --> ALM[ALM‑173‑R1 Alarm I/O]
-  RS485 --> DIM[DIM‑420‑R1 AC Dimmer]
-  RS485 --> AIO[AIO‑422‑R1 Analog I/O]
-  RS485 --> RGB[etc.]
-```
-
-### System Architecture
 
 ```mermaid
 graph TD
