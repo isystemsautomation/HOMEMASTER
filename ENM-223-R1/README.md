@@ -1037,35 +1037,71 @@ The package includes **pulse-safe** helpers for:
 ---
 
 
+
 <a id="8-programming--customization"></a>
 
 # 8. Programming & Customization
 
 ## 8.1 Supported Languages
 
-- Arduino
-- C++
-- MicroPython
+- **MicroPython**
+- **C/C++**
+- **Arduino IDE**
 
-## 8.2 Flashing
+---
 
-Steps for:
-- USB-C flashing
-- BOOT/RESET button use
-- PlatformIO / Arduino IDE setup
+## 8.2 Flashing via USB-C
 
-## 8.3 Arduino / PlatformIO Notes
+1. Connect USB-C to your PC.
+2. Enter boot/flash mode if required.
+3. Upload the provided firmware/source.
 
-Mention:
-- Required libraries
-- Pin mapping
-- Board config
+**Boot/Reset combinations:**
+
+- **Buttons 1 + 2** → forces the module into **BOOT mode**
+- **Buttons 3 + 4** → triggers a hardware **RESET**
+
+These combinations are handled in hardware. Use them when flashing or manually rebooting the module.
+
+**🧭 Button layout reference:**
+
+<img src="Images/buttons1.png" alt="Button layout" width="360"/>
+
+---
+
+## 8.3 Arduino IDE Setup
+
+- **Board Profile:** Generic RP2350
+- **Flash Size:** 2MB (Sketch: 1MB, FS: 1MB)
+- **Recommended Libraries:**
+
+```cpp
+#include <Arduino.h>
+#include <ModbusSerial.h>
+#include <SimpleWebSerial.h>
+#include <Arduino_JSON.h>
+#include <LittleFS.h>
+#include <Wire.h>
+#include <PCF8574.h>
+#include "hardware/watchdog.h"
+```
+
+- **Pin Notes:**
+  - Buttons: GPIO22–25
+  - LEDs: GPIO18–21
+  - RS-485: MAX485, DE/RE control over TX
+  - USB: native, no UART bridge
+
+---
 
 ## 8.4 Firmware Updates
 
-- How to update
-- Preserving config
-- Recovery methods
+- **Upload via USB-C** using Arduino IDE or PlatformIO
+- Enter **boot mode** (Buttons 1 + 2)
+- Upload `default_enm_223_r1.ino` from `/firmware/`
+- Configuration is preserved (stored in LittleFS)
+- Energy counters are safe (stored in FRAM)
+- Use **Holding Register 499 = 1** or **Buttons 3 + 4** to reset firmware config
 
 ---
 
@@ -1073,10 +1109,14 @@ Mention:
 
 # 9. Maintenance & Troubleshooting
 
-Optional section. Add:
-- Status LED meanings
-- Reset methods
-- Common issues (no comms, relay won’t trigger, etc.)
+| Symptom               | Fix or Explanation                            |
+|------------------------|-----------------------------------------------|
+| Relay won’t activate   | May be in override; check relay logic mode    |
+| RS-485 not working     | A/B reversed or un-terminated bus             |
+| LED doesn’t light up   | Reassign in WebConfig or check GPIO18–21      |
+| Button unresponsive    | Test using WebConfig > Button state live      |
+| CRC Errors             | Confirm baud, address, and wiring (A/B swap)  |
+| Negative Power Reading | Flip CT or check phase/CT alignment           |
 
 ---
 
@@ -1084,9 +1124,12 @@ Optional section. Add:
 
 # 10. Open Source & Licensing
 
-- **Hardware:** CERN-OHL-W v2
-- **Firmware:** GPLv3
-- **Config Tools:** MIT or other as applicable
+| Component         | License         |
+|------------------|------------------|
+| **Hardware**     | CERN-OHL-W v2.0  |
+| **Firmware**     | GPLv3            |
+| **Config Tool**  | MIT              |
+| **YAML Examples**| CC BY-SA 4.0     |
 
 ---
 
@@ -1094,14 +1137,15 @@ Optional section. Add:
 
 # 11. Downloads
 
-Include links to:
-
-- Firmware binaries
-- YAML configs
-- WebConfig tool
-- Schematics (PDF)
-- Images and diagrams
-- Datasheets
+| Item                | Path / Link                              |
+|---------------------|-------------------------------------------|
+| Firmware            | `firmware/default_enm_223_r1.ino`         |
+| WebConfig Tool      | `tools/ConfigToolPage.html`               |
+| ESPHome YAML        | `ENM223R1_ESPHome_Integration_Guide.md`   |
+| Schematics (PDF)    | `Schematics/ENM-223-R1-*.pdf`             |
+| Datasheet           | `ENM-223-R1 Datasheet.pdf`                |
+| Button/LED Diagram  | `Images/buttons1.png`                     |
+| Images & Diagrams   | `Images/` folder                          |
 
 ---
 
@@ -1109,10 +1153,13 @@ Include links to:
 
 # 12. Support
 
-- [Official Support Portal](https://www.home-master.eu/support)
-- [WebConfig Tool](https://www.home-master.eu/configtool-[module-code])
-- [YouTube](https://youtube.com/@HomeMaster)
-- [Hackster](https://hackster.io/homemaster)
-- [Reddit](https://reddit.com/r/HomeMaster)
-- [Instagram](https://instagram.com/home_master.eu)
+- 🛠 [Support Portal](https://www.home-master.eu/support)
+- 🌐 [WebConfig Tool](https://www.home-master.eu/configtool-enm-223-r1)
+- 🎥 [YouTube](https://youtube.com/@HomeMaster)
+- 💬 [Reddit](https://reddit.com/r/HomeMaster)
+- 🔧 [Hackster](https://hackster.io/homemaster)
+- 📸 [Instagram](https://instagram.com/home_master.eu)
+
+For feature requests or bug reports, open an issue or contact support.
+
 
