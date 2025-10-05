@@ -274,27 +274,113 @@ These safety guidelines apply to the **ENM‑223‑R1 3‑phase metering and I/O
 
 # 4. Installation & Quick Start
 
+The **ENM‑223‑R1** connects to your system over **RS‑485 (Modbus RTU)** and supports configuration via **USB‑C WebConfig**. Setup involves:  
+**1) Physical wiring**, **2) Digital setup** (WebConfig → Modbus or PLC/ESPHome control).
+
+---
+
 ## 4.1 What You Need
 
-| Item | Description |
-|------|-------------|
-| Module | MODULE-CODE unit |
-| Controller | MiniPLC/MicroPLC or Modbus RTU master |
-| PSU | Regulated 24 VDC |
-| Cable | USB-C and RS-485 twisted pair |
-| Software | Browser with Web Serial support |
+| Category     | Item / Notes |
+|--------------|--------------|
+| **Hardware** | ENM‑223‑R1 module: DIN-rail, 3 voltage channels, 3 CTs, 2 relays, 4 buttons, 4 LEDs, RS‑485, USB‑C |
+| **Controller** | MicroPLC, MiniPLC, or any Modbus RTU master |
+| **24 VDC Power (SELV)** | Regulated 24 V DC @ ~100–200 mA |
+| **RS‑485 Cable** | Twisted pair for A/B + COM/GND; external 120 Ω end-termination |
+| **USB‑C Cable** | For WebConfig setup via Chromium browser (Chrome/Edge) |
+| **Software** | Web browser (Web Serial enabled), ConfigToolPage.html |
+| **Field Wiring** | L1/L2/L3/N/PE → voltage inputs, CT1/2/3 → external CTs |
+| **Load Wiring** | Relay outputs (NO/COM/NC); observe relay max rating and use snubbers on inductive loads |
+| **Isolation Domains** | GND (logic) ≠ GND_ISO (metering); never bond these directly |
+| **Tools** | Torque screwdriver, ferrules, USB-capable PC, 120 Ω terminators if needed |
+
+---
+
+> **Quick Path**  
+> ① Mount → ② wire **24 VDC + RS‑485 (A/B/COM)** → ③ connect **USB‑C** → ④ launch WebConfig →  
+> Set **Address/Baud** → assign **Inputs/Relays/LEDs** → confirm data → ⑤ disconnect USB → hand control to Modbus master.
+
+---
 
 ## 4.2 Power
 
-- Describe 24 VDC input
-- List expected current
-- Explain isolated sensor power if present
+The ENM‑223‑R1 uses **24 V DC** input for its interface domain and internally isolates metering circuits.
 
-## 4.3 Communication
+- **Power Terminals:** Top left: `V+` and `0V`
+- **Voltage Range:** 22–28 V DC (nominal 24 V)
+- **Typical Current:** 50–150 mA (relays off/on)
+- **Protection:** Internally fused, reverse-polarity protected
+- **Logic domain:** Powers MCU, RS‑485, LEDs, buttons, relays
 
-- RS-485 pinout
-- Address & baudrate setup
-- Use of COM/GND reference
+### 4.2.1 Sensor Isolation
+
+- **Metering IC** (ATM90E32AS) is powered from an isolated 5 V rail
+- Analog domain uses **GND_ISO**, fully isolated from GND
+- Do not connect **GND_ISO ↔ GND**; isolation via **B0505S + ISO7761**
+
+> Only voltage inputs (Lx-N) and CTs connect to the isolated domain.
+
+---
+
+### 4.2.2 Power Tips
+
+- **Do not power relays or outputs** from metering-side inputs
+- Use separate fusing on L1–L3
+- Tie **L2, L3 → N** if using single-phase only (prevents phantom voltage)
+- Confirm PE is wired — improves stability & safety
+
+---
+
+## 4.3 Networking & Communication
+
+### 4.3.1 RS‑485 (Modbus RTU)
+
+#### Physical
+
+| Terminals  | Description            |
+|------------|------------------------|
+| `A`, `B`   | Differential signal pair (twisted/shielded) |
+| `COM`/`GND` | Logic reference (tie GNDs if on separate supplies) |
+
+#### Cable & Topology
+
+- Twisted pair (with or without shield)
+- Terminate with **120 Ω** at each bus end (not inside module)
+- Biasing resistors (pull-up/down) should be on the master
+
+#### Defaults
+
+| Setting       | Value        |
+|---------------|--------------|
+| Modbus Address | `3` |
+| Baud Rate      | `19200` |
+| Format         | `8N1` |
+| Address Range  | 1–247 |
+
+> 🧷 Reversed A/B will cause CRC errors — check if no response.
+
+---
+
+### 4.3.2 USB‑C (WebConfig)
+
+**Purpose:** Web-based configuration tool over native USB Serial. Supports:
+- Live readings
+- Address/baudrate config
+- Phase mapping
+- Relay/button/LED logic
+- Alarm setup
+- Calibration (gains/offsets)
+
+#### Steps
+
+1. Connect USB‑C to PC (Chrome/Edge)
+2. Open `tools/ConfigToolPage.html`  
+3. Click **Connect**, select ENM serial port  
+4. Configure settings: address, relays, LEDs, alarms, calibration  
+5. Click **Save & Disconnect** when finished
+
+> ⚠️ If **Connect** is greyed out: check browser support, OS permissions, and close any other apps using the port.
+
 
 <a id="installation-wiring"></a>
 
