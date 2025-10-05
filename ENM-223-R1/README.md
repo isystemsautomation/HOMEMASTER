@@ -1141,11 +1141,7 @@ The following key project resources are included in this repository:
   [`ENM-223-R1 Datasheet.pdf`](ENM-223-R1%20Datasheet.pdf)  
   Covers full electrical and mechanical specs, terminal layout, block diagram, and pinout.
 
-- 📦 **ESPHome YAML Templates**  
-  [`ENM223R1_ESPHome_Integration_Guide.md`](ENM223R1_ESPHome_Integration_Guide.md)  
-  Ready-to-use `packages:` block for ESPHome controllers, with sensors, relays, alarms, override logic, and Home Assistant tips.
 
-> 🔁 Latest releases can also be found in the [Releases](../../releases) tab or in the `Firmware/` directory.
 
 ---
 
