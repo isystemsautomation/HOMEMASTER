@@ -998,21 +998,6 @@ packages:
 
 ---
 
-## 7.5 Command Helpers (Writes)
-
-The package includes **pulse-safe** helpers for:
-
-| Action            | Register | Function |
-|-------------------|----------|----------|
-| Relay ON/OFF      | 600/601  | Manual or override |
-| Acknowledge Alarm | 610–613  | Clears latched alarm |
-| Override Force    | soft relay override even if alarms are active |
-| Reset Device      | Optional – resets config via holding register |
-
-> These show up as ESPHome `switch:` objects and can be used in HA automations or buttons.
-
----
-
 ## 7.6 Using Your MiniPLC YAML with ENM
 
 1. Keep existing `uart:` and `modbus:` blocks  
@@ -1077,13 +1062,12 @@ These combinations are handled in hardware. Use them when flashing or manually r
 
 ```cpp
 #include <Arduino.h>
-#include <ModbusSerial.h>
+#include <SPI.h>
 #include <SimpleWebSerial.h>
 #include <Arduino_JSON.h>
 #include <LittleFS.h>
-#include <Wire.h>
-#include <PCF8574.h>
-#include "hardware/watchdog.h"
+#include <math.h>
+#include <limits>
 ```
 
 - **Pin Notes:**
@@ -1101,7 +1085,7 @@ These combinations are handled in hardware. Use them when flashing or manually r
 - Upload `default_enm_223_r1.ino` from `/firmware/`
 - Configuration is preserved (stored in LittleFS)
 - Energy counters are safe (stored in FRAM)
-- Use **Holding Register 499 = 1** or **Buttons 3 + 4** to reset firmware config
+
 
 ---
 
@@ -1129,37 +1113,64 @@ These combinations are handled in hardware. Use them when flashing or manually r
 | **Hardware**     | CERN-OHL-W v2.0  |
 | **Firmware**     | GPLv3            |
 | **Config Tool**  | MIT              |
-| **YAML Examples**| CC BY-SA 4.0     |
+
 
 ---
-
-<a id="11-downloads"></a>
 
 # 11. Downloads
 
-| Item                | Path / Link                              |
-|---------------------|-------------------------------------------|
-| Firmware            | `firmware/default_enm_223_r1.ino`         |
-| WebConfig Tool      | `tools/ConfigToolPage.html`               |
-| ESPHome YAML        | `ENM223R1_ESPHome_Integration_Guide.md`   |
-| Schematics (PDF)    | `Schematics/ENM-223-R1-*.pdf`             |
-| Datasheet           | `ENM-223-R1 Datasheet.pdf`                |
-| Button/LED Diagram  | `Images/buttons1.png`                     |
-| Images & Diagrams   | `Images/` folder                          |
+The following key project resources are included in this repository:
+
+- 🧠 **Firmware (Arduino/PlatformIO)**  
+  [`firmware/default_enm_223_r1.ino`](firmware/default_enm_223_r1.ino)  
+  Core firmware implementing Modbus RTU, alarm logic, relays, LED control, overrides, and WebConfig support.
+
+- 🧰 **WebConfig Tool**  
+  [`tools/ConfigToolPage.html`](tools/ConfigToolPage.html)  
+  HTML-based USB Web Serial interface for live configuration, calibration, alarm setup, and logic assignment.
+
+- 🖼 **Images & UI Diagrams**  
+  [`Images/`](Images/)  
+  Contains front-panel photos, system diagrams, wiring illustrations, and screenshots from WebConfig UI.
+
+- 📐 **Hardware Schematics**  
+  [`Schematics/`](Schematics/)  
+  Includes PDF schematics for Field Board and MCU Board — ideal for developers, reviewers, or third-party modders.
+
+- 📄 **Datasheets & Manuals**  
+  [`ENM-223-R1 Datasheet.pdf`](ENM-223-R1%20Datasheet.pdf)  
+  Covers full electrical and mechanical specs, terminal layout, block diagram, and pinout.
+
+- 📦 **ESPHome YAML Templates**  
+  [`ENM223R1_ESPHome_Integration_Guide.md`](ENM223R1_ESPHome_Integration_Guide.md)  
+  Ready-to-use `packages:` block for ESPHome controllers, with sensors, relays, alarms, override logic, and Home Assistant tips.
+
+> 🔁 Latest releases can also be found in the [Releases](../../releases) tab or in the `Firmware/` directory.
 
 ---
 
-<a id="12-support"></a>
-
 # 12. Support
 
-- 🛠 [Support Portal](https://www.home-master.eu/support)
-- 🌐 [WebConfig Tool](https://www.home-master.eu/configtool-enm-223-r1)
-- 🎥 [YouTube](https://youtube.com/@HomeMaster)
-- 💬 [Reddit](https://reddit.com/r/HomeMaster)
-- 🔧 [Hackster](https://hackster.io/homemaster)
-- 📸 [Instagram](https://instagram.com/home_master.eu)
+If you need help using or configuring the ENM‑223‑R1 module, the following support options are available:
 
-For feature requests or bug reports, open an issue or contact support.
+### 🛠 Official Resources
+
+- 🧰 [WebConfig Tool (USB-C)](https://www.home-master.eu/configtool-enm-223-r1)  
+  Configure the module directly from your browser — no drivers or software required.
+
+- 📘 [Official Support Portal](https://www.home-master.eu/support)  
+  Includes setup guides, firmware help, diagnostics, and contact form.
+
+---
+
+### 📡 Community & Updates
+
+- 🔧 [Hackster Projects](https://hackster.io/homemaster) — System integration, code samples, wiring  
+- 📺 [YouTube Channel](https://youtube.com/@HomeMaster) — Module demos, walkthroughs, and tutorials  
+- 💬 [Reddit Community](https://reddit.com/r/HomeMaster) — Questions, answers, contributions  
+- 📸 [Instagram](https://instagram.com/home_master.eu) — Visual updates and field applications
+
+---
+
 
 
