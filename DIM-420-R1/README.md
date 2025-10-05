@@ -456,41 +456,152 @@ Button presses are de‑bounced and detected in firmware. LED states are updated
 
 <a id="5-module-code--technical-specification"></a>
 
-# 5. MODULE-CODE — Technical Specification
+# 5. DIM‑420‑R1 — Technical Specification
+
+---
 
 ## 5.1 Diagrams & Pinouts
 
-Add photos/diagrams:
-- System block diagram
-- Board layouts
-- Terminal maps
+<div align="center">
+
+| System Block Diagram | MCU Pinout |
+|----------------------|------------|
+| ![](Images/DIM_Diagram.png) | ![](Images/DIM_MCU_Pinouts.png) |
+
+| Field Board Layout | MCU Board Layout |
+|--------------------|------------------|
+| ![](Images/FieldBoard_Diagram.png) | ![](Images/MCUBoard_Diagram.png) |
+
+</div>
+
+---
 
 ## 5.2 I/O Summary
 
-Summarize in a table:
+| Interface        | Qty | Description |
+|------------------|-----|-------------|
+| **Digital Inputs** | 4   | Opto-isolated sourcing inputs, surge-protected |
+| **Dimming Outputs** | 2 | Phase-cut AC outputs (MOSFET, Leading/Trailing) |
+| **User Buttons** | 4   | Local override / toggle / ramp / preset actions |
+| **User LEDs**    | 4   | Configurable (CH state, AC presence, DI state) |
+| **RS‑485 Bus**   | 1   | Modbus RTU slave (A/B/COM) |
+| **USB‑C Port**   | 1   | Configuration & firmware via Web Serial (USB) |
+| **Relays**       | 0   | Not present (uses solid-state AC dimming) |
 
-| Interface | Qty | Description |
-|-----------|-----|-------------|
-| Inputs |   | Opto-isolated |
-| Relays |   | SPST/SPDT |
-| LEDs |   | Status indication |
-| USB-C | 1 | Setup only |
+---
 
-## 5.3 Electrical Specs
+## 5.3 Electrical Specifications
 
-Cover:
-- Input voltage range
-- Current consumption
-- Sensor rail current
-- Relay contact ratings
-- Isolation details
+| Parameter             | Value                     |
+|-----------------------|---------------------------|
+| Supply Voltage (V+)   | 24 VDC ±10% SELV          |
+| Power Consumption     | Typ. 1.85 W / Max. 3 W     |
+| Logic Rails           | 5 V (Buck), 3.3 V (LDO)    |
+| Isolated Power Rails  | +5V_ISO1 / +5V_ISO2        |
+| Dimming Outputs       | 110/230 VAC, Leading/Trailing |
+| DI Input Threshold    | 24 VDC, opto-isolated (ISO1212) |
+| USB-C Function        | Web Serial + UF2 upload    |
+| RS-485 Interface      | 115.2 kbps max, Modbus RTU |
+| Temperature Range     | 0…+40 °C                   |
+| Humidity Range        | ≤ 95 % RH, non-condensing |
 
-## 5.4 Firmware Behavior
+> ⚠ Installer note: Fuse 24 VDC input externally; protect AC loads per local code.
 
-Explain:
-- Alarm logic (latched/momentary)
-- Override priority
-- LED feedback modes
+---
+
+## 5.4 Terminal Map
+
+All terminals are 5.08 mm pitch, 300 V / 20 A rated, 26–12 AWG.
+
+| Group     | Terminals                  | Description / Notes |
+|-----------|----------------------------|----------------------|
+| **POWER** | V+, 0V                     | Logic power (24 VDC SELV) |
+| **DI**    | DI1–DI4 + GND pairs        | Opto-isolated inputs; each has dedicated GND |
+| **AC OUT**| Lx_IN/OUT, Nx_IN/OUT       | Dimmed output channels (CH1/CH2) |
+| **RS‑485**| A, B, COM                  | Differential bus + optional ground ref |
+| **USB-C** | Front panel USB-C port     | For setup only (Web Serial & UF2) |
+
+<div align="center">
+  <img src="Images/9191b21f-8774-4272-9a65-202c594d83d3.png" width="640" alt="DIM-420-R1 Terminal Block">
+</div>
+
+---
+
+## 5.5 Absolute Electrical Specifications
+
+| Parameter                | Min   | Typ     | Max    | Notes |
+|--------------------------|--------|---------|--------|-------|
+| **Supply voltage (V+)**  | 20 V   | 24 V    | 30 V   | SELV; reverse polarity protected |
+| **Power consumption**    | –      | 1.85 W  | 3 W    | Logic only (no load) |
+| **Logic rails**          | –      | 5 V / 3.3 V | –  | Buck + LDO derived |
+| **Isolated rails**       | +5V_ISO1/2 | –     | –     | Internal use for dimmer stage only |
+| **Digital inputs**       | –      | –       | 24 VDC | ISO1212 front-end, protected |
+| **AC dimmer outputs**    | –      | –       | 110/230 VAC | 2× WMM36N65C4 (MOSFET) |
+| **RS-485 Interface**     | –      | –       | 115.2 kbps | TVS/ESD + fail-safe |
+| **USB-C (setup only)**   | 5 V    | –       | –     | CP2102N bridge |
+| **Ambient temperature**  | 0 °C   | –       | +40 °C | 32–104 °F |
+| **Humidity (operating)** | –      | –       | 95 %RH | Non-condensing |
+
+---
+
+## 5.6 Protection Features
+
+- **24 V Input**
+  - Diode reversed path
+  - TVS: **SMBJ33A**
+  - High-side P-MOS + fuse (**F1206HI8000V024TM**)
+
+- **DI Channels**
+  - ISO1212 opto-isolated front end
+  - PTC: **1206L016WR**
+  - TVS: **SMBJ26CA**
+
+- **Dimmer Stage**
+  - Power switches: **WMM36N65C4**, 650 V
+  - Isolation: **SFH6156‑3T** optocouplers
+  - Input bridge: **MB6S**
+  - Zero-cross & snubber integrated
+
+- **RS‑485**
+  - Transceiver: **MAX485**
+  - TVS: **SMAJ6.8CA**
+  - Pull-up/down: 4.7 kΩ bias
+  - Termination pads included
+
+- **USB-C**
+  - USB-UART: **CP2102N**
+  - ESD Clamp: **PRTR5V0U2X**
+  - Data-line resistors: 27 Ω
+
+---
+
+## 5.7 Mechanical
+
+| Attribute             | Value                             |
+|-----------------------|-----------------------------------|
+| Mounting              | DIN rail (EN50022, 35 mm)         |
+| Material              | PC/ABS, UL V-0                    |
+| Color / Finish        | Light Gray / Smoke, Matte         |
+| Dimensions (L×W×H)    | 157.4 × 91 × 58.4 mm              |
+| Division Units        | 9M                                |
+| Net Weight            | 420 g                             |
+| Terminal Specs        | 26–12 AWG, 0.5–0.6 Nm torque       |
+
+---
+
+## 5.8 Environmental & Compliance
+
+| Parameter              | Value                             |
+|------------------------|-----------------------------------|
+| Operating Temp         | 0 °C … +40 °C                      |
+| Operating Humidity     | ≤ 95 % RH, non-condensing         |
+| Ingress Protection     | IP20                              |
+| Pollution Degree       | 2                                 |
+| Impulse Voltage        | 2.5 kV (UL60730-1)                |
+| Operation Class        | Type 1 (UL60730-1, CSA E60730-1)  |
+| Altitude Rating        | ≤ 2000 m                          |
+| Certifications         | CE, UL60730-1, CSA E60730-1       |
+| RoHS / Pb-free         | ✅ Compliant                      |
 
 ---
 
