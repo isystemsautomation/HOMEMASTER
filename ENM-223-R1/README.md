@@ -184,76 +184,88 @@ These templates are applicable in energy management, automation, industrial cont
 ---
 
 
-<a id="3-safety-information"></a>
-
 # 3. Safety Information
 
-The ENM‑223‑R1 is a compact metering and I/O module with multiple electrical domains, including high-voltage mains inputs, low-voltage 24 V DC control, and galvanically isolated metering circuits. To prevent equipment damage, measurement inaccuracy, or personal injury, all wiring and installation must follow proper safety procedures.
+These safety guidelines apply to the **ENM‑223‑R1 energy monitoring module**. Ignoring them may result in **equipment damage, system failure, or personal injury**.
+
+> ⚠️ **Low-Voltage (SELV) only** — The ENM‑223‑R1 is designed for operation in **SELV circuits only**. Never connect mains voltage directly to digital I/O, relays, RS‑485, or USB-C.
 
 ---
 
 ## 3.1 General Requirements
 
-| Requirement            | Detail |
-|------------------------|--------|
-| **Qualified Personnel**  | Required for all installation, wiring, and servicing tasks |
-| **Power Isolation**      | De-energize **all terminals** before working on the device |
-| **Rated Inputs Only**    | Use only supported voltages: CTs (1 V / 333 mV), AC inputs (85–265 V AC) |
-| **Grounding (PE)**       | PE terminal must be connected to protective earth |
-| **Enclosure Environment**| Use in clean, dry cabinets; avoid conductive dust, moisture, or condensation |
+| Requirement           | Detail |
+|-----------------------|--------|
+| Qualified Personnel   | Installation and servicing must be done by trained technicians familiar with panel wiring and control systems. |
+| Power Isolation       | Always disconnect **24 V DC power** and relay loads before servicing. Use lockout/tagout where applicable. |
+| Environmental Limits  | Mount inside a clean, ventilated enclosure. Avoid condensation, conductive dust, or vibration. |
+| Grounding             | Always connect the **PE terminal**. Bond control panel to earth. Maintain separation between **logic GND** and **GND_ISO**. |
+| Voltage Compliance    | Connect only sources within the module’s specified range. Fusing and protection must be applied upstream. |
 
 ---
 
 ## 3.2 Installation Practices
 
-To ensure long-term reliability and safety, follow these best practices during mechanical and electrical installation:
-
-### 🧩 DIN Mounting
-- Mount vertically on **35 mm DIN rail**
-- Allow at least **10 mm clearance** top and bottom for airflow
-
-### 🔌 Respect Isolation Domains
-- **Do not short** digital ground (**GND**) and analog/metrology ground (**GND_ISOLATED**)
-- Respect signal isolation between RS-485, USB, relay outputs, and analog inputs
-- Follow silkscreen and pinouts when connecting CTs and high-voltage lines
-
-### ⚡ Voltage Wiring (L1/L2/L3/N/PE)
-- Connect L1–L3 via protected AC feeds (fused or breaker)
-- Tie **unused L2/L3 → N** for single-phase operation to avoid phantom voltages
-- Always wire **PE** — this improves both safety and metering accuracy
-
-### 🧲 Current Transformer Inputs
-- Use **1 V RMS or 333 mV RMS** output CTs (split-core or intermediate type)
-- Do **not** connect 5 A CTs directly
-- Observe CT orientation (arrow → load)
-- Shield CT wiring for long cable runs
-
-### 🔁 Relay Outputs
-- Rated for **5 A max** @ 250 V AC or 30 V DC
-- Use **external snubber** (RC or diode) on inductive loads (motors, contactors)
-- Relay contact wiring is **dry-contact only**; do not source current through the relay board itself
-
-### 🔌 24 VDC Power Input
-- Supply clean **24 V DC** to `V+ / GND` terminals (reverse-protected)
-- The 24 V input powers the **interface logic**, relays, and RS‑485 transceiver
+| Task                | Guidance |
+|---------------------|----------|
+| ESD Protection       | Handle only by the case. Use antistatic wrist strap and surface during service. |
+| DIN Rail Mounting    | Mount securely on **35 mm DIN rail** inside an enclosure. Apply strain relief to all cabling. |
+| Wiring               | Use proper gauge and torque terminals. Separate relay, CT, and RS‑485 wiring paths. |
+| Isolation Domains    | Respect analog vs digital ground. Do **not bridge GND_ISO** (CT/metrology side) to logic GND. |
+| Commissioning        | Before applying power, verify voltage wiring, RS‑485 polarity, CT orientation, and relay contacts (NO/NC). |
 
 ---
 
-## 3.3 Interface Warnings
+## 3.3 I/O & Interface Warnings
 
-| Interface      | Rating & Notes |
-|----------------|----------------|
-| **Power Input** | 24 V DC ±10%, fused and reverse‑protected (input on FieldBoard) |
-| **Relay Outputs** | 2× SPDT dry contact, 5 A max; inductive loads require external snubber |
-| **Voltage Inputs (L1/L2/L3/N)** | 85–265 V AC; must be fused externally; PE and N required |
-| **CT Inputs** | Accept 333 mV / 1 V RMS CTs only; high-current secondary CTs must use burden conversion |
-| **RS‑485 (A/B/COM)** | Standard 3‑wire half-duplex; termination and fail-safe biasing required at bus ends |
-| **GND / GND_ISO** | Do not bridge interface GND and analog GND_ISO |
-| **USB‑C Port** | Use for configuration only (via Web Serial); not rated for field connection or long-term use |
+### ⚡ Power
+
+| Area            | Warning |
+|-----------------|---------|
+| **24 V DC Input** | Use a clean SELV 24 V DC supply. Reverse polarity is internally protected but may disable the module. |
+| **Voltage Input (L1–L3/N)** | Must be fused upstream. Do not apply voltage without PE/N wiring. Use appropriate circuit protection. |
+| **Sensor Power (CT)** | Use **1 V or 333 mV RMS** CTs only. Never connect high-current 5 A outputs directly. |
+
+### 🧲 Inputs & Relays
+
+| Area             | Warning |
+|------------------|---------|
+| **CT Inputs**     | Connect only split-core or intermediate CTs with 333 mV or 1 V outputs. Observe `+` and `−` polarity. |
+| **Relay Outputs** | Dry contacts only. Max: 5 A @ 250 VAC / 30 VDC. Add **snubber circuits** (RC/TVS) on inductive loads. |
+
+### 🖧 Communication & USB
+
+| Area             | Warning |
+|------------------|---------|
+| **RS‑485 Bus**    | Use **twisted pair (shielded)** cable. Terminate at both ends (120 Ω). Match **A/B polarity**. Share GND if powered from different sources. |
+| **USB-C (Front)** | For **setup only**. Not suitable for continuous field use. During storms or exposed operation, unplug USB. |
+
+### 🎛 Front Panel
+
+| Area               | Warning |
+|--------------------|---------|
+| **Buttons & LEDs** | Can override relays or acknowledge alarms. Use firmware settings to disable if safety‑critical. |
+
+### 🛡 Shielding & EMC
+
+| Area            | Recommendation |
+|-----------------|----------------|
+| **Cable Shields** | Terminate shielding at **one point only** (preferably at the PLC/controller side). Keep signal wiring away from VFDs or high-voltage switchgear. |
 
 ---
 
-> ⚠️ **Important**: Improper wiring (e.g., grounding violations, CT overvoltage, incorrect relay load) can cause equipment damage or hazardous conditions. Always review schematics and safety guidance before installation.
+### ✅ Pre‑Power Checklist
+
+- [x] **All terminals** are torqued and strain-relieved  
+- [x] No accidental bridges between **logic GND** and **GND_ISO**  
+- [x] PE and N are connected  
+- [x] RS‑485 **A/B polarity and termination** are correct  
+- [x] CTs are connected with correct orientation (+/−)  
+- [x] Voltage inputs are protected and within 85–265 V range  
+- [x] Relay outputs do **not** exceed 5 A (use snubbers for inductive loads)
+
+> 🧷 **Tip:** If using only L1 in a single-phase setup, tie **L2/L3 → N** to avoid phantom readings.
+
 
 
 <a id="4-installation-quick-start"></a>
