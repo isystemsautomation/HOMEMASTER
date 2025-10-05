@@ -895,7 +895,7 @@ switch:
     name: "Relay 1"
     register_type: coil
     address: 600
-
+```
 
 <a id="7-esphome-integration-guide"></a>
 
