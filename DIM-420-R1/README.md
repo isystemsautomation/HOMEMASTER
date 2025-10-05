@@ -162,7 +162,7 @@ These guidelines apply to the **DIM‑420‑R1** dimmer module. Ignoring them ma
 
 | Area | Warning |
 |------|---------|
-| **DI1–DI4** | **Dry contacts / isolated low‑voltage** only (opto‑isolated front end). Do **not** apply mains. Use `DIx_GND` returns and configure debounce/invert in UI.  |
+| **DI1–DI4** | **Dry contacts / isolated low‑voltage** only (isolated front end). Do **not** apply mains. Use `DIx_GND` returns and configure debounce/invert in UI.  |
 
 ### Dimming Channels (MAINS)
 
@@ -195,27 +195,109 @@ These guidelines apply to the **DIM‑420‑R1** dimmer module. Ignoring them ma
 
 # 4. Installation & Quick Start
 
+The **DIM‑420‑R1** is a smart dual-channel dimmer with **Modbus RTU** and onboard **USB‑C WebConfig**. Setup has two main stages:
+
+1. **Wiring & power** (24 V + RS‑485 + AC load)  
+2. **Digital configuration** (WebConfig → Modbus ID, Cut Mode, etc.)
+
+---
+
 ## 4.1 What You Need
 
-| Item | Description |
-|------|-------------|
-| Module | MODULE-CODE unit |
-| Controller | MiniPLC/MicroPLC or Modbus RTU master |
-| PSU | Regulated 24 VDC |
-| Cable | USB-C and RS-485 twisted pair |
-| Software | Browser with Web Serial support |
+| Category            | Item            | Details |
+|---------------------|------------------|---------|
+| **Hardware**         | DIM‑420‑R1       | DIN-rail dimmer with **2 AC outputs**, **4 DIs**, **4 buttons**, **4 LEDs**, **USB‑C**, **RS‑485** |
+|                     | Controller (master) | HomeMaster MiniPLC / MicroPLC or any Modbus RTU master |
+|                     | 24 VDC PSU (SELV) | Regulated 24 VDC to `V+ / 0V` (logic + UI). AC loads powered separately. |
+|                     | RS‑485 Cable     | Twisted pair (shielded). Use `A/B/COM`, terminate with 120 Ω if needed. |
+|                     | USB‑C cable      | For WebConfig via Chromium browser (setup only) |
+| **Software**         | WebConfig (built-in) | Open `ConfigToolPage.html` in a Chromium browser |
+|                     | PLC/HA YAML (optional) | For ESPHome/Home Assistant: exposes CH/DI/LED control |
+| **Field I/O**        | AC Load          | CH1/CH2 outputs to **trailing- or leading-edge dimmable** loads |
+|                     | DI Switches      | Wall switches (dry contact). Use `DIx` + `GND`. Momentary/latching supported. |
+|                     | RS‑485 bus       | A / B / COM (use shielded twisted pair). COM is optional GND ref |
+|                     | Power Terminals  | `V+`, `0V` = logic power (SELV). `Lx/Nx IN/OUT` = mains side. |
+
+> 💡 **Quick path mount:** wire 24 VDC, RS‑485 (A/B/COM), and DI → connect USB‑C → open WebConfig → set Modbus & cut mode → tune thresholds → map DIs/LEDs → save → disconnect USB → go live.
+
+---
 
 ## 4.2 Power
 
-- Describe 24 VDC input
-- List expected current
-- Explain isolated sensor power if present
+The DIM‑420‑R1 uses **24 VDC SELV** for logic, UI, RS‑485, and Web Serial.  
+AC power is handled separately by the dimming channels (see §4.4).
 
-## 4.3 Communication
+### 🔌 Supply Details
 
-- RS-485 pinout
-- Address & baudrate setup
-- Use of COM/GND reference
+| Type              | Description |
+|------------------|-------------|
+| **24 VDC Input**   | Primary logic power. Connect `V+` / `0V`. Protected by fuse + TVS. |
+| **AC Power**       | CH1/CH2 output sections are powered via `Lx_IN/Nx_IN` terminals. **Do not share logic power and AC domains.** |
+| **Internal Rails** | Onboard 5 V + 3.3 V (buck-regulated) for logic, UI, and isolated side. |
+
+### ⚡ Current
+
+- ~50 mA idle (logic + UI only)
+- Add budget if using all 4 LEDs, buttons, and rapid RS‑485 comms.
+- AC loads pull from **separate mains lines** — never through the 24 V rail.
+
+---
+
+## 4.3 Networking & Communication
+
+DIM‑420‑R1 supports **RS‑485 Modbus RTU** for runtime control and **USB‑C WebConfig** for setup.
+
+### 4.3.1 RS‑485 (Modbus RTU)
+
+#### 🧷 Terminals
+
+A B COM
+
+Located bottom-left on module:
+
+
+| Pin | Description |
+|-----|-------------|
+| A / B | RS‑485 differential pair |
+| COM   | Optional GND reference (connect to controller GND if needed) |
+
+Use **shielded twisted pair**, terminate at both ends (~120 Ω), and bias if required.
+
+#### 🔁 Protocol
+
+| Parameter      | Value         |
+|----------------|---------------|
+| Role           | Slave (DIM‑420‑R1) |
+| Address Range  | 1–247 (default = `3`) |
+| Baud           | 9600–115200 (default = `19200`) |
+| Format         | 8 data bits, No parity, 1 stop bit (8N1) |
+
+---
+
+### 4.3.2 USB‑C (WebConfig)
+
+For setup/diagnostics via Chromium:
+
+#### 🖥 Steps
+
+1. Connect USB‑C to PC
+2. Open `ConfigToolPage.html` (local or hosted)
+3. Click **Connect** (Web Serial)
+4. Set:
+   - **Modbus Address & Baud**
+   - Channel **Cut Mode** (Leading/Trailing)
+   - **Lower/Upper** thresholds
+   - **Input mode**: Momentary/Latching
+   - Map **LEDs / Buttons**
+5. Click **Save**
+6. Disconnect USB → RS‑485 master takes over
+
+> 🔐 If **Connect** is disabled, ensure you're using Chromium + USB permission is granted. On macOS/Linux, close any app that may be holding the port (e.g., serial monitor).
+
+---
+
+Let me know if you'd like the follow-up section `4.4 Wiring Examples` or `5 Controller Integration`.
+
 
 <a id="installation-wiring"></a>
 
