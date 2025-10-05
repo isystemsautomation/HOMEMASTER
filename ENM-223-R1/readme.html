@@ -1,0 +1,1854 @@
+<p><strong>Firmware Version:</strong> 2025-09 snapshot</p>
+<p><img src="https://img.shields.io/badge/Firmware-2025--09-blue" alt="Firmware Version"><br><img src="https://img.shields.io/badge/Protocol-Modbus%20RTU-brightgreen" alt="Modbus"><br><img src="https://img.shields.io/badge/License-GPLv3%20%2F%20CERN--OHL--W-blue" alt="License"></p>
+<h1>ENM-223-R1 — 3-Phase Power Metering &amp; I/O Module</h1>
+<p><strong>HOMEMASTER – Modular control. Custom logic.</strong></p>
+<img src="Images/photo1.png" align="right" width="440" alt="MODULE photo">
+
+<h3>Module Description</h3>
+<p>The <strong>ENM-223-R1</strong> is a configurable smart I/O module designed for <strong>3-phase power quality and energy metering</strong>.<br>It includes <strong>3 voltage inputs, 3 current channels</strong>, <strong>2 relays</strong>, and optional <strong>4 buttons / 4 LEDs</strong>, with configuration via <strong>WebConfig</strong> using <strong>USB-C (Web Serial)</strong>.<br>It connects over <strong>RS-485 (Modbus RTU)</strong> to a <strong>MicroPLC/MiniPLC</strong>, enabling use in <strong>energy monitoring, automation, and smart building applications</strong>.</p>
+<hr>
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#1-introduction">1. Introduction</a></li>
+<li><a href="#2-use-cases">2. Use Cases</a></li>
+<li><a href="#3-safety-information">3. Safety Information</a></li>
+<li><a href="#4-installation-quick-start">4. Installation &amp; Quick Start</a></li>
+<li><a href="#5-module-code--technical-specification">5. MODULE-CODE — Technical Specification</a></li>
+<li><a href="#6-modbus-rtu-communication">6. Modbus RTU Communication</a></li>
+<li><a href="#7-esphome-integration-guide">7. ESPHome Integration Guide (if applicable)</a></li>
+<li><a href="#8-programming--customization">8. Programming &amp; Customization</a></li>
+<li><a href="#9-maintenance--troubleshooting">9. Maintenance &amp; Troubleshooting</a></li>
+<li><a href="#10-open-source--licensing">10. Open Source &amp; Licensing</a></li>
+<li><a href="#11-downloads">11. Downloads</a></li>
+<li><a href="#12-support">12. Support</a></li>
+</ul>
+<br clear="left"/>
+
+<hr>
+<p><a id="1-introduction"></a></p>
+<h1>1. Introduction</h1>
+<h2>1.1 Overview of the ENM‑223‑R1 Module ⚡</h2>
+<p>The <strong>ENM‑223‑R1</strong> is a modular <strong>3‑phase energy metering + I/O</strong> device for power monitoring, automation, and local control. It features <strong>3 voltage channels (L1/L2/L3‑N)</strong>, <strong>3 current channels (external CTs)</strong>, <strong>2 SPDT relays</strong>, <strong>4 user LEDs</strong>, and <strong>4 buttons</strong>—all driven by an <strong>RP2350</strong> MCU with QSPI flash and a dedicated <strong>ATM90E32AS</strong> metering IC.</p>
+<p>It integrates with <strong>MiniPLC/MicroPLC</strong> controllers or any <strong>Modbus RTU</strong> master over <strong>RS‑485</strong>, and it’s configured in‑browser via <strong>USB‑C Web Serial</strong> (no drivers). Typical uses include <strong>energy dashboards, demand response, alarm‑driven relay control, and building automation</strong>. Defaults ship as <strong>Modbus address 3 @ 19200 8N1</strong> (changeable in WebConfig).</p>
+<blockquote>
+<p>Quick device flow:<br><strong>Wire Lx/N/PE + CTs → set address/baud in WebConfig → calibrate gains/offsets → define alarms per L1/L2/L3/Totals → map relays/LEDs/buttons → connect RS‑485 A/B (and GND if separate PSUs) → poll via Modbus.</strong></p>
+</blockquote>
+<hr>
+<h2>1.2 Features &amp; Architecture</h2>
+<h3>Core Capabilities</h3>
+<table>
+<thead>
+<tr>
+<th>Subsystem</th>
+<th>Qty</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Voltage Inputs</td>
+<td>3</td>
+<td>L1/L2/L3‑N measurement (divider network on FieldBoard) feeding ATM90E32AS</td>
+</tr>
+<tr>
+<td>Current Inputs</td>
+<td>3</td>
+<td>Differential CT inputs (IAP/IAN, IBP/IBN, ICP/ICN) with filtering/burdens</td>
+</tr>
+<tr>
+<td>Relays</td>
+<td>2</td>
+<td><strong>SPDT</strong> dry contacts (NO/NC); opto‑driven; alarm‑ or Modbus‑controlled</td>
+</tr>
+<tr>
+<td>LEDs</td>
+<td>4</td>
+<td>User LEDs; sources: overrides/alarms/warnings/events; steady or blink</td>
+</tr>
+<tr>
+<td>Buttons</td>
+<td>4</td>
+<td>User actions (toggle relays/LEDs, overrides, acks) with live state feedback</td>
+</tr>
+<tr>
+<td>Metering &amp; Energy</td>
+<td>—</td>
+<td>ATM90E32AS: Urms/Irms, <strong>P/Q/S</strong>, PF, angle, freq; energy kWh/kvarh/kVAh (phase &amp; totals)</td>
+</tr>
+<tr>
+<td>Config UI</td>
+<td>Web Serial</td>
+<td>In‑browser <strong>WebConfig</strong> over <strong>USB‑C</strong> (Chrome/Edge); live meter, calibration, alarms, relays, LEDs, buttons</td>
+</tr>
+<tr>
+<td>Modbus RTU</td>
+<td>RS‑485</td>
+<td>Multi‑drop slave; address 1…255; baud 9600–115200 (default <strong>19200 8N1</strong>)</td>
+</tr>
+<tr>
+<td>MCU</td>
+<td>RP2350 + QSPI</td>
+<td>Dual‑core MCU, native USB, external W25Q32 flash; RS‑485 via MAX485 transceiver</td>
+</tr>
+<tr>
+<td>Power</td>
+<td>24 VDC</td>
+<td>Buck to 5 V → 3.3 V LDO; <strong>isolated analog domain</strong> via B0505S DC‑DC + ISO7761</td>
+</tr>
+<tr>
+<td>Protection</td>
+<td>TVS, PTC, fuses</td>
+<td>Surge/ESD on USB &amp; RS‑485; resettable fuses on field I/O; reverse‑polarity protection</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>1.3 System Role &amp; Communication 🍰</h2>
+<p>The <strong>ENM‑223‑R1</strong> is a <strong>smart Modbus RTU slave</strong>. It executes local alarm logic (thresholds &amp; acks) and mirrors states/values to a PLC or SCADA via registers/coils. Configuration (meter options, calibration, relay/LED logic, button actions, Modbus address/baud) is done via <strong>USB‑C WebConfig</strong>, stored to non‑volatile memory.</p>
+<table>
+<thead>
+<tr>
+<th>Role</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>System Position</td>
+<td>Expansion meter+I/O on the <strong>RS‑485</strong> trunk (A/B/GND)</td>
+</tr>
+<tr>
+<td>Master Controller</td>
+<td>MiniPLC / MicroPLC or any third‑party Modbus RTU <strong>master</strong> (polling)</td>
+</tr>
+<tr>
+<td>Address / Baud</td>
+<td>Configurable 1…255 / <strong>9600–115200</strong>; <strong>factory default: ID 3 @ 19200 8N1</strong></td>
+</tr>
+<tr>
+<td>Bus Type</td>
+<td>RS‑485 half‑duplex; termination/bias per bus rules; share <strong>GND</strong> if separate PSUs</td>
+</tr>
+<tr>
+<td>USB‑C Port</td>
+<td>Setup/diagnostics via Chromium browser (Web Serial); native USB D+/D− to MCU</td>
+</tr>
+<tr>
+<td>Default Modbus ID</td>
+<td><strong>3</strong> (change in WebConfig)</td>
+</tr>
+<tr>
+<td>Daisy‑Chaining</td>
+<td>Multi‑drop on shared A/B; ensure unique IDs and end‑of‑line termination</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>Note:</strong> The UI exposes per‑channel <strong>Alarm / Warning / Event</strong> with min/max thresholds and <strong>Ack required</strong> option; relays can follow selected alarm kinds or be <strong>Modbus‑controlled</strong>. Buttons can toggle/override relays; LEDs reflect overrides or alarm states.</p>
+</blockquote>
+<p><a id="2-use-cases"></a></p>
+<h1>2. Use Cases</h1>
+<p>This section outlines practical application examples for the <strong>ENM‑223‑R1</strong> module. Each use case includes a functional goal and a clear configuration procedure using the WebConfig tool and/or Modbus RTU integration.</p>
+<p>These templates are applicable in energy management, automation, industrial control, and building infrastructure deployments.</p>
+<hr>
+<h2>2.1 Overcurrent Alarm with Manual Reset</h2>
+<p><strong>Purpose:</strong> Activate <strong>Relay 1</strong> when current exceeds a configured threshold and hold it until manually acknowledged.</p>
+<h3>Configuration:</h3>
+<ul>
+<li><strong>Alarms</strong> → Channel: <code>Totals</code>  <ul>
+<li>Enable <strong>Alarm</strong>  </li>
+<li>Metric: <code>Current (Irms)</code>  </li>
+<li>Max threshold: e.g. <code>&gt; 5000</code> (for 5 A)  </li>
+<li>Enable <strong>Ack required</strong></li>
+</ul>
+</li>
+<li><strong>Relays</strong> → Relay 1  <ul>
+<li>Mode: <code>Alarm Controlled</code>  </li>
+<li>Channel: <code>Totals</code>, Kinds: <code>Alarm</code></li>
+</ul>
+</li>
+<li><strong>LEDs</strong> → LED 1  <ul>
+<li>Source: <code>Alarm Totals</code>, Mode: <code>Steady</code></li>
+</ul>
+</li>
+<li><strong>Acknowledge</strong>: via Web UI, Modbus coils <code>610–613</code>, or front panel button (if assigned)</li>
+</ul>
+<hr>
+<h2>2.2 Manual Override for Load Control</h2>
+<p><strong>Purpose:</strong> Allow field operators to override <strong>Relay 2</strong> using a button, regardless of Modbus or automation control.</p>
+<h3>Configuration:</h3>
+<ul>
+<li><strong>Relays</strong> → Relay 2  <ul>
+<li>Mode: <code>Modbus Controlled</code>  </li>
+<li>Enabled at power-on</li>
+</ul>
+</li>
+<li><strong>Buttons</strong> → Button 2  <ul>
+<li>Action: <code>Override Relay 2 (hold 3s)</code></li>
+</ul>
+</li>
+<li><strong>LEDs</strong> → LED 2  <ul>
+<li>Source: <code>Override R2</code>, Mode: <code>Blink</code> or <code>Steady</code></li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<p>Holding the button for 3 seconds enters override mode. A short press toggles the relay. Holding again exits override mode.</p>
+</blockquote>
+<hr>
+<h2>2.3 Environmental Voltage/Frequency Alarm with Auto-Clear</h2>
+<p><strong>Purpose:</strong> Detect power quality faults (sag/swell or freq drift), activate <strong>Relay 1</strong> as an output, and auto-reset when back in range.</p>
+<h3>Configuration:</h3>
+<ul>
+<li><strong>Alarms</strong> → Channel: <code>L1</code>  <ul>
+<li>Enable <strong>Alarm</strong>  </li>
+<li>Metric: <code>Voltage (Urms)</code>  </li>
+<li>Min: <code>21000</code> (210 V), Max: <code>25000</code> (250 V)  </li>
+<li>Leave <strong>Ack required</strong> unchecked</li>
+</ul>
+</li>
+<li><strong>Relays</strong> → Relay 1  <ul>
+<li>Mode: <code>Alarm Controlled</code>, Channel: <code>L1</code>, Kinds: <code>Alarm</code></li>
+</ul>
+</li>
+<li><strong>LEDs</strong> → LED 1  <ul>
+<li>Source: <code>Alarm L1</code></li>
+</ul>
+</li>
+</ul>
+<hr>
+<h2>2.4 Staged Load Shedding via Modbus Scenes</h2>
+<p><strong>Purpose:</strong> Use a controller to shed non-critical loads as power consumption increases.</p>
+<h3>Configuration:</h3>
+<ul>
+<li><strong>Relays</strong> → Relay 1 and Relay 2  <ul>
+<li>Mode: <code>Modbus Controlled</code></li>
+</ul>
+</li>
+<li>In PLC logic:<ul>
+<li>Monitor <code>Totals S (VA)</code> via Input Register</li>
+<li>If <code>S &gt; 8000</code>, write coil <code>600 = OFF</code> (Relay 1)</li>
+<li>If <code>S &gt; 10000</code>, write coil <code>601 = OFF</code> (Relay 2)</li>
+<li>Restore relays when values drop below defined hysteresis limits</li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<p>Ideal for HVAC or lighting where priority-based power shedding is needed.</p>
+</blockquote>
+<hr>
+<h3>Summary Table</h3>
+<table>
+<thead>
+<tr>
+<th>Use Case</th>
+<th>Feature Used</th>
+<th>Reset Method</th>
+<th>Relay Mode</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Overcurrent Alarm + Ack</td>
+<td>Alarms, Ack, Relay 1</td>
+<td>Manual (Ack)</td>
+<td>Alarm Controlled</td>
+</tr>
+<tr>
+<td>Manual Override via Button</td>
+<td>Button override, LED</td>
+<td>Button toggle</td>
+<td>Modbus Controlled</td>
+</tr>
+<tr>
+<td>Voltage/Frequency Fault Auto-Reset</td>
+<td>Alarm (no ack), Relay</td>
+<td>Auto (value returns)</td>
+<td>Alarm Controlled</td>
+</tr>
+<tr>
+<td>Load Shedding (Staged Scenes)</td>
+<td>PLC Modbus, Relay 1 &amp; 2</td>
+<td>PLC-controlled</td>
+<td>Modbus Controlled</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>🛠 All parameters are configurable via USB‑C WebConfig. Modbus control assumes master-side logic (PLC, SCADA, or MicroPLC/MiniPLC).</p>
+</blockquote>
+<hr>
+<p><a id="3-safety-information"></a></p>
+<h1>3. Safety Information</h1>
+<p>These safety guidelines apply to the <strong>ENM‑223‑R1 3‑phase metering and I/O module</strong>. Ignoring them may result in <strong>equipment damage, system failure, or personal injury</strong>.</p>
+<blockquote>
+<p>⚠️ <strong>Mixed Voltage Domains</strong> — This device contains both <strong>SELV (e.g., 24 V DC, RS‑485, USB)</strong> and <strong>non-SELV mains inputs (85–265 V AC)</strong>. Proper isolation, wiring, and grounding are required. Never connect SELV and mains GND together.</p>
+</blockquote>
+<hr>
+<h2>3.1 General Requirements</h2>
+<table>
+<thead>
+<tr>
+<th>Requirement</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Qualified Personnel</td>
+<td>Installation and servicing must be done by qualified personnel familiar with high-voltage and SELV control systems.</td>
+</tr>
+<tr>
+<td>Power Isolation</td>
+<td>Disconnect both <strong>24 V DC</strong> and <strong>voltage inputs (Lx/N)</strong> before servicing. Use lockout/tagout where applicable.</td>
+</tr>
+<tr>
+<td>Environmental Limits</td>
+<td>Mount in a clean, sealed enclosure. Avoid condensation, conductive dust, or vibration.</td>
+</tr>
+<tr>
+<td>Grounding</td>
+<td>Bond the panel to PE. Wire <strong>PE and N</strong> to the module. Never bridge <strong>GND_ISO</strong> to logic GND.</td>
+</tr>
+<tr>
+<td>Voltage Compliance</td>
+<td>CT inputs: 1 V or 333 mV RMS only. Voltage inputs: 85–265 V AC. Use upstream fusing and surge protection.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>3.2 Installation Practices</h2>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Guidance</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>ESD Protection</td>
+<td>Handle only by the case. Use antistatic wrist strap and surface when the board is exposed.</td>
+</tr>
+<tr>
+<td>DIN Rail Mounting</td>
+<td>Mount securely on <strong>35 mm DIN rail</strong> inside an IP-rated cabinet. Allow cable slack for strain relief.</td>
+</tr>
+<tr>
+<td>Wiring</td>
+<td>Use correct gauge wire and torque terminal screws. Separate relay, CT, and RS‑485 wiring.</td>
+</tr>
+<tr>
+<td>Isolation Domains</td>
+<td>Respect isolation: <strong>Do not bridge GND_ISO to GND</strong>. Keep analog and logic grounds isolated.</td>
+</tr>
+<tr>
+<td>Commissioning</td>
+<td>Before power-up, verify voltage wiring, CT polarity, RS‑485 A/B orientation, and relay COM/NO/NC routing.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>3.3 I/O &amp; Interface Warnings</h2>
+<h3>⚡ Power</h3>
+<table>
+<thead>
+<tr>
+<th>Area</th>
+<th>Warning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>24 V DC Input</strong></td>
+<td>Use a clean, fused SELV power source. Reverse polarity is protected but may disable the module.</td>
+</tr>
+<tr>
+<td><strong>Voltage Input</strong></td>
+<td>Connect <strong>L1/L2/L3/N/PE</strong> only within rated range (85–265 V AC). Use circuit protection upstream.</td>
+</tr>
+<tr>
+<td><strong>Sensor Domain</strong></td>
+<td>Use <strong>CTs with 1 V or 333 mV RMS</strong> output. Never apply 5 A directly. Observe polarity and shielding.</td>
+</tr>
+</tbody></table>
+<h3>🧲 Inputs &amp; Relays</h3>
+<table>
+<thead>
+<tr>
+<th>Area</th>
+<th>Warning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>CT Inputs</strong></td>
+<td>Accept only voltage-output CTs. Reversing polarity may affect power sign. Use GND_ISO reference.</td>
+</tr>
+<tr>
+<td><strong>Relay Outputs</strong></td>
+<td>Dry contacts only. Rated: <strong>5 A @ 250 VAC or 30 VDC</strong>. Use snubber (RC/TVS) for inductive loads.</td>
+</tr>
+</tbody></table>
+<h3>🖧 Communication &amp; USB</h3>
+<table>
+<thead>
+<tr>
+<th>Area</th>
+<th>Warning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>RS‑485 Bus</strong></td>
+<td>Use <strong>twisted pair</strong>. Terminate at both ends. Match A/B polarity. Share GND if powered from different PSUs.</td>
+</tr>
+<tr>
+<td><strong>USB-C (Front)</strong></td>
+<td>For <strong>setup only</strong>. Not for permanent field connection. Disconnect during storms or long idle periods.</td>
+</tr>
+</tbody></table>
+<h3>🎛 Front Panel</h3>
+<table>
+<thead>
+<tr>
+<th>Area</th>
+<th>Warning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Buttons &amp; LEDs</strong></td>
+<td>Can override relays or trigger alarms. Use firmware settings or lockout for safety-critical installs.</td>
+</tr>
+</tbody></table>
+<h3>🛡 Shielding &amp; EMC</h3>
+<table>
+<thead>
+<tr>
+<th>Area</th>
+<th>Recommendation</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Cable Shields</strong></td>
+<td>Terminate at one side only (preferably PLC/controller). Route away from VFDs and high-voltage cabling.</td>
+</tr>
+</tbody></table>
+<hr>
+<h3>✅ Pre‑Power Checklist</h3>
+<ul>
+<li><input checked="" disabled="" type="checkbox"> All wiring is torqued, labeled, and strain-relieved  </li>
+<li><input checked="" disabled="" type="checkbox"> <strong>No bridge between logic GND and GND_ISO</strong>  </li>
+<li><input checked="" disabled="" type="checkbox"> PE and N are wired to terminals  </li>
+<li><input checked="" disabled="" type="checkbox"> RS‑485 A/B polarity and 120 Ω termination confirmed  </li>
+<li><input checked="" disabled="" type="checkbox"> Relay loads do <strong>not</strong> exceed 5 A or contact voltage rating  </li>
+<li><input checked="" disabled="" type="checkbox"> CTs installed with correct polarity and securely landed  </li>
+<li><input checked="" disabled="" type="checkbox"> Voltage inputs fused, protected, and within spec (85–265 V AC)</li>
+</ul>
+<blockquote>
+<p>🧷 <strong>Tip:</strong> In single-phase installations, energize <strong>L1</strong> and tie <strong>L2/L3 → N</strong> to prevent phantom voltages.</p>
+</blockquote>
+<p><a id="4-installation-quick-start"></a></p>
+<h1>4. Installation &amp; Quick Start</h1>
+<p>The <strong>ENM‑223‑R1</strong> connects to your system over <strong>RS‑485 (Modbus RTU)</strong> and supports configuration via <strong>USB‑C WebConfig</strong>. Setup involves:<br><strong>1) Physical wiring</strong>, <strong>2) Digital setup</strong> (WebConfig → Modbus or PLC/ESPHome control).</p>
+<hr>
+<h2>4.1 What You Need</h2>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Item / Notes</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Hardware</strong></td>
+<td>ENM‑223‑R1 module: DIN-rail, 3 voltage channels, 3 CTs, 2 relays, 4 buttons, 4 LEDs, RS‑485, USB‑C</td>
+</tr>
+<tr>
+<td><strong>Controller</strong></td>
+<td>MicroPLC, MiniPLC, or any Modbus RTU master</td>
+</tr>
+<tr>
+<td><strong>24 VDC Power (SELV)</strong></td>
+<td>Regulated 24 V DC @ ~100–200 mA</td>
+</tr>
+<tr>
+<td><strong>RS‑485 Cable</strong></td>
+<td>Twisted pair for A/B + COM/GND; external 120 Ω end-termination</td>
+</tr>
+<tr>
+<td><strong>USB‑C Cable</strong></td>
+<td>For WebConfig setup via Chromium browser (Chrome/Edge)</td>
+</tr>
+<tr>
+<td><strong>Software</strong></td>
+<td>Web browser (Web Serial enabled), ConfigToolPage.html</td>
+</tr>
+<tr>
+<td><strong>Field Wiring</strong></td>
+<td>L1/L2/L3/N/PE → voltage inputs, CT1/2/3 → external CTs</td>
+</tr>
+<tr>
+<td><strong>Load Wiring</strong></td>
+<td>Relay outputs (NO/COM/NC); observe relay max rating and use snubbers on inductive loads</td>
+</tr>
+<tr>
+<td><strong>Isolation Domains</strong></td>
+<td>GND (logic) ≠ GND_ISO (metering); never bond these directly</td>
+</tr>
+<tr>
+<td><strong>Tools</strong></td>
+<td>Torque screwdriver, ferrules, USB-capable PC, 120 Ω terminators if needed</td>
+</tr>
+</tbody></table>
+<hr>
+<blockquote>
+<p><strong>Quick Path</strong><br>① Mount → ② wire <strong>24 VDC + RS‑485 (A/B/COM)</strong> → ③ connect <strong>USB‑C</strong> → ④ launch WebConfig →<br>Set <strong>Address/Baud</strong> → assign <strong>Inputs/Relays/LEDs</strong> → confirm data → ⑤ disconnect USB → hand control to Modbus master.</p>
+</blockquote>
+<hr>
+<h2>4.2 Power</h2>
+<p>The ENM‑223‑R1 uses <strong>24 V DC</strong> input for its interface domain and internally isolates metering circuits.</p>
+<ul>
+<li><strong>Power Terminals:</strong> Top left: <code>V+</code> and <code>0V</code></li>
+<li><strong>Voltage Range:</strong> 22–28 V DC (nominal 24 V)</li>
+<li><strong>Typical Current:</strong> 50–150 mA (relays off/on)</li>
+<li><strong>Protection:</strong> Internally fused, reverse-polarity protected</li>
+<li><strong>Logic domain:</strong> Powers MCU, RS‑485, LEDs, buttons, relays</li>
+</ul>
+<h3>4.2.1 Sensor Isolation</h3>
+<ul>
+<li><strong>Metering IC</strong> (ATM90E32AS) is powered from an isolated 5 V rail</li>
+<li>Analog domain uses <strong>GND_ISO</strong>, fully isolated from GND</li>
+<li>Do not connect <strong>GND_ISO ↔ GND</strong>; isolation via <strong>B0505S + ISO7761</strong></li>
+</ul>
+<blockquote>
+<p>Only voltage inputs (Lx-N) and CTs connect to the isolated domain.</p>
+</blockquote>
+<hr>
+<h3>4.2.2 Power Tips</h3>
+<ul>
+<li><strong>Do not power relays or outputs</strong> from metering-side inputs</li>
+<li>Use separate fusing on L1–L3</li>
+<li>Tie <strong>L2, L3 → N</strong> if using single-phase only (prevents phantom voltage)</li>
+<li>Confirm PE is wired — improves stability &amp; safety</li>
+</ul>
+<hr>
+<h2>4.3 Networking &amp; Communication</h2>
+<h3>4.3.1 RS‑485 (Modbus RTU)</h3>
+<h4>Physical</h4>
+<table>
+<thead>
+<tr>
+<th>Terminals</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>A</code>, <code>B</code></td>
+<td>Differential signal pair (twisted/shielded)</td>
+</tr>
+<tr>
+<td><code>COM</code>/<code>GND</code></td>
+<td>Logic reference (tie GNDs if on separate supplies)</td>
+</tr>
+</tbody></table>
+<h4>Cable &amp; Topology</h4>
+<ul>
+<li>Twisted pair (with or without shield)</li>
+<li>Terminate with <strong>120 Ω</strong> at each bus end (not inside module)</li>
+<li>Biasing resistors (pull-up/down) should be on the master</li>
+</ul>
+<h4>Defaults</h4>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Modbus Address</td>
+<td><code>3</code></td>
+</tr>
+<tr>
+<td>Baud Rate</td>
+<td><code>19200</code></td>
+</tr>
+<tr>
+<td>Format</td>
+<td><code>8N1</code></td>
+</tr>
+<tr>
+<td>Address Range</td>
+<td>1–247</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>🧷 Reversed A/B will cause CRC errors — check if no response.</p>
+</blockquote>
+<hr>
+<h3>4.3.2 USB‑C (WebConfig)</h3>
+<p><strong>Purpose:</strong> Web-based configuration tool over native USB Serial. Supports:</p>
+<ul>
+<li>Live readings</li>
+<li>Address/baudrate config</li>
+<li>Phase mapping</li>
+<li>Relay/button/LED logic</li>
+<li>Alarm setup</li>
+<li>Calibration (gains/offsets)</li>
+</ul>
+<h4>Steps</h4>
+<ol>
+<li>Connect USB‑C to PC (Chrome/Edge)</li>
+<li>Open <code>tools/ConfigToolPage.html</code>  </li>
+<li>Click <strong>Connect</strong>, select ENM serial port  </li>
+<li>Configure settings: address, relays, LEDs, alarms, calibration  </li>
+<li>Click <strong>Save &amp; Disconnect</strong> when finished</li>
+</ol>
+<blockquote>
+<p>⚠️ If <strong>Connect</strong> is greyed out: check browser support, OS permissions, and close any other apps using the port.</p>
+</blockquote>
+<p><a id="installation-wiring"></a></p>
+<h2>4.4 Installation &amp; Wiring</h2>
+<p>Use diagrams and explain:</p>
+<ul>
+<li>Inputs</li>
+<li>Relays</li>
+<li>Sensor rails (12/5V)</li>
+<li>RS-485 terminals</li>
+<li>USB port</li>
+</ul>
+<p><a id="software-ui-configuration"></a></p>
+<h2>4.5 Software &amp; UI Configuration</h2>
+<p>The <strong>ENM‑223‑R1</strong> is configured using the browser‑based <strong>WebConfig Tool</strong><br>(<code>tools/ConfigToolPage.html</code>) over <strong>USB‑C</strong>.<br>No drivers or software installation is required — configuration happens directly via <strong>Web Serial API</strong> (Chrome/Edge).</p>
+<ul>
+<li>WebConfig refreshes live data every 1 s.</li>
+<li>Click into a field to pause refresh for that field.</li>
+<li><strong>Press Enter</strong> to apply a change.</li>
+<li>All settings are stored in non‑volatile flash.</li>
+</ul>
+<hr>
+<h3>1) Modbus Setup (Address &amp; Baud)</h3>
+<img src="Images/webconfig1.png" alt="WebConfig — Modbus address & baud" width="100%"/>
+
+<ul>
+<li>Click <strong>Connect</strong> and select the USB serial port.</li>
+<li>The <strong>Active Modbus Configuration</strong> bar shows the current Address and Baud Rate.</li>
+<li>You can configure:<ul>
+<li><strong>Modbus Address</strong>: <code>1–255</code> (default = <code>3</code>)</li>
+<li><strong>Baud Rate</strong>: <code>9600 / 19200 / 38400 / 57600 / 115200</code> (default = <code>19200</code>)</li>
+</ul>
+</li>
+<li>Changes are live and applied on selection.</li>
+<li>If you change baud or address, remember to reconnect the controller with updated settings.</li>
+</ul>
+<hr>
+<h3>2) Meter Options &amp; Calibration</h3>
+<img src="Images/webconfig2.png" alt="Meter options and calibration" width="100%"/>
+
+<h4>Meter Options</h4>
+<ul>
+<li><strong>Line Frequency</strong>: 50 / 60 Hz (affects metering IC behavior)</li>
+<li><strong>Sum Mode</strong>:  <ul>
+<li><code>0 = algorithmic</code> (P = P1 + P2 + P3)  </li>
+<li><code>1 = absolute</code> (P = |P1| + |P2| + |P3|)</li>
+</ul>
+</li>
+<li><strong>Ucal (gain)</strong>: global voltage scaling multiplier</li>
+<li><strong>Sample Interval (ms)</strong>: rate at which readings update (10–5000 ms)</li>
+</ul>
+<h4>Calibration (per phase A/B/C)</h4>
+<ul>
+<li><strong>Ugain / Igain</strong>: scaling gains (16-bit, 0–65535)</li>
+<li><strong>Uoffset / Ioffset</strong>: calibration offsets (signed)</li>
+<li>Press <strong>Enter</strong> after editing to write the value to the module.</li>
+</ul>
+<hr>
+<h3>3) Alarms / Inputs (Per‑Channel Rules)</h3>
+<img src="Images/webconfig3.png" alt="Alarms per channel" width="100%"/>
+
+<p>The ENM has <strong>4 measurement channels</strong>: L1, L2, L3, and Totals.</p>
+<p>Each channel supports:</p>
+<ul>
+<li><strong>3 rule slots</strong>: Alarm, Warning, Event</li>
+<li><strong>Metric types</strong>:<ul>
+<li>Voltage (Urms)</li>
+<li>Current (Irms)</li>
+<li>Active Power P</li>
+<li>Reactive Power Q</li>
+<li>Apparent Power S</li>
+<li>Frequency</li>
+</ul>
+</li>
+</ul>
+<p>You can configure:</p>
+<ul>
+<li><strong>Enable</strong> toggle</li>
+<li><strong>Metric</strong>, <strong>Min</strong>, and <strong>Max</strong> thresholds</li>
+<li><strong>Ack required</strong> — latches the Alarm state until acknowledged</li>
+</ul>
+<p>Acknowledgment:</p>
+<ul>
+<li>Press <strong>Ack L1–L3 / Totals</strong> in UI</li>
+<li>Or write to Modbus coil (<code>610–613</code>)</li>
+</ul>
+<blockquote>
+<p>💡 ENM has no digital inputs (DIs). These rules are “virtual inputs” based on real-time metering data.</p>
+</blockquote>
+<hr>
+<h3>4) Relay Logic Modes</h3>
+<img src="Images/webconfig6.png" alt="Relay logic options" width="100%"/>
+
+<p>Each of the two onboard <strong>SPDT relays</strong> can be configured independently.</p>
+<p>Options:</p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Enabled at Power-On</strong></td>
+<td>Relay state after boot (on/off)</td>
+</tr>
+<tr>
+<td><strong>Inverted (active-low)</strong></td>
+<td>Affects <strong>both</strong> relays; sets low = ON</td>
+</tr>
+<tr>
+<td><strong>Mode</strong></td>
+<td><code>None</code>, <code>Modbus Controlled</code>, or <code>Alarm Controlled</code></td>
+</tr>
+<tr>
+<td><strong>Toggle</strong></td>
+<td>Manually toggle the relay from the UI</td>
+</tr>
+<tr>
+<td><strong>Alarm Control Options</strong></td>
+<td>Select Channel: <code>L1–L3</code> or <code>Totals</code> and which kinds to follow: Alarm / Warning / Event</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>In <strong>Alarm Controlled</strong> mode, direct Modbus writes may be blocked when an alarm is active.</p>
+</blockquote>
+<hr>
+<h3>5) Button &amp; LED Mapping</h3>
+<img src="Images/webconfig5.png" alt="Buttons and LED mapping" width="100%"/>
+
+<h4>Buttons (1–4)</h4>
+<p>Each button can be mapped to:</p>
+<ul>
+<li><code>None</code></li>
+<li><code>Toggle Relay 1/2</code></li>
+<li><code>Toggle LED 1–4</code></li>
+<li><code>Override Relay 1/2 (hold 3s)</code>  <ul>
+<li>Hold 3 s to enter override  </li>
+<li>Short press toggles the relay  </li>
+<li>Hold again to exit override</li>
+</ul>
+</li>
+</ul>
+<h4>User LEDs (1–4)</h4>
+<p>Each LED has:</p>
+<ul>
+<li><strong>Mode</strong>: <code>Steady (when active)</code> or <code>Blink (when active)</code></li>
+<li><strong>Source</strong>:<ul>
+<li><code>Override R1/R2</code></li>
+<li>Alarm, Warning, Event — for any channel</li>
+<li><code>Any (A|W|E)</code> — a combined indicator per channel</li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<p>💡 Use <code>Override R1</code> as LED 1 source to give a clear local override status.</p>
+</blockquote>
+<hr>
+<h3>6) Live Meter &amp; Energies</h3>
+<img src="Images/webconfig4.png" alt="Live meter values" width="100%"/>
+
+<p><strong>Live Meter View</strong>:</p>
+<ul>
+<li>U (V), I (A), P (W), Q (var), S (VA)</li>
+<li>PF, angle, frequency, temperature</li>
+<li>Totals and per-channel tiles</li>
+<li>Phase validation and wiring checks</li>
+</ul>
+<p><strong>Energies</strong>:</p>
+<ul>
+<li><strong>Per phase + totals</strong>:<ul>
+<li>Active (+ / –) in kWh</li>
+<li>Reactive (+ / –) in kvarh</li>
+<li>Apparent in kVAh</li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<p>Use this screen to verify CT orientation, load phase mapping, and live alarm behavior during commissioning.</p>
+</blockquote>
+<p><a id="4-6-getting-started"></a></p>
+<h2>4.6 Getting Started (3 Phases)</h2>
+<h3>Phase 1 — Wire</h3>
+<ul>
+<li><strong>24 V DC</strong> to <code>V+ / GND</code> (top left terminals)</li>
+<li><strong>Voltage inputs</strong>: <code>PE / N / L1 / L2 / L3</code>  <ul>
+<li>For single-phase: energize <strong>L1 only</strong>, tie <strong>L2/L3 → N</strong></li>
+</ul>
+</li>
+<li><strong>CTs</strong> to <code>CT1/CT2/CT3</code> with correct ± polarity (1 V or 333 mV RMS)  <ul>
+<li>Arrow → load; shielded pairs preferred</li>
+</ul>
+</li>
+<li><strong>RS‑485 A/B/COM</strong>  <ul>
+<li>Use shielded twisted pair; terminate bus ends with <strong>120 Ω</strong></li>
+</ul>
+</li>
+<li>(Optional) <strong>Relay outputs</strong>: <code>COM/NO/NC</code>  <ul>
+<li>Add <strong>snubber</strong> on inductive loads (RC/TVS)</li>
+</ul>
+</li>
+<li>Ground panel PE and avoid bridging <strong>GND ↔ GND_ISO</strong></li>
+</ul>
+<p>👉 See: <a href="#4-installation--quick-start">Installation &amp; Quick Start</a></p>
+<hr>
+<h3>Phase 2 — Configure (WebConfig)</h3>
+<ul>
+<li>Open <code>tools/ConfigToolPage.html</code> in Chrome/Edge</li>
+<li>Connect via <strong>USB‑C</strong> → <strong>Select port → Connect</strong></li>
+<li>Set:<ul>
+<li><strong>Modbus Address / Baud</strong>  </li>
+<li><strong>Line Frequency, Sample Interval</strong></li>
+<li><strong>Alarm thresholds</strong> per L1/L2/L3/Totals</li>
+<li><strong>Relay modes</strong>: Alarm or Modbus Controlled</li>
+<li>Map <strong>Buttons &amp; LEDs</strong> (override, Ack, follow alarms)</li>
+<li>(Optional) Adjust <strong>U/I gains</strong>, save calibration</li>
+</ul>
+</li>
+</ul>
+<p>👉 See: <a href="#45-software--ui-configuration">WebConfig UI</a></p>
+<hr>
+<h3>Phase 3 — Integrate (Controller)</h3>
+<ul>
+<li>Connect controller via <strong>RS‑485</strong></li>
+<li>Match <strong>Modbus address / baud</strong></li>
+<li>Poll:<ul>
+<li><strong>Input registers</strong>: meter values (U, I, P, Q, S, PF, angle, kWh, etc.)</li>
+<li><strong>Coils</strong>: relays (600/601), Ack (610–613), button state</li>
+</ul>
+</li>
+<li>Send:<ul>
+<li><strong>Coil writes</strong>: toggle relays, acknowledge alarms</li>
+</ul>
+</li>
+<li>Use with:<ul>
+<li>HomeMaster MicroPLC / MiniPLC</li>
+<li>SCADA / ESPHome</li>
+</ul>
+</li>
+</ul>
+<p>👉 See: <a href="#modbus-rtu">Modbus RTU Communication</a> &amp; <a href="#integration">Integration Guide</a></p>
+<hr>
+<h3>✅ Verify</h3>
+<table>
+<thead>
+<tr>
+<th>Area</th>
+<th>What to Check</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>LEDs</strong></td>
+<td><code>PWR = ON</code>; <code>TX/RX = blink</code> during comms</td>
+</tr>
+<tr>
+<td><strong>Voltage</strong></td>
+<td>L1–L3 read ~230 V (or phase-neutral voltage)</td>
+</tr>
+<tr>
+<td><strong>Current</strong></td>
+<td></td>
+</tr>
+</tbody></table>
+<hr>
+<p><a id="5-module-code--technical-specification"></a></p>
+<h1>5. ENM-223-R1 — Technical Specification</h1>
+<hr>
+<h2>5.1 Diagrams &amp; Pinouts</h2>
+<div align="center">
+
+<table>
+<tr>
+<td align="center">
+<strong>System Diagram</strong><br>
+<img src="Images/ENM_Diagram.png" alt="System Block Diagram" width="340">
+</td>
+<td align="center">
+<strong>MCU Pinout</strong><br>
+<img src="Images/ENM_MCU_Pinouts.png" alt="RP2350 MCU Pinout" width="340">
+</td>
+</tr>
+<tr>
+<td align="center">
+<strong>Field Board Terminal Map</strong><br>
+<img src="Images/FieldBoard_Diagram.png" alt="Field Board Layout" width="340">
+</td>
+<td align="center">
+<strong>MCU Board Layout</strong><br>
+<img src="Images/MCUBoard_Diagram.png" alt="MCU Board Layout" width="340">
+</td>
+</tr>
+</table>
+
+</div>
+
+<blockquote>
+<p>💡 <strong>Note:</strong> Pinouts correspond to hardware revision R1. Terminals are pluggable 5.08 mm pitch (26–12 AWG, torque 0.5–0.6 Nm).</p>
+</blockquote>
+<hr>
+<h2>5.2 I/O Summary</h2>
+<table>
+<thead>
+<tr>
+<th>Interface</th>
+<th>Qty</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Voltage Inputs</strong></td>
+<td>3</td>
+<td>L1 / L2 / L3–N, 85–265 V AC via precision divider to ATM90E32AS metering IC</td>
+</tr>
+<tr>
+<td><strong>Current Inputs</strong></td>
+<td>3</td>
+<td>CT1–CT3, external 333 mV / 1 V RMS split-core CTs</td>
+</tr>
+<tr>
+<td><strong>Relay Outputs</strong></td>
+<td>2</td>
+<td>SPDT dry contact, HF115F series, opto-driven; 5 A @ 250 VAC / 30 VDC (module limit)</td>
+</tr>
+<tr>
+<td><strong>User LEDs</strong></td>
+<td>4</td>
+<td>Assignable status / override indicators (GPIO18–21)</td>
+</tr>
+<tr>
+<td><strong>Buttons</strong></td>
+<td>4</td>
+<td>Momentary tactile switches (GPIO22–25)</td>
+</tr>
+<tr>
+<td><strong>RS-485</strong></td>
+<td>1</td>
+<td>A/B/COM, Modbus RTU, MAX485 transceiver</td>
+</tr>
+<tr>
+<td><strong>USB-C</strong></td>
+<td>1</td>
+<td>Native USB 2.0 (Web Serial + firmware flashing), ESD-protected</td>
+</tr>
+<tr>
+<td><strong>Power Input</strong></td>
+<td>1</td>
+<td>24 V DC (22–28 V) logic supply, reverse &amp; surge protected</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>5.3 Absolute Electrical Specifications</h2>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Min</th>
+<th>Typ</th>
+<th>Max</th>
+<th>Unit</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Supply Voltage (V+)</strong></td>
+<td>22</td>
+<td>24</td>
+<td>28</td>
+<td>V DC</td>
+<td>SELV; reverse / surge protected input</td>
+</tr>
+<tr>
+<td><strong>Power Consumption</strong></td>
+<td>–</td>
+<td>1.85</td>
+<td>3.0</td>
+<td>W</td>
+<td>Module only, no external loads</td>
+</tr>
+<tr>
+<td><strong>Logic Rails</strong></td>
+<td>–</td>
+<td>3.3 / 5</td>
+<td>–</td>
+<td>V</td>
+<td>Buck (AP64501) + LDO (AMS1117-3.3)</td>
+</tr>
+<tr>
+<td><strong>Isolated Sensor Rails</strong></td>
+<td>–</td>
+<td>+12 / +5</td>
+<td>–</td>
+<td>V</td>
+<td>From B0505S-1WR3 isolated DC-DC</td>
+</tr>
+<tr>
+<td><strong>Voltage Inputs</strong></td>
+<td>85</td>
+<td>–</td>
+<td>265</td>
+<td>V AC</td>
+<td>Divided to ATM90E32AS AFE</td>
+</tr>
+<tr>
+<td><strong>Current Inputs</strong></td>
+<td>–</td>
+<td>1 / 0.333</td>
+<td>–</td>
+<td>V RMS</td>
+<td>External CTs</td>
+</tr>
+<tr>
+<td><strong>Relay Outputs</strong></td>
+<td>–</td>
+<td>–</td>
+<td>5</td>
+<td>A</td>
+<td>SPDT; 250 VAC/30 VDC; varistor + snubber recommended</td>
+</tr>
+<tr>
+<td><strong>RS-485 Bus</strong></td>
+<td>–</td>
+<td>115.2</td>
+<td>–</td>
+<td>kbps</td>
+<td>MAX485; short-circuit limited; fail-safe bias</td>
+</tr>
+<tr>
+<td><strong>USB-C Port</strong></td>
+<td>–</td>
+<td>5</td>
+<td>5.25</td>
+<td>V DC</td>
+<td>Native USB; ESD protected</td>
+</tr>
+<tr>
+<td><strong>Operating Temp.</strong></td>
+<td>0</td>
+<td>–</td>
+<td>40</td>
+<td>°C</td>
+<td>≤ 95 % RH non-condensing</td>
+</tr>
+<tr>
+<td><strong>Isolation (DC-DC)</strong></td>
+<td>–</td>
+<td>1.5</td>
+<td>3.0</td>
+<td>kV DC</td>
+<td>Metering domain via B0505S-1WR3</td>
+</tr>
+<tr>
+<td><strong>Isolation (Digital)</strong></td>
+<td>–</td>
+<td>5.0</td>
+<td>–</td>
+<td>kV RMS</td>
+<td>ISO7761 6-ch isolator between MCU ↔ AFE</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>🧩 <em>Values validated from schematics and manufacturer datasheets for ATM90E32AS, ISO7761, B0505S-1WR3, HF115F, AP64501.</em></p>
+</blockquote>
+<hr>
+<h2>5.4 Connector / Terminal Map (Field Side)</h2>
+<table>
+<thead>
+<tr>
+<th>Block / Label</th>
+<th>Pin(s) (left→right)</th>
+<th>Function / Signal</th>
+<th>Limits / Notes</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>POWER</strong></td>
+<td>V+, 0V</td>
+<td>24 V DC SELV input</td>
+<td>Reverse / surge protected</td>
+</tr>
+<tr>
+<td><strong>VOLTAGE INPUT</strong></td>
+<td>PE, N, L1, L2, L3</td>
+<td>AC sensing (85–265 V AC)</td>
+<td>Isolated domain</td>
+</tr>
+<tr>
+<td><strong>CT INPUT</strong></td>
+<td>CT1+, CT1–, CT2+, CT2–, CT3+, CT3–</td>
+<td>External CT (333 mV / 1 V RMS)</td>
+<td>Shielded pairs recommended</td>
+</tr>
+<tr>
+<td><strong>RS-485</strong></td>
+<td>A, B, COM</td>
+<td>Modbus RTU bus</td>
+<td>Terminate 120 Ω at ends</td>
+</tr>
+<tr>
+<td><strong>RELAY 1</strong></td>
+<td>NO, C, NC</td>
+<td>SPDT dry contact</td>
+<td>5 A max @ 250 VAC/30 VDC</td>
+</tr>
+<tr>
+<td><strong>RELAY 2</strong></td>
+<td>NO, C, NC</td>
+<td>SPDT dry contact</td>
+<td>5 A max @ 250 VAC/30 VDC</td>
+</tr>
+<tr>
+<td><strong>USB-C</strong></td>
+<td>D+, D–, VBUS, GND</td>
+<td>Web Serial / Setup</td>
+<td>Not for field mount</td>
+</tr>
+<tr>
+<td><strong>LED / BTN Interface</strong></td>
+<td>–</td>
+<td>Internal header MCU ↔ Field Board</td>
+<td>Service only</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>5.5 Reliability &amp; Protection Specifics</h2>
+<ul>
+<li><strong>Primary Protection:</strong> Reverse-path diode + MOSFET high-side switch; distributed inline fuses  </li>
+<li><strong>Isolated rails:</strong> Independent +12 V / +5 V DC with LC filters; isolated returns (GND_ISO)  </li>
+<li><strong>Inputs:</strong> Per-channel TVS and RC filtering; debounced in firmware  </li>
+<li><strong>Relays:</strong> Coil driven via SFH6156 optocoupler → S8050 transistor → HF115F SPDT; RC/TVS suppression recommended for inductive loads  </li>
+<li><strong>RS-485:</strong> TVS (SMAJ6.8CA) + PTC; failsafe bias on idle; TX/RX LED feedback  </li>
+<li><strong>USB:</strong> PRTR5V0U2X ESD array on D+/D–; CC pull-downs per USB-C spec  </li>
+<li><strong>Memory Retention:</strong> FM24CL16B FRAM for energy counters (&gt;10¹⁴ writes); W25Q32JV QSPI flash for firmware/config</li>
+</ul>
+<hr>
+<h2>5.6 Firmware / Functional Overview</h2>
+<ul>
+<li><strong>Alarm Engine:</strong> Four channels (L1–L3 + Totals); each has Alarm/Warning/Event rules  <ul>
+<li>Modes: Active-while / Latched-until-ack  </li>
+<li>Metrics: Urms, Irms, P, Q, S, Frequency</li>
+</ul>
+</li>
+<li><strong>Relay Control:</strong> Per relay Enable / Invert / Group mode; Manual override (hold 3 s) via buttons  </li>
+<li><strong>LED Feedback:</strong> User-assignable LEDs for Alarms / Overrides / Events (Steady or Blink)  </li>
+<li><strong>Setup &amp; Telemetry:</strong> WebConfig over USB-C; configure Modbus addr/baud, relay groups, thresholds, and live readings  </li>
+<li><strong>Data Retention:</strong> Energy and configuration stored in FRAM (non-volatile, instant writes)</li>
+</ul>
+<hr>
+<h2>5.7 Mechanical Details</h2>
+<div align="center">
+<img src="Images/photo1.png" width="320"><br>
+</div>
+
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Specification</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Mounting</strong></td>
+<td>DIN rail EN 50022 (35 mm)</td>
+</tr>
+<tr>
+<td><strong>Material / Finish</strong></td>
+<td>PC / ABS V-0, matte light gray + smoke panel</td>
+</tr>
+<tr>
+<td><strong>Dimensions (L × W × H)</strong></td>
+<td>70 × 90.6 × 67.3 mm (9 division units)</td>
+</tr>
+<tr>
+<td><strong>Weight</strong></td>
+<td>~420 g</td>
+</tr>
+<tr>
+<td><strong>Terminals</strong></td>
+<td>300 V / 20 A / 26–12 AWG (2.5 mm²) / torque 0.5–0.6 Nm / pitch 5.08 mm</td>
+</tr>
+<tr>
+<td><strong>Ingress Protection</strong></td>
+<td>IP20 (EN 60529)</td>
+</tr>
+<tr>
+<td><strong>Operating Temp.</strong></td>
+<td>0–40 °C / ≤95 % RH (non-condensing)</td>
+</tr>
+</tbody></table>
+<div align="center">
+<img src="Images/ENMDimensions.png" alt="Mechanical Dimensions" width="420"><br>
+<em>ENM-223-R1 Physical Dimensions (DIN-rail enclosure)</em>
+</div>
+
+<hr>
+<h2>5.8 Standards &amp; Compliance</h2>
+<table>
+<thead>
+<tr>
+<th>Standard / Directive</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Ingress Rating</strong></td>
+<td>IP20 (panel mount only)</td>
+</tr>
+<tr>
+<td><strong>Altitude Limit</strong></td>
+<td>≤ 2000 m</td>
+</tr>
+<tr>
+<td><strong>Environment</strong></td>
+<td>RoHS / REACH compliant</td>
+</tr>
+</tbody></table>
+<hr>
+<p><a id="6-modbus-rtu-communication"></a></p>
+<h1>6. Modbus RTU Communication</h1>
+<p>The ENM‑223‑R1 communicates over <strong>RS‑485 (Modbus RTU)</strong> and supports:</p>
+<ul>
+<li>Real-time metering via <strong>Input Registers</strong></li>
+<li>Configuration via <strong>Holding Registers</strong></li>
+<li>Control and acknowledgment via <strong>Coils</strong></li>
+<li>Status monitoring via <strong>Discrete Inputs</strong></li>
+</ul>
+<p>The device acts as a <strong>Modbus Slave</strong> and can be polled by a PLC, SCADA, ESPHome, or Home Assistant system.</p>
+<hr>
+<h2>6.1 Addressing &amp; Protocol Settings</h2>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Default Address</td>
+<td><code>3</code> (configurable: 1–255)</td>
+</tr>
+<tr>
+<td>Baud Rate</td>
+<td><code>19200 8N1</code> (configurable)</td>
+</tr>
+<tr>
+<td>Physical Layer</td>
+<td>RS‑485 (half-duplex, A/B/COM)</td>
+</tr>
+<tr>
+<td>Function Codes</td>
+<td><code>0x01</code>, <code>0x02</code>, <code>0x03</code>, <code>0x04</code>, <code>0x05</code>, <code>0x06</code>, <code>0x10</code></td>
+</tr>
+<tr>
+<td>Termination</td>
+<td>External 120 Ω at bus ends</td>
+</tr>
+<tr>
+<td>Fail-safe Bias</td>
+<td>Required on master side</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>📌 Use the WebConfig tool over USB‑C to set Modbus address and baud rate.</p>
+</blockquote>
+<hr>
+<h2>6.2 Input Registers — Real-Time Telemetry (FC04)</h2>
+<table>
+<thead>
+<tr>
+<th>Address</th>
+<th>Type</th>
+<th>Metric</th>
+<th>Unit</th>
+<th>Scaling</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>100–102</td>
+<td>U16</td>
+<td>Voltage L1/L2/L3</td>
+<td>V</td>
+<td>×0.01</td>
+</tr>
+<tr>
+<td>110–112</td>
+<td>U16</td>
+<td>Current L1/L2/L3</td>
+<td>A</td>
+<td>×0.001</td>
+</tr>
+<tr>
+<td>200–207</td>
+<td>S32</td>
+<td>Active Power (L1–3, Totals)</td>
+<td>W</td>
+<td>1</td>
+</tr>
+<tr>
+<td>210–217</td>
+<td>S32</td>
+<td>Reactive Power (L1–3, Totals)</td>
+<td>var</td>
+<td>1</td>
+</tr>
+<tr>
+<td>220–227</td>
+<td>S32</td>
+<td>Apparent Power (L1–3, Totals)</td>
+<td>VA</td>
+<td>1</td>
+</tr>
+<tr>
+<td>240–243</td>
+<td>S16</td>
+<td>Power Factor L1–3, Total</td>
+<td>–</td>
+<td>×0.001</td>
+</tr>
+<tr>
+<td>244–246</td>
+<td>S16</td>
+<td>Phase Angle L1–3</td>
+<td>°</td>
+<td>×0.1</td>
+</tr>
+<tr>
+<td>250</td>
+<td>U16</td>
+<td>Frequency</td>
+<td>Hz</td>
+<td>×0.01</td>
+</tr>
+<tr>
+<td>251</td>
+<td>S16</td>
+<td>Temperature (internal)</td>
+<td>°C</td>
+<td>1</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>6.3 Energy Registers (Wh/varh/VAh, FC04)</h2>
+<table>
+<thead>
+<tr>
+<th>Address</th>
+<th>Type</th>
+<th>Energy Type</th>
+<th>Phase / Total</th>
+<th>Unit</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>300–307</td>
+<td>U32</td>
+<td>Active Energy (+ import)</td>
+<td>A/B/C/Totals</td>
+<td>Wh</td>
+</tr>
+<tr>
+<td>308–315</td>
+<td>U32</td>
+<td>Active Energy (− export)</td>
+<td>A/B/C/Totals</td>
+<td>Wh</td>
+</tr>
+<tr>
+<td>316–323</td>
+<td>U32</td>
+<td>Reactive Energy (+ inductive)</td>
+<td>A/B/C/Totals</td>
+<td>varh</td>
+</tr>
+<tr>
+<td>324–331</td>
+<td>U32</td>
+<td>Reactive Energy (− capacitive)</td>
+<td>A/B/C/Totals</td>
+<td>varh</td>
+</tr>
+<tr>
+<td>332–339</td>
+<td>U32</td>
+<td>Apparent Energy</td>
+<td>A/B/C/Totals</td>
+<td>VAh</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>Energy values are <strong>32-bit unsigned integers</strong> (Hi/Lo word pairs).</p>
+</blockquote>
+<hr>
+<h2>6.4 Holding Registers — Configuration (FC03/06/16)</h2>
+<table>
+<thead>
+<tr>
+<th>Address</th>
+<th>Type</th>
+<th>Description</th>
+<th>Range / Units</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>400</td>
+<td>U16</td>
+<td>Sample Interval</td>
+<td>10–5000 ms</td>
+</tr>
+<tr>
+<td>401</td>
+<td>U16</td>
+<td>Line Frequency</td>
+<td>50 or 60 Hz</td>
+</tr>
+<tr>
+<td>402</td>
+<td>U16</td>
+<td>Sum Mode</td>
+<td>0 = algorithmic<br>1 = absolute</td>
+</tr>
+<tr>
+<td>403</td>
+<td>U16</td>
+<td>Ucal Gain</td>
+<td>1–65535</td>
+</tr>
+<tr>
+<td>410–420</td>
+<td>U16</td>
+<td>Ugain A/B/C</td>
+<td>16-bit</td>
+</tr>
+<tr>
+<td>421–431</td>
+<td>S16</td>
+<td>Uoffset A/B/C</td>
+<td>16-bit</td>
+</tr>
+<tr>
+<td>440–450</td>
+<td>U16</td>
+<td>Igain A/B/C</td>
+<td>16-bit</td>
+</tr>
+<tr>
+<td>451–461</td>
+<td>S16</td>
+<td>Ioffset A/B/C</td>
+<td>16-bit</td>
+</tr>
+<tr>
+<td>499</td>
+<td>U16</td>
+<td><strong>Factory Reset</strong> Trigger</td>
+<td>Write <code>1</code> to reset</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>6.5 Coils — Output Control (FC01/05/15)</h2>
+<table>
+<thead>
+<tr>
+<th>Address</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>600</td>
+<td>Relay 1 Control (ON/OFF)</td>
+</tr>
+<tr>
+<td>601</td>
+<td>Relay 2 Control (ON/OFF)</td>
+</tr>
+<tr>
+<td>610–613</td>
+<td>Alarm Acknowledgment (L1–L3, Totals)</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>6.6 Discrete Inputs — Read-only Status (FC02)</h2>
+<table>
+<thead>
+<tr>
+<th>Address</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>500–503</td>
+<td>LED Status (U.1–U.4)</td>
+</tr>
+<tr>
+<td>520–523</td>
+<td>Button Press (1–4)</td>
+</tr>
+<tr>
+<td>540–541</td>
+<td>Relay State (1–2)</td>
+</tr>
+<tr>
+<td>560–571</td>
+<td>Alarm/Warning/Event flags</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>6.7 Scaling Summary</h2>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Register Type</th>
+<th>Scale Factor</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Voltage (V)</td>
+<td>Input Register</td>
+<td>÷100</td>
+</tr>
+<tr>
+<td>Current (A)</td>
+<td>Input Register</td>
+<td>÷1000</td>
+</tr>
+<tr>
+<td>Power Factor</td>
+<td>Input Register</td>
+<td>÷1000</td>
+</tr>
+<tr>
+<td>Frequency (Hz)</td>
+<td>Input Register</td>
+<td>÷100</td>
+</tr>
+<tr>
+<td>Angle (°)</td>
+<td>Input Register</td>
+<td>÷10</td>
+</tr>
+<tr>
+<td>Energy (Wh)</td>
+<td>32-bit Input</td>
+<td>1</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>6.8 Polling Best Practices</h2>
+<ul>
+<li><strong>Typical polling rate:</strong> 1 s for live data (powers, voltages, current)  </li>
+<li><strong>Energy:</strong> poll less often (e.g. every 5–10 s)  </li>
+<li><strong>Batch reads:</strong> Use FC04 and FC03 with multi-register reads for speed  </li>
+<li><strong>Avoid writing frequently</strong> to EEPROM-backed registers (e.g., Ucal or gains)  </li>
+<li><strong>Coils:</strong> Fast updates (e.g. overrides) okay; no debounce needed</li>
+</ul>
+<blockquote>
+<p>🛠 To reduce bus collisions, stagger multiple ENMs on a shared RS‑485 bus using different <strong>poll intervals</strong> and address spacing.</p>
+</blockquote>
+<hr>
+<h2>6.9 Modbus Integration Example (MiniPLC)</h2>
+<pre><code class="language-yaml">modbus_controller:
+  - id: enm223
+    address: 3
+    modbus_id: rtu_bus
+    update_interval: 1s
+
+sensor:
+  - platform: modbus_controller
+    modbus_controller_id: enm223
+    name: &quot;Urms L1&quot;
+    register_type: read
+    address: 100
+    value_type: U_WORD
+    unit_of_measurement: &quot;V&quot;
+    accuracy_decimals: 2
+    filters:
+      - multiply: 0.01
+
+switch:
+  - platform: modbus_controller
+    modbus_controller_id: enm223
+    name: &quot;Relay 1&quot;
+    register_type: coil
+    address: 600
+</code></pre>
+<p><a id="7-esphome-integration-guide"></a></p>
+<h1>7. ESPHome Integration Guide (MicroPLC/MiniPLC + ENM‑223‑R1)</h1>
+<p>The HomeMaster controller (MiniPLC or MicroPLC) running <strong>ESPHome</strong> acts as the <strong>Modbus RTU master</strong> over RS‑485. It polls one or more ENM‑223‑R1 modules and publishes all sensors, relays, LEDs, and alarms into <strong>Home Assistant</strong>.</p>
+<p>No Home Assistant add-ons are required — all logic runs on the ESPHome controller.</p>
+<hr>
+<h2>7.1 Architecture &amp; Data Flow</h2>
+<ul>
+<li><strong>Topology</strong>: Home Assistant → ESPHome (MicroPLC) → RS‑485 → ENM‑223‑R1</li>
+<li><strong>Roles</strong>:<ul>
+<li><strong>ENM</strong>: metering, alarm rules, relays, LEDs, buttons</li>
+<li><strong>ESPHome</strong>: Modbus polling, sensor/relay control, entity publishing</li>
+<li><strong>HA</strong>: dashboards, energy view, automations</li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<p>LED mappings, alarm logic, and override behavior are configured on the ENM module (via WebConfig). Home Assistant only reacts to exposed states.</p>
+</blockquote>
+<hr>
+<h2>7.2 Prerequisites (Power, Bus, I/O)</h2>
+<h3>1. Power</h3>
+<ul>
+<li><strong>ENM</strong>: 24 V DC → V+ / 0V</li>
+<li><strong>Controller</strong>: per spec</li>
+<li>If separate PSUs: share COM/GND between controller and ENM</li>
+</ul>
+<h3>2. RS‑485 Bus</h3>
+<ul>
+<li>A—A, B—B (twisted pair), COM shared</li>
+<li>Terminate with 120 Ω resistors at both ends</li>
+<li>Default speed: <strong>19200 baud</strong>, set in WebConfig</li>
+</ul>
+<h3>3. Field I/O</h3>
+<ul>
+<li>Voltage inputs: L1, L2, L3, N, PE</li>
+<li>CTs: CT1–CT3 (1 V or 333 mV)</li>
+<li>Relays: dry contact, driven by internal logic or Modbus</li>
+<li>Buttons / LEDs: wired to MCU, mapped in firmware/UI</li>
+</ul>
+<hr>
+<h2>7.3 ESPHome Minimal Config (Enable Modbus + Import ENM Package)</h2>
+<pre><code class="language-yaml">uart:
+  id: uart1
+  tx_pin: 17
+  rx_pin: 16
+  baud_rate: 19200
+  stop_bits: 1
+
+modbus:
+  id: rtu_bus
+  uart_id: uart1
+
+modbus_controller:
+  - id: enm223_1
+    address: 4
+    modbus_id: rtu_bus
+    update_interval: 1s
+
+packages:
+  enm223_1:
+    url: https://github.com/isystemsautomation/HOMEMASTER
+    ref: main
+    files:
+      - path: ENM-223-R1/Firmware/default_enm_223_r1_plc.yaml
+        vars:
+          enm_id: enm223_1
+          enm_address: 4
+          enm_prefix: &quot;ENM #1&quot;
+</code></pre>
+<hr>
+<h2>7.4 Entities Exposed by the Package</h2>
+<h3>Binary Sensors</h3>
+<ul>
+<li>Relay states</li>
+<li>Button presses</li>
+<li>LED status</li>
+<li>Alarm conditions (Alarm / Warning / Event)</li>
+</ul>
+<h3>Sensors</h3>
+<ul>
+<li><strong>Urms, Irms</strong> L1/L2/L3</li>
+<li><strong>Power (P, Q, S)</strong> totals</li>
+<li><strong>Frequency</strong>, <strong>PF</strong>, <strong>Angle</strong></li>
+<li><strong>Energies</strong>: kWh, kvarh, kVAh (active/reactive/apparent)</li>
+</ul>
+<h3>Switches</h3>
+<ul>
+<li><strong>Relay 1/2</strong> (Modbus coil 600/601)</li>
+<li><strong>Acknowledge</strong> coils 610–613</li>
+<li><strong>Override</strong> controls (force override toggle, hold-style)</li>
+</ul>
+<h3>Numbers (Optional)</h3>
+<ul>
+<li>Sample interval</li>
+<li>Calibration gains (Ugain / Igain)</li>
+</ul>
+<hr>
+<h2>7.6 Using Your MiniPLC YAML with ENM</h2>
+<ol>
+<li>Keep existing <code>uart:</code> and <code>modbus:</code> blocks  </li>
+<li>Add the <code>packages:</code> block (as shown) and set <code>enm_address</code> from WebConfig  </li>
+<li>Flash the controller — ESPHome discovers all sensors/entities automatically  </li>
+<li>Add HA dashboard cards and <code>switches</code> for relay, override, and ack actions</li>
+</ol>
+<hr>
+<h2>7.7 Home Assistant Setup &amp; Automations</h2>
+<ul>
+<li>Go to: <strong>Settings → Devices &amp; Services → ESPHome → Add</strong> by hostname or IP</li>
+<li>Dashboard auto-discovers:<ul>
+<li>Energies (for HA Energy view)</li>
+<li>Relays, buttons, LEDs</li>
+<li>Alarm states</li>
+</ul>
+</li>
+<li>You can create:<ul>
+<li><strong>Energy Dashboard</strong> source: <code>VAh Total</code> or <code>AP Total</code></li>
+<li><strong>Automation</strong>:</li>
+</ul>
+</li>
+</ul>
+<hr>
+<p><a id="8-programming--customization"></a></p>
+<h1>8. Programming &amp; Customization</h1>
+<h2>8.1 Supported Languages</h2>
+<ul>
+<li><strong>MicroPython</strong></li>
+<li><strong>C/C++</strong></li>
+<li><strong>Arduino IDE</strong></li>
+</ul>
+<hr>
+<h2>8.2 Flashing via USB-C</h2>
+<ol>
+<li>Connect USB-C to your PC.</li>
+<li>Enter boot/flash mode if required.</li>
+<li>Upload the provided firmware/source.</li>
+</ol>
+<p><strong>Boot/Reset combinations:</strong></p>
+<ul>
+<li><strong>Buttons 1 + 2</strong> → forces the module into <strong>BOOT mode</strong></li>
+<li><strong>Buttons 3 + 4</strong> → triggers a hardware <strong>RESET</strong></li>
+</ul>
+<p>These combinations are handled in hardware. Use them when flashing or manually rebooting the module.</p>
+<p><strong>🧭 Button layout reference:</strong></p>
+<img src="Images/buttons1.png" alt="Button layout" width="360"/>
+
+<hr>
+<h2>8.3 Arduino IDE Setup</h2>
+<ul>
+<li><strong>Board Profile:</strong> Generic RP2350</li>
+<li><strong>Flash Size:</strong> 2MB (Sketch: 1MB, FS: 1MB)</li>
+<li><strong>Recommended Libraries:</strong></li>
+</ul>
+<pre><code class="language-cpp">#include &lt;Arduino.h&gt;
+#include &lt;SPI.h&gt;
+#include &lt;SimpleWebSerial.h&gt;
+#include &lt;Arduino_JSON.h&gt;
+#include &lt;LittleFS.h&gt;
+#include &lt;math.h&gt;
+#include &lt;limits&gt;
+</code></pre>
+<ul>
+<li><strong>Pin Notes:</strong><ul>
+<li>Buttons: GPIO22–25</li>
+<li>LEDs: GPIO18–21</li>
+<li>RS-485: MAX485, DE/RE control over TX</li>
+<li>USB: native, no UART bridge</li>
+</ul>
+</li>
+</ul>
+<hr>
+<h2>8.4 Firmware Updates</h2>
+<ul>
+<li><strong>Upload via USB-C</strong> using Arduino IDE or PlatformIO</li>
+<li>Enter <strong>boot mode</strong> (Buttons 1 + 2)</li>
+<li>Upload <code>default_enm_223_r1.ino</code> from <code>/firmware/</code></li>
+<li>Configuration is preserved (stored in LittleFS)</li>
+<li>Energy counters are safe (stored in FRAM)</li>
+</ul>
+<hr>
+<p><a id="9-maintenance--troubleshooting"></a></p>
+<h1>9. Maintenance &amp; Troubleshooting</h1>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Fix or Explanation</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Relay won’t activate</td>
+<td>May be in override; check relay logic mode</td>
+</tr>
+<tr>
+<td>RS-485 not working</td>
+<td>A/B reversed or un-terminated bus</td>
+</tr>
+<tr>
+<td>LED doesn’t light up</td>
+<td>Reassign in WebConfig or check GPIO18–21</td>
+</tr>
+<tr>
+<td>Button unresponsive</td>
+<td>Test using WebConfig &gt; Button state live</td>
+</tr>
+<tr>
+<td>CRC Errors</td>
+<td>Confirm baud, address, and wiring (A/B swap)</td>
+</tr>
+<tr>
+<td>Negative Power Reading</td>
+<td>Flip CT or check phase/CT alignment</td>
+</tr>
+</tbody></table>
+<hr>
+<p><a id="10-open-source--licensing"></a></p>
+<h1>10. Open Source &amp; Licensing</h1>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>License</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Hardware</strong></td>
+<td>CERN-OHL-W v2.0</td>
+</tr>
+<tr>
+<td><strong>Firmware</strong></td>
+<td>GPLv3</td>
+</tr>
+<tr>
+<td><strong>Config Tool</strong></td>
+<td>MIT</td>
+</tr>
+</tbody></table>
+<hr>
+<h1>11. Downloads</h1>
+<p>The following key project resources are included in this repository:</p>
+<ul>
+<li><p>🧠 <strong>Firmware (Arduino/PlatformIO)</strong><br><a href="firmware/default_enm_223_r1.ino"><code>firmware/default_enm_223_r1.ino</code></a><br>Core firmware implementing Modbus RTU, alarm logic, relays, LED control, overrides, and WebConfig support.</p>
+</li>
+<li><p>🧰 <strong>WebConfig Tool</strong><br><a href="tools/ConfigToolPage.html"><code>tools/ConfigToolPage.html</code></a><br>HTML-based USB Web Serial interface for live configuration, calibration, alarm setup, and logic assignment.</p>
+</li>
+<li><p>🖼 <strong>Images &amp; UI Diagrams</strong><br><a href="Images/"><code>Images/</code></a><br>Contains front-panel photos, system diagrams, wiring illustrations, and screenshots from WebConfig UI.</p>
+</li>
+<li><p>📐 <strong>Hardware Schematics</strong><br><a href="Schematics/"><code>Schematics/</code></a><br>Includes PDF schematics for Field Board and MCU Board — ideal for developers, reviewers, or third-party modders.</p>
+</li>
+<li><p>📄 <strong>Datasheets &amp; Manuals</strong><br><a href="ENM-223-R1%20Datasheet.pdf"><code>ENM-223-R1 Datasheet.pdf</code></a><br>Covers full electrical and mechanical specs, terminal layout, block diagram, and pinout.</p>
+</li>
+<li><p>📦 <strong>ESPHome YAML Templates</strong><br><a href="ENM223R1_ESPHome_Integration_Guide.md"><code>ENM223R1_ESPHome_Integration_Guide.md</code></a><br>Ready-to-use <code>packages:</code> block for ESPHome controllers, with sensors, relays, alarms, override logic, and Home Assistant tips.</p>
+</li>
+</ul>
+<blockquote>
+<p>🔁 Latest releases can also be found in the <a href="../../releases">Releases</a> tab or in the <code>Firmware/</code> directory.</p>
+</blockquote>
+<hr>
+<h1>12. Support</h1>
+<p>If you need help using or configuring the ENM‑223‑R1 module, the following support options are available:</p>
+<h3>🛠 Official Resources</h3>
+<ul>
+<li><p>🧰 <a href="https://www.home-master.eu/configtool-enm-223-r1">WebConfig Tool (USB-C)</a><br>Configure the module directly from your browser — no drivers or software required.</p>
+</li>
+<li><p>📘 <a href="https://www.home-master.eu/support">Official Support Portal</a><br>Includes setup guides, firmware help, diagnostics, and contact form.</p>
+</li>
+</ul>
+<hr>
+<h3>📡 Community &amp; Updates</h3>
+<ul>
+<li>🔧 <a href="https://hackster.io/homemaster">Hackster Projects</a> — System integration, code samples, wiring  </li>
+<li>📺 <a href="https://youtube.com/@HomeMaster">YouTube Channel</a> — Module demos, walkthroughs, and tutorials  </li>
+<li>💬 <a href="https://reddit.com/r/HomeMaster">Reddit Community</a> — Questions, answers, contributions  </li>
+<li>📸 <a href="https://instagram.com/home_master.eu">Instagram</a> — Visual updates and field applications</li>
+</ul>
+<hr>
