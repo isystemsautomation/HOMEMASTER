@@ -8,7 +8,7 @@
 
 **HOMEMASTER – Modular control. Custom logic.**
 
-<img src="https://github.com/isystemsautomation/HOMEMASTER/tree/main/ENM-223-R1/Images/photo1.png" align="right" width="440" alt="MODULE photo">
+<img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/photo1.png" align="right" width="440" alt="MODULE photo">
 
 ### Module Description
 
@@ -410,7 +410,7 @@ No drivers or software installation is required — configuration happens direct
 
 ### 1) Modbus Setup (Address & Baud)
 
-<img src="https://github.com/isystemsautomation/HOMEMASTER/tree/main/ENM-223-R1/Images/webconfig1.png" alt="WebConfig — Modbus address & baud" width="100%"/>
+<img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/webconfig1.png" alt="WebConfig — Modbus address & baud" width="100%"/>
 
 - Click **Connect** and select the USB serial port.
 - The **Active Modbus Configuration** bar shows the current Address and Baud Rate.
@@ -424,7 +424,7 @@ No drivers or software installation is required — configuration happens direct
 
 ### 2) Meter Options & Calibration
 
-<img src="https://github.com/isystemsautomation/HOMEMASTER/tree/main/ENM-223-R1/Images/webconfig2.png" alt="Meter options and calibration" width="100%"/>
+<img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/webconfig2.png" alt="Meter options and calibration" width="100%"/>
 
 #### Meter Options
 - **Line Frequency**: 50 / 60 Hz (affects metering IC behavior)
@@ -443,7 +443,7 @@ No drivers or software installation is required — configuration happens direct
 
 ### 3) Alarms / Inputs (Per‑Channel Rules)
 
-<img src="https://github.com/isystemsautomation/HOMEMASTER/tree/main/ENM-223-R1/Images/webconfig3.png" alt="Alarms per channel" width="100%"/>
+<img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/webconfig3.png" alt="Alarms per channel" width="100%"/>
 
 The ENM has **4 measurement channels**: L1, L2, L3, and Totals.
 
@@ -472,7 +472,7 @@ Acknowledgment:
 
 ### 4) Relay Logic Modes
 
-<img src="https://github.com/isystemsautomation/HOMEMASTER/tree/main/ENM-223-R1/Images/webconfig6.png" alt="Relay logic options" width="100%"/>
+<img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/webconfig6.png" alt="Relay logic options" width="100%"/>
 
 Each of the two onboard **SPDT relays** can be configured independently.
 
@@ -492,7 +492,7 @@ Options:
 
 ### 5) Button & LED Mapping
 
-<img src="https://github.com/isystemsautomation/HOMEMASTER/tree/main/ENM-223-R1/Images/webconfig5.png" alt="Buttons and LED mapping" width="100%"/>
+<img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/webconfig5.png" alt="Buttons and LED mapping" width="100%"/>
 
 #### Buttons (1–4)
 Each button can be mapped to:
@@ -519,7 +519,7 @@ Each LED has:
 
 ### 6) Live Meter & Energies
 
-<img src="https://github.com/isystemsautomation/HOMEMASTER/tree/main/ENM-223-R1/Images/webconfig4.png" alt="Live meter values" width="100%"/>
+<img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/webconfig4.png" alt="Live meter values" width="100%"/>
 
 **Live Meter View**:
 - U (V), I (A), P (W), Q (var), S (VA)
@@ -613,21 +613,21 @@ Each LED has:
 <tr>
 <td align="center">
 <strong>System Diagram</strong><br>
-<img src="https://github.com/isystemsautomation/HOMEMASTER/tree/main/ENM-223-R1/Images/ENM_Diagram.png" alt="System Block Diagram" width="340">
+<img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/ENM_Diagram.png" alt="System Block Diagram" width="340">
 </td>
 <td align="center">
 <strong>MCU Pinout</strong><br>
-<img src="https://github.com/isystemsautomation/HOMEMASTER/tree/main/ENM-223-R1/Images/ENM_MCU_Pinouts.png" alt="RP2350 MCU Pinout" width="340">
+<img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/ENM_MCU_Pinouts.png" alt="RP2350 MCU Pinout" width="340">
 </td>
 </tr>
 <tr>
 <td align="center">
 <strong>Field Board Terminal Map</strong><br>
-<img src="https://github.com/isystemsautomation/HOMEMASTER/tree/main/ENM-223-R1/Images/FieldBoard_Diagram.png" alt="Field Board Layout" width="340">
+<img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/FieldBoard_Diagram.png" alt="Field Board Layout" width="340">
 </td>
 <td align="center">
 <strong>MCU Board Layout</strong><br>
-<img src="https://github.com/isystemsautomation/HOMEMASTER/tree/main/ENM-223-R1/Images/MCUBoard_Diagram.png" alt="MCU Board Layout" width="340">
+<img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/MCUBoard_Diagram.png" alt="MCU Board Layout" width="340">
 </td>
 </tr>
 </table>
@@ -716,7 +716,7 @@ Each LED has:
 ## 5.7 Mechanical Details
 
 <div align="center">
-<img src="https://github.com/isystemsautomation/HOMEMASTER/tree/main/ENM-223-R1/Images/photo1.png" width="320"><br>
+<img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/photo1.png" width="320"><br>
 </div>
 
 | Property | Specification |
@@ -730,7 +730,7 @@ Each LED has:
 | **Operating Temp.** | 0–40 °C / ≤95 % RH (non-condensing) |
 
 <div align="center">
-<img src="https://github.com/isystemsautomation/HOMEMASTER/tree/main/ENM-223-R1/Images/ENMDimensions.png" alt="Mechanical Dimensions" width="420"><br>
+<img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/ENMDimensions.png" alt="Mechanical Dimensions" width="420"><br>
 <em>ENM-223-R1 Physical Dimensions (DIN-rail enclosure)</em>
 </div>
 
@@ -1050,7 +1050,7 @@ These combinations are handled in hardware. Use them when flashing or manually r
 
 **🧭 Button layout reference:**
 
-<img src="https://github.com/isystemsautomation/HOMEMASTER/tree/main/ENM-223-R1/Images/buttons1.png" alt="Button layout" width="360"/>
+<img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/buttons1.png" alt="Button layout" width="360"/>
 
 ---
 
@@ -1141,7 +1141,11 @@ The following key project resources are included in this repository:
   [`ENM-223-R1 Datasheet.pdf`](ENM-223-R1%20Datasheet.pdf)  
   Covers full electrical and mechanical specs, terminal layout, block diagram, and pinout.
 
+- 📦 **ESPHome YAML Templates**  
+  [`ENM223R1_ESPHome_Integration_Guide.md`](ENM223R1_ESPHome_Integration_Guide.md)  
+  Ready-to-use `packages:` block for ESPHome controllers, with sensors, relays, alarms, override logic, and Home Assistant tips.
 
+> 🔁 Latest releases can also be found in the [Releases](../../releases) tab or in the `Firmware/` directory.
 
 ---
 
