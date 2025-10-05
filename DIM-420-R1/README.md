@@ -25,9 +25,6 @@ It connects over **RS-485 (Modbus RTU)** to a **MicroPLC/MiniPLC**, enabling use
 * [2. Use Cases](#2-use-cases)
 * [3. Safety Information](#3-safety-information)
 * [4. Installation & Quick Start](#4-installation-quick-start)
-  * [4.4 Installation & Wiring](#installation-wiring)
-  * [4.5 Software & UI Configuration](#software-ui-configuration)
-  * [4.6 Getting Started](#4-6-getting-started)
 * [5. MODULE-CODE — Technical Specification](#5-module-code--technical-specification)
 * [6. Modbus RTU Communication](#6-modbus-rtu-communication)
 * [7. ESPHome Integration Guide (if applicable)](#7-esphome-integration-guide)
@@ -45,38 +42,50 @@ It connects over **RS-485 (Modbus RTU)** to a **MicroPLC/MiniPLC**, enabling use
 
 # 1. Introduction
 
-## 1.1 Overview of the MODULE-CODE
+## 1.1 Overview of the DIM-420-R1 Module ✨
 
-Briefly explain what the module does in 1–2 paragraphs:
-- What kind of I/O it exposes (e.g. DI, AO, relays, LEDs, buttons)
-- What systems it integrates with (PLC, SCADA, HA)
-- Configuration mechanism (Web Serial, USB-C, etc.)
-- One-sentence summary of its main purpose or role
+The **DIM‑420‑R1** is a modular dimmer I/O device for **dual‑channel phase‑cut AC dimming** in the **HomeMaster MicroPLC / MiniPLC** ecosystem. It exposes **2 dimming channels**, **4 opto‑isolated digital inputs**, **4 configurable user buttons**, **4 user LEDs**, and an **RS‑485 Modbus RTU** interface. Setup and diagnostics are performed in‑browser via **WebConfig over USB‑C (Web Serial)**—no special software required. 
+
+It integrates seamlessly with **MiniPLC / MicroPLC controllers, third‑party Modbus masters, ESPHome / Home Assistant, and SCADA/PLC systems**. Typical use: connect wall switches to the DIs, pick **Leading/Trailing edge** per load, set **Lower/Upper thresholds**, and control scenes from a PLC or locally with press‑logic. 
+
+> **Quick use case:**  
+> Wire DI1–DI4 to wall switches → select *Momentary* or *Latching* with Short/Long/Double logic → choose **Cut Mode** and **Load Type** per channel → map LEDs/Buttons → connect RS‑485 A/B → control and monitor via PLC / ESPHome. 
+
+---
 
 ## 1.2 Features & Architecture
 
-Include a table like this:
+### Core Capabilities
 
-| Subsystem         | Qty | Description |
-|------------------|-----|-------------|
-| Digital Inputs    | X   | Opto-isolated, dry contacts, noise-protected |
-| Analog Outputs    | X   | 0–10V or 4–20mA, isolated |
-| Relays            | X   | SPST/SPDT, dry contacts |
-| LEDs              | X   | Steady/Blink modes, configurable sources |
-| Buttons           | X   | Acknowledge, override, user input |
-| Modbus RTU        | Yes | RS-485 interface |
-| USB-C             | Yes | WebConfig over Web Serial |
-| Power             | 24 VDC | Fused, reverse-protected |
-| MCU               | e.g. RP2350 | Dual-core with QSPI flash |
-| Protection        | TVS, PTC | ESD, surge, short-circuit |
+| Subsystem       | Qty    | Description |
+|-----------------|--------|-------------|
+| **Digital Inputs** | 4      | **Opto‑isolated** dry‑contact inputs (ISO1212 front‑end); modes: *Momentary*/*Latching* with **Short / Long / Double / Short‑then‑Long** press types. Debounced and firmware‑interpreted for actions.  |
+| **Dimming Outputs** | 2      | MOSFET‑based **phase‑cut** AC outputs; **Leading/Trailing** per channel with **Lower/Upper** threshold limits and zero‑cross sync/monitoring.  |
+| **Relays**         | 0      | – |
+| **User LEDs**      | 4      | Steady/Blink; sources: CH1/CH2 state, DI1–DI4, or AC presence (**ZC OK**).  |
+| **User Buttons**   | 4      | Local acknowledge/override; firmware press‑logic for toggle, ramp (ping‑pong), preset, max.  |
+| **Config UI**      | Web Serial | **WebConfig** in Chromium browser over **USB‑C**; edit Modbus addr/baud, thresholds, cut mode, presets; live log & JSON snapshot.  |
+| **Modbus RTU**     | RS‑485 | Multi‑drop slave; **FC01/05/02/03/06/16** with discrete inputs, coils, and holding registers. Defaults **ID=3, 19200, 8N1**.  |
+| **MCU**            | RP2350A | Dual‑core MCU; **QSPI flash** for firmware/config; Arduino/PlatformIO supported.  |
+| **Power**          | 24 VDC | Protected 24 V input; on‑board **isolated 5 V rails** for power stages (B2405S‑2WR3) and local 3.3 V regulation.  |
+| **Protection**     | TVS, PTC | Surge/ESD protection and resettable fuses on field I/O and RS‑485/USB/power paths.  |
 
-## 1.3 System Role & Communication
+---
 
-Explain:
-- How the module connects to RS-485 bus
-- Whether it's standalone logic or master-controlled
-- Communication with controller, polling setup
-- Default address/baudrate
+## 1.3 System Role & Communication 🔌
+
+The **DIM‑420‑R1** is a **standalone Modbus RTU slave** on an **RS‑485** multi‑drop trunk. It executes local input press‑logic and dimming behavior, mirrors state to **discrete inputs/holding registers**, and accepts control via **coils/holding writes** from a master (PLC/SCADA/ESPHome). A live **JSON snapshot** and event log stream over Web Serial for commissioning and diagnostics. 
+
+| Role                | Description |
+|---------------------|-------------|
+| **System Position** | Expansion/field module on RS‑485 bus (A/B/COM).  |
+| **Master Controller** | MiniPLC / MicroPLC or any third‑party **Modbus RTU master**.  |
+| **Address / Baud**  | Configurable via WebConfig; **default Slave ID = 3**, **19200 baud, 8N1** (persisted to flash).  |
+| **Bus Type**        | RS‑485 multi‑drop with proper termination and biasing.  |
+| **USB‑C Port**      | Setup/diagnostics, UF2 firmware updates via RP2350 bootloader; in‑browser WebConfig.  |
+| **Polling Model**   | Master polls **DI/LED/AC status** and writes **coils/registers** for ON/OFF, presets, levels, and config.  |
+
+> ⚠️ **Note:** If multiple DIM‑420‑R1 modules share the same RS‑485 line, assign unique **Modbus IDs** in WebConfig and verify termination/bias. 
 
 ---
 
