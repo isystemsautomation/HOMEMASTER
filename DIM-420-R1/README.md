@@ -303,12 +303,74 @@ Let me know if you'd like the follow-up section `4.4 Wiring Examples` or `5 Cont
 
 ## 4.4 Installation & Wiring
 
-Use diagrams and explain:
-- Inputs
-- Relays
-- Sensor rails (12/5V)
-- RS-485 terminals
-- USB port
+The DIM‑420‑R1 separates **low‑voltage logic** (24 VDC, RS‑485, USB‑C, DIs) from **mains‑side dimmer outputs** (L/N IN/OUT). Use the visuals below when wiring.
+
+---
+
+### 🔌 24 VDC Logic Power
+
+Connect regulated **24 VDC (SELV)** to the top‑left POWER terminals `V+` and `0V`.  
+This powers the MCU, LEDs, USB‑C (setup), and RS‑485 interface.
+
+<div align="center">
+  <img src="Images/DIM_24Vdc_PowerSupply.png" width="460" alt="24 VDC logic power wiring">
+</div>
+
+---
+
+### 🔘 Digital Inputs (DI1–DI4)
+
+Wire **dry‑contact** switches to the opto‑isolated inputs.  
+Each input has its own paired **Gnd** and must be wired independently.  
+Input mode (Momentary/Latching), debounce, invert, and press‑logic are set in WebConfig.
+
+<div align="center">
+  <img src="Images/DIM_DigitslInputs.png" width="640" alt="Digital inputs wiring">
+</div>
+
+> Tip: keep DI wiring separate from mains cabling and provide strain relief.
+
+---
+
+### 🧷 RS‑485 (Modbus RTU)
+
+Bottom‑left terminals are labeled **B  A  COM** (as on the front panel).
+
+- **B / A** → RS‑485 differential pair (use shielded twisted pair)
+- **COM** → optional reference ground to the controller
+- Terminate the bus at both ends (~120 Ω) if not already present
+- Defaults: **Slave ID 3**, **19200 baud**, **8N1** (change in WebConfig)
+
+<div align="center">
+  <img src="Images/DIM_RS485Connection.png" width="720" alt="RS-485 bus connection">
+</div>
+
+---
+
+### 🧰 USB‑C Port (Front)
+
+For **setup/diagnostics only**:
+- In‑browser WebConfig over Web Serial (Chromium‑based browsers)
+- Firmware updates via UF2 bootloader
+
+Disconnect USB‑C after commissioning; use RS‑485 for runtime control.
+
+---
+
+### ⚠️ Relays
+
+This module has **no mechanical relays**.  
+Dimming is handled by **high‑voltage MOSFET phase‑cut** outputs (mains domain).
+
+---
+
+### 🛡 Isolated Power Rails (internal only)
+
+The dimmer power stage uses **internal isolated rails** (`+5V_ISO1/2`, `GND_ISO1/2`) for gate/zero‑cross circuits.  
+These rails are **not exposed**—do **not** use them to power external sensors.  
+If sensors need power, provide an **external SELV supply**.
+
+---
 
 <a id="software-ui-configuration"></a>
 
