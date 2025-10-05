@@ -410,7 +410,7 @@ No drivers or software installation is required — configuration happens direct
 
 ### 1) Modbus Setup (Address & Baud)
 
-<img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/webconfig1.png" alt="WebConfig — Modbus address & baud" width="100%"/>
+<img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/webconfig1.png" width="440" alt="WebConfig — Modbus address & baud" width="100%"/>
 
 - Click **Connect** and select the USB serial port.
 - The **Active Modbus Configuration** bar shows the current Address and Baud Rate.
@@ -424,7 +424,7 @@ No drivers or software installation is required — configuration happens direct
 
 ### 2) Meter Options & Calibration
 
-<img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/webconfig2.png" alt="Meter options and calibration" width="100%"/>
+<img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/webconfig2.png" width="440" alt="Meter options and calibration" width="100%"/>
 
 #### Meter Options
 - **Line Frequency**: 50 / 60 Hz (affects metering IC behavior)
@@ -443,7 +443,7 @@ No drivers or software installation is required — configuration happens direct
 
 ### 3) Alarms / Inputs (Per‑Channel Rules)
 
-<img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/webconfig3.png" alt="Alarms per channel" width="100%"/>
+<img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/webconfig3.png" width="440" alt="Alarms per channel" width="100%"/>
 
 The ENM has **4 measurement channels**: L1, L2, L3, and Totals.
 
@@ -472,7 +472,7 @@ Acknowledgment:
 
 ### 4) Relay Logic Modes
 
-<img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/webconfig6.png" alt="Relay logic options" width="100%"/>
+<img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/webconfig6.png" width="440" alt="Relay logic options" width="100%"/>
 
 Each of the two onboard **SPDT relays** can be configured independently.
 
@@ -492,7 +492,7 @@ Options:
 
 ### 5) Button & LED Mapping
 
-<img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/webconfig5.png" alt="Buttons and LED mapping" width="100%"/>
+<img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/webconfig5.png" width="440" alt="Buttons and LED mapping" width="100%"/>
 
 #### Buttons (1–4)
 Each button can be mapped to:
@@ -519,7 +519,7 @@ Each LED has:
 
 ### 6) Live Meter & Energies
 
-<img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/webconfig4.png" alt="Live meter values" width="100%"/>
+<img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/webconfig4.png" width="440" alt="Live meter values" width="100%"/>
 
 **Live Meter View**:
 - U (V), I (A), P (W), Q (var), S (VA)
