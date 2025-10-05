@@ -750,14 +750,152 @@ Each LED has:
 
 # 6. Modbus RTU Communication
 
-Include:
-- Address range and map
-- Input/holding register layout
-- Coil/discrete inputs
-- Register use examples
-- Polling recommendations
+The ENM‑223‑R1 communicates over **RS‑485 (Modbus RTU)** and supports:
+
+- Real-time metering via **Input Registers**
+- Configuration via **Holding Registers**
+- Control and acknowledgment via **Coils**
+- Status monitoring via **Discrete Inputs**
+
+The device acts as a **Modbus Slave** and can be polled by a PLC, SCADA, ESPHome, or Home Assistant system.
 
 ---
+
+## 6.1 Addressing & Protocol Settings
+
+| Setting          | Value                   |
+|------------------|-------------------------|
+| Default Address  | `3` (configurable: 1–255) |
+| Baud Rate        | `19200 8N1` (configurable) |
+| Physical Layer   | RS‑485 (half-duplex, A/B/COM) |
+| Function Codes   | `0x01`, `0x02`, `0x03`, `0x04`, `0x05`, `0x06`, `0x10` |
+| Termination      | External 120 Ω at bus ends |
+| Fail-safe Bias   | Required on master side |
+
+> 📌 Use the WebConfig tool over USB‑C to set Modbus address and baud rate.
+
+---
+
+## 6.2 Input Registers — Real-Time Telemetry (FC04)
+
+| Address | Type | Metric                        | Unit   | Scaling |
+|---------|------|-------------------------------|--------|---------|
+| 100–102 | U16  | Voltage L1/L2/L3              | V      | ×0.01   |
+| 110–112 | U16  | Current L1/L2/L3              | A      | ×0.001  |
+| 200–207 | S32  | Active Power (L1–3, Totals)   | W      | 1       |
+| 210–217 | S32  | Reactive Power (L1–3, Totals) | var    | 1       |
+| 220–227 | S32  | Apparent Power (L1–3, Totals) | VA     | 1       |
+| 240–243 | S16  | Power Factor L1–3, Total      | –      | ×0.001  |
+| 244–246 | S16  | Phase Angle L1–3              | °      | ×0.1    |
+| 250     | U16  | Frequency                     | Hz     | ×0.01   |
+| 251     | S16  | Temperature (internal)        | °C     | 1       |
+
+---
+
+## 6.3 Energy Registers (Wh/varh/VAh, FC04)
+
+| Address   | Type | Energy Type                        | Phase / Total | Unit  |
+|-----------|------|------------------------------------|----------------|--------|
+| 300–307   | U32  | Active Energy (+ import)           | A/B/C/Totals   | Wh     |
+| 308–315   | U32  | Active Energy (− export)           | A/B/C/Totals   | Wh     |
+| 316–323   | U32  | Reactive Energy (+ inductive)      | A/B/C/Totals   | varh   |
+| 324–331   | U32  | Reactive Energy (− capacitive)     | A/B/C/Totals   | varh   |
+| 332–339   | U32  | Apparent Energy                    | A/B/C/Totals   | VAh    |
+
+> Energy values are **32-bit unsigned integers** (Hi/Lo word pairs).
+
+---
+
+## 6.4 Holding Registers — Configuration (FC03/06/16)
+
+| Address | Type | Description                 | Range / Units       |
+|---------|------|-----------------------------|---------------------|
+| 400     | U16  | Sample Interval             | 10–5000 ms          |
+| 401     | U16  | Line Frequency              | 50 or 60 Hz         |
+| 402     | U16  | Sum Mode                    | 0 = algorithmic<br>1 = absolute |
+| 403     | U16  | Ucal Gain                   | 1–65535             |
+| 410–420 | U16  | Ugain A/B/C                 | 16-bit              |
+| 421–431 | S16  | Uoffset A/B/C               | 16-bit              |
+| 440–450 | U16  | Igain A/B/C                 | 16-bit              |
+| 451–461 | S16  | Ioffset A/B/C               | 16-bit              |
+| 499     | U16  | **Factory Reset** Trigger   | Write `1` to reset  |
+
+---
+
+## 6.5 Coils — Output Control (FC01/05/15)
+
+| Address | Description                         |
+|---------|-------------------------------------|
+| 600     | Relay 1 Control (ON/OFF)            |
+| 601     | Relay 2 Control (ON/OFF)            |
+| 610–613 | Alarm Acknowledgment (L1–L3, Totals)|
+
+---
+
+## 6.6 Discrete Inputs — Read-only Status (FC02)
+
+| Address | Description                   |
+|---------|-------------------------------|
+| 500–503 | LED Status (U.1–U.4)          |
+| 520–523 | Button Press (1–4)            |
+| 540–541 | Relay State (1–2)             |
+| 560–571 | Alarm/Warning/Event flags     |
+
+---
+
+## 6.7 Scaling Summary
+
+| Metric         | Register Type | Scale Factor |
+|----------------|----------------|--------------|
+| Voltage (V)    | Input Register  | ÷100         |
+| Current (A)    | Input Register  | ÷1000        |
+| Power Factor   | Input Register  | ÷1000        |
+| Frequency (Hz) | Input Register  | ÷100         |
+| Angle (°)      | Input Register  | ÷10          |
+| Energy (Wh)    | 32-bit Input    | 1            |
+
+---
+
+## 6.8 Polling Best Practices
+
+- **Typical polling rate:** 1 s for live data (powers, voltages, current)  
+- **Energy:** poll less often (e.g. every 5–10 s)  
+- **Batch reads:** Use FC04 and FC03 with multi-register reads for speed  
+- **Avoid writing frequently** to EEPROM-backed registers (e.g., Ucal or gains)  
+- **Coils:** Fast updates (e.g. overrides) okay; no debounce needed  
+
+> 🛠 To reduce bus collisions, stagger multiple ENMs on a shared RS‑485 bus using different **poll intervals** and address spacing.
+
+---
+
+## 6.9 Modbus Integration Example (MiniPLC)
+
+```yaml
+modbus_controller:
+  - id: enm223
+    address: 3
+    modbus_id: rtu_bus
+    update_interval: 1s
+
+sensor:
+  - platform: modbus_controller
+    modbus_controller_id: enm223
+    name: "Urms L1"
+    register_type: read
+    address: 100
+    value_type: U_WORD
+    unit_of_measurement: "V"
+    accuracy_decimals: 2
+    filters:
+      - multiply: 0.01
+
+switch:
+  - platform: modbus_controller
+    modbus_controller_id: enm223
+    name: "Relay 1"
+    register_type: coil
+    address: 600
+
 
 <a id="7-esphome-integration-guide"></a>
 
