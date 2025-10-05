@@ -537,12 +537,65 @@ Each LED has:
 
 <a id="4-6-getting-started"></a>
 
-## 4.6 Getting Started
+## 4.6 Getting Started (3 Phases)
 
-Summarize steps in 3 phases:
-1. Wiring
-2. Configuration
-3. Integration
+### Phase 1 — Wire
+
+- **24 V DC** to `V+ / GND` (top left terminals)
+- **Voltage inputs**: `PE / N / L1 / L2 / L3`  
+  - For single-phase: energize **L1 only**, tie **L2/L3 → N**
+- **CTs** to `CT1/CT2/CT3` with correct ± polarity (1 V or 333 mV RMS)  
+  - Arrow → load; shielded pairs preferred
+- **RS‑485 A/B/COM**  
+  - Use shielded twisted pair; terminate bus ends with **120 Ω**
+- (Optional) **Relay outputs**: `COM/NO/NC`  
+  - Add **snubber** on inductive loads (RC/TVS)
+- Ground panel PE and avoid bridging **GND ↔ GND_ISO**
+
+👉 See: [Installation & Quick Start](#4-installation--quick-start)
+
+---
+
+### Phase 2 — Configure (WebConfig)
+
+- Open `tools/ConfigToolPage.html` in Chrome/Edge
+- Connect via **USB‑C** → **Select port → Connect**
+- Set:
+  - **Modbus Address / Baud**  
+  - **Line Frequency, Sample Interval**
+  - **Alarm thresholds** per L1/L2/L3/Totals
+  - **Relay modes**: Alarm or Modbus Controlled
+  - Map **Buttons & LEDs** (override, Ack, follow alarms)
+  - (Optional) Adjust **U/I gains**, save calibration
+
+👉 See: [WebConfig UI](#45-software--ui-configuration)
+
+---
+
+### Phase 3 — Integrate (Controller)
+
+- Connect controller via **RS‑485**
+- Match **Modbus address / baud**
+- Poll:
+  - **Input registers**: meter values (U, I, P, Q, S, PF, angle, kWh, etc.)
+  - **Coils**: relays (600/601), Ack (610–613), button state
+- Send:
+  - **Coil writes**: toggle relays, acknowledge alarms
+- Use with:
+  - HomeMaster MicroPLC / MiniPLC
+  - SCADA / ESPHome
+
+👉 See: [Modbus RTU Communication](#modbus-rtu) & [Integration Guide](#integration)
+
+---
+
+### ✅ Verify
+
+| Area           | What to Check |
+|----------------|---------------|
+| **LEDs**       | `PWR = ON`; `TX/RX = blink` during comms |
+| **Voltage**    | L1–L3 read ~230 V (or phase-neutral voltage) |
+| **Current**   
 
 ---
 
