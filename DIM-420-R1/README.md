@@ -376,11 +376,86 @@ If sensors need power, provide an **external SELV supply**.
 
 ## 4.5 Software & UI Configuration
 
-Cover:
-- WebConfig setup (address, baud)
-- Input enable/invert/group
-- Relay logic mode (group/manual)
-- LED and Button mapping
+WebConfig lets you commission the DIM‑420‑R1 entirely from a Chromium browser using **Web Serial**. No drivers or apps required. :contentReference[oaicite:0]{index=0}
+
+<div align="center">
+  <img src="Images/webconfig1.png" width="880" alt="WebConfig landing and Modbus link">
+</div>
+
+### Browser & Cable
+- Use a **Chromium‑based** browser (Chrome/Edge/Brave).  
+- Connect a **USB‑C** cable to the module’s front USB port.  
+- Power the module with **24 VDC** (USB is for data only). :contentReference[oaicite:1]{index=1}
+
+---
+
+### Connect & Link Modbus
+
+1. Open `ConfigToolPage.html` in the browser.  
+2. Choose **Modbus Address** (1–247) and **Baud Rate** (e.g., 19200).  
+3. Click **Connect** → grant **Serial** permission.  
+4. The **Active Modbus Configuration** banner shows the live address/baud once the module responds. :contentReference[oaicite:2]{index=2}
+
+> Defaults from factory are typically **ID 3, 19200, 8N1** (editable here). 
+
+A compact **Serial Log** at the bottom keeps the last 5 messages visible for quick diagnostics. :contentReference[oaicite:4]{index=4}
+
+---
+
+### Dimming Channels (2)
+
+Each channel card exposes everything needed to match the lamp/driver and tune behavior. :contentReference[oaicite:5]{index=5}
+
+<div align="center">
+  <img src="Images/webconfig2.png" width="880" alt="Channel configuration">
+</div>
+
+- **AC on L–N / Frequency** badges: live mains presence and Hz (from zero‑cross sensing).  
+- **Enabled**: arm/disarm the channel.  
+- **Load Type**: *Lamp (log)*, *Heater (linear)*, or *Key* (non‑dimmable).  
+- **Cutoff Mode**: *Leading (RL)* or *Trailing (RC)*.  
+- **Setpoint (%):** sends a percent target; UI shows **Actual level** (0–255) and the **effective range**.  
+- **Lower/Upper** thresholds: clamp the usable dim range.  
+- **Preset level**: used when a *Toggle/On* action is triggered.  
+
+Changes are sent with light debouncing and applied immediately; firmware persists to flash shortly after changes. :contentReference[oaicite:6]{index=6}
+
+---
+
+### Digital Inputs (4)
+
+Map wall switches to actions with rich press logic. :contentReference[oaicite:7]{index=7}
+
+<div align="center">
+  <img src="Images/webconfig3.png" width="880" alt="Digital input mappings">
+</div>
+
+- **Enabled / Inverted / Switch Type** (*Momentary* or *Latching*).  
+- **Momentary press mappings**: per‑event **Action** (e.g., *Turn on*, *Toggle output*, *Increase/Decrease*, *Go to maximum*) and **Target** (*CH1*, *CH2*, *All*).  
+- **Latching behavior**: toggle mode and target when using maintained switches.
+
+---
+
+### Buttons (4) & User LEDs (4)
+
+Quick local actions and status indicators. :contentReference[oaicite:8]{index=8}
+
+<div align="center">
+  <img src="Images/webconfig4.png" width="880" alt="Buttons and User LEDs">
+</div>
+
+- **Buttons**: assign actions such as *Toggle CH1/CH2*, *Step Up/Down*, *Go to MAX*.  
+  - Note: onboard buttons are inverted at hardware level; firmware normalizes them (HIGH = pressed).  
+- **User LEDs**: set **Mode** (*Steady* or *Blink*) and **Source** (*Channel 1*, *Channel 2*, or *None*).
+
+---
+
+### Save / Apply / Troubleshooting
+
+- UI sends changes live; the module **autosaves** shortly after the last edit.  
+- If **Connect** is disabled: confirm you’re in Chrome/Edge, the cable is data‑capable, no other app holds the serial port, and page permission is granted. :contentReference[oaicite:9]{index=9}
+
+---
 
 <a id="4-6-getting-started"></a>
 
