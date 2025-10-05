@@ -1025,9 +1025,9 @@ packages:
 
 ## 8.1 Supported Languages
 
-- **MicroPython (pre‑installed)** — quick scripting for tests and diagnostics
-- **C/C++** — production firmware
-- **Arduino IDE** — easy sketches & examples
+* **MicroPython**
+* **C/C++**
+* **Arduino IDE**
 
 ---
 

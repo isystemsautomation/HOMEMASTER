@@ -992,7 +992,7 @@ These appear as ESPHome switches/scripts usable in HA automations.
 
 ## 8.1 Supported Languages
 
-* **MicroPython** (pre‑installed)
+* **MicroPython**
 * **C/C++**
 * **Arduino IDE**
 
