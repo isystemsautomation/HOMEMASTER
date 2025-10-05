@@ -601,107 +601,150 @@ Each LED has:
 
 <a id="5-module-code--technical-specification"></a>
 
-# 5. ENM‑223‑R1 — Technical Specification
+# 5. ENM-223-R1 — Technical Specification
 
 ---
 
 ## 5.1 Diagrams & Pinouts
 
 <div align="center">
-  <table>
-    <tr>
-      <td align="center">
-        <strong>System Block Diagram</strong><br>
-        <img src="Images/ENM_Diagram.png" alt="System Diagram" width="340">
-      </td>
-      <td align="center">
-        <strong>Field Board Layout</strong><br>
-        <img src="Images/FieldBoard_Diagram.png" alt="Field Board" width="340">
-      </td>
-    </tr>
-    <tr>
-      <td align="center">
-        <strong>MCU Board Layout</strong><br>
-        <img src="Images/MCUBoard_Diagram.png" alt="MCU Board" width="340">
-      </td>
-      <td align="center">
-        <strong>Front View</strong><br>
-        <img src="Images/photo1.png" alt="Front View" width="340">
-      </td>
-    </tr>
-  </table>
+
+<table>
+<tr>
+<td align="center">
+<strong>System Diagram</strong><br>
+<img src="Images/ENM_Diagram.png" alt="System Block Diagram" width="340">
+</td>
+<td align="center">
+<strong>MCU Pinout</strong><br>
+<img src="Images/ENM_MCU_Pinouts.png" alt="RP2350 MCU Pinout" width="340">
+</td>
+</tr>
+<tr>
+<td align="center">
+<strong>Field Board Terminal Map</strong><br>
+<img src="Images/FieldBoard_Diagram.png" alt="Field Board Layout" width="340">
+</td>
+<td align="center">
+<strong>MCU Board Layout</strong><br>
+<img src="Images/MCUBoard_Diagram.png" alt="MCU Board Layout" width="340">
+</td>
+</tr>
+</table>
+
 </div>
+
+> 💡 **Note:** Pinouts correspond to hardware revision R1. Terminals are pluggable 5.08 mm pitch (26–12 AWG, torque 0.5–0.6 Nm).
 
 ---
 
 ## 5.2 I/O Summary
 
-| Interface      | Qty | Description                                  |
-|----------------|-----|----------------------------------------------|
-| Voltage Inputs | 3   | L1, L2, L3-N; 85–265 VAC                     |
-| Current Inputs | 3   | 1 V or 333 mV RMS CTs (IAP/IAN, IBP/IBN, etc.) |
-| Relay Outputs  | 2   | SPDT (NO/NC), opto-isolated driver           |
-| User LEDs      | 4   | Status or override indication (assignable)   |
-| Buttons        | 4   | Momentary push-buttons (user-mapped)         |
-| RS‑485 (Modbus RTU) | 1 | A/B/GND, half-duplex                       |
-| USB‑C          | 1   | Native USB for configuration & flashing      |
-| Power Input    | 1   | 24 V DC interface power                      |
+| Interface         | Qty | Description |
+|-------------------|-----|-------------|
+| **Voltage Inputs** | 3 | L1 / L2 / L3–N, 85–265 V AC via precision divider to ATM90E32AS metering IC |
+| **Current Inputs** | 3 | CT1–CT3, external 333 mV / 1 V RMS split-core CTs |
+| **Relay Outputs** | 2 | SPDT dry contact, HF115F series, opto-driven; 5 A @ 250 VAC / 30 VDC (module limit) |
+| **User LEDs** | 4 | Assignable status / override indicators (GPIO18–21) |
+| **Buttons** | 4 | Momentary tactile switches (GPIO22–25) |
+| **RS-485** | 1 | A/B/COM, Modbus RTU, MAX485 transceiver |
+| **USB-C** | 1 | Native USB 2.0 (Web Serial + firmware flashing), ESD-protected |
+| **Power Input** | 1 | 24 V DC (22–28 V) logic supply, reverse & surge protected |
 
 ---
 
-## 5.3 Electrical Specifications
+## 5.3 Absolute Electrical Specifications
 
-| Parameter              | Value/Notes                                  |
-|------------------------|----------------------------------------------|
-| **Input Voltage (V+)** | 22–28 V DC nominal                           |
-| **Logic Current Draw** | 50–150 mA typical (relays off/on)            |
-| **Isolated Domains**   | Sensor side via B0505S‑1WR3; fully isolated  |
-| **Relay Contact Rating** | 5 A @ 250 VAC / 30 VDC; dry contact         |
-| **Metering Voltage Inputs** | L1–L3: 85–265 V AC via divider           |
-| **CT Inputs**          | 1 V or 333 mV RMS external CTs; burdened + filtered |
-| **RS‑485 Transceiver** | MAX485 + TVS + bias/termination circuit      |
-| **USB-C Interface**    | Native USB (not UART bridge), ESD protected  |
-| **Relay Protection**   | Snubbers: varistors + SFH6156 opto driver    |
-| **Isolation Barriers** | ISO7761 (digital), B0505S DC/DC (analog power) |
-| **Power Regulation**   | 24 V → 5 V buck → 3.3 V LDO (AMS1117-3.3)    |
+| Parameter | Min | Typ | Max | Unit | Notes |
+|------------|-----|-----|-----|------|-------|
+| **Supply Voltage (V+)** | 22 | 24 | 28 | V DC | SELV; reverse / surge protected input |
+| **Power Consumption** | – | 1.85 | 3.0 | W | Module only, no external loads |
+| **Logic Rails** | – | 3.3 / 5 | – | V | Buck (AP64501) + LDO (AMS1117-3.3) |
+| **Isolated Sensor Rails** | – | +12 / +5 | – | V | From B0505S-1WR3 isolated DC-DC |
+| **Voltage Inputs** | 85 | – | 265 | V AC | Divided to ATM90E32AS AFE |
+| **Current Inputs** | – | 1 / 0.333 | – | V RMS | External CTs |
+| **Relay Outputs** | – | – | 5 | A | SPDT; 250 VAC/30 VDC; varistor + snubber recommended |
+| **RS-485 Bus** | – | 115.2 | – | kbps | MAX485; short-circuit limited; fail-safe bias |
+| **USB-C Port** | – | 5 | 5.25 | V DC | Native USB; ESD protected |
+| **Operating Temp.** | 0 | – | 40 | °C | ≤ 95 % RH non-condensing |
+| **Isolation (DC-DC)** | – | 1.5 | 3.0 | kV DC | Metering domain via B0505S-1WR3 |
+| **Isolation (Digital)** | – | 5.0 | – | kV RMS | ISO7761 6-ch isolator between MCU ↔ AFE |
 
----
-
-## 5.4 Firmware Behavior
-
-### 🔔 Alarm Logic
-
-- **Per channel (L1–L3 + Totals)**: each has 3 rule slots: Alarm, Warning, Event
-- Triggers compare live values to **Min/Max thresholds**
-- **“Ack required”** causes alarm to **latch** until cleared
-- Acknowledge via:
-  - WebConfig UI (Ack buttons)
-  - Modbus coils `610–613`
-  - Button action (if mapped)
-
-### ⚡ Override Priority
-
-1. **Safety locks** (if enabled)
-2. **Button override** (hold 3s)
-3. **Modbus coil write** (`600/601`)
-4. **Alarm-follow mode** (only if assigned)
-
-> In override mode, relays ignore alarms and Modbus until the override is exited.
-
-### 💡 LED Feedback Modes
-
-- **Modes**: `Steady (when active)` or `Blink (when active)`
-- **Sources**:
-  - Override R1/R2 status
-  - Alarm/Warning/Event state (per channel)
-  - Combined A|W|E (logical OR across rule types)
-
-**Manual control**: LEDs can be toggled via button actions (e.g., Button 3 → Toggle LED1)
+> 🧩 *Values validated from schematics and manufacturer datasheets for ATM90E32AS, ISO7761, B0505S-1WR3, HF115F, AP64501.*
 
 ---
 
-> 🔧 All logic and config are saved to flash. System reboots retain alarms, relay modes, calibration, and energy counters.
+## 5.4 Connector / Terminal Map (Field Side)
 
+| Block / Label | Pin(s) (left→right) | Function / Signal | Limits / Notes |
+|----------------|--------------------|------------------|----------------|
+| **POWER** | V+, 0V | 24 V DC SELV input | Reverse / surge protected |
+| **VOLTAGE INPUT** | PE, N, L1, L2, L3 | AC sensing (85–265 V AC) | Isolated domain |
+| **CT INPUT** | CT1+, CT1–, CT2+, CT2–, CT3+, CT3– | External CT (333 mV / 1 V RMS) | Shielded pairs recommended |
+| **RS-485** | A, B, COM | Modbus RTU bus | Terminate 120 Ω at ends |
+| **RELAY 1** | NO, C, NC | SPDT dry contact | 5 A max @ 250 VAC/30 VDC |
+| **RELAY 2** | NO, C, NC | SPDT dry contact | 5 A max @ 250 VAC/30 VDC |
+| **USB-C** | D+, D–, VBUS, GND | Web Serial / Setup | Not for field mount |
+| **LED / BTN Interface** | – | Internal header MCU ↔ Field Board | Service only |
+
+---
+
+## 5.5 Reliability & Protection Specifics
+
+- **Primary Protection:** Reverse-path diode + MOSFET high-side switch; distributed inline fuses  
+- **Isolated rails:** Independent +12 V / +5 V DC with LC filters; isolated returns (GND_ISO)  
+- **Inputs:** Per-channel TVS and RC filtering; debounced in firmware  
+- **Relays:** Coil driven via SFH6156 optocoupler → S8050 transistor → HF115F SPDT; RC/TVS suppression recommended for inductive loads  
+- **RS-485:** TVS (SMAJ6.8CA) + PTC; failsafe bias on idle; TX/RX LED feedback  
+- **USB:** PRTR5V0U2X ESD array on D+/D–; CC pull-downs per USB-C spec  
+- **Memory Retention:** FM24CL16B FRAM for energy counters (>10¹⁴ writes); W25Q32JV QSPI flash for firmware/config  
+
+---
+
+## 5.6 Firmware / Functional Overview
+
+- **Alarm Engine:** Four channels (L1–L3 + Totals); each has Alarm/Warning/Event rules  
+  - Modes: Active-while / Latched-until-ack  
+  - Metrics: Urms, Irms, P, Q, S, Frequency  
+- **Relay Control:** Per relay Enable / Invert / Group mode; Manual override (hold 3 s) via buttons  
+- **LED Feedback:** User-assignable LEDs for Alarms / Overrides / Events (Steady or Blink)  
+- **Setup & Telemetry:** WebConfig over USB-C; configure Modbus addr/baud, relay groups, thresholds, and live readings  
+- **Data Retention:** Energy and configuration stored in FRAM (non-volatile, instant writes)  
+
+---
+
+## 5.7 Mechanical Details
+
+<div align="center">
+<img src="Images/photo1.png" width="320"><br>
+</div>
+
+| Property | Specification |
+|-----------|---------------|
+| **Mounting** | DIN rail EN 50022 (35 mm) |
+| **Material / Finish** | PC / ABS V-0, matte light gray + smoke panel |
+| **Dimensions (L × W × H)** | 70 × 90.6 × 67.3 mm (9 division units) |
+| **Weight** | ~420 g |
+| **Terminals** | 300 V / 20 A / 26–12 AWG (2.5 mm²) / torque 0.5–0.6 Nm / pitch 5.08 mm |
+| **Ingress Protection** | IP20 (EN 60529) |
+| **Operating Temp.** | 0–40 °C / ≤95 % RH (non-condensing) |
+
+<div align="center">
+<img src="Images/ENM223R1_Dimensions.png" alt="Mechanical Dimensions" width="420"><br>
+<em>ENM-223-R1 Physical Dimensions (DIN-rail enclosure)</em>
+</div>
+
+---
+
+## 5.8 Standards & Compliance
+
+| Standard / Directive | Description |
+|----------------------|-------------|
+| **Ingress Rating** | IP20 (panel mount only) |
+| **Altitude Limit** | ≤ 2000 m |
+| **Environment** | RoHS / REACH compliant |
+
+---
 
 <a id="6-modbus-rtu-communication"></a>
 
