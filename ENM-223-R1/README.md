@@ -730,7 +730,7 @@ Each LED has:
 | **Operating Temp.** | 0–40 °C / ≤95 % RH (non-condensing) |
 
 <div align="center">
-<img src="Images/ENM223R1_Dimensions.png" alt="Mechanical Dimensions" width="420"><br>
+<img src="Images/ENMDimensions.png" alt="Mechanical Dimensions" width="420"><br>
 <em>ENM-223-R1 Physical Dimensions (DIN-rail enclosure)</em>
 </div>
 
