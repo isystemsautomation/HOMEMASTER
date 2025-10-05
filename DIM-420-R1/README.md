@@ -357,116 +357,102 @@ Disconnect USB‑C after commissioning; use RS‑485 for runtime control.
 
 ---
 
-### ⚠️ Relays
-
-This module has **no mechanical relays**.  
-Dimming is handled by **high‑voltage MOSFET phase‑cut** outputs (mains domain).
-
----
-
-### 🛡 Isolated Power Rails (internal only)
-
-The dimmer power stage uses **internal isolated rails** (`+5V_ISO1/2`, `GND_ISO1/2`) for gate/zero‑cross circuits.  
-These rails are **not exposed**—do **not** use them to power external sensors.  
-If sensors need power, provide an **external SELV supply**.
-
----
 
 <a id="software-ui-configuration"></a>
 
 ## 4.5 Software & UI Configuration
 
-WebConfig lets you commission the DIM‑420‑R1 entirely from a Chromium browser using **Web Serial**. No drivers or apps required. :contentReference[oaicite:0]{index=0}
+You can configure the DIM‑420‑R1 entirely from a Chromium browser using **Web Serial**. No drivers or apps required.
+
+> 🔗 **Online WebConfig:**  
+> [https://www.home-master.eu/configtool-dim-420-r1](https://www.home-master.eu/configtool-dim-420-r1)
 
 <div align="center">
   <img src="Images/webconfig1.png" width="880" alt="WebConfig landing and Modbus link">
 </div>
 
-### Browser & Cable
-- Use a **Chromium‑based** browser (Chrome/Edge/Brave).  
-- Connect a **USB‑C** cable to the module’s front USB port.  
-- Power the module with **24 VDC** (USB is for data only). :contentReference[oaicite:1]{index=1}
+---
+
+### 🖥 Browser & Cable
+
+- Use a **Chromium‑based browser** (Chrome / Edge / Brave).
+- Connect a **USB‑C cable** to the module.
+- Power the module with **24 VDC** (USB only provides data).
 
 ---
 
-### Connect & Link Modbus
+### 🔗 Modbus Connection
 
-1. Open `ConfigToolPage.html` in the browser.  
-2. Choose **Modbus Address** (1–247) and **Baud Rate** (e.g., 19200).  
-3. Click **Connect** → grant **Serial** permission.  
-4. The **Active Modbus Configuration** banner shows the live address/baud once the module responds. :contentReference[oaicite:2]{index=2}
+1. Open the WebConfig tool from the link above.
+2. Select the current **Modbus Address** and **Baud Rate**.
+3. Click **Connect** and allow Serial access.
+4. The **Active Modbus Configuration** banner shows detected values.
 
-> Defaults from factory are typically **ID 3, 19200, 8N1** (editable here). 
+> Default: Slave ID = **3**, Baud = **19200**, 8N1.
 
-A compact **Serial Log** at the bottom keeps the last 5 messages visible for quick diagnostics. :contentReference[oaicite:4]{index=4}
+A live **Serial Log** keeps the last 5 messages for quick feedback.
 
 ---
 
-### Dimming Channels (2)
+### 🎚 Dimming Channels (CH1 & CH2)
 
-Each channel card exposes everything needed to match the lamp/driver and tune behavior. :contentReference[oaicite:5]{index=5}
+Each dimmer channel can be configured for its intended load and behavior:
 
 <div align="center">
   <img src="Images/webconfig2.png" width="880" alt="Channel configuration">
 </div>
 
-- **AC on L–N / Frequency** badges: live mains presence and Hz (from zero‑cross sensing).  
-- **Enabled**: arm/disarm the channel.  
-- **Load Type**: *Lamp (log)*, *Heater (linear)*, or *Key* (non‑dimmable).  
-- **Cutoff Mode**: *Leading (RL)* or *Trailing (RC)*.  
-- **Setpoint (%):** sends a percent target; UI shows **Actual level** (0–255) and the **effective range**.  
-- **Lower/Upper** thresholds: clamp the usable dim range.  
-- **Preset level**: used when a *Toggle/On* action is triggered.  
+- **AC Presence / Frequency** badges confirm input signal quality.
+- **Load Type:** Lamp (log), Heater (linear), or Key (non‑dimmable).
+- **Cutoff Mode:** Leading (RL) or Trailing (RC).
+- **Lower/Upper Thresholds:** Clamp range for reliable dimming.
+- **Preset Level:** Value used when toggle/on events occur.
+- **Percent Slider:** Sends live target; UI reflects actual level (0–255).
 
-Changes are sent with light debouncing and applied immediately; firmware persists to flash shortly after changes. :contentReference[oaicite:6]{index=6}
+Changes apply instantly and persist to flash ~1.5s after the last edit.
 
 ---
 
-### Digital Inputs (4)
+### 🟢 Digital Inputs (DI1–DI4)
 
-Map wall switches to actions with rich press logic. :contentReference[oaicite:7]{index=7}
+Configure press logic, target channels, and press actions:
 
 <div align="center">
   <img src="Images/webconfig3.png" width="880" alt="Digital input mappings">
 </div>
 
-- **Enabled / Inverted / Switch Type** (*Momentary* or *Latching*).  
-- **Momentary press mappings**: per‑event **Action** (e.g., *Turn on*, *Toggle output*, *Increase/Decrease*, *Go to maximum*) and **Target** (*CH1*, *CH2*, *All*).  
-- **Latching behavior**: toggle mode and target when using maintained switches.
+- Input mode: Momentary or Latching
+- Mappable press types: Short, Long, Double, Short‑then‑Long
+- Actions: Turn on/off, Toggle, Ramp, Go to MAX, Ping‑pong
+
+Each DI has its own mapping per event and an optional invert.
 
 ---
 
-### Buttons (4) & User LEDs (4)
+### 🔘 Buttons & LEDs
 
-Quick local actions and status indicators. :contentReference[oaicite:8]{index=8}
+Configure onboard pushbuttons and indicator LEDs:
 
 <div align="center">
   <img src="Images/webconfig4.png" width="880" alt="Buttons and User LEDs">
 </div>
 
-- **Buttons**: assign actions such as *Toggle CH1/CH2*, *Step Up/Down*, *Go to MAX*.  
-  - Note: onboard buttons are inverted at hardware level; firmware normalizes them (HIGH = pressed).  
-- **User LEDs**: set **Mode** (*Steady* or *Blink*) and **Source** (*Channel 1*, *Channel 2*, or *None*).
+- **Buttons:** Trigger actions like Toggle CH1, Ramp up/down, MAX preset.
+- **LEDs:** Mode (Steady / Blink) and Source (Channel or None).
+
+Button presses are de‑bounced and detected in firmware. LED states are updated live.
 
 ---
 
-### Save / Apply / Troubleshooting
+### 💾 Save & Restore
 
-- UI sends changes live; the module **autosaves** shortly after the last edit.  
-- If **Connect** is disabled: confirm you’re in Chrome/Edge, the cable is data‑capable, no other app holds the serial port, and page permission is granted. :contentReference[oaicite:9]{index=9}
+- Config is stored automatically in flash after changes.
+- Settings persist through power loss and reset.
 
----
-
-<a id="4-6-getting-started"></a>
-
-## 4.6 Getting Started
-
-Summarize steps in 3 phases:
-1. Wiring
-2. Configuration
-3. Integration
+> If Connect is greyed out: check USB cable, browser support (Chrome/Edge), and Serial permissions.
 
 ---
+
 
 <a id="5-module-code--technical-specification"></a>
 
