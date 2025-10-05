@@ -601,43 +601,107 @@ Each LED has:
 
 <a id="5-module-code--technical-specification"></a>
 
-# 5. MODULE-CODE — Technical Specification
+# 5. ENM‑223‑R1 — Technical Specification
+
+---
 
 ## 5.1 Diagrams & Pinouts
 
-Add photos/diagrams:
-- System block diagram
-- Board layouts
-- Terminal maps
+<div align="center">
+  <table>
+    <tr>
+      <td align="center">
+        <strong>System Block Diagram</strong><br>
+        <img src="Images/ENM_Diagram.png" alt="System Diagram" width="340">
+      </td>
+      <td align="center">
+        <strong>Field Board Layout</strong><br>
+        <img src="Images/FieldBoard_Diagram.png" alt="Field Board" width="340">
+      </td>
+    </tr>
+    <tr>
+      <td align="center">
+        <strong>MCU Board Layout</strong><br>
+        <img src="Images/MCUBoard_Diagram.png" alt="MCU Board" width="340">
+      </td>
+      <td align="center">
+        <strong>Front View</strong><br>
+        <img src="Images/photo1.png" alt="Front View" width="340">
+      </td>
+    </tr>
+  </table>
+</div>
+
+---
 
 ## 5.2 I/O Summary
 
-Summarize in a table:
+| Interface      | Qty | Description                                  |
+|----------------|-----|----------------------------------------------|
+| Voltage Inputs | 3   | L1, L2, L3-N; 85–265 VAC                     |
+| Current Inputs | 3   | 1 V or 333 mV RMS CTs (IAP/IAN, IBP/IBN, etc.) |
+| Relay Outputs  | 2   | SPDT (NO/NC), opto-isolated driver           |
+| User LEDs      | 4   | Status or override indication (assignable)   |
+| Buttons        | 4   | Momentary push-buttons (user-mapped)         |
+| RS‑485 (Modbus RTU) | 1 | A/B/GND, half-duplex                       |
+| USB‑C          | 1   | Native USB for configuration & flashing      |
+| Power Input    | 1   | 24 V DC interface power                      |
 
-| Interface | Qty | Description |
-|-----------|-----|-------------|
-| Inputs |   | Opto-isolated |
-| Relays |   | SPST/SPDT |
-| LEDs |   | Status indication |
-| USB-C | 1 | Setup only |
+---
 
-## 5.3 Electrical Specs
+## 5.3 Electrical Specifications
 
-Cover:
-- Input voltage range
-- Current consumption
-- Sensor rail current
-- Relay contact ratings
-- Isolation details
+| Parameter              | Value/Notes                                  |
+|------------------------|----------------------------------------------|
+| **Input Voltage (V+)** | 22–28 V DC nominal                           |
+| **Logic Current Draw** | 50–150 mA typical (relays off/on)            |
+| **Isolated Domains**   | Sensor side via B0505S‑1WR3; fully isolated  |
+| **Relay Contact Rating** | 5 A @ 250 VAC / 30 VDC; dry contact         |
+| **Metering Voltage Inputs** | L1–L3: 85–265 V AC via divider           |
+| **CT Inputs**          | 1 V or 333 mV RMS external CTs; burdened + filtered |
+| **RS‑485 Transceiver** | MAX485 + TVS + bias/termination circuit      |
+| **USB-C Interface**    | Native USB (not UART bridge), ESD protected  |
+| **Relay Protection**   | Snubbers: varistors + SFH6156 opto driver    |
+| **Isolation Barriers** | ISO7761 (digital), B0505S DC/DC (analog power) |
+| **Power Regulation**   | 24 V → 5 V buck → 3.3 V LDO (AMS1117-3.3)    |
+
+---
 
 ## 5.4 Firmware Behavior
 
-Explain:
-- Alarm logic (latched/momentary)
-- Override priority
-- LED feedback modes
+### 🔔 Alarm Logic
+
+- **Per channel (L1–L3 + Totals)**: each has 3 rule slots: Alarm, Warning, Event
+- Triggers compare live values to **Min/Max thresholds**
+- **“Ack required”** causes alarm to **latch** until cleared
+- Acknowledge via:
+  - WebConfig UI (Ack buttons)
+  - Modbus coils `610–613`
+  - Button action (if mapped)
+
+### ⚡ Override Priority
+
+1. **Safety locks** (if enabled)
+2. **Button override** (hold 3s)
+3. **Modbus coil write** (`600/601`)
+4. **Alarm-follow mode** (only if assigned)
+
+> In override mode, relays ignore alarms and Modbus until the override is exited.
+
+### 💡 LED Feedback Modes
+
+- **Modes**: `Steady (when active)` or `Blink (when active)`
+- **Sources**:
+  - Override R1/R2 status
+  - Alarm/Warning/Event state (per channel)
+  - Combined A|W|E (logical OR across rule types)
+
+**Manual control**: LEDs can be toggled via button actions (e.g., Button 3 → Toggle LED1)
 
 ---
+
+> 🔧 All logic and config are saved to flash. System reboots retain alarms, relay modes, calibration, and energy counters.
+
 
 <a id="6-modbus-rtu-communication"></a>
 
