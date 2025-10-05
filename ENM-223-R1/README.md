@@ -136,20 +136,7 @@ These templates are applicable in energy management, automation, industrial cont
 
 ---
 
-## 2.3 Energy Threshold Alert with LED Indication
-
-**Purpose:** Indicate when cumulative energy use exceeds a configured limit (e.g. 100 kWh) using a local LED.
-
-### Configuration:
-- Use PLC/SCADA to poll Input Registers: `Active Energy Total (Wh)`
-- In controller logic:  
-  - If `Wh > 100000`, set Modbus coil mapped to a spare **LED override**
-- **LEDs** → LED 3  
-  - Source: `Any Totals` (for general visibility) or triggered via coil write
-
----
-
-## 2.4 Environmental Voltage/Frequency Alarm with Auto-Clear
+## 2.3 Environmental Voltage/Frequency Alarm with Auto-Clear
 
 **Purpose:** Detect power quality faults (sag/swell or freq drift), activate **Relay 1** as an output, and auto-reset when back in range.
 
@@ -166,7 +153,7 @@ These templates are applicable in energy management, automation, industrial cont
 
 ---
 
-## 2.5 Staged Load Shedding via Modbus Scenes
+## 2.4 Staged Load Shedding via Modbus Scenes
 
 **Purpose:** Use a controller to shed non-critical loads as power consumption increases.
 
@@ -189,7 +176,6 @@ These templates are applicable in energy management, automation, industrial cont
 |----------------------------------------|-----------------------------|----------------------|--------------------|
 | Overcurrent Alarm + Ack                | Alarms, Ack, Relay 1        | Manual (Ack)         | Alarm Controlled   |
 | Manual Override via Button             | Button override, LED        | Button toggle        | Modbus Controlled  |
-| Energy Alert with LED                  | PLC logic + LED             | Auto (logic-based)   | Modbus Controlled  |
 | Voltage/Frequency Fault Auto-Reset     | Alarm (no ack), Relay       | Auto (value returns) | Alarm Controlled   |
 | Load Shedding (Staged Scenes)          | PLC Modbus, Relay 1 & 2     | PLC-controlled       | Modbus Controlled  |
 
@@ -202,35 +188,73 @@ These templates are applicable in energy management, automation, industrial cont
 
 # 3. Safety Information
 
+The ENM‑223‑R1 is a compact metering and I/O module with multiple electrical domains, including high-voltage mains inputs, low-voltage 24 V DC control, and galvanically isolated metering circuits. To prevent equipment damage, measurement inaccuracy, or personal injury, all wiring and installation must follow proper safety procedures.
+
+---
+
 ## 3.1 General Requirements
 
 | Requirement            | Detail |
 |------------------------|--------|
-| Qualified Personnel     | Required for all installation tasks |
-| Power Isolation         | Disconnect before working on terminals |
-| Rated Voltages Only     | SELV only; no mains |
-| Grounding               | Proper panel grounding |
-| Enclosure               | Use clean/dry cabinet; avoid dust/moisture |
+| **Qualified Personnel**  | Required for all installation, wiring, and servicing tasks |
+| **Power Isolation**      | De-energize **all terminals** before working on the device |
+| **Rated Inputs Only**    | Use only supported voltages: CTs (1 V / 333 mV), AC inputs (85–265 V AC) |
+| **Grounding (PE)**       | PE terminal must be connected to protective earth |
+| **Enclosure Environment**| Use in clean, dry cabinets; avoid conductive dust, moisture, or condensation |
+
+---
 
 ## 3.2 Installation Practices
 
-Give best practices for:
-- DIN mounting
-- Isolation domain respect (e.g., GND vs GND_ISO)
-- Relay wiring
-- Sensor power connection
+To ensure long-term reliability and safety, follow these best practices during mechanical and electrical installation:
+
+### 🧩 DIN Mounting
+- Mount vertically on **35 mm DIN rail**
+- Allow at least **10 mm clearance** top and bottom for airflow
+
+### 🔌 Respect Isolation Domains
+- **Do not short** digital ground (**GND**) and analog/metrology ground (**GND_ISOLATED**)
+- Respect signal isolation between RS-485, USB, relay outputs, and analog inputs
+- Follow silkscreen and pinouts when connecting CTs and high-voltage lines
+
+### ⚡ Voltage Wiring (L1/L2/L3/N/PE)
+- Connect L1–L3 via protected AC feeds (fused or breaker)
+- Tie **unused L2/L3 → N** for single-phase operation to avoid phantom voltages
+- Always wire **PE** — this improves both safety and metering accuracy
+
+### 🧲 Current Transformer Inputs
+- Use **1 V RMS or 333 mV RMS** output CTs (split-core or intermediate type)
+- Do **not** connect 5 A CTs directly
+- Observe CT orientation (arrow → load)
+- Shield CT wiring for long cable runs
+
+### 🔁 Relay Outputs
+- Rated for **5 A max** @ 250 V AC or 30 V DC
+- Use **external snubber** (RC or diode) on inductive loads (motors, contactors)
+- Relay contact wiring is **dry-contact only**; do not source current through the relay board itself
+
+### 🔌 24 VDC Power Input
+- Supply clean **24 V DC** to `V+ / GND` terminals (reverse-protected)
+- The 24 V input powers the **interface logic**, relays, and RS‑485 transceiver
+
+---
 
 ## 3.3 Interface Warnings
 
-Create tables for:
-
-- Power (24 VDC, 12 V sensor rail)
-- Inputs (dry contact only, debounce notes)
-- Relays (max current/voltage, snubber required)
-- RS-485 (termination, A/B polarity)
-- USB-C (setup only, not for field devices)
+| Interface      | Rating & Notes |
+|----------------|----------------|
+| **Power Input** | 24 V DC ±10%, fused and reverse‑protected (input on FieldBoard) |
+| **Relay Outputs** | 2× SPDT dry contact, 5 A max; inductive loads require external snubber |
+| **Voltage Inputs (L1/L2/L3/N)** | 85–265 V AC; must be fused externally; PE and N required |
+| **CT Inputs** | Accept 333 mV / 1 V RMS CTs only; high-current secondary CTs must use burden conversion |
+| **RS‑485 (A/B/COM)** | Standard 3‑wire half-duplex; termination and fail-safe biasing required at bus ends |
+| **GND / GND_ISO** | Do not bridge interface GND and analog GND_ISO |
+| **USB‑C Port** | Use for configuration only (via Web Serial); not rated for field connection or long-term use |
 
 ---
+
+> ⚠️ **Important**: Improper wiring (e.g., grounding violations, CT overvoltage, incorrect relay load) can cause equipment damage or hazardous conditions. Always review schematics and safety guidance before installation.
+
 
 <a id="4-installation-quick-start"></a>
 
