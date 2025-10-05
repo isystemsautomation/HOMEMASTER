@@ -397,102 +397,143 @@ Use diagrams and explain:
 
 ## 4.5 Software & UI Configuration
 
-The **ENM‑223‑R1** is configured with the browser‑based **WebConfig** page (`tools/ConfigToolPage.html`) over **USB‑C**.  
-WebConfig streams live status every 1 s; when you click into a field, **live refresh pauses for that field**. **Press Enter** to send a change to the device. :contentReference[oaicite:0]{index=0}
+The **ENM‑223‑R1** is configured using the browser‑based **WebConfig Tool**  
+(`tools/ConfigToolPage.html`) over **USB‑C**.  
+No drivers or software installation is required — configuration happens directly via **Web Serial API** (Chrome/Edge).
+
+- WebConfig refreshes live data every 1 s.
+- Click into a field to pause refresh for that field.
+- **Press Enter** to apply a change.
+- All settings are stored in non‑volatile flash.
 
 ---
 
-### 1) WebConfig setup (address & baud)
+### 1) Modbus Setup (Address & Baud)
 
 <img src="Images/webconfig1.png" alt="WebConfig — Modbus address & baud" width="100%"/>
 
-- Click **Connect**, choose the ENM serial port.  
-- **Active Modbus Configuration** shows the current *Address* and *Baud Rate* from the device.  
-- Set:
-  - **Modbus Address** `1–255` (factory `3`)  
-  - **Baud Rate** `9600 / 19200 / 38400 / 57600 / 115200` (factory `19200`)  
-- Changes are applied immediately when you edit the field. After changing baud/address, disconnect USB and re‑connect the controller at the new settings. :contentReference[oaicite:1]{index=1}
+- Click **Connect** and select the USB serial port.
+- The **Active Modbus Configuration** bar shows the current Address and Baud Rate.
+- You can configure:
+  - **Modbus Address**: `1–255` (default = `3`)
+  - **Baud Rate**: `9600 / 19200 / 38400 / 57600 / 115200` (default = `19200`)
+- Changes are live and applied on selection.
+- If you change baud or address, remember to reconnect the controller with updated settings.
 
 ---
 
-### 2) Meter options & calibration
+### 2) Meter Options & Calibration
 
-<img src="Images/webconfig2.png" alt="WebConfig — meter options & calibration" width="100%"/>
+<img src="Images/webconfig2.png" alt="Meter options and calibration" width="100%"/>
 
-**Meter Options**
-- **Line Frequency:** `50 / 60 Hz`  
-- **Sum Mode:** `0 = algorithmic, 1 = absolute` (how totals are formed)  
-- **Ucal (gain):** global voltage scaling  
-- **Sample Interval:** meter update period in ms (10–5000)  
-Edits are sent on **Enter**. :contentReference[oaicite:2]{index=2}
+#### Meter Options
+- **Line Frequency**: 50 / 60 Hz (affects metering IC behavior)
+- **Sum Mode**:  
+  - `0 = algorithmic` (P = P1 + P2 + P3)  
+  - `1 = absolute` (P = |P1| + |P2| + |P3|)
+- **Ucal (gain)**: global voltage scaling multiplier
+- **Sample Interval (ms)**: rate at which readings update (10–5000 ms)
 
-**Calibration (per phase A/B/C)**
-- **Ugain / Igain** and **Uoffset / Ioffset** (16‑bit fields)  
-- Enter the value and press **Enter** to write; WebConfig will echo current values from the device. :contentReference[oaicite:3]{index=3}
-
----
-
-### 3) “Inputs”: enable / thresholds / acknowledge  
-*(ENM has no discrete DIs; “inputs” here are the per‑channel meter **rules**.)*
-
-<img src="Images/webconfig3.png" alt="WebConfig — alarms per channel" width="100%"/>
-
-For each channel **L1, L2, L3, Totals** you can configure three rule slots: **Alarm**, **Warning**, **Event**.
-
-- **Enable** a rule slot, choose **Metric**:
-  - Voltage (Urms), Current (Irms), Active Power **P**, Reactive **Q**, Apparent **S**, Frequency
-- Set **Min** / **Max** thresholds in engineering units (hints appear under each row).
-- **Ack required** (per channel): when checked, the Alarm must be acknowledged to clear.
-- Use **Ack L1/L2/L3/Totals** or **Ack All** to clear latched alarms.  
-  *(Min/Max edits send on Enter; metric changes send immediately.)* :contentReference[oaicite:4]{index=4}
-
-> **Note:** The ALM’s “invert/group” options don’t exist on ENM channels. Grouping is achieved by having **Relays follow selected channel(s)** (below).
+#### Calibration (per phase A/B/C)
+- **Ugain / Igain**: scaling gains (16-bit, 0–65535)
+- **Uoffset / Ioffset**: calibration offsets (signed)
+- Press **Enter** after editing to write the value to the module.
 
 ---
 
-### 4) Relay logic mode (follow group / manual)
+### 3) Alarms / Inputs (Per‑Channel Rules)
 
-<img src="Images/webconfig4.png" alt="WebConfig — relay logic" width="100%"/>
+<img src="Images/webconfig3.png" alt="Alarms per channel" width="100%"/>
 
-For **Relay 1** and **Relay 2**:
+The ENM has **4 measurement channels**: L1, L2, L3, and Totals.
 
-- **Enabled at power‑on:** default state after boot
-- **Inverted (active‑low):** a **global** setting that applies to **both relays**
-- **Mode:**
-  - **None** — relay is idle/ignored
-  - **Modbus Controlled** — write coil **600** (R1) / **601** (R2) from the master
-  - **Alarm Controlled** — relay follows **selected channel** (L1/L2/L3/Totals)
-    and **Kinds** (**Alarm**, **Warning**, **Event**) via a bit‑mask
-- **Toggle** button: quick local test (in Alarm mode, direct writes may be blocked by firmware) :contentReference[oaicite:5]{index=5}
+Each channel supports:
+- **3 rule slots**: Alarm, Warning, Event
+- **Metric types**:
+  - Voltage (Urms)
+  - Current (Irms)
+  - Active Power P
+  - Reactive Power Q
+  - Apparent Power S
+  - Frequency
 
-This “Alarm Controlled” selection is the ENM’s **grouping** mechanism: you effectively map a relay to the alarm kinds of one channel (or Totals).
+You can configure:
+- **Enable** toggle
+- **Metric**, **Min**, and **Max** thresholds
+- **Ack required** — latches the Alarm state until acknowledged
+
+Acknowledgment:
+- Press **Ack L1–L3 / Totals** in UI
+- Or write to Modbus coil (`610–613`)
+
+> 💡 ENM has no digital inputs (DIs). These rules are “virtual inputs” based on real-time metering data.
 
 ---
 
-### 5) LED and Button mapping
+### 4) Relay Logic Modes
 
-<img src="Images/webconfig5.png" alt="WebConfig — buttons and LED mapping" width="100%"/>
+<img src="Images/webconfig6.png" alt="Relay logic options" width="100%"/>
 
-**Buttons (1–4) — Actions**
+Each of the two onboard **SPDT relays** can be configured independently.
+
+Options:
+
+| Setting               | Description |
+|-----------------------|-------------|
+| **Enabled at Power-On** | Relay state after boot (on/off) |
+| **Inverted (active-low)** | Affects **both** relays; sets low = ON |
+| **Mode**              | `None`, `Modbus Controlled`, or `Alarm Controlled` |
+| **Toggle**            | Manually toggle the relay from the UI |
+| **Alarm Control Options** | Select Channel: `L1–L3` or `Totals` and which kinds to follow: Alarm / Warning / Event |
+
+> In **Alarm Controlled** mode, direct Modbus writes may be blocked when an alarm is active.
+
+---
+
+### 5) Button & LED Mapping
+
+<img src="Images/webconfig5.png" alt="Buttons and LED mapping" width="100%"/>
+
+#### Buttons (1–4)
+Each button can be mapped to:
 - `None`
-- `Toggle Relay 1` / `Toggle Relay 2`
-- `Toggle LED1–LED4`
-- `Override Relay 1 (hold 3s)` / `Override Relay 2 (hold 3s)`  
-  *Hold 3 s to enter override (LEDs can indicate it); short‑press toggles the relay; hold 3 s again to exit.* :contentReference[oaicite:6]{index=6}
+- `Toggle Relay 1/2`
+- `Toggle LED 1–4`
+- `Override Relay 1/2 (hold 3s)`  
+  - Hold 3 s to enter override  
+  - Short press toggles the relay  
+  - Hold again to exit override
 
-**User LEDs (1–4) — Mode & Source**
-- **Mode:** `Steady (when active)` or `Blink (when active)`
-- **Source:**  
-  - `Override R1`, `Override R2`  
-  - `Alarm / Warning / Event` for **L1/L2/L3/Totals**  
-  - `Any (A|W|E)` per channel (aggregated)  
-Tip in UI: map an LED to **Override R1/R2** to show when a relay is in button‑override. :contentReference[oaicite:7]{index=7}
+#### User LEDs (1–4)
+
+Each LED has:
+- **Mode**: `Steady (when active)` or `Blink (when active)`
+- **Source**:
+  - `Override R1/R2`
+  - Alarm, Warning, Event — for any channel
+  - `Any (A|W|E)` — a combined indicator per channel
+
+> 💡 Use `Override R1` as LED 1 source to give a clear local override status.
 
 ---
 
-### 6) Live view & energies
+### 6) Live Meter & Energies
 
-WebConfig shows **Live Meter** tiles (L1/L2/L3/Totals: U, I, P, Q, S, PF, Angle; plus total PF, Freq, Temp) and **Energies** (per phase + totals: Active± kWh, Reactive± kvarh, Apparent kVAh). This helps verify wiring, CT polarity, and phase mapping during commissioning. :contentReference[oaicite:8]{index=8}
+<img src="Images/webconfig4.png" alt="Live meter values" width="100%"/>
+
+**Live Meter View**:
+- U (V), I (A), P (W), Q (var), S (VA)
+- PF, angle, frequency, temperature
+- Totals and per-channel tiles
+- Phase validation and wiring checks
+
+**Energies**:
+- **Per phase + totals**:
+  - Active (+ / –) in kWh
+  - Reactive (+ / –) in kvarh
+  - Apparent in kVAh
+
+> Use this screen to verify CT orientation, load phase mapping, and live alarm behavior during commissioning.
 
 <a id="4-6-getting-started"></a>
 
