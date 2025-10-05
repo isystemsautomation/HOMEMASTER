@@ -44,7 +44,7 @@ It connects over **RS-485 (Modbus RTU)** to a **MicroPLC/MiniPLC**, enabling use
 
 ## 1.1 Overview of the DIM-420-R1 Module ✨
 
-The **DIM‑420‑R1** is a modular dimmer I/O device for **dual‑channel phase‑cut AC dimming** in the **HomeMaster MicroPLC / MiniPLC** ecosystem. It exposes **2 dimming channels**, **4 opto‑isolated digital inputs**, **4 configurable user buttons**, **4 user LEDs**, and an **RS‑485 Modbus RTU** interface. Setup and diagnostics are performed in‑browser via **WebConfig over USB‑C (Web Serial)**—no special software required. 
+The **DIM‑420‑R1** is a modular dimmer I/O device for **dual‑channel phase‑cut AC dimming** in the **HomeMaster MicroPLC / MiniPLC** ecosystem. It exposes **2 dimming channels**, **4 isolated digital inputs**, **4 configurable user buttons**, **4 user LEDs**, and an **RS‑485 Modbus RTU** interface. Setup and diagnostics are performed in‑browser via **WebConfig over USB‑C (Web Serial)**—no special software required. 
 
 It integrates seamlessly with **MiniPLC / MicroPLC controllers, third‑party Modbus masters, ESPHome / Home Assistant, and SCADA/PLC systems**. Typical use: connect wall switches to the DIs, pick **Leading/Trailing edge** per load, set **Lower/Upper thresholds**, and control scenes from a PLC or locally with press‑logic. 
 
@@ -93,16 +93,23 @@ The **DIM‑420‑R1** is a **standalone Modbus RTU slave** on an **RS‑485** m
 
 # 2. Use Cases
 
-Document **3–5 real-world examples**, such as:
-- Safety zone monitoring
-- Relay control with manual override
-- Environmental alarms (e.g. temperature + smoke)
-- Staged automation
+## Scene Control with Wall Switches
 
-Each example should include:
-- A title (e.g., “Zone Alarm with Manual Reset”)
-- 1–2 lines of what it does
-- A step-by-step bullet list of setup instructions
+Control dimmed lighting scenes using standard wall switches wired to the digital inputs.
+
+- Short press toggles CH1 to preset.
+- Long press ramps CH1 up or down.
+- Double press sets CH2 to max.
+
+**Setup Instructions:**
+- Wire DI1–DI4 to wall pushbuttons.
+- In WebConfig → set DI1: **Momentary**.
+- Map actions:
+  - Short → Toggle CH1
+  - Long → Increase CH1
+  - DoubleShort → Go Max CH2
+- Set CH1 preset = 180 and CH2 upper threshold = 255.
+- Save configuration and test with physical input.
 
 ---
 
@@ -110,33 +117,77 @@ Each example should include:
 
 # 3. Safety Information
 
+These guidelines apply to the **DIM‑420‑R1** dimmer module. Ignoring them may result in **equipment damage, electric shock, or fire**.
+
+> ⚠️ **Mixed‑voltage device** — The module contains both **SELV/PELV** control electronics **and hazardous AC mains** on the dimmer channels (`Lx_IN/Lx_OUT`, `Nx_IN/Nx_OUT`). The logic side is galvanically isolated (opto + isolated 5 V rails), but **mains is present** on the power section and output terminals. Handle as a mains device. 
+
+---
+
 ## 3.1 General Requirements
 
-| Requirement            | Detail |
-|------------------------|--------|
-| Qualified Personnel     | Required for all installation tasks |
-| Power Isolation         | Disconnect before working on terminals |
-| Rated Voltages Only     | SELV only; no mains |
-| Grounding               | Proper panel grounding |
-| Enclosure               | Use clean/dry cabinet; avoid dust/moisture |
+| Requirement           | Detail |
+|-----------------------|--------|
+| Qualified Personnel   | Installation and servicing by trained technicians only (panel wiring + mains safety). |
+| Power Isolation       | **Isolate both 24 VDC and AC mains** before touching wiring or terminals (lockout/tagout). |
+| Environmental Limits  | Mount inside a **dry, clean, ventilated** enclosure; avoid condensation, conductive dust, vibration. |
+| Grounding             | Bond the control panel to protective earth. Keep **SELV grounds** and **mains earth/neutral** managed per code. |
+| Voltage Domains       | Treat `+5V_ISO1/ISO2`, `GND_ISO1/ISO2` and L/N terminals as **mains domain**; do **not** bridge to logic `GND`.  |
+
+---
 
 ## 3.2 Installation Practices
 
-Give best practices for:
-- DIN mounting
-- Isolation domain respect (e.g., GND vs GND_ISO)
-- Relay wiring
-- Sensor power connection
+| Task | Guidance |
+|---|---|
+| ESD Handling | Handle PCBs by the edges; use antistatic strap and grounded work surface. |
+| DIN Mounting | Secure on **35 mm DIN rail** inside an enclosure; provide strain relief on all cables. |
+| Isolation Domains | Respect isolation: logic (24 V, RS‑485, USB) vs. **power side** (AC L/N, isolated 5 V rails). **Never** tie `GND` to `GND_ISO1/2`.  |
+| AC Load Wiring | Use proper gauge; route **mains L/N** to `Lx_IN/Nx_IN` and load to `Lx_OUT/Nx_OUT`. Keep AC wiring segregated from SELV cabling.  |
+| Cut‑Mode Selection | Choose **Leading**/**Trailing** to match lamp/driver; verify **Lower/Upper** thresholds to prevent flicker.  |
+| Over‑current Protection | Provide upstream MCB/RCD per load and locale. Use external snubbers only if required by the load. |
+| Commissioning | With mains **OFF**: verify RS‑485 A/B polarity, DI logic, and LED/Button mapping. Power on with **no load first**, then connect loads and test gradually. |
 
-## 3.3 Interface Warnings
+---
 
-Create tables for:
+## 3.3 I/O & Interface Warnings
 
-- Power (24 VDC, 12 V sensor rail)
-- Inputs (dry contact only, debounce notes)
-- Relays (max current/voltage, snubber required)
-- RS-485 (termination, A/B polarity)
-- USB-C (setup only, not for field devices)
+### Power
+
+| Area        | Warning |
+|-------------|---------|
+| **24 VDC Input** | Use a **clean SELV 24 VDC** source; observe polarity. Protected by fuses/TVS and buck → 5 V/3.3 V regulators.  |
+| **Isolated Rails** | `+5V_ISO1/ISO2` feed the dimmer power stages; they belong to the **mains domain**. Do **not** use for external sensors.  |
+
+### Inputs (SELV)
+
+| Area | Warning |
+|------|---------|
+| **DI1–DI4** | **Dry contacts / isolated low‑voltage** only (opto‑isolated front end). Do **not** apply mains. Use `DIx_GND` returns and configure debounce/invert in UI.  |
+
+### Dimming Channels (MAINS)
+
+| Area | Warning |
+|------|---------|
+| **CH1 / CH2 AC Terminals** | `Lx_IN/Lx_OUT, Nx_IN/Nx_OUT` carry **hazardous mains**. Use appropriate insulation, creepage/clearance, and enclosure practices. Components include HV MOSFETs (**650 V class**) and opto interfaces.  |
+| **Load Types** | Use loads compatible with selected **Leading/Trailing** edge. Many LED drivers require Trailing; check the datasheet.  |
+| **Snubbers/EMI** | Internal suppression is provided in the power stage; add external RC snubbers only if the load manufacturer requires it. Keep mains wiring short and twisted where possible. |
+
+### Communication & USB (SELV)
+
+| Area | Warning |
+|------|---------|
+| **RS‑485 (A/B/COM)** | Use twisted pair (shielded). Terminate at bus ends (≈120 Ω). Maintain SELV separation from AC wiring.  |
+| **USB‑C (setup only)** | For configuration/UF2 only. Avoid connecting a PC to the USB port while panels are open and mains wiring is exposed; mind ground loops.  |
+
+---
+
+### ✅ Pre‑Power Checklist
+
+- All **AC and SELV** cables are routed separately with strain relief.  
+- No bridges between **logic GND** and **GND_ISO1/2**; isolation gaps unobstructed.   
+- **RS‑485** polarity/termination verified; DI wiring and logic mode match configuration.  
+- **Cut Mode** and **Lower/Upper** thresholds set per lamp/driver datasheet; start with light loads.   
+- Upstream **MCB/RCD** sized for the load; enclosure closed before applying mains.
 
 ---
 
