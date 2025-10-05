@@ -899,15 +899,143 @@ switch:
 
 <a id="7-esphome-integration-guide"></a>
 
-# 7. ESPHome Integration Guide
+# 7. ESPHome Integration Guide (MicroPLC/MiniPLC + ENM‑223‑R1)
 
-Only if supported. Cover:
-- YAML setup (`uart`, `modbus`, `package`)
-- Entity list (inputs, relays, buttons, LEDs)
-- Acknowledge, override controls
-- Home Assistant integration tips
+The HomeMaster controller (MiniPLC or MicroPLC) running **ESPHome** acts as the **Modbus RTU master** over RS‑485. It polls one or more ENM‑223‑R1 modules and publishes all sensors, relays, LEDs, and alarms into **Home Assistant**.
+
+No Home Assistant add-ons are required — all logic runs on the ESPHome controller.
 
 ---
+
+## 7.1 Architecture & Data Flow
+
+- **Topology**: Home Assistant → ESPHome (MicroPLC) → RS‑485 → ENM‑223‑R1
+- **Roles**:
+  - **ENM**: metering, alarm rules, relays, LEDs, buttons
+  - **ESPHome**: Modbus polling, sensor/relay control, entity publishing
+  - **HA**: dashboards, energy view, automations
+
+> LED mappings, alarm logic, and override behavior are configured on the ENM module (via WebConfig). Home Assistant only reacts to exposed states.
+
+---
+
+## 7.2 Prerequisites (Power, Bus, I/O)
+
+### 1. Power
+- **ENM**: 24 V DC → V+ / 0V
+- **Controller**: per spec
+- If separate PSUs: share COM/GND between controller and ENM
+
+### 2. RS‑485 Bus
+- A—A, B—B (twisted pair), COM shared
+- Terminate with 120 Ω resistors at both ends
+- Default speed: **19200 baud**, set in WebConfig
+
+### 3. Field I/O
+- Voltage inputs: L1, L2, L3, N, PE
+- CTs: CT1–CT3 (1 V or 333 mV)
+- Relays: dry contact, driven by internal logic or Modbus
+- Buttons / LEDs: wired to MCU, mapped in firmware/UI
+
+---
+
+## 7.3 ESPHome Minimal Config (Enable Modbus + Import ENM Package)
+
+```yaml
+uart:
+  id: uart1
+  tx_pin: 17
+  rx_pin: 16
+  baud_rate: 19200
+  stop_bits: 1
+
+modbus:
+  id: rtu_bus
+  uart_id: uart1
+
+modbus_controller:
+  - id: enm223_1
+    address: 4
+    modbus_id: rtu_bus
+    update_interval: 1s
+
+packages:
+  enm223_1:
+    url: https://github.com/isystemsautomation/HOMEMASTER
+    ref: main
+    files:
+      - path: ENM-223-R1/Firmware/default_enm_223_r1_plc.yaml
+        vars:
+          enm_id: enm223_1
+          enm_address: 4
+          enm_prefix: "ENM #1"
+```
+
+---
+
+## 7.4 Entities Exposed by the Package
+
+### Binary Sensors
+- Relay states
+- Button presses
+- LED status
+- Alarm conditions (Alarm / Warning / Event)
+
+### Sensors
+- **Urms, Irms** L1/L2/L3
+- **Power (P, Q, S)** totals
+- **Frequency**, **PF**, **Angle**
+- **Energies**: kWh, kvarh, kVAh (active/reactive/apparent)
+
+### Switches
+- **Relay 1/2** (Modbus coil 600/601)
+- **Acknowledge** coils 610–613
+- **Override** controls (force override toggle, hold-style)
+
+### Numbers (Optional)
+- Sample interval
+- Calibration gains (Ugain / Igain)
+
+---
+
+## 7.5 Command Helpers (Writes)
+
+The package includes **pulse-safe** helpers for:
+
+| Action            | Register | Function |
+|-------------------|----------|----------|
+| Relay ON/OFF      | 600/601  | Manual or override |
+| Acknowledge Alarm | 610–613  | Clears latched alarm |
+| Override Force    | soft relay override even if alarms are active |
+| Reset Device      | Optional – resets config via holding register |
+
+> These show up as ESPHome `switch:` objects and can be used in HA automations or buttons.
+
+---
+
+## 7.6 Using Your MiniPLC YAML with ENM
+
+1. Keep existing `uart:` and `modbus:` blocks  
+2. Add the `packages:` block (as shown) and set `enm_address` from WebConfig  
+3. Flash the controller — ESPHome discovers all sensors/entities automatically  
+4. Add HA dashboard cards and `switches` for relay, override, and ack actions  
+
+---
+
+## 7.7 Home Assistant Setup & Automations
+
+- Go to: **Settings → Devices & Services → ESPHome → Add** by hostname or IP
+- Dashboard auto-discovers:
+  - Energies (for HA Energy view)
+  - Relays, buttons, LEDs
+  - Alarm states
+- You can create:
+  - **Energy Dashboard** source: `VAh Total` or `AP Total`
+  - **Automation**:
+
+
+---
+
 
 <a id="8-programming--customization"></a>
 
