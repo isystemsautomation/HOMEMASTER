@@ -8,7 +8,7 @@
 
 **HOMEMASTER – Modular control. Custom logic.**
 
-<img src="github.com/isystemsautomation/HOMEMASTER/tree/main/ENM-223-R1/Images/photo1.png" align="right" width="440" alt="MODULE photo">
+<img src="github.com/isystemsautomation/HOMEMASTER/blob/main/ENM-223-R1/Images/photo1.png" align="right" width="440" alt="MODULE photo">
 
 ### Module Description
 
