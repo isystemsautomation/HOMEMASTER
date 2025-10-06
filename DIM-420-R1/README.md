@@ -18,7 +18,7 @@
 
 **HOMEMASTER – Modular control. Custom logic.**
 
-<img src="Images/photo1.png" align="right" width="440" alt="MODULE photo">
+<img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/photo1.png" align="right" width="440" alt="MODULE photo">
 
 ### Module Description
 
@@ -323,7 +323,7 @@ Connect regulated **24 VDC (SELV)** to the top‑left POWER terminals `V+` and
 This powers the MCU, LEDs, USB‑C (setup), and RS‑485 interface.
 
 <div align="center">
-  <img src="Images/DIM_24Vdc_PowerSupply.png" width="460" alt="24 VDC logic power wiring">
+  <img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/DIM_24Vdc_PowerSupply.png" width="460" alt="24 VDC logic power wiring">
 </div>
 
 ---
@@ -335,7 +335,7 @@ Each input has its own paired **Gnd** and must be wired independently.
 Input mode (Momentary/Latching), debounce, invert, and press‑logic are set in WebConfig.
 
 <div align="center">
-  <img src="Images/DIM_DigitslInputs.png" width="640" alt="Digital inputs wiring">
+  <img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/DIM_DigitslInputs.png" width="640" alt="Digital inputs wiring">
 </div>
 
 > Tip: keep DI wiring separate from mains cabling and provide strain relief.
@@ -352,7 +352,7 @@ Bottom‑left terminals are labeled **B  A  COM** (as on the front panel).
 - Defaults: **Slave ID 3**, **19200 baud**, **8N1** (change in WebConfig)
 
 <div align="center">
-  <img src="Images/DIM_RS485Connection.png" width="720" alt="RS-485 bus connection">
+  <img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/DIM_RS485Connection.png" width="720" alt="RS-485 bus connection">
 </div>
 
 ---
@@ -378,7 +378,7 @@ You can configure the DIM‑420‑R1 entirely from a Chromium browser using **We
 > [https://www.home-master.eu/configtool-dim-420-r1](https://www.home-master.eu/configtool-dim-420-r1)
 
 <div align="center">
-  <img src="Images/webconfig1.png" width="880" alt="WebConfig landing and Modbus link">
+  <img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/webconfig1.png" width="880" alt="WebConfig landing and Modbus link">
 </div>
 
 ---
@@ -409,7 +409,7 @@ A live **Serial Log** keeps the last 5 messages for quick feedback.
 Each dimmer channel can be configured for its intended load and behavior:
 
 <div align="center">
-  <img src="Images/webconfig2.png" width="880" alt="Channel configuration">
+  <img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/webconfig2.png" width="880" alt="Channel configuration">
 </div>
 
 - **AC Presence / Frequency** badges confirm input signal quality.
@@ -428,7 +428,7 @@ Changes apply instantly and persist to flash ~1.5s after the last edit.
 Configure press logic, target channels, and press actions:
 
 <div align="center">
-  <img src="Images/webconfig3.png" width="880" alt="Digital input mappings">
+  <img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/webconfig3.png" width="880" alt="Digital input mappings">
 </div>
 
 - Input mode: Momentary or Latching
@@ -444,7 +444,7 @@ Each DI has its own mapping per event and an optional invert.
 Configure onboard pushbuttons and indicator LEDs:
 
 <div align="center">
-  <img src="Images/webconfig4.png" width="880" alt="Buttons and User LEDs">
+  <img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/webconfig4.png" width="880" alt="Buttons and User LEDs">
 </div>
 
 - **Buttons:** Trigger actions like Toggle CH1, Ramp up/down, MAX preset.
@@ -532,7 +532,7 @@ All terminals are 5.08 mm pitch, 300 V / 20 A rated, 26–12 AWG.
 | **USB-C** | Front panel USB-C port     | For setup only (Web Serial & UF2) |
 
 <div align="center">
-  <img src="Images/9191b21f-8774-4272-9a65-202c594d83d3.png" width="640" alt="DIM-420-R1 Terminal Block">
+  <img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/9191b21f-8774-4272-9a65-202c594d83d3.png" width="640" alt="DIM-420-R1 Terminal Block">
 </div>
 
 ---
@@ -548,7 +548,7 @@ All terminals are 5.08 mm pitch, 300 V / 20 A rated, 26–12 AWG.
 | **Digital inputs**       | –      | –       | 24 VDC | ISO1212 front-end, protected |
 | **AC dimmer outputs**    | –      | –       | 110/230 VAC | 2× WMM36N65C4 (MOSFET) |
 | **RS-485 Interface**     | –      | –       | 115.2 kbps | TVS/ESD + fail-safe |
-| **USB-C (setup only)**   | 5 V    | –       | –     | CP2102N bridge |
+| **USB-C (setup only)**   | 5 V    | –       | –     |  |
 | **Ambient temperature**  | 0 °C   | –       | +40 °C | 32–104 °F |
 | **Humidity (operating)** | –      | –       | 95 %RH | Non-condensing |
 
@@ -579,7 +579,7 @@ All terminals are 5.08 mm pitch, 300 V / 20 A rated, 26–12 AWG.
   - Termination pads included
 
 - **USB-C**
-  - USB-UART: **CP2102N**
+  - USB-UART: **RP2350**
   - ESD Clamp: **PRTR5V0U2X**
   - Data-line resistors: 27 Ω
 
@@ -821,7 +821,7 @@ The included YAML handles:
 
 ## 8.1 Supported Languages
 
-- **Arduino / PlatformIO** (official support)
+- **Arduino / PlatformIO** 
 - **C++** (direct RP2040 SDK)
 - *(MicroPython partially supported, but not recommended for precise dimming)*
 
@@ -849,12 +849,10 @@ The DIM‑420‑R1 includes a **USB‑C interface** for:
 2. Optional: press Reset (or hold U3+U4 for hard reset)
 3. Upload via selected COM port
 
-> Use 921600 baud if supported by your serial driver.
-
 ### Button Mapping (Front Panel)
 
 <div align="center">
-  <img src="Images/buttons1.png" width="400" alt="DIM-420-R1 Button Mapping (U1–U4)">
+  <img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/ENM-223-R1/Images/buttons1.png" width="400" alt="DIM-420-R1 Button Mapping (U1–U4)">
 </div>
 
 | Button | Label | Default Function | Special Use                         |
@@ -864,7 +862,6 @@ The DIM‑420‑R1 includes a **USB‑C interface** for:
 | 3      | U.3   | Action 3         | Hold with U.4 → Reset to firmware   |
 | 4      | U.4   | Action 4         | Paired with U.3                     |
 
-> Buttons are **firmware-mapped** and can be reassigned in WebConfig.
 
 ---
 
@@ -872,50 +869,14 @@ The DIM‑420‑R1 includes a **USB‑C interface** for:
 
 ### 🔌 Required Libraries
 
-- `ModbusSerial`
-- `SimpleWebSerial`
-- `Arduino_JSON`
-- `LittleFS`
-- `Wire`, `PCF8574` *(optional for I/O expanders)*
-
-### ⚙ PlatformIO Example Config
-
-```ini
-[env:dim420]
-platform = raspberrypi
-board = rpipico
-framework = arduino
-monitor_speed = 115200
-lib_deps = 
-  knolleary/PubSubClient
-  https://github.com/arduino-libraries/Arduino_JSON
-build_flags = 
-  -DARDUINO_ARCH_RP2040
-  -DLITTLEFS
-```
-
-### 📍 Key Pin Mapping
-
-| Function       | GPIO      | Notes                  |
-|----------------|-----------|------------------------|
-| DI Inputs      | GPIO8–11  | ISO1212 opto input     |
-| LEDs           | GPIO17–20 | Firmware-controlled    |
-| Buttons        | GPIO13–16 | Inverted logic (LOW=OFF) |
-| RS-485 UART    | TX=GPIO0, RX=GPIO1 | Serial1, MODBUS |
-| RS-485 DE/RE   | GPIO4     | Direction control      |
-
----
-
-## 8.4 Firmware Updates
-
-| Method          | How To                                  | Notes                          |
-|------------------|-------------------------------------------|--------------------------------|
-| **UF2 Update**     | Hold **U1 + U2**, connect USB, drag `.uf2` | Does not erase configuration  |
-| **Arduino IDE**    | Select "RP2040 Pico", upload via USB     | Must install board support     |
-| **PlatformIO**     | `pio run -t upload`                      | Fastest method, supports debug |
-| **WebConfig**      | For config only — no firmware flashing   |                              |
-| **Recovery Mode**  | Hold **U3 + U4**, reconnect USB          | Resets firmware watchdog      |
-| **Factory Reset**  | Type `factory` in WebConfig or erase flash | Clears config + reboots      |
+#include <Arduino.h>
+#include <ModbusSerial.h>
+#include <SimpleWebSerial.h>
+#include <Arduino_JSON.h>
+#include <LittleFS.h>
+#include <utility>
+#include <math.h>
+#include "pico/time.h"          // time_us_64(), add_alarm_in_us(), alarm_id_t
 
 ---
 
@@ -936,17 +897,6 @@ build_flags =
 
 ---
 
-## 🔁 Reset Methods
-
-| Type             | Method                            |
-|------------------|-----------------------------------|
-| **Soft Reset**   | `reset` over WebConfig or Coil    |
-| **Factory Reset**| `factory` over USB Web Serial     |
-| **Hard Reset**   | Hold U.3 + U.4, connect USB       |
-| **UF2 Mode**     | Hold U.1 + U.2, connect USB       |
-
----
-
 ## 🧰 Common Issues
 
 | Symptom                 | Fix / Tip                                 |
@@ -954,7 +904,7 @@ build_flags =
 | No RS‑485 Comms         | Check A/B polarity, Slave ID, baud         |
 | LED not working         | Confirm LED source and mode in WebConfig   |
 | DI not detected         | Use correct GND pair and debounce logic    |
-| No USB detection        | Close all serial monitors; use Chrome only |
+| No USB detection        | Close all serial monitors;                 |
 | CH not dimming          | Check ZC presence, Cut Mode, Lower/Upper   |
 
 ---
@@ -965,7 +915,7 @@ build_flags =
 
 - **Hardware:** [CERN-OHL-W v2.0](https://ohwr.org/project/cernohl)
 - **Firmware:** [GNU GPLv3](https://www.gnu.org/licenses/gpl-3.0.html)
-- **WebConfig Tool:** [MIT License](https://opensource.org/licenses/MIT)
+
 
 All repositories are publicly available at:
 
@@ -984,7 +934,7 @@ All repositories are publicly available at:
 | **WebConfig Tool**    | [Online Version](https://www.home-master.eu/configtool-dim-420-r1) |
 | **Schematics (PDF)**  | [`/Schematics`](https://github.com/isystemsautomation/HOMEMASTER/tree/main/DIM-420-R1/Schematics) |
 | **Mechanical Images** | See `/Images/` in repo                                             |
-| **Datasheet**         | [`DIM-420-R1.pdf`](https://github.com/isystemsautomation/HOMEMASTER/blob/main/DIM-420-R1/DIM-420-R1.pdf) |
+| **Datasheet**         | [`DIM-420-R1.pdf`](https://github.com/isystemsautomation/HOMEMASTER/tree/main/DIM-420-R1/Manuals) |
 
 ---
 
