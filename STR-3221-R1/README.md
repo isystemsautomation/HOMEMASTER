@@ -1,3 +1,11 @@
+# 🚧 Project Status: Under Active Development & Testing
+
+> **Important Notice:** This documentation, hardware designs, and firmware are for the **pre-release version** of the HomeMaster system. All information is preliminary and may contain errors or be subject to change.
+>
+> - **Hardware:** Modules are currently in the prototyping and testing phase. Final production versions may differ.
+> - **Firmware:** Firmware is under active development and is considered **beta**. Features, configurations, and stability are being refined.
+>
+> Please use this information for evaluation and development purposes only
 # STR-3222-R1 – Smart Staircase Lighting Module
 
 The **STR-3222-R1** is a programmable LED lighting controller specifically designed for **staircase illumination effects**. Built for integration with **MiniPLC** and **MicroPLC** platforms via **RS‑485 Modbus RTU**, it delivers smooth, animated step lighting sequences triggered by **motion sensors** or **manual switches**.
