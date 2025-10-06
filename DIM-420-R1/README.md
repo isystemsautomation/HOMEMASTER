@@ -35,7 +35,7 @@ It connects over **RS-485 (Modbus RTU)** to a **MicroPLC/MiniPLC**, enabling use
 * [2. Use Cases](#2-use-cases)
 * [3. Safety Information](#3-safety-information)
 * [4. Installation & Quick Start](#4-installation-quick-start)
-* [5. MODULE-CODE — Technical Specification](#5-module-code--technical-specification)
+* [5. DIM-420-R1 — Technical Specification](#5-module-code--technical-specification)
 * [6. Modbus RTU Communication](#6-modbus-rtu-communication)
 * [7. ESPHome Integration Guide (if applicable)](#7-esphome-integration-guide)
 * [8. Programming & Customization](#8-programming--customization)
