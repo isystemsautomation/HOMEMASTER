@@ -69,7 +69,7 @@ It integrates seamlessly with **MiniPLC / MicroPLC controllers, third‑party Mo
 
 | Subsystem       | Qty    | Description |
 |-----------------|--------|-------------|
-| **Digital Inputs** | 4      | **Opto‑isolated** dry‑contact inputs (ISO1212 front‑end); modes: *Momentary*/*Latching* with **Short / Long / Double / Short‑then‑Long** press types. Debounced and firmware‑interpreted for actions.  |
+| **Digital Inputs** | 4      | **isolated** dry‑contact inputs (ISO1212 front‑end); modes: *Momentary*/*Latching* with **Short / Long / Double / Short‑then‑Long** press types. Debounced and firmware‑interpreted for actions.  |
 | **Dimming Outputs** | 2      | MOSFET‑based **phase‑cut** AC outputs; **Leading/Trailing** per channel with **Lower/Upper** threshold limits and zero‑cross sync/monitoring.  |
 | **Relays**         | 0      | – |
 | **User LEDs**      | 4      | Steady/Blink; sources: CH1/CH2 state, DI1–DI4, or AC presence (**ZC OK**).  |
@@ -774,6 +774,7 @@ modbus:
 
 ## 7.3 Exposed Entities (Per Package)
 
+
 | Entity Type     | Description                                 |
 |------------------|---------------------------------------------|
 | `switch:`        | CH1/CH2 ON triggers (momentary)             |
@@ -816,31 +817,105 @@ The included YAML handles:
 
 # 8. Programming & Customization
 
+---
+
 ## 8.1 Supported Languages
 
-- Arduino
-- C++
-- MicroPython
+- **Arduino / PlatformIO** (official support)
+- **C++** (direct RP2040 SDK)
+- *(MicroPython partially supported, but not recommended for precise dimming)*
 
-## 8.2 Flashing
+---
 
-Steps for:
-- USB-C flashing
-- BOOT/RESET button use
-- PlatformIO / Arduino IDE setup
+## 8.2 Flashing the Module
+
+The DIM‑420‑R1 includes a **USB‑C interface** for:
+
+- WebConfig diagnostics
+- Firmware updates via **UF2**
+- Serial flashing via **Arduino IDE / PlatformIO**
+
+### 🔌 UF2 Drag-and-Drop Method
+
+1. **Hold Button 1 + Button 2**
+2. Connect USB-C
+3. A drive named `RPI-RP2` will appear
+4. Drag your `firmware.uf2` into it
+5. Device reboots into normal mode
+
+### 🔧 Flash via Arduino or PlatformIO
+
+1. Connect USB-C
+2. Optional: press Reset (or hold U3+U4 for hard reset)
+3. Upload via selected COM port
+
+> Use 921600 baud if supported by your serial driver.
+
+### Button Mapping (Front Panel)
+
+<div align="center">
+  <img src="Images/buttons1.png" width="400" alt="DIM-420-R1 Button Mapping (U1–U4)">
+</div>
+
+| Button | Label | Default Function | Special Use                         |
+|--------|-------|------------------|-------------------------------------|
+| 1      | U.1   | Action 1         | Hold with U.2 → Enter BOOT/UF2 mode |
+| 2      | U.2   | Action 2         | Paired with U.1                     |
+| 3      | U.3   | Action 3         | Hold with U.4 → Reset to firmware   |
+| 4      | U.4   | Action 4         | Paired with U.3                     |
+
+> Buttons are **firmware-mapped** and can be reassigned in WebConfig.
+
+---
 
 ## 8.3 Arduino / PlatformIO Notes
 
-Mention:
-- Required libraries
-- Pin mapping
-- Board config
+### 🔌 Required Libraries
+
+- `ModbusSerial`
+- `SimpleWebSerial`
+- `Arduino_JSON`
+- `LittleFS`
+- `Wire`, `PCF8574` *(optional for I/O expanders)*
+
+### ⚙ PlatformIO Example Config
+
+```ini
+[env:dim420]
+platform = raspberrypi
+board = rpipico
+framework = arduino
+monitor_speed = 115200
+lib_deps = 
+  knolleary/PubSubClient
+  https://github.com/arduino-libraries/Arduino_JSON
+build_flags = 
+  -DARDUINO_ARCH_RP2040
+  -DLITTLEFS
+```
+
+### 📍 Key Pin Mapping
+
+| Function       | GPIO      | Notes                  |
+|----------------|-----------|------------------------|
+| DI Inputs      | GPIO8–11  | ISO1212 opto input     |
+| LEDs           | GPIO17–20 | Firmware-controlled    |
+| Buttons        | GPIO13–16 | Inverted logic (LOW=OFF) |
+| RS-485 UART    | TX=GPIO0, RX=GPIO1 | Serial1, MODBUS |
+| RS-485 DE/RE   | GPIO4     | Direction control      |
+
+---
 
 ## 8.4 Firmware Updates
 
-- How to update
-- Preserving config
-- Recovery methods
+| Method          | How To                                  | Notes                          |
+|------------------|-------------------------------------------|--------------------------------|
+| **UF2 Update**     | Hold **U1 + U2**, connect USB, drag `.uf2` | Does not erase configuration  |
+| **Arduino IDE**    | Select "RP2040 Pico", upload via USB     | Must install board support     |
+| **PlatformIO**     | `pio run -t upload`                      | Fastest method, supports debug |
+| **WebConfig**      | For config only — no firmware flashing   |                              |
+| **Recovery Mode**  | Hold **U3 + U4**, reconnect USB          | Resets firmware watchdog      |
+| **Factory Reset**  | Type `factory` in WebConfig or erase flash | Clears config + reboots      |
 
 ---
 
@@ -848,10 +923,39 @@ Mention:
 
 # 9. Maintenance & Troubleshooting
 
-Optional section. Add:
-- Status LED meanings
-- Reset methods
-- Common issues (no comms, relay won’t trigger, etc.)
+---
+
+## 🟢 LED Status
+
+| LED  | Meaning                     |
+|------|-----------------------------|
+| **PWR** | Steady = Power OK          |
+| **TX**  | Blinks = Sending Modbus    |
+| **RX**  | Blinks = Receiving Modbus  |
+| **U.1–U.4** | Firmware-controlled    |
+
+---
+
+## 🔁 Reset Methods
+
+| Type             | Method                            |
+|------------------|-----------------------------------|
+| **Soft Reset**   | `reset` over WebConfig or Coil    |
+| **Factory Reset**| `factory` over USB Web Serial     |
+| **Hard Reset**   | Hold U.3 + U.4, connect USB       |
+| **UF2 Mode**     | Hold U.1 + U.2, connect USB       |
+
+---
+
+## 🧰 Common Issues
+
+| Symptom                 | Fix / Tip                                 |
+|--------------------------|--------------------------------------------|
+| No RS‑485 Comms         | Check A/B polarity, Slave ID, baud         |
+| LED not working         | Confirm LED source and mode in WebConfig   |
+| DI not detected         | Use correct GND pair and debounce logic    |
+| No USB detection        | Close all serial monitors; use Chrome only |
+| CH not dimming          | Check ZC presence, Cut Mode, Lower/Upper   |
 
 ---
 
@@ -859,9 +963,13 @@ Optional section. Add:
 
 # 10. Open Source & Licensing
 
-- **Hardware:** CERN-OHL-W v2
-- **Firmware:** GPLv3
-- **Config Tools:** MIT or other as applicable
+- **Hardware:** [CERN-OHL-W v2.0](https://ohwr.org/project/cernohl)
+- **Firmware:** [GNU GPLv3](https://www.gnu.org/licenses/gpl-3.0.html)
+- **WebConfig Tool:** [MIT License](https://opensource.org/licenses/MIT)
+
+All repositories are publicly available at:
+
+🔗 https://github.com/isystemsautomation/HOMEMASTER/tree/main/DIM-420-R1
 
 ---
 
@@ -869,14 +977,14 @@ Optional section. Add:
 
 # 11. Downloads
 
-Include links to:
-
-- Firmware binaries
-- YAML configs
-- WebConfig tool
-- Schematics (PDF)
-- Images and diagrams
-- Datasheets
+| Item               | Link                                                                 |
+|--------------------|----------------------------------------------------------------------|
+| **Firmware Source**   | [`/Firmware/default_DIM_420_R1`](https://github.com/isystemsautomation/HOMEMASTER/tree/main/DIM-420-R1/Firmware/default_DIM_420_R1) |
+| **ESPHome Config**    | [`default_dim_420_r1_plc.yaml`](https://github.com/isystemsautomation/HOMEMASTER/blob/main/DIM-420-R1/Firmware/default_dim_420_r1_plc/default_dim_420_r1_plc.yaml) |
+| **WebConfig Tool**    | [Online Version](https://www.home-master.eu/configtool-dim-420-r1) |
+| **Schematics (PDF)**  | [`/Schematics`](https://github.com/isystemsautomation/HOMEMASTER/tree/main/DIM-420-R1/Schematics) |
+| **Mechanical Images** | See `/Images/` in repo                                             |
+| **Datasheet**         | [`DIM-420-R1.pdf`](https://github.com/isystemsautomation/HOMEMASTER/blob/main/DIM-420-R1/DIM-420-R1.pdf) |
 
 ---
 
@@ -884,10 +992,15 @@ Include links to:
 
 # 12. Support
 
-- [Official Support Portal](https://www.home-master.eu/support)
-- [WebConfig Tool](https://www.home-master.eu/configtool-[module-code])
-- [YouTube](https://youtube.com/@HomeMaster)
-- [Hackster](https://hackster.io/homemaster)
-- [Reddit](https://reddit.com/r/HomeMaster)
-- [Instagram](https://instagram.com/home_master.eu)
+Need help using, wiring, or flashing the DIM‑420‑R1? Try these:
 
+- 💼 [Official Support Portal](https://www.home-master.eu/support)
+- 🔧 [WebConfig Tool](https://www.home-master.eu/configtool-dim-420-r1)
+- 🎥 [YouTube Tutorials](https://youtube.com/@HomeMaster)
+- 💬 [Reddit Community](https://reddit.com/r/HomeMaster)
+- 🧪 [Hackster Projects](https://hackster.io/homemaster)
+- 📷 [Instagram](https://instagram.com/home_master.eu)
+
+> Or open an issue on GitHub if you're a developer or tester.
+
+---
