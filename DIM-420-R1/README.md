@@ -619,12 +619,106 @@ All terminals are 5.08 mm pitch, 300 V / 20 A rated, 26–12 AWG.
 
 # 6. Modbus RTU Communication
 
-Include:
-- Address range and map
-- Input/holding register layout
-- Coil/discrete inputs
-- Register use examples
-- Polling recommendations
+The DIM‑420‑R1 communicates via **Modbus RTU over RS‑485** as a **slave device**, polled by a PLC, SCADA, or ESPHome-based controller. It exposes **discrete inputs**, **coils**, and **holding registers** for full control and monitoring of the module.
+
+---
+
+## 6.1 Default Communication Settings
+
+| Parameter        | Default     |
+|------------------|-------------|
+| Slave ID         | `3`         |
+| Baud Rate        | `19200`     |
+| Framing          | `8N1`       |
+| Protocol         | Modbus RTU  |
+| Port             | RS‑485 (A/B/COM) |
+| Change via       | USB-C WebConfig |
+
+---
+
+## 6.2 Address Map
+
+The following Modbus function codes are used:
+
+- **FC01 / FC05** — Coils (write-triggered actions)
+- **FC02** — Discrete Inputs (status flags)
+- **FC03 / FC06 / FC16** — Holding Registers (configuration + real-time control)
+
+---
+
+## 6.3 Discrete Inputs (FC02)
+
+| Addr | Name         | Description                              |
+|------|--------------|------------------------------------------|
+| 1–4  | DI1–DI4      | Digital input state (debounced, inverted) |
+| 50   | CH1_ON       | CH1 active (enabled + Level > 0)          |
+| 51   | CH2_ON       | CH2 active                                |
+| 90–93| LED1–LED4    | Current physical LED output state         |
+| 120  | ZC1_OK       | Zero-cross detected on CH1 AC input       |
+| 121  | ZC2_OK       | Zero-cross detected on CH2 AC input       |
+
+---
+
+## 6.4 Coils (FC01 / FC05)
+
+Coils are **momentary triggers**. Write `1` to trigger; auto-resets to `0`.
+
+| Addr | Action                  |
+|------|-------------------------|
+| 200  | CH1 ON (to Preset)      |
+| 201  | CH2 ON (to Preset)      |
+| 210  | CH1 OFF                 |
+| 211  | CH2 OFF                 |
+| 300–303 | DI1..DI4 ENABLE      |
+| 320–323 | DI1..DI4 DISABLE     |
+
+---
+
+## 6.5 Holding Registers (FC03 / FC06 / FC16)
+
+| Addr (CH1/CH2) | Name        | Range / Type       | Description                            |
+|----------------|-------------|--------------------|----------------------------------------|
+| 400 / 401      | Level       | 0–255 (U8)         | Output level (0 = OFF)                 |
+| 410 / 411      | Lower       | 0–255 (U8)         | Minimum level to light the load        |
+| 420 / 421      | Upper       | 0–255 (U8)         | Maximum level                          |
+| 430 / 431      | Freq_x100   | Hz×100 (RO)        | Measured AC mains frequency            |
+| 440 / 441      | Percent×10  | 0–1000 (U16)       | Target dimming percent ×10             |
+| 460 / 461      | LoadType    | 0=Lamp, 1=Heater, 2=Key | Affects mapping and logic         |
+| 470 / 471      | CutMode     | 0=Leading, 1=Trailing | Phase-cut mode                      |
+| 480 / 481      | Preset      | 0–255              | Value used by CH ON coil               |
+
+> Writing **Percent×10** immediately recalculates and applies **Level** based on LoadType, Lower/Upper limits.
+
+---
+
+## 6.6 Register Usage Examples
+
+| Operation                        | Write To / Read From      |
+|----------------------------------|----------------------------|
+| Turn CH1 ON                      | Coil `200` ← 1            |
+| Set CH2 OFF                      | Coil `211` ← 1            |
+| Set CH1 to 50%                   | Reg `440` ← 500           |
+| Change CH2 to Trailing edge     | Reg `471` ← 1             |
+| Clamp CH1 Level (e.g. 25–200)   | Reg `410` ← 25, `420` ← 200 |
+| Disable DI3                     | Coil `322` ← 1            |
+| Enable DI3                      | Coil `302` ← 1            |
+
+---
+
+## 6.7 Polling Recommendations
+
+- **Interval**: 500–1000 ms recommended for discrete input/holding register polling
+- **Write timing**: Momentary coils are safe to write every 1–2 seconds max
+- **Avoid flooding**: Do not poll coils or write continuously at high speed
+- **Sync strategy**: Read current Level before changing Percent to avoid flicker
+
+---
+
+## 6.8 Additional Notes
+
+- All config/state is **mirrored** over Modbus and Web Serial snapshot
+- Modbus address and baud rate are editable via USB-C (WebConfig)
+- Disabling a DI via coil makes its press events inert until re-enabled
 
 ---
 
@@ -632,11 +726,89 @@ Include:
 
 # 7. ESPHome Integration Guide
 
-Only if supported. Cover:
-- YAML setup (`uart`, `modbus`, `package`)
-- Entity list (inputs, relays, buttons, LEDs)
-- Acknowledge, override controls
-- Home Assistant integration tips
+The DIM‑420‑R1 integrates natively with ESPHome and Home Assistant via **Modbus RTU** using a plug-and-play **YAML package**.  
+No local logic is required — all channel control, DI events, LEDs, and feedback are exposed as entities.
+
+---
+
+## 7.1 Installation via `packages:` Block
+
+Add the DIM‑420‑R1 using the official GitHub YAML:
+
+```yaml
+packages:
+  dim1:
+    url: https://github.com/isystemsautomation/HOMEMASTER
+    ref: main
+    files:
+      - path: DIM-420-R1/Firmware/default_dim_420_r1_plc/default_dim_420_r1_plc.yaml
+        vars:
+          dim_prefix: "DIM#1"
+          dim_id: dim_1
+          dim_address: 5
+    refresh: 1d
+```
+
+> Replace `dim_address` with the actual **Modbus ID** of your device.  
+> `dim_prefix` controls the name of entities in Home Assistant (e.g., `DIM#1 CH1 Level`).
+
+---
+
+## 7.2 Required UART/Modbus Setup
+
+Add this to your `configuration.yaml` if not using a package:
+
+```yaml
+uart:
+  tx_pin: 17
+  rx_pin: 16
+  baud_rate: 19200
+
+modbus:
+  id: modbus_bus
+```
+
+> The DIM‑420‑R1 supports 9600–115200 baud. Defaults to 19200/8N1/ID 3.
+
+---
+
+## 7.3 Exposed Entities (Per Package)
+
+| Entity Type     | Description                                 |
+|------------------|---------------------------------------------|
+| `switch:`        | CH1/CH2 ON triggers (momentary)             |
+| `number:`        | Level, Lower, Upper, Preset, Percent        |
+| `select:`        | Cut Mode, Load Type                         |
+| `binary_sensor:` | DI1–DI4, ZC1 OK, ZC2 OK, CH1/CH2 ON, LEDs   |
+
+Example:
+
+- `DIM#1 CH1 On` (switch) → writes coil 200  
+- `DIM#1 CH1 Percent` (number) → writes register 440  
+- `DIM#1 DI1` (binary_sensor) → maps discrete input 1  
+- `DIM#1 LED1` (binary_sensor) → LED status from Modbus
+
+---
+
+## 7.4 Override & Acknowledge Actions
+
+The included YAML handles:
+- **Ramp** via `button:` components (step up/down)
+- **Preset recall** via `switch:` (CH ON)
+- **DI disable/enable** via modbus write
+- **Button logic** via controller or mapped automation
+
+> Use the `on_turn_on:` + `delay:` + `switch.turn_off:` pattern for all **momentary actions** (e.g., toggles).
+
+---
+
+## 7.5 Home Assistant Tips
+
+- **Device classification** is already embedded in the package
+- Add `device_class: light` to numeric outputs if desired
+- Use ESPHome’s `delta` filters to prevent value flooding
+- Use `entity_id: contains "DIM#1"` for dashboard grouping
+- All sensors/entities are safe to publish with `on_value:` logic
 
 ---
 
