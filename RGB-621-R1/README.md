@@ -1,3 +1,11 @@
+# 🚧 Project Status: Under Active Development & Testing
+
+> **Important Notice:** This documentation, hardware designs, and firmware are for the **pre-release version** of the HomeMaster system. All information is preliminary and may contain errors or be subject to change.
+>
+> - **Hardware:** Modules are currently in the prototyping and testing phase. Final production versions may differ.
+> - **Firmware:** Firmware is under active development and is considered **beta**. Features, configurations, and stability are being refined.
+>
+> Please use this information for evaluation and development purposes only
 # RGB-620-R1 – RGBCCT LED Control Module
 
 The **RGB-621-R1** is a smart RS‑485 expansion module designed for precise control of **RGB + Tunable White (CCT)** LED strips in **home automation**, **commercial lighting**, and **building control systems**. Powered by the **RP2350A** microcontroller, it communicates via **Modbus RTU** and integrates seamlessly with **MicroPLC** or **MiniPLC** controllers.
