@@ -228,27 +228,86 @@ Lights and irrigation are controlled via digital inputs or remotely from a PLC.
 
 # 4. Installation & Quick Start
 
+The DIO-430-R1 joins your system over **RS-485 (Modbus RTU)**. Setup has two parts:  
+1) **Physical wiring**, 2) **Digital configuration** (WebConfig → optional PLC/ESPHome).
+
+---
+
 ## 4.1 What You Need
 
-| Item | Description |
-|------|-------------|
-| Module | MODULE-CODE unit |
-| Controller | MiniPLC/MicroPLC or Modbus RTU master |
-| PSU | Regulated 24 VDC |
-| Cable | USB-C and RS-485 twisted pair |
-| Software | Browser with Web Serial support |
+| Category          | Item / Notes |
+|-------------------|--------------|
+| **Hardware**      | **DIO-430-R1** — DIN-rail module with **4× DI**, **3× SPDT relays**, **3× buttons**, **3× LEDs**, **USB-C**, **RS-485**.  |
+| **Controller (master)** | HomeMaster **MiniPLC/MicroPLC** or any **Modbus RTU** master. |
+| **24 VDC PSU (SELV)** | Regulated **24 VDC**; size for logic + relay coils + sensors; inline panel fuse/breaker. Power input stage includes fuse/TVS/reverse-polarity protection.  |
+| **RS-485 cable**  | Twisted pair for **A/B** + **COM/GND** reference, 120 Ω termination at both ends of the trunk.  |
+| **USB-C cable**   | For WebConfig via a Chromium browser (service/commissioning).  |
+| **Software**      | **Chromium-based browser** with Web Serial (Chrome/Edge). Web page exposes **Address/Baud** + I/O mapping.  |
+| **Field I/O**     | **Dry contacts** to DI1…DI4 (isolated front-end per channel). **Relays** (NO/NC/COM) drive LV loads or interposing contactors; add RC/MOV snubbers for inductive loads.  |
+
+> **Quick path:** mount → wire **24 VDC** + **RS-485 A/B/COM** → connect **USB-C** → WebConfig: set **Address/Baud** + map **inputs → relays/LEDs** → disconnect USB → hand over to controller. 
+
+---
 
 ## 4.2 Power
 
-- Describe 24 VDC input
-- List expected current
-- Explain isolated sensor power if present
+The module uses **24 VDC** primary. Onboard regulation provides **5 V → 3.3 V** for logic; DI front-end is isolated.
 
-## 4.3 Communication
+### 4.2.1 Supply Types
+- **24 VDC DIN-rail PSU** → **24Vdc(+) / 0V(–)** power terminals (top row: POWER).   
+- **Sensor side (DI)** — isolated input receivers accept field signals; feed your sensors from the 24 V field rail and return to the **DI GND** pins (per-channel). Do **not** back-power logic from sensor rails. 
 
-- RS-485 pinout
-- Address & baudrate setup
-- Use of COM/GND reference
+### 4.2.2 Sizing (rule of thumb)
+Account for:
+- Base electronics + LEDs  
+- **Relay coils** (up to **3** simultaneously)  
+- **Sensor rails** (DI field side, if powered from the same 24 V source)
+
+> Size PSU for **worst-case relays + sensors**, then add **≥30 % headroom**.
+
+### 4.2.3 Power Safety
+- Correct polarity; keep logic **GND** and DI field ground **separate** (respect isolation domains).   
+- Keep upstream **fusing/breaker** in place; the board also has input fuse/TVS/reverse-polarity MOSFET.   
+- Use **snubbers** on inductive loads; prefer **interposing contactors** for motors/pumps.   
+- **De-energize** before wiring; check shorts before power-up.
+
+---
+
+## 4.3 Networking & Communication
+
+Runtime control is via **RS-485 (Modbus RTU)**. **USB-C** is for local setup/diagnostics (Web Serial).
+
+### 4.3.1 RS-485 (Modbus RTU)
+
+**Physical**
+- **Terminals (lower front row):** **B**, **A**, **COM/GND** → then DI and DI-GNDs. Maintain A/B polarity, share the **COM/GND** reference with the controller.   
+- **Cable:** Twisted pair (preferably shielded) for A/B + reference.  
+- **Termination:** **120 Ω** at both physical ends of the trunk; avoid stubs. 
+
+**Protocol**
+- Role: **RTU slave**; controller is **master**.  
+- **Address:** 1–255. **Factory default**: **Address 3**, **19200 8N1**.   
+- Required: Dedicated **24 VDC** power (bus is data-only).
+
+**Checklist**
+- A→A, B→B, **COM→COM** (GND ref).  
+- Two end terminations only; daisy-chain topology.  
+- Consistent A/B polarity end-to-end.
+
+### 4.3.2 USB-C (WebConfig)
+
+**Purpose:** Chromium (Chrome/Edge) Web Serial setup/diagnostics page. 
+
+**Steps**
+1. Connect **USB-C** to the module.  
+2. Open the **DIO-430-R1 WebConfig** page and click **Connect**.   
+3. Set **Modbus Address & Baud** (header shows **Active Modbus Configuration**).   
+4. Configure **Inputs / Relays / LEDs / Buttons**; changes apply live and are saved to flash.   
+5. Use **Reset Device** from the page if needed (dialog confirms). 
+
+> If **Connect** is disabled: ensure Chromium + serial permission; close other apps that might hold the port.
+
+---
 
 <a id="installation-wiring"></a>
 
