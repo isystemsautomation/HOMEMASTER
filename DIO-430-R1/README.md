@@ -35,9 +35,6 @@ It connects over **RS-485 (Modbus RTU)** to a **MicroPLC/MiniPLC**, enabling use
 * [2. Use Cases](#2-use-cases)
 * [3. Safety Information](#3-safety-information)
 * [4. Installation & Quick Start](#4-installation-quick-start)
-  * [4.4 Installation & Wiring](#installation-wiring)
-  * [4.5 Software & UI Configuration](#software-ui-configuration)
-  * [4.6 Getting Started](#4-6-getting-started)
 * [5. MODULE-CODE — Technical Specification](#5-module-code--technical-specification)
 * [6. Modbus RTU Communication](#6-modbus-rtu-communication)
 * [7. ESPHome Integration Guide (if applicable)](#7-esphome-integration-guide)
@@ -55,57 +52,94 @@ It connects over **RS-485 (Modbus RTU)** to a **MicroPLC/MiniPLC**, enabling use
 
 # 1. Introduction
 
-## 1.1 Overview of the MODULE-CODE
+## 1.1 Overview of the DIO-430-R1
 
-Briefly explain what the module does in 1–2 paragraphs:
-- What kind of I/O it exposes (e.g. DI, AO, relays, LEDs, buttons)
-- What systems it integrates with (PLC, SCADA, HA)
-- Configuration mechanism (Web Serial, USB-C, etc.)
-- One-sentence summary of its main purpose or role
+The **DIO-430-R1** is a smart digital I/O module designed for integration into modular automation systems. It offers **4 opto-isolated digital inputs**, **3 high-current SPDT relays**, **3 user buttons**, and **3 configurable user LEDs**. All I/O channels are individually configurable, enabling flexible behavior such as toggle, pulse, manual override, and alarm indication.
+
+It integrates seamlessly with **HomeMaster MicroPLC and MiniPLC**, as well as **Home Assistant via ESPHome**, **PLC/SCADA systems** via **Modbus RTU (RS-485)**, and supports standalone operation with local logic. Configuration is handled through a driverless **Web Serial interface via USB‑C**, using a browser-based **WebConfig Tool**.  
+Its primary role is to provide reliable relay control and digital input monitoring for building automation, alarms, lighting, and other general-purpose control systems.
 
 ## 1.2 Features & Architecture
 
-Include a table like this:
-
 | Subsystem         | Qty | Description |
 |------------------|-----|-------------|
-| Digital Inputs    | X   | Opto-isolated, dry contacts, noise-protected |
-| Analog Outputs    | X   | 0–10V or 4–20mA, isolated |
-| Relays            | X   | SPST/SPDT, dry contacts |
-| LEDs              | X   | Steady/Blink modes, configurable sources |
-| Buttons           | X   | Acknowledge, override, user input |
-| Modbus RTU        | Yes | RS-485 interface |
-| USB-C             | Yes | WebConfig over Web Serial |
-| Power             | 24 VDC | Fused, reverse-protected |
-| MCU               | e.g. RP2350 | Dual-core with QSPI flash |
-| Protection        | TVS, PTC | ESD, surge, short-circuit |
+| Digital Inputs    | 4   | Opto-isolated, dry contact compatible, noise-protected |
+| Relays            | 3   | SPDT (NO/NC), 16 A rated, dry contacts |
+| LEDs              | 3   | Configurable: Steady or Blink modes, linked to relays |
+| Buttons           | 3   | User-configurable for override or reset |
+| Modbus RTU        | Yes | RS-485 interface (Configurable: Addr 1–255, 9600–115200 baud) |
+| USB-C             | Yes | WebConfig tool access via Web Serial (Chrome/Edge) |
+| Power             | 24 VDC | Fused input, reverse-polarity and surge protected |
+| MCU               | RP2350 | Dual-core, with QSPI flash, USB, UART, LittleFS |
+| Protection        | TVS, PTC | ESD, surge, and short-circuit protection on I/O and power |
 
 ## 1.3 System Role & Communication
 
-Explain:
-- How the module connects to RS-485 bus
-- Whether it's standalone logic or master-controlled
-- Communication with controller, polling setup
-- Default address/baudrate
+The DIO-430-R1 connects to the **RS-485 Modbus RTU bus** using A/B differential lines and a shared COM/GND terminal. It supports **poll-based communication** where a master controller (like a PLC or MicroPLC) reads input states and writes output commands.  
+The module can function in both **master-controlled** and **standalone local logic** modes, depending on its configuration.
+
+The factory default settings are:
+- **Modbus Address:** `3`  
+- **Baud Rate:** `19200`  
+- **Parity:** `None`  
+- **Stop Bits:** `1`  
+
+The module’s logic (input→relay mapping, LED modes, button behavior) is stored persistently in internal flash via **LittleFS**, and settings can be changed live using **USB-C + WebConfig**.
 
 ---
+
+
+<a id="2-use-cases"></a>
 
 <a id="2-use-cases"></a>
 
 # 2. Use Cases
 
-Document **3–5 real-world examples**, such as:
-- Safety zone monitoring
-- Relay control with manual override
-- Environmental alarms (e.g. temperature + smoke)
-- Staged automation
-
-Each example should include:
-- A title (e.g., “Zone Alarm with Manual Reset”)
-- 1–2 lines of what it does
-- A step-by-step bullet list of setup instructions
+The **DIO‑430‑R1** supports both **lighting** and **motor/pump control** — making it ideal for mixed automation tasks in smart homes, greenhouses, HVAC, and industrial setups.  
+Below are 3 versatile examples combining both types of loads.
 
 ---
+
+## 2.1 Staircase Light with Motion Sensor + Circulation Pump
+
+Automatically turns ON a staircase light and a circulation pump when motion is detected.
+
+**Setup Instructions:**
+- Set **IN1** to `Action = Pulse`, `Target = Relay 1` (light).
+- Set **IN2** to `Action = Pulse`, `Target = Relay 2` (pump).
+- Enable **Relay 1** for the staircase lighting.
+- Enable **Relay 2** for the circulation pump.
+- Set **LED 1** = `Blink`, source = `Relay 1`.
+- Set **LED 2** = `Steady`, source = `Relay 2`.
+
+---
+
+## 2.2 Manual Light + Fan Override (Wall Panel)
+
+Wall-mounted buttons allow users to toggle lights and exhaust fans independently.
+
+**Setup Instructions:**
+- Assign **Button 1** → `Relay 1 override (toggle)` → Room Light  
+- Assign **Button 2** → `Relay 2 override (toggle)` → Ventilation Fan  
+- Enable both **Relay 1** and **Relay 2**.  
+- Set **LED 1** and **LED 2** to `Steady`, following respective relays.  
+- Optionally use Modbus Coils `200–201` for remote control.
+
+---
+
+## 2.3 Greenhouse Light + Irrigation Pump Automation
+
+Lights and irrigation are controlled via digital inputs or remotely from a PLC.
+
+**Setup Instructions:**
+- **IN3** → `Toggle`, Target = `Relay 1` → Grow Light  
+- **IN4** → `Pulse`,  Target = `Relay 2` → Irrigation Pump  
+- Enable **Relay 1** and **Relay 2**.  
+- Assign **Button 3** to `Relay 2 override (toggle)` for manual watering.  
+- Set **LED 1** = `Steady` (light status), **LED 2** = `Blink` (pump running).
+
+---
+
 
 <a id="3-safety-information"></a>
 
@@ -113,33 +147,82 @@ Each example should include:
 
 ## 3.1 General Requirements
 
-| Requirement            | Detail |
-|------------------------|--------|
-| Qualified Personnel     | Required for all installation tasks |
-| Power Isolation         | Disconnect before working on terminals |
-| Rated Voltages Only     | SELV only; no mains |
-| Grounding               | Proper panel grounding |
-| Enclosure               | Use clean/dry cabinet; avoid dust/moisture |
+| Requirement          | Detail |
+|---------------------|--------|
+| Qualified Personnel | Required for all installation tasks |
+| Power Isolation     | Disconnect **24 VDC** supply before wiring terminals |
+| Rated Voltages Only | SELV/PELV only; **no mains** on any terminal |
+| Grounding           | Proper panel PE bonding; keep RS‑485 **COM/GND** common with controller |
+| Enclosure           | Mount in a clean, dry DIN cabinet; avoid dust, moisture, and corrosives |
+
+> Notes: The module includes front‑end protection (fuses/TVS) and isolated input stages, but these do **not** replace safe installation practices. See relay/DI/RS‑485 protection in the schematics.
+
+---
 
 ## 3.2 Installation Practices
 
-Give best practices for:
-- DIN mounting
-- Isolation domain respect (e.g., GND vs GND_ISO)
-- Relay wiring
-- Sensor power connection
+- **DIN mounting**
+  - Mount on 35 mm DIN rail inside an electrical cabinet.
+  - Route **power**, **I/O**, and **RS‑485** as separate harnesses to reduce noise coupling.
+- **Isolation domains**
+  - Respect isolated input domains: the DI front‑end uses isolation (e.g., ISO1212 with **GND1/FGND2** rails). Do **not** bond isolated grounds together unless the application specifically requires it. Keep sensor field grounds on the **field side** of the isolator.
+- **Relay wiring**
+  - Use relays to drive **low‑voltage loads or contactor coils**. For inductive loads (motors, valves, sirens), provide external snubbers (RC or MOV) at the load. Observe NO/COM/NC polarity and keep wiring short.
+- **Sensor power connection**
+  - Power sensors from a properly fused SELV rail. Follow sensor datasheets for polarity. Use twisted pairs and shielded cable for long runs; land shields at a single point to avoid ground loops.
+
+---
 
 ## 3.3 Interface Warnings
 
-Create tables for:
+### Power
 
-- Power (24 VDC, 12 V sensor rail)
-- Inputs (dry contact only, debounce notes)
-- Relays (max current/voltage, snubber required)
-- RS-485 (termination, A/B polarity)
-- USB-C (setup only, not for field devices)
+| Item             | Guidance |
+|------------------|----------|
+| Nominal Input    | **24 VDC SELV/PELV**, panel‑fused upstream |
+| Protection Onboard | Series fuse, reverse‑polarity MOSFET, input TVS, bulk and decoupling capacitors |
+| Wiring           | Keep 24 V and GND pairs twisted; star‑route returns; avoid sharing returns with high‑current loads |
+| Inrush/Surge     | Use a stable 24 VDC PSU; add upstream surge protection in noisy sites |
+
+### Inputs (Digital)
+
+| Item          | Guidance |
+|---------------|----------|
+| Electrical    | Isolated digital inputs via opto‑isolated receivers; field domain separate from logic domain |
+| Type          | Dry contact or compatible 24 V signaling (follow your wiring standard) |
+| Polarity/Invert | Inputs are configurable (enable/invert/action) in WebConfig |
+| Noise         | Use shielded cable for long runs; debounce is handled in firmware, but avoid very noisy sources |
+| Isolation     | Do **not** tie field ground to logic ground; keep per‑domain returns intact |
+
+### Relays (Outputs)
+
+| Item              | Guidance |
+|-------------------|----------|
+| Contact Type      | SPDT (NO/NC/COM) |
+| Load Type         | Resistive or inductive; **use external snubbers** (RC/MOV) for inductive loads |
+| Application       | Prefer driving **interposing relays/ contactors** for motors/pumps or mains circuits |
+| Wiring            | Keep load and control wiring separated; use appropriately rated conductors and terminals |
+| Safety            | De‑energize before servicing; confirm contact state after wiring and at commissioning |
+
+### RS‑485 (Modbus RTU)
+
+| Item             | Guidance |
+|------------------|----------|
+| Bus Termination  | 120 Ω at **both** physical ends of the RS‑485 trunk |
+| Polarity         | Maintain **A/B** polarity consistently; connect **COM/GND** reference between nodes |
+| Cabling          | Use twisted pair (shielded in noisy environments); daisy‑chain topology (no stubs) |
+| Protection       | The port includes fusing and TVS; still route away from high‑power cabling and contactors |
+
+### USB‑C
+
+| Item        | Guidance |
+|-------------|----------|
+| Purpose     | **Setup/maintenance only** (WebConfig / firmware); not for powering field devices |
+| ESD         | Protected on‑board; still avoid hot‑plugging in high‑EMI environments |
+| Host        | Use a PC with Chrome/Edge; ensure a reliable chassis ground while connected |
 
 ---
+
 
 <a id="4-installation-quick-start"></a>
 
