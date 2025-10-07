@@ -412,7 +412,7 @@ For **Relay 1–3**:
 ### Phase 1 — Wire
 - **24 VDC** to **V+ / 0V (GND)** (top POWER terminals)  
   Use a regulated SELV supply; keep pairs twisted.
-- **Digital inputs (IN1–IN4)**: dry contacts or 24 V signals → **INx / GNDx**  
+- **Digital inputs (IN1–IN4)**: dry contacts → **INx / GNDx**  
   Respect isolation domains; do **not** bridge logic GND ↔ field GND.
 - **Relay outputs (R1–R3)**: **COM / NO / NC**  
   Prefer interposing contactors for motors/pumps; add **RC/MOV snubber** on inductive loads.
@@ -424,7 +424,7 @@ For **Relay 1–3**:
 ---
 
 ### Phase 2 — Configure (WebConfig)
-- Open `DIO-430-R1/Firmware/ConfigToolPage.html` (or the hosted page) in **Chrome/Edge**.
+- Open `https://www.home-master.eu/configtool-dio-430-r1`  in **Chrome/Edge**.
 - Connect **USB-C** → **Select port** → **Connect**.
 - Set:
   - **Modbus Address / Baud** (default: Addr **3**, **19200 8N1**)
