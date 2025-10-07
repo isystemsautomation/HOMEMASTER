@@ -407,12 +407,59 @@ For **Relay 1–3**:
 
 <a id="4-6-getting-started"></a>
 
-## 4.6 Getting Started
+## 4.6 Getting Started (3 Phases)
 
-Summarize steps in 3 phases:
-1. Wiring
-2. Configuration
-3. Integration
+### Phase 1 — Wire
+- **24 VDC** to **V+ / 0V (GND)** (top POWER terminals)  
+  Use a regulated SELV supply; keep pairs twisted.
+- **Digital inputs (IN1–IN4)**: dry contacts or 24 V signals → **INx / GNDx**  
+  Respect isolation domains; do **not** bridge logic GND ↔ field GND.
+- **Relay outputs (R1–R3)**: **COM / NO / NC**  
+  Prefer interposing contactors for motors/pumps; add **RC/MOV snubber** on inductive loads.
+- **RS-485**: **A / B / COM (GND)**  
+  Shielded twisted pair; daisy-chain; terminate bus ends with **120 Ω**.
+- **USB-C (service)**: for WebConfig only (no field powering).  
+👉 See: **Installation & Quick Start**
+
+---
+
+### Phase 2 — Configure (WebConfig)
+- Open `DIO-430-R1/Firmware/ConfigToolPage.html` (or the hosted page) in **Chrome/Edge**.
+- Connect **USB-C** → **Select port** → **Connect**.
+- Set:
+  - **Modbus Address / Baud** (default: Addr **3**, **19200 8N1**)
+  - **Inputs**: Enable / Invert / **Action** (`None / Toggle / Pulse`) / **Control target** (`None / All / R1 / R2 / R3`)
+  - **Relays**: Enable (optional **Invert**)
+  - **Buttons**: map to **Relay override (toggle)** (R1/R2/R3)
+  - **User LEDs**: **Mode** (`Steady / Blink`) + **Activate when** (follow a relay)
+- Click **Reset Device** if prompted; settings auto-save to flash.  
+👉 See: **WebConfig UI**
+
+---
+
+### Phase 3 — Integrate (Controller)
+- Connect controller (MiniPLC/MicroPLC/PLC/SCADA/ESPHome) via **RS-485**.
+- Match **address** and **baud**.
+- **Poll**:
+  - **Discrete inputs** for DI states and relay states (per your mapping)
+- **Write**:
+  - **Coils** to control relays (e.g., R1/R2/R3 ON/OFF)
+- Use with:
+  - **HomeMaster MicroPLC / MiniPLC**
+  - **ESPHome / SCADA / PLC**  
+👉 See: **Modbus RTU Communication & Integration Guide**
+
+---
+
+### ✅ Verify
+| Area | What to Check |
+|---|---|
+| LEDs | **PWR** = ON; **TX/RX** blink during RS-485 traffic |
+| Inputs | Toggling a wall switch/sensor changes **INx** state in WebConfig/Modbus |
+| Relays | Coil writes toggle **R1–R3**; loads switch correctly; snubber installed for inductive loads |
+| Address/Baud | Controller reads module at the configured address/baud without errors |
+| Isolation | No unintended bond between logic **GND** and DI field **GNDx** |
+
 
 ---
 
