@@ -13,15 +13,11 @@ difficulty: 1
 
 ![alt text](./opentherm.png "HOMAMASTER Opentherm Gateway")
 
-## Product description
-
 ## 🌡️ Description
 
 The Opentherm Gateway enables full bidirectional OpenTherm communication for intelligent climate control. It supports monitoring and control of key heating parameters such as burner status, flame modulation, setpoint temperatures, and system diagnostics.
 
 A built-in high-voltage relay allows local control of zone valves or backup heaters, while two independent **1-Wire interfaces** support digital temperature sensors (e.g., DS18B20) for detailed room or system temperature monitoring.
-
-## Features
 
 ## ⚙️ Key Features
 
@@ -90,7 +86,7 @@ Once connected to Wi-Fi, the OpenTherm Gateway will appear in your **ESPHome Das
 > ℹ️ No manual flashing is needed if the device is provisioned via Improv.
 
 
-### USB Type-C: Use the ESPHome Dashboard to upload the configuration
+### 💻 USB Type-C Flashing (Manual Configuration)
 
 1. Connect the OpenTherm Gateway to your computer with a USB Type-C cable.
 2. Download the YAML configuration file from our GitHub repository.
@@ -105,7 +101,7 @@ Once connected to Wi-Fi, the OpenTherm Gateway will appear in your **ESPHome Das
 |----------------------|--------------------------------------|
 | Microcontroller      | ESP32-WROOM-32U                      |
 | Power Supply         | 5V via USB-C for programming, 24V via terminal or 220VAC/DC via terminal      |
-| Relay Output         | 1x 16A (optically isolated)     |
+| Relay Output         | 1x 6A (optically isolated)     |
 | Communication        | RS-485, Wi-Fi, Bluetooth, USB-C      |
 | 1-Wire               | 2 channels (ESD/OVP protected)        |
 | Mounting             | DIN-rail                             |
@@ -301,7 +297,7 @@ Below are reference diagrams and safety notes for connecting **power**, **OpenTh
 >
 > - Disconnect all power before installation or wiring changes.
 > - Use proper insulation and terminals when working with **230 VAC** mains voltage.
-> - Use appropriately rated **fuses or circuit breakers** (e.g., **C10**, **1206L150**) as shown in schematics.
+> - Use appropriately rated **fuses or circuit breakers** (e.g., 1A slow-blow) as shown in schematics.
 > - The device contains opto-isolated and ESD-protected interfaces for safe signal connections.
 > - Always refer to your **boiler's OpenTherm specification** before wiring the OT bus.
 
@@ -313,7 +309,7 @@ You can power the device using either:
 
 #### 🔋 1. 24 VDC Low Voltage Power
 
-Connect a **24 VDC power supply** to the `+V` and `0V` terminals. Internal protections (diodes, fuses, MOV) are included.
+Connect a **24 VDC power supply** to the `+V` and `0V` terminals..
 
 ![24VDC Connection](./OpenTherm_24Vdc.png)
 
@@ -323,18 +319,14 @@ Connect a **24 VDC power supply** to the `+V` and `0V` terminals. Internal pro
 
 If using mains voltage, connect **L** (Live) and **N** (Neutral) to the terminal block.
 
-> ✅ Internally, the relay board includes:
-> - **MOV** for surge protection (RV1 07D431K)
-> - **Diodes** (STPS340U, SMBJ33A) for rectification and clamping
-> - **Fuse** (F1/F2) and polyfuse (F12 1206L150) for overcurrent protection
-
 ![230VAC Connection](./OpenTherm_230Vac.png)
+*Figure: AC mains power input connection*
 
 ---
 
 ### 🔁 Relay Output (Dry Contact)
 
-The relay output is **optically isolated** (via PC817 and S8050 driver stage) and capable of switching **AC or DC loads** up to 16A.  
+The relay output is **optically isolated** (via PC817 and S8050 driver stage) and capable of switching **AC or DC loads** up to 6A.  
 Use it to control zone valves, pumps, or backup heating.
 
 ![Relay Connection](./OpenTherm_RelayConnection.png)
@@ -346,7 +338,7 @@ Use it to control zone valves, pumps, or backup heating.
 Two independent **1-Wire buses** are available, each with:
 - ESD protection (DS9503)
 - Series resistor + clamping diodes
-- Separate power lines (`1-WIRE1`, `1-WIRE2`) and 3.3V rail
+- Separate power lines (`1-WIRE1`, `1-WIRE2`) and +5V rail
 
 You can connect **DS18B20** sensors using parasitic or powered mode.
 
@@ -356,7 +348,7 @@ You can connect **DS18B20** sensors using parasitic or powered mode.
 
 ### 🔄 OpenTherm Bus Wiring
 
-Connect your **OpenTherm boiler** to the `OT+` and `OT−` terminals.
+Connect the boiler’s **OpenTherm interface** to the OT+ and OT− terminals.
 
 > 💡 These lines are optically isolated and buffered using:
 > - BAV99S protection diodes
