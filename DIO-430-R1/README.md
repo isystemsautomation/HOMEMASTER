@@ -5,316 +5,341 @@
 > - **Hardware:** Modules are currently in the prototyping and testing phase. Final production versions may differ.
 > - **Firmware:** Firmware is under active development and is considered **beta**. Features, configurations, and stability are being refined.
 >
-> Please use this information for evaluation and development purposes only. Check the [Releases page](../../releases) for the latest stable versions and updates.
-
----
-# 📘 DIO-430-R1 – 3-Relay, 4-Digital Input, Configurable I/O Module  
-
-The **DIO-430-R1** is a smart RS-485 Modbus RTU I/O module with:  
-- **3 Relays**  
-- **4 Isolated Digital Inputs**  
-- **3 User Buttons**  
-- **3 User LEDs**  
-
-It features a **Web Config Tool** for easy configuration of Modbus parameters, I/O behavior, LED logic, and more — without programming.  
-Fully compatible with **HomeMaster MicroPLC** and **MiniPLC** controllers, as well as **Home Assistant** via ESPHome.  
+> Please use this information for evaluation and development purposes only. 
 
 ---
 
-## 📎 Useful Links
-- 🌐 **Web Config Tool:** [Open Online Tool](https://www.home-master.eu/configtool-dio-430-r1)  
-- 💾 **Firmware & Source:**  
-  - [DIO-430-R1_Default_Firmware.uf2](https://github.com/isystemsautomation/HOMEMASTER/tree/main/DIO-430-R1/Firmware/default_DIO_430_R1/build/rp2040.rp2040.generic_rp2350) – Default firmware with Web Config Tool support  
-  - [default_DIO_430_R1.ino](https://github.com/isystemsautomation/HOMEMASTER/blob/main/DIO-430-R1/Firmware/default_DIO_430_R1/default_DIO_430_R1.ino) – Arduino IDE source  
-  - [ConfigToolPage.html](https://github.com/isystemsautomation/HOMEMASTER/blob/main/DIO-430-R1/Firmware/ConfigToolPage.html) – Config Tool HTML/JS source  
-- 📐 **Hardware Schematics:**  
-  - [DIO-430-R1 Field Board PDF](https://github.com/isystemsautomation/HOMEMASTER/blob/main/DIO-430-R1/Schematics/DIO-430-R1-FieldBoard.pdf)  
-  - [DIO-430-R1 MCU Board PDF](https://github.com/isystemsautomation/HOMEMASTER/blob/main/DIO-430-R1/Schematics/DIO-430-R1-MCUBoard.pdf)  
+**Firmware Version:** 2025-10 snapshot
+
+![Firmware Version](https://img.shields.io/badge/Firmware-2025--10-blue)
+![Modbus](https://img.shields.io/badge/Protocol-Modbus%20RTU-brightgreen)
+![License](https://img.shields.io/badge/License-GPLv3%20%2F%20CERN--OHL--W-blue)
+
+# DIO-430-R1 — Module for Smart I/O Control
+
+**HOMEMASTER – Modular control. Custom logic.**
+
+<img src="Images/photo1.png" align="right" width="440" alt="MODULE photo">
+
+### Module Description
+
+The **DIO-430-R1** is a configurable smart I/O module designed for **digital input monitoring and relay-based output control**.  
+It includes **4 isolated digital inputs**, **3 SPDT relays**, and **optional 3 user buttons and 3 user LEDs**, with configuration via **WebConfig** using **USB-C (Web Serial)**.  
+It connects over **RS-485 (Modbus RTU)** to a **MicroPLC/MiniPLC**, enabling use in **building automation, lighting systems, access control, HVAC, and alarms**.
 
 ---
 
-## 📑 Table of Contents
-1. [Key Features](#-key-features)  
-2. [Quick Start Guide](#-quick-start-guide)  
-3. [Module Diagrams](#-module-diagrams)  
-4. [Web Config Tool](#-web-config-tool)  
-5. [Firmware Downloads & Source](#-firmware-downloads--source)  
-6. [Firmware & Module Guide](#-firmware--module-guide)  
-   - [Overview](#overview)  
-   - [Features](#features)  
-   - [Hardware & Pinout](#hardware--pinout)  
-   - [Power-Up & Defaults](#power-up--defaults)  
-   - [Button Shortcuts](#-button-shortcuts)  
-   - [Connect to the Module (Web Serial)](#connect-to-the-module-web-serial)  
-   - [Web Config UI — Panels & Fields](#web-config-ui--panels--fields)  
-   - [I/O Logic & Modes](#io-logic--modes)  
-   - [Modbus RTU Mapping](#modbus-rtu-mapping)  
-   - [Save/Load/Factory/Reset](#saveloadfactoryreset)  
-   - [Persistence (LittleFS) Details](#persistence-littlefs-details)  
-   - [Quick Recipes](#quick-recipes)  
-   - [Troubleshooting](#troubleshooting)  
-   - [Build & Flash Notes](#build--flash-notes)  
-   - [Appendix — Persisted Struct & CRC](#appendix--persisted-struct--crc)  
-7. [Open Source & Re-Programming](#-open-source--re-programming)  
-8. [License](#-license)  
+## Table of Contents
+
+* [1. Introduction](#1-introduction)
+* [2. Use Cases](#2-use-cases)
+* [3. Safety Information](#3-safety-information)
+* [4. Installation & Quick Start](#4-installation-quick-start)
+  * [4.4 Installation & Wiring](#installation-wiring)
+  * [4.5 Software & UI Configuration](#software-ui-configuration)
+  * [4.6 Getting Started](#4-6-getting-started)
+* [5. MODULE-CODE — Technical Specification](#5-module-code--technical-specification)
+* [6. Modbus RTU Communication](#6-modbus-rtu-communication)
+* [7. ESPHome Integration Guide (if applicable)](#7-esphome-integration-guide)
+* [8. Programming & Customization](#8-programming--customization)
+* [9. Maintenance & Troubleshooting](#9-maintenance--troubleshooting)
+* [10. Open Source & Licensing](#10-open-source--licensing)
+* [11. Downloads](#11-downloads)
+* [12. Support](#12-support)
+
+<br clear="left"/>
 
 ---
 
-## ⚙️ Key Features
-- **3 × SPDT Relays (NO/NC)** – up to 16 A load, manual or remote control, pulse/toggle operation  
-- **4 × Isolated Digital Inputs** – 24 VDC, configurable action & target (None, All, Relay 1–3)  
-- **3 × User Buttons** – assignable to relay overrides and special boot/reset functions  
-- **3 × User LEDs** – configurable mode (steady/blink) and activation source (None / Relay 1–3 state)  
-- **RS-485 Modbus RTU** – configurable address (1–255), baud rate (9600–115200)  
-- **USB-C Port** – firmware updates & Web Serial configuration  
-- **Persistent Storage** – saves settings to internal flash (LittleFS)  
-- **Open Firmware** – Arduino IDE compatible  
+<a id="1-introduction"></a>
+
+# 1. Introduction
+
+## 1.1 Overview of the MODULE-CODE
+
+Briefly explain what the module does in 1–2 paragraphs:
+- What kind of I/O it exposes (e.g. DI, AO, relays, LEDs, buttons)
+- What systems it integrates with (PLC, SCADA, HA)
+- Configuration mechanism (Web Serial, USB-C, etc.)
+- One-sentence summary of its main purpose or role
+
+## 1.2 Features & Architecture
+
+Include a table like this:
+
+| Subsystem         | Qty | Description |
+|------------------|-----|-------------|
+| Digital Inputs    | X   | Opto-isolated, dry contacts, noise-protected |
+| Analog Outputs    | X   | 0–10V or 4–20mA, isolated |
+| Relays            | X   | SPST/SPDT, dry contacts |
+| LEDs              | X   | Steady/Blink modes, configurable sources |
+| Buttons           | X   | Acknowledge, override, user input |
+| Modbus RTU        | Yes | RS-485 interface |
+| USB-C             | Yes | WebConfig over Web Serial |
+| Power             | 24 VDC | Fused, reverse-protected |
+| MCU               | e.g. RP2350 | Dual-core with QSPI flash |
+| Protection        | TVS, PTC | ESD, surge, short-circuit |
+
+## 1.3 System Role & Communication
+
+Explain:
+- How the module connects to RS-485 bus
+- Whether it's standalone logic or master-controlled
+- Communication with controller, polling setup
+- Default address/baudrate
 
 ---
 
-## 🚀 Quick Start Guide
+<a id="2-use-cases"></a>
 
-### 1. Powering the Module
-- Input: **24 VDC**, fused.  
-- Power status LEDs are on..  
+# 2. Use Cases
 
-### 2. First Connection
-- Connect via **USB-C** to your PC.  
-- Open [Web Config Tool](https://www.home-master.eu/configtool-dio-430-r1) in Chrome/Edge/Opera.  
-- Click **Connect** → select the Com port with RP2350.  
+Document **3–5 real-world examples**, such as:
+- Safety zone monitoring
+- Relay control with manual override
+- Environmental alarms (e.g. temperature + smoke)
+- Staged automation
 
-### 3. Configure  
-- Adjust Modbus address/baud, relay modes, DI actions, LED logic.  
-- Changes apply instantly and are auto-saved.  
-
-### 4. Wiring Notes
-- **Relays:** SPDT, 16 A max. Supports AC/DC loads.  
-- **Digital Inputs:** 24 VDC, sourcing inputs, isolated.  
-- **RS-485:** A/B lines → Modbus bus; ensure common GND-"COM" terminal.  
+Each example should include:
+- A title (e.g., “Zone Alarm with Manual Reset”)
+- 1–2 lines of what it does
+- A step-by-step bullet list of setup instructions
 
 ---
 
-## 📐 Module Diagrams  
+<a id="3-safety-information"></a>
 
-### Control Board  
-![Control Board](Images/ControlBoard_Diagram.png)  
+# 3. Safety Information
 
-### MCU Pinout (RP2350A)  
-![MCU Pinout](Images/DIO_MCU_Pinouts.png)  
+## 3.1 General Requirements
 
-### Block Diagram  
-![Block Diagram](Images/DIO-430-R1 BlockDiagram.png)  
+| Requirement            | Detail |
+|------------------------|--------|
+| Qualified Personnel     | Required for all installation tasks |
+| Power Isolation         | Disconnect before working on terminals |
+| Rated Voltages Only     | SELV only; no mains |
+| Grounding               | Proper panel grounding |
+| Enclosure               | Use clean/dry cabinet; avoid dust/moisture |
 
-### Relay Board  
-![Relay Board](Images/RelayBoard_Diagram.png)  
+## 3.2 Installation Practices
+
+Give best practices for:
+- DIN mounting
+- Isolation domain respect (e.g., GND vs GND_ISO)
+- Relay wiring
+- Sensor power connection
+
+## 3.3 Interface Warnings
+
+Create tables for:
+
+- Power (24 VDC, 12 V sensor rail)
+- Inputs (dry contact only, debounce notes)
+- Relays (max current/voltage, snubber required)
+- RS-485 (termination, A/B polarity)
+- USB-C (setup only, not for field devices)
 
 ---
 
-## 🌐 Web Config Tool  
+<a id="4-installation-quick-start"></a>
 
-The **Web Config Tool** runs in your browser via the Web Serial API.  
-No drivers or special software needed.  
+# 4. Installation & Quick Start
 
-**You can configure:**  
-- Modbus: address, baud rate  
-- Digital Inputs: enable, invert, toggle, pulse, mapping  
-- Relays: enable, invert  
-- Buttons: none / relay overrides  
-- LEDs: steady/blink, source  
-- Live status + serial logs  
+## 4.1 What You Need
 
-📎 [Open Web Config Tool](https://www.home-master.eu/configtool-dio-430-r1)  
-
----
-
-## 💾 Firmware Downloads & Source  
-
-| File | Description |
+| Item | Description |
 |------|-------------|
-| [`DIO-430-R1_Default_Firmware.uf2`](https://github.com/isystemsautomation/HOMEMASTER/tree/main/DIO-430-R1/Firmware/default_DIO_430_R1/build/rp2040.rp2040.generic_rp2350) | Default firmware with Web Config Tool |
-| [`default_DIO_430_R1.ino`](https://github.com/isystemsautomation/HOMEMASTER/blob/main/DIO-430-R1/Firmware/default_DIO_430_R1/default_DIO_430_R1.ino) | Arduino IDE source |
-| [`ConfigToolPage.html`](https://github.com/isystemsautomation/HOMEMASTER/blob/main/DIO-430-R1/Firmware/ConfigToolPage.html) | Config Tool HTML/JS |
+| Module | MODULE-CODE unit |
+| Controller | MiniPLC/MicroPLC or Modbus RTU master |
+| PSU | Regulated 24 VDC |
+| Cable | USB-C and RS-485 twisted pair |
+| Software | Browser with Web Serial support |
+
+## 4.2 Power
+
+- Describe 24 VDC input
+- List expected current
+- Explain isolated sensor power if present
+
+## 4.3 Communication
+
+- RS-485 pinout
+- Address & baudrate setup
+- Use of COM/GND reference
+
+<a id="installation-wiring"></a>
+
+## 4.4 Installation & Wiring
+
+Use diagrams and explain:
+- Inputs
+- Relays
+- Sensor rails (12/5V)
+- RS-485 terminals
+- USB port
+
+<a id="software-ui-configuration"></a>
+
+## 4.5 Software & UI Configuration
+
+Cover:
+- WebConfig setup (address, baud)
+- Input enable/invert/group
+- Relay logic mode (group/manual)
+- LED and Button mapping
+
+<a id="4-6-getting-started"></a>
+
+## 4.6 Getting Started
+
+Summarize steps in 3 phases:
+1. Wiring
+2. Configuration
+3. Integration
 
 ---
 
-# DIO-430-R1 — Firmware & Module Guide  
+<a id="5-module-code--technical-specification"></a>
 
-**MCU:** RP2350A | **I/O:** 4× DI, 3× Relays, 3× Buttons, 3× LEDs  
-**Interfaces:** RS-485/Modbus RTU (UART2), USB Web Serial  
-**Persistence:** LittleFS (`/cfg.bin`) with CRC-protected structure  
+# 5. MODULE-CODE — Technical Specification
 
----
+## 5.1 Diagrams & Pinouts
 
-## Overview
-Compact DIN-rail ready I/O expansion module.  
-Can be configured via **USB/Web Serial** and controlled via **RS-485 Modbus RTU**.  
+Add photos/diagrams:
+- System block diagram
+- Board layouts
+- Terminal maps
 
----
+## 5.2 I/O Summary
 
-## Features
-- Configurable relays, inputs, buttons, LEDs  
-- RS-485: persisted baud/address  
-- **Auto-save** after 1.5 s inactivity  
-- **LittleFS** persistence with CRC guard  
-- Status via Web Serial  
+Summarize in a table:
 
----
+| Interface | Qty | Description |
+|-----------|-----|-------------|
+| Inputs |   | Opto-isolated |
+| Relays |   | SPST/SPDT |
+| LEDs |   | Status indication |
+| USB-C | 1 | Setup only |
 
-## Hardware & Pinout  
+## 5.3 Electrical Specs
 
-| Block | Count | MCU GPIO | Notes |
-|-------|------:|----------|-------|
-| Digital Inputs | 4 | 6, 11, 12, 7 | Active-HIGH; invertable |
-| Relays | 3 | 10, 9, 8 | Active-HIGH drive; invertable |
-| Buttons | 3 | 1, 2, 3 | Active-LOW; rising edge = press |
-| User LEDs | 3 | 13, 14, 15 | Active-HIGH |
-| RS-485 (UART2) | — | TX=4, RX=5 | No TXEN |
+Cover:
+- Input voltage range
+- Current consumption
+- Sensor rail current
+- Relay contact ratings
+- Isolation details
 
-> ⚠️ Ensure proper RS-485 A/B wiring, termination, and common GND.  
+## 5.4 Firmware Behavior
 
----
-
-## 🔘 Button Shortcuts
-- **Button1 + Button2** → Reset the module  
-- **Button2 + Button3** → Bootloader mode  
-- **Button1 + Button2 + Button3 (release Button1)** → Enter **firmware load mode**  
+Explain:
+- Alarm logic (latched/momentary)
+- Override priority
+- LED feedback modes
 
 ---
 
-## Power-Up & Defaults
-On boot:  
-1. Initialize GPIO (relays/LEDs OFF).  
-2. Mount **LittleFS**, load `/cfg.bin`.  
-   - If invalid: reset to factory defaults, save new file.  
-3. Start Modbus RTU with persisted settings.  
+<a id="6-modbus-rtu-communication"></a>
 
-**Factory defaults**:  
-- Modbus: Address=3, Baud=19200  
-- DIs: Enabled, Action=None, Target=All  
-- Relays: Enabled, OFF  
-- Buttons: None  
-- LEDs: Steady, None  
+# 6. Modbus RTU Communication
+
+Include:
+- Address range and map
+- Input/holding register layout
+- Coil/discrete inputs
+- Register use examples
+- Polling recommendations
 
 ---
 
-## Connect to the Module (Web Serial)  
+<a id="7-esphome-integration-guide"></a>
 
-### Requirements
-- Chrome/Edge (desktop)  
-- Web Config Tool HTML  
+# 7. ESPHome Integration Guide
 
-### Steps
-1. Open config tool.  
-2. Connect port.  
-3. See serial log (“Boot OK”, config loaded).  
-4. Adjust settings.  
-5. Save/reboot if needed.  
+Only if supported. Cover:
+- YAML setup (`uart`, `modbus`, `package`)
+- Entity list (inputs, relays, buttons, LEDs)
+- Acknowledge, override controls
+- Home Assistant integration tips
 
 ---
 
-## Web Config UI — Panels & Fields  
-- **Modbus:** address, baud  
-- **Inputs:** enable, invert, toggle, pulse, target  
-- **Relays:** enable, invert  
-- **Buttons:** none / relay overrides  
-- **LEDs:** steady, blink, source  
+<a id="8-programming--customization"></a>
+
+# 8. Programming & Customization
+
+## 8.1 Supported Languages
+
+- Arduino
+- C++
+- MicroPython
+
+## 8.2 Flashing
+
+Steps for:
+- USB-C flashing
+- BOOT/RESET button use
+- PlatformIO / Arduino IDE setup
+
+## 8.3 Arduino / PlatformIO Notes
+
+Mention:
+- Required libraries
+- Pin mapping
+- Board config
+
+## 8.4 Firmware Updates
+
+- How to update
+- Preserving config
+- Recovery methods
 
 ---
 
-## I/O Logic & Modes  
-- Inputs → Relays: Toggle or Pulse  
-- Buttons → Relay override  
-- Relays latched, invertable  
-- LEDs follow relay logic (steady/blink)  
+<a id="9-maintenance--troubleshooting"></a>
+
+# 9. Maintenance & Troubleshooting
+
+Optional section. Add:
+- Status LED meanings
+- Reset methods
+- Common issues (no comms, relay won’t trigger, etc.)
 
 ---
 
-## Modbus RTU Mapping  
-**Discrete Inputs (FC=02):**  
-- 1–4 → DI states  
-- 60–62 → Relay states  
-- 90–92 → LED states  
+<a id="10-open-source--licensing"></a>
 
-**Coils (FC=05/15):**  
-- 200–202 → Relay ON  
-- 210–212 → Relay OFF  
-- 300–303 → Enable DI  
-- 320–323 → Disable DI  
+# 10. Open Source & Licensing
+
+- **Hardware:** CERN-OHL-W v2
+- **Firmware:** GPLv3
+- **Config Tools:** MIT or other as applicable
 
 ---
 
-## Save/Load/Factory/Reset  
-- Auto-save after 1.5s idle  
-- Web commands:  
-  - `save` → force save  
-  - `load` → reload config  
-  - `factory` → reset defaults  
-  - `reset` → save + reboot  
+<a id="11-downloads"></a>
+
+# 11. Downloads
+
+Include links to:
+
+- Firmware binaries
+- YAML configs
+- WebConfig tool
+- Schematics (PDF)
+- Images and diagrams
+- Datasheets
 
 ---
 
-## Persistence (LittleFS) Details  
-- Config stored in `/cfg.bin` with header + CRC  
-- If invalid: reset → defaults → save → retry  
-- Logged via Web Serial  
+<a id="12-support"></a>
 
----
+# 12. Support
 
-## Quick Recipes  
-- Maintained switch toggles Relay 1 → INx: Toggle, Target=Relay1  
-- Push-button toggles Relay 2 → INx: Pulse, Target=Relay2  
-- Button 3 toggles Relay 3 → Override Relay 3  
-- LED blinks when Relay 2 ON → LED Mode=Blink, Source=Relay2  
-- Force Relay 1 ON → Coil 200=TRUE  
+- [Official Support Portal](https://www.home-master.eu/support)
+- [WebConfig Tool](https://www.home-master.eu/configtool-[module-code])
+- [YouTube](https://youtube.com/@HomeMaster)
+- [Hackster](https://hackster.io/homemaster)
+- [Reddit](https://reddit.com/r/HomeMaster)
+- [Instagram](https://instagram.com/home_master.eu)
 
----
-
-## Troubleshooting  
-- **Save failed:** check LittleFS partition in Arduino IDE  
-- **Not detected:** Chrome/Edge/Opera, reconnect  
-- **No Modbus:** check address/baud, A/B wiring  
-- **Relays not switching:** ensure enabled, check inversion  
-- **DI/Buttons not reacting:** confirm enabled + edge logic  
-
----
-
-## Build & Flash Notes  
-- MCU: RP2350A  
-- Arduino IDE / PlatformIO supported  
-- Must enable **LittleFS partition**  
-- Flash via USB-C (UF2 drag-drop) or bootloader  
-- Required libs: `ModbusSerial`, `SimpleWebSerial`, `Arduino_JSON`  
-
----
-
-## Appendix — Persisted Struct & CRC  
-
-```c
-typedef struct __attribute__((packed)) {
-  uint32_t magic;       // 0x314D4C41 ('ALM1')
-  uint16_t version;     // 0x0007
-  uint16_t size;        // sizeof(PersistConfig)
-  InCfg    diCfg[4];
-  RlyCfg   rlyCfg[3];
-  LedCfg   ledCfg[3];
-  BtnCfg   btnCfg[3];
-  bool     desiredRelay[3];
-  uint8_t  mb_address;
-  uint32_t mb_baud;
-  uint32_t crc32;       // CRC32 of struct with this field = 0
-} PersistConfig;
-
-
-## 🛠 Open Source & Re-Programming  
-- Reprogrammable in Arduino, PlatformIO, MicroPython  
-- Firmware and hardware: **Open Source**  
-
----
-
-## 📄 License  
-- **Hardware:** CERN-OHL-W 2.0  
-- **Firmware:** GNU GPLv3  
-
----
-
-> 🔧 **HOMEMASTER – Modular control. Custom logic.**
