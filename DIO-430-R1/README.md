@@ -465,41 +465,89 @@ For **Relay 1–3**:
 
 <a id="5-module-code--technical-specification"></a>
 
-# 5. MODULE-CODE — Technical Specification
+# 5. DIO-430-R1 — Technical Specification
 
 ## 5.1 Diagrams & Pinouts
 
-Add photos/diagrams:
-- System block diagram
-- Board layouts
-- Terminal maps
+> System overview, MCU pin map, and board callouts.
+
+- **System block diagram**  
+  ![System Block](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/DIO_SystemBlockDiagram.png)
+
+- **MCU / Control board callouts**  
+  ![Control Board](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/ControlBoard_Diagram.png)
+
+- **Relay / Field board callouts**  
+  ![Relay Board](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/RelayBoard_Diagram.png)
+
+- **RP2350A pin map (module signals)**  
+  ![MCU Pinouts](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/DIO_MCU_Pinouts.png)
+
+---
 
 ## 5.2 I/O Summary
 
-Summarize in a table:
-
 | Interface | Qty | Description |
-|-----------|-----|-------------|
-| Inputs |   | Opto-isolated |
-| Relays |   | SPST/SPDT |
-| LEDs |   | Status indication |
-| USB-C | 1 | Setup only |
+|-----------|----:|-------------|
+| **Digital Inputs** | 4 | Opto-isolated (ISO1212), protected with PTC + TVS; field ground isolated from logic ground.  |
+| **Relays** | 3 | SPDT (NO/NC/COM), opto-isolated drive (SFH6156). Typical application up to **16 A** per README.  |
+| **User LEDs** | 3 | Configurable: **Steady/Blink**, follow relay sources.  |
+| **Buttons** | 3 | Local override / user input, mapped in WebConfig.  |
+| **RS-485 (Modbus RTU)** | 1 | MAX485 transceiver, A/B/COM terminals with port fuses + TVS.  |
+| **USB-C** | 1 | Setup & diagnostics over Web Serial (Chrome/Edge); ESD protected.  |
+| **Power (24 VDC)** | 1 | Panel-fused 24 VDC input, reverse-polarity MOSFET + TVS; on-board 24→5 V buck and 3.3 V LDO.  |
+
+> Module topology and counts are also shown in the project README and board schematics. 
+
+---
 
 ## 5.3 Electrical Specs
 
-Cover:
-- Input voltage range
-- Current consumption
-- Sensor rail current
-- Relay contact ratings
-- Isolation details
+> Values below reflect the hardware design shown in the schematics; always follow local wiring rules.
+
+**Input power**
+- **Nominal:** 24 VDC (SELV/PELV). Input stage: panel fuse, reverse-polarity MOSFET (DMP3013), Schottky, bulk/decoupling, **TVS SMBJ33A**. 24 V → **5 V buck (AP64501)** → **3.3 V LDO (AMS1117-3.3)**.   
+- **Budgeting:** size PSU for base logic **+ three relay coils** **+ sensor currents**, then add ≥30 % headroom (engineering guideline).
+
+**Current consumption**
+- Depends on relay duty and sensor rails. Plan for worst-case with **all three coils energized**, plus controller/LED draw. (See 5.2 and relay data.) 
+
+**Sensor / DI field side**
+- Each DI channel includes **PTC resettable fuse (1206L016)** and **SMBJ26CA TVS** at the field side; receiver is **ISO1212** (galvanic isolation from logic).   
+- Intended for dry contacts or 24 V field signaling; not a power rail.
+
+**Relay outputs**
+- 3× **SPDT** relays (HF115F/005-1ZS3 coil). Use for low-voltage loads or to drive **interposing contactors** for motors/pumps. External **RC/MOV snubber** recommended for inductive loads. **Project README lists up to 16 A** per relay (application-dependent). 
+
+**RS-485 interface**
+- **MAX485** transceiver with series protection: input fuses, **SMAJ6.8CA TVS**, bias/termination network brought out to terminals **A/B/COM**. Daisy-chain with **120 Ω** end terminations. 
+
+**USB-C**
+- Type-C receptacle with **PRTR5V0U2X** ESD, proper CC resistors (5.1 k), common-mode chokes/series resistors on D±. For commissioning/config only. 
+
+**Isolation summary**
+- **DI → Logic:** galvanically isolated via **ISO1212**.  
+- **Relay drive → Contacts:** LED/phototransistor optocouplers **SFH6156**.  
+- **RS-485 and USB:** not isolated from logic; protected with TVS/ESD devices. 
+
+---
 
 ## 5.4 Firmware Behavior
 
-Explain:
-- Alarm logic (latched/momentary)
-- Override priority
-- LED feedback modes
+**Input → Relay logic**
+- Each DI can be **Enabled/Disabled**, **Inverted**, and set to an **Action**: `None`, `Toggle` (latched), or `Pulse` (momentary).  
+- **Control target:** `None`, a specific relay (`R1–R3`), or **All** relays for group control. 
+
+**Alarm / latching semantics**
+- **Toggle** acts as a **latched** control (next event flips state).  
+- **Pulse** performs **momentary** activation (duration handled by firmware/PLC depending on setup). 
+
+**Override priority**
+- **Buttons (3)** can be mapped as **Relay override (toggle)** for `R1/R2/R3`. Manual button toggles always apply locally; a controller can still command relays via Modbus. 
+
+**LED feedback**
+- **User LEDs (3)** support `Steady` or `Blink` when a chosen **source relay** is active (visual status).  
+- **Relay LEDs** indicate coil state for R1–R3. 
 
 ---
 
