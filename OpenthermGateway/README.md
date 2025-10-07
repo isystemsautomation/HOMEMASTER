@@ -291,51 +291,96 @@ Once uploaded, the above entities will automatically appear in Home Assistant if
 
 ## 🧷 Connection Diagrams – Homemaster OpenTherm Gateway
 
-Below are reference diagrams for connecting **power**, **relay**, **sensors**, and **OpenTherm signals** to your Homemaster OpenTherm Gateway.
+Below are reference diagrams and safety notes for connecting **power**, **OpenTherm bus**, **1-Wire sensors**, and **relay outputs** to your Homemaster OpenTherm Gateway.
 
 ---
 
-### 🔌 1. Power Supply – 24 VDC
+### ⚠️ Safety First
 
-Connect a **24 VDC** power supply to the terminals marked `+V` and `0V`.
+> ⚠️ **IMPORTANT SAFETY INFORMATION**
+>
+> - Disconnect all power before installation or wiring changes.
+> - Use proper insulation and terminals when working with **230 VAC** mains voltage.
+> - Use appropriately rated **fuses or circuit breakers** (e.g., **C10**, **1206L150**) as shown in schematics.
+> - The device contains opto-isolated and ESD-protected interfaces for safe signal connections.
+> - Always refer to your **boiler's OpenTherm specification** before wiring the OT bus.
+
+---
+
+### 🔌 Power Supply Options
+
+You can power the device using either:
+
+#### 🔋 1. 24 VDC Low Voltage Power
+
+Connect a **24 VDC power supply** to the `+V` and `0V` terminals. Internal protections (diodes, fuses, MOV) are included.
 
 ![24VDC Connection](./OpenTherm_24Vdc.png)
 
 ---
 
-### ⚡ 2. Power Supply – 230 VAC
+#### ⚡ 2. 230 VAC Mains Power
 
-Connect **220–240 VAC** mains to `L` (Live) and `N` (Neutral).  
-Use a **fuse (e.g., C10)** for protection.
+If using mains voltage, connect **L** (Live) and **N** (Neutral) to the terminal block.
+
+> ✅ Internally, the relay board includes:
+> - **MOV** for surge protection (RV1 07D431K)
+> - **Diodes** (STPS340U, SMBJ33A) for rectification and clamping
+> - **Fuse** (F1/F2) and polyfuse (F12 1206L150) for overcurrent protection
 
 ![230VAC Connection](./OpenTherm_230Vac.png)
 
 ---
 
-### 🔁 3. Relay Output (Normally Closed Example)
+### 🔁 Relay Output (Dry Contact)
 
-Example of using the **relay output** to switch a load (e.g., pump, zone valve, lamp).
+The relay output is **optically isolated** (via PC817 and S8050 driver stage) and capable of switching **AC or DC loads** up to 16A.  
+Use it to control zone valves, pumps, or backup heating.
 
 ![Relay Connection](./OpenTherm_RelayConnection.png)
 
 ---
 
-### 🌡️ 4. 1‑Wire Sensors (DS18B20)
+### 🌡️ 1-Wire Sensor Connections
 
-Wire multiple **DS18B20** sensors to the two isolated **1‑Wire** buses.  
-Sensors can use **parasitic power** or **separate VCC**.
+Two independent **1-Wire buses** are available, each with:
+- ESD protection (DS9503)
+- Series resistor + clamping diodes
+- Separate power lines (`1-WIRE1`, `1-WIRE2`) and 3.3V rail
+
+You can connect **DS18B20** sensors using parasitic or powered mode.
 
 ![1-Wire Connection](./OpenTherm_1WireConnection.png)
 
 ---
 
-### 🔄 5. OpenTherm Bus
+### 🔄 OpenTherm Bus Wiring
 
-Connect the boiler’s OpenTherm pair to **`O+`** and **`O−`**.
+Connect your **OpenTherm boiler** to the `OT+` and `OT−` terminals.
+
+> 💡 These lines are optically isolated and buffered using:
+> - BAV99S protection diodes
+> - OpenTherm transceivers and opto-isolators (e.g., PC817)
+> - Pull-ups and current-limiting resistors
 
 ![OpenTherm Bus](./OpenTherm_OTConnection.png)
 
 ---
+
+### ✅ Recommended Wire Sizes
+
+| Function       | Recommended Wire Gauge |
+|----------------|-------------------------|
+| Power (24 VDC) | 0.5–1.0 mm²             |
+| Power (230 VAC) | 1.0–1.5 mm²             |
+| Relay Output   | 1.0–1.5 mm²             |
+| 1-Wire Sensors | 0.22–0.5 mm² (shielded if long) |
+| OpenTherm Bus  | 0.22–0.5 mm² twisted pair |
+
+---
+
+> 📘 **Tip**: Always follow **local electrical code** and **boiler manufacturer guidelines** when wiring heating systems.
+
 
 > 💡 **Notes**
 > - Verify polarity and follow **electrical safety standards** at all times.
