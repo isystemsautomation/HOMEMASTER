@@ -289,6 +289,59 @@ When flashed with ESPHome, the Opentherm Gateway exposes the following entities 
   
 Once uploaded, the above entities will automatically appear in Home Assistant if OpenTherm communication is working correctly.
 
+## 🧷 Connection Diagrams – Homemaster OpenTherm Gateway
+
+Below are reference diagrams for connecting **power**, **relay**, **sensors**, and **OpenTherm signals** to your Homemaster OpenTherm Gateway.
+
+---
+
+### 🔌 1. Power Supply – 24 VDC
+
+Connect a **24 VDC** power supply to the terminals marked `+V` and `0V`.
+
+![24VDC Connection](./OpenTherm_24Vdc.png)
+
+---
+
+### ⚡ 2. Power Supply – 230 VAC
+
+Connect **220–240 VAC** mains to `L` (Live) and `N` (Neutral).  
+Use a **fuse (e.g., C10)** for protection.
+
+![230VAC Connection](./OpenTherm_230Vac.png)
+
+---
+
+### 🔁 3. Relay Output (Normally Closed Example)
+
+Example of using the **relay output** to switch a load (e.g., pump, zone valve, lamp).
+
+![Relay Connection](./OpenTherm_RelayConnection.png)
+
+---
+
+### 🌡️ 4. 1‑Wire Sensors (DS18B20)
+
+Wire multiple **DS18B20** sensors to the two isolated **1‑Wire** buses.  
+Sensors can use **parasitic power** or **separate VCC**.
+
+![1-Wire Connection](./OpenTherm_1WireConnection.png)
+
+---
+
+### 🔄 5. OpenTherm Bus
+
+Connect the boiler’s OpenTherm pair to **`O+`** and **`O−`**.
+
+![OpenTherm Bus](./OpenTherm_OTConnection.png)
+
+---
+
+> 💡 **Notes**
+> - Verify polarity and follow **electrical safety standards** at all times.
+> - Telemetry and control features depend on your **boiler’s OpenTherm support**. Check the boiler manual for details.
+
+
 ## 📚 Resources
 
 - 💾 [GitHub Repository](https://github.com/isystemsautomation/HOMEMASTER/tree/main/OpenthermGateway)
