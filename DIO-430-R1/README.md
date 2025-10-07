@@ -147,9 +147,12 @@ Lights and irrigation are controlled via digital inputs or remotely from a PLC.
 
 These guidelines apply to the DIO-430-R1 I/O module. Ignoring them may result in equipment damage, system failure, or personal injury.
 
-> ⚠️ **SELV Domains Only**  
-> This device uses **SELV/PELV** domains (e.g., 24 V DC, RS-485, USB). **Do not** connect any mains voltage to any terminal.  
-> Respect isolation: never bridge logic GND with isolated field grounds (e.g., GND_ISO/FGND).
+> ⚠️ **SELV/PELV Domains Only**
+>
+> - The **DIO-430-R1** operates entirely within **SELV/PELV** low-voltage domains (e.g., **24 V DC**, **RS-485**, **USB 5 V**).  
+> - **Do not** connect mains voltage to **any** terminal. Use interposing contactors/PSUs for mains loads.  
+> - **Respect isolation boundaries:** never bridge logic **GND** with isolated field grounds (e.g., **GND_ISO / FGND**).  
+> - Connect sensor returns only to the **isolated field ground**; connect RS-485 **COM/GND** only within the same SELV domain.
 
 ---
 
@@ -347,11 +350,60 @@ Use diagrams and explain:
 
 ## 4.5 Software & UI Configuration
 
-Cover:
-- WebConfig setup (address, baud)
-- Input enable/invert/group
-- Relay logic mode (group/manual)
-- LED and Button mapping
+Use the **WebConfig** page (USB-C + Chrome/Edge) to set Modbus comms and map I/O. Changes apply immediately and are saved to flash. 
+
+> Screens shown below are from the DIO-430-R1 WebConfig. 
+
+![WebConfig — Header & Modbus](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/webconfig1.png)
+
+### A) WebConfig setup (Address & Baud)
+1. Connect the module via **USB-C** → open the WebConfig page → click **Connect**.   
+2. In **Modbus Address**, choose **1–255** (factory default **3**).  
+3. In **Baud Rate**, select **9600–115200** (factory default **19200 8N1**).  
+4. Confirm the **Active Modbus Configuration** banner updates (Address/Baud). 
+
+> Default values (Addr **3**, **19200 8N1**) are also noted in the module docs. 
+
+---
+
+![WebConfig — Digital Inputs](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/webconfig2.png)
+
+### B) Inputs — enable / invert / group (control target)
+Each **IN1…IN4** card provides:
+- **Enabled**: include the input in logic.  
+- **Inverted**: logical inversion.  
+- **Action**: `None / Toggle / Pulse`.  
+- **Control target**: `None / Control all / Relay 1 / Relay 2 / Relay 3`.  
+
+This matches the firmware’s input options and allows direct mapping from inputs to one or more relays without a PLC. 
+
+**Tips**
+- Use **Toggle** to latch a relay on each press; **Pulse** for momentary actions (timers handled by controller if needed).   
+- For “group” behavior, select **Control all** to operate **Relays 1–3** together. 
+
+---
+
+![WebConfig — Relays, Buttons, LEDs](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/webconfig3.png)
+
+### C) Relays — logic mode (group/manual)
+For **Relay 1–3**:
+- **Enabled**: relay is controllable.  
+- **Inverted**: invert drive polarity (use only if required by wiring). 
+
+**Logic modes in practice**
+- **Group control**: Achieve via Input **Control target = Control all** (see Inputs section).  
+- **Manual / local override**: Assign **Buttons** (below) to toggle a specific relay even when the PLC also controls it. 
+
+---
+
+### D) LED and Button mapping
+
+**Buttons (3)**  
+- **Action**: choose `None` or **Relay override (toggle)** for Relay 1/2/3. This provides local/manual control without a PLC. 
+
+**User LEDs (3)**  
+- **Mode**: `Steady` or `Blink` (active when source is ON).  
+- **Activate when**: select the source relay to follow (e.g., LED1 foll
 
 <a id="4-6-getting-started"></a>
 
