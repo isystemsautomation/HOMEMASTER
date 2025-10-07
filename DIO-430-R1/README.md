@@ -145,84 +145,107 @@ Lights and irrigation are controlled via digital inputs or remotely from a PLC.
 
 # 3. Safety Information
 
+These guidelines apply to the DIO-430-R1 I/O module. Ignoring them may result in equipment damage, system failure, or personal injury.
+
+> ⚠️ **SELV Domains Only**  
+> This device uses **SELV/PELV** domains (e.g., 24 V DC, RS-485, USB). **Do not** connect any mains voltage to any terminal.  
+> Respect isolation: never bridge logic GND with isolated field grounds (e.g., GND_ISO/FGND).
+
+---
+
 ## 3.1 General Requirements
 
 | Requirement          | Detail |
 |---------------------|--------|
-| Qualified Personnel | Required for all installation tasks |
-| Power Isolation     | Disconnect **24 VDC** supply before wiring terminals |
-| Rated Voltages Only | SELV/PELV only; **no mains** on any terminal |
-| Grounding           | Proper panel PE bonding; keep RS‑485 **COM/GND** common with controller |
-| Enclosure           | Mount in a clean, dry DIN cabinet; avoid dust, moisture, and corrosives |
-
-> Notes: The module includes front‑end protection (fuses/TVS) and isolated input stages, but these do **not** replace safe installation practices. See relay/DI/RS‑485 protection in the schematics.
+| Qualified Personnel | Installation and servicing must be done by qualified personnel familiar with 24 V control systems and RS-485. |
+| Power Isolation     | Disconnect the **24 V DC** input before wiring. Lockout/tagout where applicable. |
+| Environmental Limits| Mount in a clean, sealed enclosure; avoid condensation, conductive dust, or vibration. |
+| Grounding           | Bond the panel to PE. Keep RS-485 COM/GND shared with the controller side. |
+| Voltage Compliance  | **SELV only** on all terminals. Follow relay contact ratings on the product label/datasheet. Use upstream fusing and surge protection. |
 
 ---
 
 ## 3.2 Installation Practices
 
-- **DIN mounting**
-  - Mount on 35 mm DIN rail inside an electrical cabinet.
-  - Route **power**, **I/O**, and **RS‑485** as separate harnesses to reduce noise coupling.
-- **Isolation domains**
-  - Respect isolated input domains: the DI front‑end uses isolation (e.g., ISO1212 with **GND1/FGND2** rails). Do **not** bond isolated grounds together unless the application specifically requires it. Keep sensor field grounds on the **field side** of the isolator.
-- **Relay wiring**
-  - Use relays to drive **low‑voltage loads or contactor coils**. For inductive loads (motors, valves, sirens), provide external snubbers (RC or MOV) at the load. Observe NO/COM/NC polarity and keep wiring short.
-- **Sensor power connection**
-  - Power sensors from a properly fused SELV rail. Follow sensor datasheets for polarity. Use twisted pairs and shielded cable for long runs; land shields at a single point to avoid ground loops.
-
----
-
-## 3.3 Interface Warnings
-
-### Power
-
-| Item             | Guidance |
-|------------------|----------|
-| Nominal Input    | **24 VDC SELV/PELV**, panel‑fused upstream |
-| Protection Onboard | Series fuse, reverse‑polarity MOSFET, input TVS, bulk and decoupling capacitors |
-| Wiring           | Keep 24 V and GND pairs twisted; star‑route returns; avoid sharing returns with high‑current loads |
-| Inrush/Surge     | Use a stable 24 VDC PSU; add upstream surge protection in noisy sites |
-
-### Inputs (Digital)
-
-| Item          | Guidance |
-|---------------|----------|
-| Electrical    | Isolated digital inputs via opto‑isolated receivers; field domain separate from logic domain |
-| Type          | Dry contact or compatible 24 V signaling (follow your wiring standard) |
-| Polarity/Invert | Inputs are configurable (enable/invert/action) in WebConfig |
-| Noise         | Use shielded cable for long runs; debounce is handled in firmware, but avoid very noisy sources |
-| Isolation     | Do **not** tie field ground to logic ground; keep per‑domain returns intact |
-
-### Relays (Outputs)
-
-| Item              | Guidance |
+| Task              | Guidance |
 |-------------------|----------|
-| Contact Type      | SPDT (NO/NC/COM) |
-| Load Type         | Resistive or inductive; **use external snubbers** (RC/MOV) for inductive loads |
-| Application       | Prefer driving **interposing relays/ contactors** for motors/pumps or mains circuits |
-| Wiring            | Keep load and control wiring separated; use appropriately rated conductors and terminals |
-| Safety            | De‑energize before servicing; confirm contact state after wiring and at commissioning |
-
-### RS‑485 (Modbus RTU)
-
-| Item             | Guidance |
-|------------------|----------|
-| Bus Termination  | 120 Ω at **both** physical ends of the RS‑485 trunk |
-| Polarity         | Maintain **A/B** polarity consistently; connect **COM/GND** reference between nodes |
-| Cabling          | Use twisted pair (shielded in noisy environments); daisy‑chain topology (no stubs) |
-| Protection       | The port includes fusing and TVS; still route away from high‑power cabling and contactors |
-
-### USB‑C
-
-| Item        | Guidance |
-|-------------|----------|
-| Purpose     | **Setup/maintenance only** (WebConfig / firmware); not for powering field devices |
-| ESD         | Protected on‑board; still avoid hot‑plugging in high‑EMI environments |
-| Host        | Use a PC with Chrome/Edge; ensure a reliable chassis ground while connected |
+| ESD Protection    | Handle by the enclosure/edge only. Use an antistatic wrist strap when the board is exposed. |
+| DIN Rail Mounting | Mount securely on **35 mm DIN** rail inside an IP-rated cabinet. Leave cable slack for strain relief. |
+| Wiring            | Use correct wire gauge and torque terminal screws. Separate **power**, **DI**, **relay**, and **RS-485** harnesses. |
+| Isolation Domains | Respect isolation: **do not bridge** logic **GND** to isolated field grounds (e.g., **GND_ISO/FGND**). Keep analog/sensor returns on the isolated side. |
+| Commissioning     | Before power-up, verify polarity, relay NO/NC routing, RS-485 **A/B** orientation and termination. |
 
 ---
 
+## 3.3 I/O & Interface Warnings
+
+### 🔌 Power
+
+| Area         | Warning |
+|--------------|---------|
+| 24 V DC Input| Use a clean, fused SELV supply. Reverse-polarity protection exists but may disable the module when triggered. |
+| Sensor Rail  | Power sensors from a SELV rail. Observe polarity. Fuse external branches as required. |
+| Surge/Noise  | In noisy panels, add upstream surge/EMI suppression and keep high-current wiring away from control wiring. |
+
+### ⏽ Inputs (Digital)
+
+| Area        | Warning |
+|-------------|---------|
+| Type        | **Dry contact / 24 V signaling only**, per your standard. Do not inject mains or undefined levels. |
+| Isolation   | Inputs are isolated from logic. Keep sensor returns on the **field/isolated** domain; do not bond to logic GND. |
+| Debounce    | Firmware provides debounce, but route away from contactors/VFDs and use shielded/twisted pairs for long runs. |
+| Polarity    | Configure invert/action in WebConfig; verify state transitions after wiring. |
+
+### ⚙️ Relays (Outputs)
+
+| Area           | Warning |
+|----------------|---------|
+| Contact Type   | **SPDT (NO/NC/COM)** dry contacts. Follow the contact rating on the device label/datasheet. |
+| Inductive Loads| For motors/solenoids/contactors, add an **RC snubber or MOV** at the load. Consider interposing relays/ contactors for higher power. |
+| Separation     | Keep relay load wiring physically separate from signal wiring. De-energize before servicing. |
+| Verification   | After wiring, verify NO/NC behavior and load polarity before enabling automation. |
+
+### 🖧 RS-485 (Modbus RTU)
+
+| Area          | Warning |
+|---------------|---------|
+| Topology      | Use twisted pair; **daisy-chain** (no stubs). Terminate with **120 Ω** at both physical ends. |
+| Polarity      | Maintain **A/B** polarity consistently. Share **COM/GND** reference between nodes (same SELV domain). |
+| EMC           | Route away from VFDs, contactors, and mains bundles. Use shielded cable in high-EMI environments. |
+| Protection    | Port includes protection, but good wiring practice is still required to avoid transients. |
+
+### 🔌 USB-C (Front / Setup)
+
+| Area     | Warning |
+|----------|---------|
+| Purpose  | **Setup & maintenance only** (WebConfig / firmware). Not intended for powering field devices. |
+| ESD/EMI  | Avoid hot-plugging in high-EMI areas. Use a grounded service laptop. Disconnect after commissioning. |
+
+### 🔆 Front Panel (Buttons & LEDs)
+
+| Area          | Warning |
+|---------------|---------|
+| Buttons & LEDs| Buttons can override relays; document operating procedures. Lock out overrides for safety-critical installs. |
+
+### 🛡️ Shielding & EMC
+
+| Area        | Recommendation |
+|-------------|----------------|
+| Cable Shields| Terminate shields at **one end** (typically the PLC/controller). Keep runs short and away from high-voltage/EMI sources. |
+
+---
+
+## ✅ Pre-Power Checklist
+
+- [ ] All wiring is torqued, labeled, and strain-relieved  
+- [ ] **No bridge** between logic **GND** and isolated **GND_ISO/FGND**  
+- [ ] Panel PE is bonded; SELV supply negative and COM/GND are properly landed  
+- [ ] RS-485 **A/B** polarity and **120 Ω** termination confirmed at bus ends  
+- [ ] Relay loads do **not** exceed the contact rating; snubbers added for inductive loads  
+- [ ] Inputs wired to **dry contact/SELV** only; sensor polarity and returns verified  
+- [ ] USB-C used only for configuration; disconnected for normal operation
+
+---
 
 <a id="4-installation-quick-start"></a>
 
