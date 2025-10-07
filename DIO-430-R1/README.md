@@ -489,65 +489,72 @@ For **Relay 1–3**:
 
 | Interface | Qty | Description |
 |-----------|----:|-------------|
-| **Digital Inputs** | 4 | Opto-isolated (ISO1212), protected with PTC + TVS; field ground isolated from logic ground.  |
-| **Relays** | 3 | SPDT (NO/NC/COM), opto-isolated drive (SFH6156). Typical application up to **16 A** per README.  |
-| **User LEDs** | 3 | Configurable: **Steady/Blink**, follow relay sources.  |
-| **Buttons** | 3 | Local override / user input, mapped in WebConfig.  |
-| **RS-485 (Modbus RTU)** | 1 | MAX485 transceiver, A/B/COM terminals with port fuses + TVS.  |
-| **USB-C** | 1 | Setup & diagnostics over Web Serial (Chrome/Edge); ESD protected.  |
-| **Power (24 VDC)** | 1 | Panel-fused 24 VDC input, reverse-polarity MOSFET + TVS; on-board 24→5 V buck and 3.3 V LDO.  |
-
-> Module topology and counts are also shown in the project README and board schematics. 
+| **Digital Inputs** | 4 | Opto-isolated (ISO1212), field side protected with PTC + TVS; field ground is isolated from logic ground. |
+| **Relays** | 3 | **SPDT** (NO/NC/COM), opto-isolated drive; recommended for LV loads or as drivers for interposing contactors. Use RC/MOV snubbers for inductive loads. |
+| **User LEDs** | 3 | **Mode in UI:** `Steady` or `Blink`; LEDs follow the module’s internal per-relay mapping in the current WebConfig build. |
+| **Buttons** | 3 | Local/manual control: `None` or **Relay override (toggle)** for R1/R2/R3. |
+| **RS-485 (Modbus RTU)** | 1 | MAX485 transceiver; terminals **A/B/COM**; designed for daisy-chain with 120 Ω bus-end termination. |
+| **USB-C** | 1 | Web Serial setup/diagnostics (Chrome/Edge). Not for powering field devices. |
+| **Power (24 VDC)** | 1 | Panel-fused 24 V input with reverse-polarity MOSFET + TVS; on-board 24→5 V buck and 3.3 V LDO. |
 
 ---
 
 ## 5.3 Electrical Specs
 
-> Values below reflect the hardware design shown in the schematics; always follow local wiring rules.
-
 **Input power**
-- **Nominal:** 24 VDC (SELV/PELV). Input stage: panel fuse, reverse-polarity MOSFET (DMP3013), Schottky, bulk/decoupling, **TVS SMBJ33A**. 24 V → **5 V buck (AP64501)** → **3.3 V LDO (AMS1117-3.3)**.   
-- **Budgeting:** size PSU for base logic **+ three relay coils** **+ sensor currents**, then add ≥30 % headroom (engineering guideline).
+- **Nominal:** 24 VDC (SELV/PELV)
+- **Regulation chain:** 24 V → 5 V buck (AP64501) → 3.3 V LDO (AMS1117-3.3)
+- **Protection:** input fuse (panel), reverse-polarity MOSFET, Schottky diode, TVS, bulk + local decoupling
 
-**Current consumption**
-- Depends on relay duty and sensor rails. Plan for worst-case with **all three coils energized**, plus controller/LED draw. (See 5.2 and relay data.) 
+**Current budgeting (guideline)**
+- Base logic + LEDs  
+- Up to **3 relay coils energized simultaneously**  
+- Any sensor loads sourced from the same 24 V panel rail  
+- Size PSU with **≥30 % headroom** over worst-case
 
-**Sensor / DI field side**
-- Each DI channel includes **PTC resettable fuse (1206L016)** and **SMBJ26CA TVS** at the field side; receiver is **ISO1212** (galvanic isolation from logic).   
-- Intended for dry contacts or 24 V field signaling; not a power rail.
+**Digital inputs (field side)**
+- Each DI: PTC resettable fuse + TVS on field wiring
+- Isolation via ISO1212; use field **INx/GNDx** returns (do **not** bond to logic GND)
 
 **Relay outputs**
-- 3× **SPDT** relays (HF115F/005-1ZS3 coil). Use for low-voltage loads or to drive **interposing contactors** for motors/pumps. External **RC/MOV snubber** recommended for inductive loads. **Project README lists up to 16 A** per relay (application-dependent). 
+- 3× **SPDT** contacts (NO/NC/COM)
+- Application example rating: up to **16 A** per relay (load & environment dependent)
+- For motors/pumps or other inductive loads: use **RC/MOV snubber** and/or **interposing contactor**
 
-**RS-485 interface**
-- **MAX485** transceiver with series protection: input fuses, **SMAJ6.8CA TVS**, bias/termination network brought out to terminals **A/B/COM**. Daisy-chain with **120 Ω** end terminations. 
+**RS-485**
+- MAX485 transceiver, A/B/COM terminals
+- Twisted pair (shielded recommended), **120 Ω** termination at both physical bus ends
+- Share **COM/GND** reference with the controller
 
 **USB-C**
-- Type-C receptacle with **PRTR5V0U2X** ESD, proper CC resistors (5.1 k), common-mode chokes/series resistors on D±. For commissioning/config only. 
+- Type-C receptacle with ESD protection and CC resistors
+- Purpose: commissioning (WebConfig) and diagnostics only
 
 **Isolation summary**
-- **DI → Logic:** galvanically isolated via **ISO1212**.  
-- **Relay drive → Contacts:** LED/phototransistor optocouplers **SFH6156**.  
-- **RS-485 and USB:** not isolated from logic; protected with TVS/ESD devices. 
+- **DI ↔ Logic:** galvanically isolated (ISO1212)
+- **Relay drive ↔ Contacts:** optocouplers (SFH6156)
+- **RS-485 & USB:** not isolated from logic; ESD/TVS protected
 
 ---
 
 ## 5.4 Firmware Behavior
 
-**Input → Relay logic**
-- Each DI can be **Enabled/Disabled**, **Inverted**, and set to an **Action**: `None`, `Toggle` (latched), or `Pulse` (momentary).  
-- **Control target:** `None`, a specific relay (`R1–R3`), or **All** relays for group control. 
+**Defaults**
+- **Modbus:** Address **3**, **19200 8N1**
 
-**Alarm / latching semantics**
-- **Toggle** acts as a **latched** control (next event flips state).  
-- **Pulse** performs **momentary** activation (duration handled by firmware/PLC depending on setup). 
+**Digital inputs → relay control**
+- Per input (IN1…IN4) you can set **Enabled**, **Inverted**, **Action**, **Control target**
+- **Action codes:** `0=None`, `1=Toggle` (**latched**), `2=Pulse` (**momentary**)
+- **Target codes:** `4=None`, `0=Control all`, `1=Relay1`, `2=Relay2`, `3=Relay3`
 
-**Override priority**
-- **Buttons (3)** can be mapped as **Relay override (toggle)** for `R1/R2/R3`. Manual button toggles always apply locally; a controller can still command relays via Modbus. 
+**Local overrides (Buttons)**
+- Button actions: `0=None`, `5=Relay1 override (toggle)`, `6=Relay2 override (toggle)`, `7=Relay3 override (toggle)`
+- Button toggles apply locally and coexist with Modbus control from the master
 
 **LED feedback**
-- **User LEDs (3)** support `Steady` or `Blink` when a chosen **source relay** is active (visual status).  
-- **Relay LEDs** indicate coil state for R1–R3. 
+- **User LEDs:** UI exposes **Mode** only — `Steady` or `Blink`
+- LEDs follow the module’s internal per-relay mapping in the current WebConfig build
+- **Relay LEDs:** indicate coil/relay state
 
 ---
 
