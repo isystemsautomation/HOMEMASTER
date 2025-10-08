@@ -358,7 +358,7 @@ Wire the regulated **24 VDC** supply to the top POWER terminals: **V+** and **0V
 
 ### B) Digital Inputs (DI1…DI4)
 
-Each input is **opto-isolated**. Land the contact/sensor on **INx** with the paired **GNDx** return.
+Each input is **isolated**. Land the contact/sensor on **INx** with the paired **GNDx** return.
 
 ![Digital inputs](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/DIO_DIInputs.png)
 
@@ -549,76 +549,105 @@ For **Relay 1–3**:
 
 ## 5.2 I/O Summary
 
-| Interface | Qty | Description |
-|-----------|----:|-------------|
-| **Digital Inputs** | 4 | Opto-isolated (ISO1212), field side protected with PTC + TVS; field ground is isolated from logic ground. |
-| **Relays** | 3 | **SPDT** (NO/NC/COM), opto-isolated drive; recommended for LV loads or as drivers for interposing contactors. Use RC/MOV snubbers for inductive loads. |
-| **User LEDs** | 3 | **Mode in UI:** `Steady` or `Blink`; LEDs follow the module’s internal per-relay mapping in the current WebConfig build. |
-| **Buttons** | 3 | Local/manual control: `None` or **Relay override (toggle)** for R1/R2/R3. |
-| **RS-485 (Modbus RTU)** | 1 | MAX485 transceiver; terminals **A/B/COM**; designed for daisy-chain with 120 Ω bus-end termination. |
-| **USB-C** | 1 | Web Serial setup/diagnostics (Chrome/Edge). Not for powering field devices. |
-| **Power (24 VDC)** | 1 | Panel-fused 24 V input with reverse-polarity MOSFET + TVS; on-board 24→5 V buck and 3.3 V LDO. |
+| Interface            | Qty | Description |
+|----------------------|----:|-------------|
+| **Digital Inputs**   | 4   | **Galvanically isolated** DI front-end (ISO1212-class receiver). Per-channel PTC + TVS. Supports dry contacts or 24 V field signalling. |
+| **Relay Outputs**    | 3   | **SPDT** dry contacts (**NO/C/NC**), opto-driven coil; suitable for LV loads or to drive **interposing contactors** for mains/inductive loads. |
+| **User LEDs**        | 3   | User indicators; **Steady** / **Blink** modes in UI (follow per-relay state in current WebConfig). |
+| **Buttons**          | 3   | Momentary; map to **Relay override (toggle)** for R1/R2/R3. |
+| **RS-485 (Modbus RTU)** | 1 | **A/B/COM** terminal set; daisy-chain bus topology. |
+| **USB-C**            | 1   | Web Serial setup/diagnostics and firmware flashing; ESD-protected. |
+| **Power Input**      | 1   | **24 VDC** SELV logic supply; reverse-polarity & surge protected; on-board 24→5 V buck + 3.3 V LDO. |
 
 ---
 
-## 5.3 Electrical Specs
+## 5.3 Absolute Electrical Specifications
 
-**Input power**
-- **Nominal:** 24 VDC (SELV/PELV)
-- **Regulation chain:** 24 V → 5 V buck (AP64501) → 3.3 V LDO (AMS1117-3.3)
-- **Protection:** input fuse (panel), reverse-polarity MOSFET, Schottky diode, TVS, bulk + local decoupling
+> Module-level limits for planning/commissioning. Always obey local codes and contact derating curves for your load type.
 
-**Current budgeting (guideline)**
-- Base logic + LEDs  
-- Up to **3 relay coils energized simultaneously**  
-- Any sensor loads sourced from the same 24 V panel rail  
-- Size PSU with **≥30 % headroom** over worst-case
+| Parameter                     | Min | Typ  | Max  | Unit | Notes |
+|------------------------------|----:|-----:|-----:|:----:|------|
+| Supply Voltage (V+)          | 22  | 24   | 28   | VDC  | SELV/PELV; protected input stage |
+| Power Consumption (logic)    |  –  | 1.5  | 3.0  |  W   | Module only; exclude external loads |
+| Logic Rails                  |  –  | 3.3/5|  –   |  V   | 24→5 V buck + 3.3 V LDO |
+| Digital Inputs (field)       |  0  | 24   | 30   | VDC  | **Galvanic isolation** (ISO1212-class); per-channel PTC + TVS |
+| Relay Contact Current        |  –  |  –   | 16   |  A   | SPDT contacts; use **RC/MOV snubber** or **interposing contactor** for motors/pumps |
+| Relay Contact Voltage        |  –  |  –   | 250  | VAC  | Or 30 VDC typical; observe derating vs. load category |
+| RS-485 Bus Rate              |  –  | 19.2 | 115.2| kbps | Default **19200 8N1**; address 1–255 (factory **3**) |
+| USB-C Port                   | 4.75| 5.0  | 5.25 | VDC  | Service/commissioning; ESD-protected |
+| Operating Temperature        |  0  |  –   | 40   |  °C  | ≤ 95 % RH, non-condensing (panel interior) |
+| Isolation (DI → Logic)       |  –  |  –   |  —   |  —   | **Galvanically isolated** DI front-end; keep field **GNDx** separate from logic **GND** |
 
-**Digital inputs (field side)**
-- Each DI: PTC resettable fuse + TVS on field wiring
-- Isolation via ISO1212; use field **INx/GNDx** returns (do **not** bond to logic GND)
-
-**Relay outputs**
-- 3× **SPDT** contacts (NO/NC/COM)
-- Application example rating: up to **16 A** per relay (load & environment dependent)
-- For motors/pumps or other inductive loads: use **RC/MOV snubber** and/or **interposing contactor**
-
-**RS-485**
-- MAX485 transceiver, A/B/COM terminals
-- Twisted pair (shielded recommended), **120 Ω** termination at both physical bus ends
-- Share **COM/GND** reference with the controller
-
-**USB-C**
-- Type-C receptacle with ESD protection and CC resistors
-- Purpose: commissioning (WebConfig) and diagnostics only
-
-**Isolation summary**
-- **DI ↔ Logic:** galvanically isolated (ISO1212)
-- **Relay drive ↔ Contacts:** optocouplers (SFH6156)
-- **RS-485 & USB:** not isolated from logic; ESD/TVS protected
+**Power budgeting guideline:** base logic + front-panel LEDs + up to **3 relay coils simultaneously** + any sensor loads from the panel’s 24 V rail; add **≥ 30 % headroom**.
 
 ---
 
-## 5.4 Firmware Behavior
+## 5.4 Connector / Terminal Map (Field Side)
 
-**Defaults**
-- **Modbus:** Address **3**, **19200 8N1**
-
-**Digital inputs → relay control**
-- Per input (IN1…IN4) you can set **Enabled**, **Inverted**, **Action**, **Control target**
-- **Action codes:** `0=None`, `1=Toggle` (**latched**), `2=Pulse` (**momentary**)
-- **Target codes:** `4=None`, `0=Control all`, `1=Relay1`, `2=Relay2`, `3=Relay3`
-
-**Local overrides (Buttons)**
-- Button actions: `0=None`, `5=Relay1 override (toggle)`, `6=Relay2 override (toggle)`, `7=Relay3 override (toggle)`
-- Button toggles apply locally and coexist with Modbus control from the master
-
-**LED feedback**
-- **User LEDs:** UI exposes **Mode** only — `Steady` or `Blink`
-- LEDs follow the module’s internal per-relay mapping in the current WebConfig build
-- **Relay LEDs:** indicate coil/relay state
+| Block / Label | Pin(s) (left→right) | Function / Signal                  | Limits / Notes |
+|---------------|----------------------|------------------------------------|----------------|
+| **POWER**     | **0V, V+**           | 24 VDC SELV input                  | Reverse/surge protected |
+| **RELAY 1**   | **NO, C, NC**        | SPDT dry contact                   | Add RC/MOV for inductive loads |
+| **RELAY 2**   | **NO, C, NC**        | SPDT dry contact                   | As above |
+| **RELAY 3**   | **NO, C, NC**        | SPDT dry contact                   | As above |
+| **RS-485**    | **B, A, COM**        | Modbus RTU bus                     | Terminate **120 Ω** at both physical ends; share **COM/GND** |
+| **DI 1**      | **IN1, GND1**        | **Galvanically isolated** digital input | Dry contact/24 V field signal |
+| **DI 2**      | **IN2, GND2**        | **Galvanically isolated** digital input | 〃 |
+| **DI 3**      | **IN3, GND3**        | **Galvanically isolated** digital input | 〃 |
+| **DI 4**      | **IN4, GND4**        | **Galvanically isolated** digital input | 〃 |
+| **USB-C**     | **D+/D−, VBUS, GND** | Web Serial / Setup (service only)  | Not for field powering loads |
 
 ---
+
+## 5.5 Reliability & Protection Specifics
+
+- **Primary protection:** reverse-path diode + high-side MOSFET on 24 V input; distributed local fusing/TVS on field interfaces.  
+- **Digital inputs:** per-channel **PTC + TVS** and RC filtering; **galvanically isolated** field domain; firmware debounce/invert.  
+- **Relays:** coil driven via **opto-coupler → transistor → SPDT contacts**; fit **RC/MOV** suppression and prefer **interposing contactors** for motors/pumps or high inrush.  
+- **RS-485:** TVS + series protection; fail-safe biasing; **TX/RX** indicators on the front panel.  
+- **USB-C:** ESD array on D±; CC resistors; intended for commissioning/diagnostics.  
+- **Persistence:** configuration stored in non-volatile flash; **auto-save** after edits in WebConfig.
+
+---
+
+## 5.6 Firmware / Functional Overview
+
+- **Modbus & defaults:** RTU **slave**; factory **Address 3**, **19200 8N1**; configurable (1–255; 9600–115200).  
+- **Inputs → Relays:** per input set **Enabled/Invert**, **Action** (`None` / `Toggle` / `Pulse`), and **Control target** (`None` / `Relay 1–3` / `Control all`).  
+- **Manual overrides (Buttons):** map Button 1–3 to **Relay 1–3 override (toggle)**; local control coexists with master commands.  
+- **LED feedback:** three user LEDs with **Steady/Blink** modes following their relays (current WebConfig exposes Mode only); relay LEDs show coil state.  
+- **Setup & diagnostics:** **WebConfig** over USB-C (Chrome/Edge) to set address/baud, map inputs, enable/invert relays, assign buttons/LEDs, and reset the device.  
+- **Startup/persistence:** settings restored on boot from flash.
+
+---
+
+## 5.7 Mechanical Details
+
+| Property            | Specification |
+|---------------------|--------------|
+| Mounting            | DIN rail EN 50022 (35 mm) |
+| Enclosure           | PC/ABS V-0, panel-mount, front legends |
+| Dimensions (approx) | **70 × 90.6 × 67.3 mm** (W × H × D) |
+| Terminals           | Pluggable 5.08 mm; 26–12 AWG (to 2.5 mm²); torque 0.5–0.6 Nm |
+| Ingress Protection  | IP20 (panel interior) |
+| Operating Temp.     | 0–40 °C, ≤ 95 % RH non-condensing |
+
+### Mechanical Dimensions
+
+![DIO-430-R1 Dimensions](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/DIODimensions.png)
+
+*Overall: 70 × 90.6 × 67.3 mm (W × H × D), DIN-rail EN 50022.*
+
+---
+
+## 5.8 Standards & Compliance
+
+| Standard / Directive | Description |
+|----------------------|-------------|
+| Ingress Rating       | IP20 (panel-mount only) |
+| Altitude             | ≤ 2000 m |
+| Environment          | RoHS / REACH compliant (component selection) |
+
 
 <a id="6-modbus-rtu-communication"></a>
 
