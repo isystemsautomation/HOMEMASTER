@@ -974,8 +974,6 @@ sensor:
 
 # 8. Programming & Customization (DIO-430-R1)
 
-This section mirrors the style used for ALM and is tailored to **DIO-430-R1**.
-
 ## 8.1 Supported Languages
 - **Arduino**
 - **C++** (PlatformIO)
@@ -1053,9 +1051,8 @@ This section mirrors the style used for ALM and is tailored to **DIO-430-R1**.
 - **User LEDs (1–3)** — follow relay logic (Steady/Blink based on WebConfig mode)
 
 ## 9.2 Resets
-- **Soft reset:** WebConfig → *Reset Device*
 - **Power cycle:** remove 24 V, wait 5 s, re‑apply
-- **Bootloader/Factory:** use button combo or WebConfig *Factory* (if exposed)
+- Use **Buttons 1 + 3** for a hardware **RESET**
 
 ## 9.3 Common Issues
 
