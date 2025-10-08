@@ -972,77 +972,74 @@ sensor:
 
 <a id="8-programming--customization"></a>
 
-# 8. Programming & Customization
+# 8. Programming & Customization (DIO-430-R1)
+
+This section mirrors the style used for ALM and is tailored to **DIO-430-R1**.
 
 ## 8.1 Supported Languages
-
-- **Arduino** (RP2350A)
-- **C++** (PlatformIO / ESP‑IDF toolchains supported for RP family targets)
-- **MicroPython** (community builds for RP2350 class MCUs)
-
-> The default firmware for **DIO‑430‑R1** is Arduino‑compatible and ships with a USB Web Serial configuration UI (WebConfig).
+- **Arduino**
+- **C++** (PlatformIO)
+- **MicroPython** (community builds for RP23xx-class MCUs)
 
 ---
 
-## 8.2 Flashing
+## 8.2 Flashing (USB‑C, Hardware Buttons Only)
 
-You can flash new firmware over **USB‑C**. The module exposes a UF2 bootloader and a standard USB CDC serial interface.
+> The module exposes a USB device for flashing. **All reset/boot actions are done with the front buttons in hardware.**
 
-### A) USB‑C Flashing (UF2)
-1. Disconnect RS‑485; connect **USB‑C** to your PC.
-2. Enter **BOOT/flash** mode (see buttons below). The board should mount as a USB drive.
-3. Drag‑and‑drop the firmware **`.uf2`** file onto the drive. It will auto‑reboot when done.
+**Button layout (front panel):**  
+<p align="center">
+  <img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/buttons1.png" alt="Button Layout 1‑2‑3" width="360">
+</p>
 
-### B) BOOT / RESET (buttons)
-- **BOOT mode:** Hold the BOOT combo (per front‑panel legend) while plugging in USB or press the reset sequence to enter the bootloader.
-- **Soft reset:** Use the **Reset Device** action from WebConfig (USB) or cycle power.
-- **Factory defaults:** From WebConfig use **Factory** (if present) or flash the default UF2.
+**Combinations**
+- **2 + 3 → BOOT mode** (enter bootloader for flashing)
+- **1 + 3 → RESET** (hardware reset/restart)
 
-> Exact button combos can vary by revision; the WebConfig page also exposes a **Reset Device** control for convenience.
+**Steps (UF2/IDE)**
+1. Connect **USB‑C** to a PC (disconnect RS‑485 during flashing).
+2. Hold **Buttons 2 + 3** to enter **BOOT**. The board appears as a USB drive (UF2) or a serial device for IDE upload.
+3. Flash:
+   - **UF2**: drag‑and‑drop the new `.uf2` file onto the mounted drive; the module restarts automatically.
+   - **PlatformIO / Arduino IDE**: select the correct board/port and upload.
+4. If needed, press **Buttons 1 + 3** for a hardware **RESET**.
 
-### C) PlatformIO / Arduino IDE Setup
-- **Board/MCU:** *Generic RP2350* (or vendor core for RP2350A)
-- **Flash layout:** e.g., 2 MB (Sketch) / 1 MB (LittleFS) depending on your build
-- **USB:** CDC for serial logs & Web Serial (no drivers on modern OS)
-- **Recommended libraries (by default firmware):**
-  - `ModbusSerial` (or equivalent RTU stack)
-  - `Arduino_JSON`
-  - `LittleFS` (for persisted config)
-  - `SimpleWebSerial` (or equivalent) for the WebConfig UI
-  - `Wire` (+ `PCF8574` if using expanders in your fork)
-
-> Build flags and exact versions may differ; see the firmware folder for `platformio.ini` / `library.properties` used in the default project.
+> No factory‑reset function is provided. Configuration remains intact across normal firmware updates.
 
 ---
 
 ## 8.3 Arduino / PlatformIO Notes
 
-**Pin mapping (logical, typical for DIO‑430‑R1 default firmware)**  
-- **Relays:** R1=GPIO10, R2=GPIO9, R3=GPIO8 (active‑HIGH, optional invert)
-- **Digital Inputs:** IN1=GPIO6, IN2=GPIO11, IN3=GPIO12, IN4=GPIO7 (post‑invert in firmware)
-- **Buttons:** B1=GPIO1, B2=GPIO2, B3=GPIO3 (active‑LOW; rising edge = press)
+**Board / Toolchain**
+- **Board:** Generic **RP2350** (or vendor core for **RP2350A**)
+- **USB:** CDC enabled (serial logging)
+- **FS:** LittleFS partition recommended (for settings)
+
+**Required Libraries (typical firmware)**
+- `ModbusSerial` (or equivalent RTU)
+- `Arduino_JSON`
+- `LittleFS`
+- `SimpleWebSerial` (or equivalent transport for WebConfig)
+- `Wire` (I²C; if using expanders in forks)
+
+**Pin Mapping (DIO-430-R1 default firmware)**
+- **Relays:** R1=GPIO10, R2=GPIO9, R3=GPIO8 (active‑HIGH)
+- **Digital Inputs:** IN1=GPIO6, IN2=GPIO11, IN3=GPIO12, IN4=GPIO7 (processed with enable/invert/debounce in firmware)
+- **Buttons:** B1=GPIO1, B2=GPIO2, B3=GPIO3 (active‑LOW)
 - **User LEDs:** L1=GPIO13, L2=GPIO14, L3=GPIO15 (active‑HIGH)
-- **RS‑485 (UART):** TX=GPIO4, RX=GPIO5; DE/RE handled in software (half‑duplex)
+- **RS‑485 (UART):** TX=GPIO4, RX=GPIO5 (DE/RE handled in software)
 
-**Board config**  
-- Select **RP2350** family target.
-- Enable **LittleFS** partition (config file persisted with CRC).
-- USB CDC serial enabled for Web Serial logs.
-
-**Tips**  
-- After config changes, the firmware **auto‑saves** after a short idle timeout.
-- Keep the Modbus stack at **19200 8N1** during bring‑up; increase later if wiring/topology allows.
+**Build Tips**
+- Start at **19200 8N1** on RS‑485 during bring‑up.
+- After flashing, disconnect USB‑C and return control to the master on RS‑485.
 
 ---
 
 ## 8.4 Firmware Updates
 
-- **How to update:** Use the **UF2 drag‑drop** method (Section 8.2 A) or upload from **PlatformIO/Arduino IDE** via USB‑C.
-- **Preserving config:** Settings are stored in **LittleFS**. Normal updates do **not** erase config. If you need a clean start, run **Factory** from WebConfig or erase LittleFS explicitly.
-- **Recovery methods:**
-  - **Bootloader mode** via button combo → re‑flash `.uf2`
-  - **Serial/WebConfig** reset → if the UI is responsive, use **Reset Device** and re‑apply settings
-  - **Safe wiring** → disconnect loads/RS‑485 during recovery to reduce noise
+- **Method:** USB‑C via **UF2** drag‑drop or **PlatformIO/Arduino** upload.
+- **Config retention:** Settings stored in flash/LittleFS are **preserved** unless explicitly erased.
+- **Recovery:** If the app doesn’t start, use **Buttons 2 + 3** to force **BOOT**, then re‑flash. Use **Buttons 1 + 3** for a hardware **RESET** after flashing.
 
 ---
 
