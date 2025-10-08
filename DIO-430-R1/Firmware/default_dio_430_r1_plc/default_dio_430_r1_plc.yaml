@@ -178,58 +178,58 @@ button:
   - platform: template
     name: "${dio_prefix} RLY1 ON"
     on_press:
-  - output.turn_on: dio_rly1_on
+      - output.turn_on: dio_rly1_on
   - platform: template
     name: "${dio_prefix} RLY1 OFF"
     on_press:
-  - output.turn_on: dio_rly1_off
+      - output.turn_on: dio_rly1_off
   - platform: template
     name: "${dio_prefix} RLY2 ON"
     on_press:
-  - output.turn_on: dio_rly2_on
+      - output.turn_on: dio_rly2_on
   - platform: template
     name: "${dio_prefix} RLY2 OFF"
     on_press:
-  - output.turn_on: dio_rly2_off
+      - output.turn_on: dio_rly2_off
   - platform: template
     name: "${dio_prefix} RLY3 ON"
     on_press:
-  - output.turn_on: dio_rly3_on
+      - output.turn_on: dio_rly3_on
   - platform: template
     name: "${dio_prefix} RLY3 OFF"
     on_press:
-  - output.turn_on: dio_rly3_off
+      - output.turn_on: dio_rly3_off
 
   # DI enable/disable
   - platform: template
     name: "${dio_prefix} DI1 Enable"
     on_press:
-  - output.turn_on: dio_di1_enable
+      - output.turn_on: dio_di1_enable
   - platform: template
     name: "${dio_prefix} DI1 Disable"
     on_press:
-  - output.turn_on: dio_di1_disable
+      - output.turn_on: dio_di1_disable
   - platform: template
     name: "${dio_prefix} DI2 Enable"
     on_press:
-  - output.turn_on: dio_di2_enable
+      - output.turn_on: dio_di2_enable
   - platform: template
     name: "${dio_prefix} DI2 Disable"
     on_press:
-  - output.turn_on: dio_di2_disable
+      - output.turn_on: dio_di2_disable
   - platform: template
     name: "${dio_prefix} DI3 Enable"
     on_press:
-  - output.turn_on: dio_di3_enable
+      - output.turn_on: dio_di3_enable
   - platform: template
     name: "${dio_prefix} DI3 Disable"
     on_press:
-  - output.turn_on: dio_di3_disable
+      - output.turn_on: dio_di3_disable
   - platform: template
     name: "${dio_prefix} DI4 Enable"
     on_press:
-  - output.turn_on: dio_di4_enable
+      - output.turn_on: dio_di4_enable
   - platform: template
     name: "${dio_prefix} DI4 Disable"
     on_press:
-  - output.turn_on: dio_di4_disable
+      - output.turn_on: dio_di4_disable
