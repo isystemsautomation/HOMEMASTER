@@ -204,31 +204,109 @@ These examples illustrate how the **RGB-621-R1** can serve as both a **dedicated
 
 ## 3.1 General Requirements
 
-| Requirement            | Detail |
-|------------------------|--------|
-| Qualified Personnel     | Required for all installation tasks |
-| Power Isolation         | Disconnect before working on terminals |
-| Rated Voltages Only     | SELV only; no mains |
-| Grounding               | Proper panel grounding |
-| Enclosure               | Use clean/dry cabinet; avoid dust/moisture |
+| Requirement | Detail |
+|--------------|--------|
+| **Qualified Personnel** | Only trained or qualified technicians should install, wire, or service the module. |
+| **Power Isolation** | Always disconnect the 24 V DC supply and RS-485 bus before working on terminals. |
+| **Rated Voltages Only** | Use **SELV/PELV** (safety extra-low voltage) circuits only — no mains voltage connections. |
+| **Grounding** | Ensure proper protective earth (PE) and system ground connection for the control cabinet. |
+| **Enclosure** | Mount inside a dry, ventilated DIN-rail enclosure; avoid dust, humidity, and chemical exposure. |
+
+---
 
 ## 3.2 Installation Practices
 
-Give best practices for:
-- DIN mounting
-- Isolation domain respect (e.g., GND vs GND_ISO)
-- Relay wiring
-- Sensor power connection
+Follow these best practices derived from hardware design and schematic domains:
+
+- **DIN Mounting**  
+  Mount the module on a **35 mm DIN rail** with sufficient airflow. Leave ≥ 10 mm spacing to adjacent high-current or high-voltage devices.  
+
+- **Isolation Domains**  
+  The board contains **separate field and logic domains**:  
+  - `24 VDC_FUSED` — LED drivers, relay coil, and input sensing  
+  - `5 V` / `3.3 V` — MCU and communication logic  
+  Maintain isolation between **GND_FUSED (field)** and **GND (logic)**. Never short or bridge these planes externally.
+
+- **Relay Wiring**  
+  The onboard **HF115F 5 V relay** switches **low-voltage DC or AC** loads only.  
+  - Max: **16 A @ 250 VAC / 30 VDC** (resistive)  
+  - Inductive loads require a **flyback diode or RC snubber**.  
+  - Keep relay wiring twisted and away from signal lines.
+
+- **Sensor and Input Wiring**  
+  Inputs use **galvanically isolated channels (ISO1212)**; connect only **dry contacts or sourcing 24 V signals**.  
+  - Each input is current-limited and TVS-protected.  
+  - Never inject external power into DI pins.  
+  - Use shielded cables for long runs (> 10 m).
+
+---
 
 ## 3.3 Interface Warnings
 
-Create tables for:
+### ⚡ Power Supply (24 V DC)
 
-- Power (24 VDC, 12 V sensor rail)
-- Inputs (dry contact only, debounce notes)
-- Relays (max current/voltage, snubber required)
-- RS-485 (termination, A/B polarity)
-- USB-C (setup only, not for field devices)
+| Parameter | Specification |
+|------------|----------------|
+| Nominal Voltage | 24 V DC ± 10 % |
+| Inrush / Fuse | PTC fuses (F1–F4) auto-resettable |
+| Protection | Reverse polarity (STPS340U), TVS (SMBJ33A) |
+| Isolation | Galvanically isolated from logic 5 V rail |
+| Note | Use a clean, regulated SELV supply rated ≥ 1 A per module |
+
+---
+
+### 🟢 Digital Inputs
+
+| Parameter | Specification |
+|------------|----------------|
+| Type | Isolated, dry contact or 24 V sourcing input |
+| Circuit | ISO1212DBQ with TVS + PTC protection |
+| Logic Voltage | 9 – 60 V DC (typ. 24 V DC) |
+| Isolation Voltage | 3 kVrms (channel-to-logic) |
+| Notes | Do not connect sensors with open-collector or powered outputs without interface relays. |
+
+---
+
+### 🔴 Relay Output
+
+| Parameter | Specification |
+|------------|----------------|
+| Type | SPST-NO, mechanical relay (HF115F) |
+| Coil Voltage | 5 V DC (driven from logic side) |
+| Contact Rating | 16 A @ 250 VAC / 30 V DC |
+| Protection | TVS + RC snubber recommended for inductive loads |
+| Notes | Do not exceed voltage/current ratings. Separate signal and power wiring. |
+
+---
+
+### 🔵 RS-485 Communication
+
+| Parameter | Specification |
+|------------|----------------|
+| Transceiver | MAX485CSA+T |
+| Topology | Differential bus, multi-drop (A/B lines) |
+| Default Settings | 19200 bps, 8N1 |
+| Termination | 120 Ω at module end (enable if last device) |
+| Protection | TVS + RC network for surge suppression |
+| Notes | Maintain correct polarity: **A (+)**, **B (–)**; twisted-pair shielded cable recommended. |
+
+---
+
+### 🧰 USB-C Interface
+
+| Parameter | Specification |
+|------------|----------------|
+| Function | WebConfig & Firmware flashing only |
+| Protection | ESD (PRTR5V0U2X), current-limited (CG0603MLC-05E) |
+| Logic Voltage | 5 V DC from host |
+| Isolation | Not galvanically isolated — PC and field grounds connect via USB shield |
+| Notes | Use only for configuration in a safe, non-energized environment. Not intended for field runtime use. |
+
+---
+
+> ⚠️ **Important:** The RGB-621-R1 is a SELV-only device.  
+> Never connect mains voltage to any terminal.  
+> Always maintain isolation boundaries and follow local electrical codes during installation.
 
 ---
 
