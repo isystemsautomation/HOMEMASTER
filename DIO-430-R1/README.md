@@ -339,12 +339,74 @@ Runtime control is via **RS-485 (Modbus RTU)**. **USB-C** is for local setup/dia
 
 ## 4.4 Installation & Wiring
 
-Use diagrams and explain:
-- Inputs
-- Relays
-- Sensor rails (12/5V)
-- RS-485 terminals
-- USB port
+This section shows typical wiring for **power**, **inputs**, **relays**, **RS-485**, and the **USB-C** service port.  
+> ⚠️ Work on de-energized equipment only. Use SELV/PELV supplies for logic and field inputs. Mains on relay contacts must be wired by qualified personnel.
+
+---
+
+### A) Power — 24 VDC (SELV)
+
+Wire the regulated **24 VDC** supply to the top POWER terminals: **V+** and **0V**.
+
+![24Vdc wiring](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/DIO_24Vdc.png)
+
+**Notes**
+- Keep V+/0V as a twisted pair; route away from motor cables/contactors.
+- The module includes input protection (fuse/TVS/reverse-polarity MOSFET).
+
+---
+
+### B) Digital Inputs (DI1…DI4)
+
+Each input is **opto-isolated**. Land the contact/sensor on **INx** with the paired **GNDx** return.
+
+![Digital inputs](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/DIO_DIInputs.png)
+
+**Tips**
+- Supports **dry contacts** or compatible 24 V field signals.
+- Configure in **WebConfig**: **Enabled/Invert**, **Action** (`None / Toggle / Pulse`), **Control target** (`None / All / R1 / R2 / R3`).
+- Keep field wiring shielded/twisted for long runs; terminate shield at one end only.
+
+---
+
+### C) Relay Outputs (R1…R3)
+
+Relays provide **dry SPDT contacts** (**NO/NC/COM**) for switching low-voltage loads **or** driving an **interposing contactor** for mains/inductive loads.
+
+![Relay wiring example](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/DIO_RelayConnection.png)
+
+**Best practices**
+- Add **RC/MOV snubbers** across inductive loads (fans, pumps, contactors).
+- Keep load and logic wiring separated; observe conductor ratings and local code.
+
+---
+
+### D) Sensor Rails (12 V / 5 V)
+
+This module **does not export** auxiliary 12 V/5 V rails for field devices.  
+- Power sensors from your **panel 24 V** rail (or external rails as required).  
+- Return sensor commons to the **matching DI GNDx** terminals; **do not** bond field ground to logic GND.
+
+---
+
+### E) RS-485 (Modbus RTU)
+
+The lower left terminals expose **B**, **A**, and **COM (GND)**. Use shielded twisted pair and daisy-chain topology.
+
+![RS-485 connection](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/DIO_RS485Connection.png)
+
+**Checklist**
+- Wire **A→A**, **B→B**, and share **COM/GND** with the controller.
+- Terminate the **two physical bus ends** with **120 Ω**.
+- Default protocol: **Address 3**, **19200 8N1** (change via WebConfig).
+
+---
+
+### F) USB-C (Service / WebConfig)
+
+- Use **USB-C** for **commissioning and diagnostics** only (Web Serial in Chrome/Edge).  
+- Not for powering field devices. Disconnect after setup and hand control to the RS-485 master.
+
 
 <a id="software-ui-configuration"></a>
 
