@@ -805,13 +805,168 @@ For **Relay 1–3**:
 
 <a id="7-esphome-integration-guide"></a>
 
-# 7. ESPHome Integration Guide
+# 7. ESPHome Integration Guide (MiniPLC/MicroPLC + DIO-430-R1)
 
-Only if supported. Cover:
-- YAML setup (`uart`, `modbus`, `package`)
-- Entity list (inputs, relays, buttons, LEDs)
-- Acknowledge, override controls
-- Home Assistant integration tips
+> **Support status:** ✔️ Supported via ESPHome `uart` + `modbus` + `modbus_controller` and a reusable **package**.  
+> **Module role:** Modbus RTU **slave** on RS-485.  
+> **Defaults:** Address **3**, **19200 8N1** (change in WebConfig).
+
+---
+
+## 7.1 Minimal YAML (Controller side)
+
+Use this on the **MiniPLC/MicroPLC** (ESPHome). It enables the RS-485 bus and imports a ready-made DIO package.
+
+```yaml
+uart:
+  id: uart_modbus
+  tx_pin: 17
+  rx_pin: 16
+  baud_rate: 19200
+  parity: NONE
+  stop_bits: 1
+
+modbus:
+  id: modbus_bus
+  uart_id: uart_modbus
+
+packages:
+  dio1:
+    url: https://github.com/isystemsautomation/HOMEMASTER
+    ref: main
+    files:
+      - path: DIO-430-R1/Firmware/default_dio_430_r1_plc/default_dio_430_r1_plc.yaml
+        vars:
+          dio_prefix: "DIO#1"  # shown in Home Assistant entity names
+          dio_id: dio_1        # internal unique id
+          dio_address: 4       # Modbus address set in WebConfig for this DIO
+    refresh: 1d
+```
+
+> For **multiple** DIOs, duplicate the `dio1:` block (`dio2:`, `dio3:`…) with unique `dio_id`, `dio_prefix`, and `dio_address`.
+
+---
+
+## 7.2 Entities exposed (from the package)
+
+- **Binary Sensors**
+  - **DI1…DI4** (post-invert, debounced)
+- **Switches**
+  - **Relay 1–3** (Modbus coils ON/OFF)
+  - **Override ON/OFF** for Relay 1–3 (forces state until released)
+  - **Save Config** / **Soft Reset** (commissioning helpers)
+- **Sensors (diagnostic)**
+  - **Button state mask** (optional)
+  - **LED state mask** (optional)
+  - **Uptime / flags** (optional)
+- **Select/Number (optional, commissioning)**
+  - Modbus **address/baud** view
+  - Per-input **Enable/Invert/Action/Target** (read/write helpers if enabled in the package)
+
+> The package sticks to the Modbus map defined in Section **6** (coils for relays, discrete inputs for DI states, holding/input registers for masks and configuration).
+
+---
+
+## 7.3 Optional: direct (manual) entity mapping
+
+If you prefer not to use the package, you can expose the core points directly:
+
+```yaml
+modbus_controller:
+  - id: dio430_4
+    address: 4
+    modbus_id: modbus_bus
+    update_interval: 200ms
+    command_throttle: 100ms
+
+binary_sensor:
+  # DI1..DI4 as Discrete Inputs (1x offsets 0..3)
+  - platform: modbus_controller
+    modbus_controller_id: dio430_4
+    name: "DIO#1 DI1"
+    register_type: discrete_input
+    address: 0
+  - platform: modbus_controller
+    modbus_controller_id: dio430_4
+    name: "DIO#1 DI2"
+    register_type: discrete_input
+    address: 1
+  - platform: modbus_controller
+    modbus_controller_id: dio430_4
+    name: "DIO#1 DI3"
+    register_type: discrete_input
+    address: 2
+  - platform: modbus_controller
+    modbus_controller_id: dio430_4
+    name: "DIO#1 DI4"
+    register_type: discrete_input
+    address: 3
+
+switch:
+  # Relays as Coils (0x offsets 0..2)
+  - platform: modbus_controller
+    modbus_controller_id: dio430_4
+    name: "DIO#1 Relay 1"
+    register_type: coil
+    address: 0
+  - platform: modbus_controller
+    modbus_controller_id: dio430_4
+    name: "DIO#1 Relay 2"
+    register_type: coil
+    address: 1
+  - platform: modbus_controller
+    modbus_controller_id: dio430_4
+    name: "DIO#1 Relay 3"
+    register_type: coil
+    address: 2
+
+sensor:
+  # (Optional) LED and Button masks from Input Registers 30003/30002
+  - platform: modbus_controller
+    modbus_controller_id: dio430_4
+    name: "DIO#1 LED Mask"
+    register_type: input
+    address: 3
+    value_type: U_WORD
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: dio430_4
+    name: "DIO#1 Button Mask"
+    register_type: input
+    address: 2
+    value_type: U_WORD
+    accuracy_decimals: 0
+```
+
+---
+
+## 7.4 Home Assistant tips (dashboards & automations)
+
+- **Dashboards**
+  - **Lighting panel:** Card for **Relay 1–3** plus DI tiles (e.g., wall switch/sensor feedback).
+  - **Maintenance card:** **Override ON/OFF** for each relay + **Reset Device** + **Save Config**.
+- **Automations**
+  - **DI → Relay:** If you keep the logic in HA/PLC (instead of module mapping), trigger relay switches when a DI goes high.  
+  - **Night mode:** When `input_boolean.night_mode` is on, force a specific **Override** ON and release it in the morning.
+- **Naming**
+  - Use `dio_prefix` to keep entities readable (`DIO#1 Relay 1`, `DIO#2 DI3`, etc.).
+
+---
+
+## 7.5 Troubleshooting
+
+- **No response / timeouts:** check A/B polarity, shared **COM/GND** reference, and **120 Ω** termination at bus ends.
+- **Wrong device:** make sure `dio_address` in the package matches the WebConfig address.
+- **Relays don’t switch:** ensure the relay is **Enabled** in WebConfig and not “held” by an **Override**.
+- **DI not changing:** verify wiring to **INx/GNDx** (respect isolation); check **Invert/Enable/Action/Target** in WebConfig.
+
+---
+
+## 7.7 Notes & Versions
+
+- Works with recent ESPHome releases (e.g., 2025.x).  
+- Keep `update_interval` modest (e.g., 200–500 ms) unless you need faster DI polling.  
+- For multiple devices on one bus, stagger `update_interval`/`command_throttle` to reduce collisions.
 
 ---
 
@@ -821,29 +976,73 @@ Only if supported. Cover:
 
 ## 8.1 Supported Languages
 
-- Arduino
-- C++
-- MicroPython
+- **Arduino** (RP2350A)
+- **C++** (PlatformIO / ESP‑IDF toolchains supported for RP family targets)
+- **MicroPython** (community builds for RP2350 class MCUs)
+
+> The default firmware for **DIO‑430‑R1** is Arduino‑compatible and ships with a USB Web Serial configuration UI (WebConfig).
+
+---
 
 ## 8.2 Flashing
 
-Steps for:
-- USB-C flashing
-- BOOT/RESET button use
-- PlatformIO / Arduino IDE setup
+You can flash new firmware over **USB‑C**. The module exposes a UF2 bootloader and a standard USB CDC serial interface.
+
+### A) USB‑C Flashing (UF2)
+1. Disconnect RS‑485; connect **USB‑C** to your PC.
+2. Enter **BOOT/flash** mode (see buttons below). The board should mount as a USB drive.
+3. Drag‑and‑drop the firmware **`.uf2`** file onto the drive. It will auto‑reboot when done.
+
+### B) BOOT / RESET (buttons)
+- **BOOT mode:** Hold the BOOT combo (per front‑panel legend) while plugging in USB or press the reset sequence to enter the bootloader.
+- **Soft reset:** Use the **Reset Device** action from WebConfig (USB) or cycle power.
+- **Factory defaults:** From WebConfig use **Factory** (if present) or flash the default UF2.
+
+> Exact button combos can vary by revision; the WebConfig page also exposes a **Reset Device** control for convenience.
+
+### C) PlatformIO / Arduino IDE Setup
+- **Board/MCU:** *Generic RP2350* (or vendor core for RP2350A)
+- **Flash layout:** e.g., 2 MB (Sketch) / 1 MB (LittleFS) depending on your build
+- **USB:** CDC for serial logs & Web Serial (no drivers on modern OS)
+- **Recommended libraries (by default firmware):**
+  - `ModbusSerial` (or equivalent RTU stack)
+  - `Arduino_JSON`
+  - `LittleFS` (for persisted config)
+  - `SimpleWebSerial` (or equivalent) for the WebConfig UI
+  - `Wire` (+ `PCF8574` if using expanders in your fork)
+
+> Build flags and exact versions may differ; see the firmware folder for `platformio.ini` / `library.properties` used in the default project.
+
+---
 
 ## 8.3 Arduino / PlatformIO Notes
 
-Mention:
-- Required libraries
-- Pin mapping
-- Board config
+**Pin mapping (logical, typical for DIO‑430‑R1 default firmware)**  
+- **Relays:** R1=GPIO10, R2=GPIO9, R3=GPIO8 (active‑HIGH, optional invert)
+- **Digital Inputs:** IN1=GPIO6, IN2=GPIO11, IN3=GPIO12, IN4=GPIO7 (post‑invert in firmware)
+- **Buttons:** B1=GPIO1, B2=GPIO2, B3=GPIO3 (active‑LOW; rising edge = press)
+- **User LEDs:** L1=GPIO13, L2=GPIO14, L3=GPIO15 (active‑HIGH)
+- **RS‑485 (UART):** TX=GPIO4, RX=GPIO5; DE/RE handled in software (half‑duplex)
+
+**Board config**  
+- Select **RP2350** family target.
+- Enable **LittleFS** partition (config file persisted with CRC).
+- USB CDC serial enabled for Web Serial logs.
+
+**Tips**  
+- After config changes, the firmware **auto‑saves** after a short idle timeout.
+- Keep the Modbus stack at **19200 8N1** during bring‑up; increase later if wiring/topology allows.
+
+---
 
 ## 8.4 Firmware Updates
 
-- How to update
-- Preserving config
-- Recovery methods
+- **How to update:** Use the **UF2 drag‑drop** method (Section 8.2 A) or upload from **PlatformIO/Arduino IDE** via USB‑C.
+- **Preserving config:** Settings are stored in **LittleFS**. Normal updates do **not** erase config. If you need a clean start, run **Factory** from WebConfig or erase LittleFS explicitly.
+- **Recovery methods:**
+  - **Bootloader mode** via button combo → re‑flash `.uf2`
+  - **Serial/WebConfig** reset → if the UI is responsive, use **Reset Device** and re‑apply settings
+  - **Safe wiring** → disconnect loads/RS‑485 during recovery to reduce noise
 
 ---
 
@@ -851,10 +1050,25 @@ Mention:
 
 # 9. Maintenance & Troubleshooting
 
-Optional section. Add:
-- Status LED meanings
-- Reset methods
-- Common issues (no comms, relay won’t trigger, etc.)
+## 9.1 Status LEDs (typical)
+- **PWR** — ON in normal operation
+- **TX/RX** — blink on Modbus traffic
+- **User LEDs (1–3)** — follow relay logic (Steady/Blink based on WebConfig mode)
+
+## 9.2 Resets
+- **Soft reset:** WebConfig → *Reset Device*
+- **Power cycle:** remove 24 V, wait 5 s, re‑apply
+- **Bootloader/Factory:** use button combo or WebConfig *Factory* (if exposed)
+
+## 9.3 Common Issues
+
+| Symptom | Checks |
+|---|---|
+| No Modbus comms | A/B polarity, **COM/GND** reference, 120 Ω termination, address/baud match, only two end terminators |
+| Relays don’t actuate | Relay **Enabled** in WebConfig, no active **Override** holding state, coil invert setting, Modbus coil writes acknowledged |
+| DI not changing | Wire to **INx/GNDx** (isolated field side), check **Enable/Invert/Action/Target** in WebConfig, debounce expectations |
+| USB won’t connect | Chrome/Edge with Web Serial, close other serial apps, check cable/port permissions |
+| Config not saved | Allow idle for auto‑save or use *Save* if available; verify LittleFS space |
 
 ---
 
@@ -862,9 +1076,11 @@ Optional section. Add:
 
 # 10. Open Source & Licensing
 
-- **Hardware:** CERN-OHL-W v2
-- **Firmware:** GPLv3
-- **Config Tools:** MIT or other as applicable
+- **Hardware:** **CERN‑OHL‑W v2**
+- **Firmware:** **GPLv3**
+- **Config Tools (WebConfig UI):** **MIT** (unless folder states otherwise)
+
+See the repository `LICENSE` files for the exact texts and sub‑component licenses.
 
 ---
 
@@ -872,14 +1088,19 @@ Optional section. Add:
 
 # 11. Downloads
 
-Include links to:
-
-- Firmware binaries
-- YAML configs
-- WebConfig tool
-- Schematics (PDF)
-- Images and diagrams
-- Datasheets
+- **Firmware binaries**  
+  - Default UF2: [`DIO-430-R1/Firmware/default_DIO_430_R1/build/rp2040.rp2040.generic_rp2350/`](https://github.com/isystemsautomation/HOMEMASTER/tree/main/DIO-430-R1/Firmware/default_DIO_430_R1/build/rp2040.rp2040.generic_rp2350)
+- **YAML configs (ESPHome)**  
+  - Package & examples: [`DIO-430-R1/Firmware/default_dio_430_r1_plc/`](https://github.com/isystemsautomation/HOMEMASTER/tree/main/DIO-430-R1/Firmware/default_dio_430_r1_plc)
+- **WebConfig tool (HTML/JS)**  
+  - [`DIO-430-R1/Firmware/ConfigToolPage.html`](https://github.com/isystemsautomation/HOMEMASTER/blob/main/DIO-430-R1/Firmware/ConfigToolPage.html)
+- **Schematics (PDF)**  
+  - Field Board: [`Schematics/DIO-430-R1-FieldBoard.pdf`](https://github.com/isystemsautomation/HOMEMASTER/blob/main/DIO-430-R1/Schematics/DIO-430-R1-FieldBoard.pdf)  
+  - MCU Board: [`Schematics/DIO-430-R1-MCUBoard.pdf`](https://github.com/isystemsautomation/HOMEMASTER/blob/main/DIO-430-R1/Schematics/DIO-430-R1-MCUBoard.pdf)
+- **Images & diagrams**  
+  - [`DIO-430-R1/Images/`](https://github.com/isystemsautomation/HOMEMASTER/tree/main/DIO-430-R1/Images)
+- **Datasheets**  
+  - Refer to the `Schematics/` folder BOM notes for part numbers (e.g., ISO1212, MAX485, HF115F).
 
 ---
 
@@ -887,10 +1108,11 @@ Include links to:
 
 # 12. Support
 
-- [Official Support Portal](https://www.home-master.eu/support)
-- [WebConfig Tool](https://www.home-master.eu/configtool-[module-code])
-- [YouTube](https://youtube.com/@HomeMaster)
-- [Hackster](https://hackster.io/homemaster)
-- [Reddit](https://reddit.com/r/HomeMaster)
-- [Instagram](https://instagram.com/home_master.eu)
+- **Official Support Portal:** https://www.home-master.eu/support
+- **WebConfig Tool:** https://www.home-master.eu/configtool-dio-430-r1
+- **YouTube:** https://youtube.com/@HomeMaster
+- **Hackster:** https://hackster.io/homemaster
+- **Reddit:** https://reddit.com/r/HomeMaster
+- **Instagram:** https://instagram.com/home_master.eu
+
 
