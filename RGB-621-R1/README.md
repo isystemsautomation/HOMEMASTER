@@ -206,38 +206,51 @@ These examples illustrate how the **RGB-621-R1** can serve as both a **dedicated
 
 | Requirement | Detail |
 |--------------|--------|
-| **Qualified Personnel** | Only trained or qualified technicians should install, wire, or service the module. |
-| **Power Isolation** | Always disconnect the 24 V DC supply and RS-485 bus before working on terminals. |
-| **Rated Voltages Only** | Use **SELV/PELV** (safety extra-low voltage) circuits only — no mains voltage connections. |
-| **Grounding** | Ensure proper protective earth (PE) and system ground connection for the control cabinet. |
-| **Enclosure** | Mount inside a dry, ventilated DIN-rail enclosure; avoid dust, humidity, and chemical exposure. |
+| **Qualified Personnel** | Installation, wiring, and servicing must be performed by trained technicians familiar with 24 V DC SELV/PELV control systems. |
+| **Power Isolation** | Always disconnect the 24 V DC supply and RS-485 network before wiring or servicing. |
+| **Rated Voltages Only** | Operate only from a **Safety Extra-Low Voltage (SELV/PELV) 24 V DC** source. **12 V DC is not supported.** Never connect mains (230 V AC) to any terminal. |
+| **Independent Power** | Each controller and I/O module must have its **own 24 V DC power supply**, sized for its load and fused appropriately. |
+| **Grounding** | Ensure proper protective-earth (PE) connection of the control cabinet and shielded bus cable. |
+| **Enclosure** | Mount the device on a DIN rail inside a dry, clean enclosure. Avoid condensation, dust, or corrosive atmosphere. |
 
 ---
 
 ## 3.2 Installation Practices
 
-Follow these best practices derived from hardware design and schematic domains:
+**DIN-Rail Mounting**  
+- Mount on a **35 mm DIN rail (EN 60715)**.  
+- Provide at least **10 mm** clearance above/below for airflow and terminal access.  
+- Route LED-power wiring separately from communication lines.
 
-- **DIN Mounting**  
-  Mount the module on a **35 mm DIN rail** with sufficient airflow. Leave ≥ 10 mm spacing to adjacent high-current or high-voltage devices.  
+**Electrical Domains**  
+Two distinct domains exist:  
 
-- **Isolation Domains**  
-  The board contains **separate field and logic domains**:  
-  - `24 VDC_FUSED` — LED drivers, relay coil, and input sensing  
-  - `5 V` / `3.3 V` — MCU and communication logic  
-  Maintain isolation between **GND_FUSED (field)** and **GND (logic)**. Never short or bridge these planes externally.
+- **Field Power (24 V DC)** — supplies LED drivers, relay, and input circuits.  
+- **Logic Power (5 V / 3.3 V)** — internal regulation for MCU, USB, and RS-485.  
 
-- **Relay Wiring**  
-  The onboard **HF115F 5 V relay** switches **low-voltage DC or AC** loads only.  
-  - Max: **16 A @ 250 VAC / 30 VDC** (resistive)  
-  - Inductive loads require a **flyback diode or RC snubber**.  
-  - Keep relay wiring twisted and away from signal lines.
+The field return is **`GND_FUSED`**; the logic return is **`GND`**.  
+🟡 **Important:** Do **not** externally bridge `GND_FUSED` and `GND`.  
+Isolation between these domains is provided internally through the ISO1212 and SFH6156 devices.
 
-- **Sensor and Input Wiring**  
-  Inputs use **galvanically isolated channels (ISO1212)**; connect only **dry contacts or sourcing 24 V signals**.  
-  - Each input is current-limited and TVS-protected.  
-  - Never inject external power into DI pins.  
-  - Use shielded cables for long runs (> 10 m).
+**LED Power and Output Wiring**  
+- The LED power rail (+24 V) enters through the protected input (fuses F3/F4, diode D5 STPS340U, surge D6 SMBJ33A).  
+- It passes the relay K1 (HF115F) and feeds the **COM (+24 V)** terminal on the bottom connector.  
+- LED channel outputs (**R, G, B, CW, WW**) are **low-side PWM sinks** using **AP9990GH-HF MOSFETs**.  
+- Connect **LED +** to **COM**, and each color cathode to its respective channel output.  
+- Only **24 V LED strips** (common-anode type) are supported.
+
+**Relay Wiring**  
+- Type HF115F (5 V coil, SPST-NO).  
+- Contact rating: 16 A @ 250 VAC / 30 V DC (resistive).  
+- For inductive loads, add an **external flyback diode or RC snubber**.  
+- Keep relay conductors away from signal wiring.
+
+**Digital Input Wiring**  
+- Inputs use **ISO1212 galvanic isolation**.  
+- Connect **dry contacts** or **24 V DC sourcing sensors** only.  
+- Each input path has a **PTC fuse (F5/F6)**, **TVS D9**, and **reverse diodes (D10–D14)**.  
+- Do not inject external voltage into DI pins.  
+- Use shielded twisted-pair cable for runs > 10 m.
 
 ---
 
@@ -246,67 +259,71 @@ Follow these best practices derived from hardware design and schematic domains:
 ### ⚡ Power Supply (24 V DC)
 
 | Parameter | Specification |
-|------------|----------------|
+|------------|---------------|
 | Nominal Voltage | 24 V DC ± 10 % |
-| Inrush / Fuse | PTC fuses (F1–F4) auto-resettable |
-| Protection | Reverse polarity (STPS340U), TVS (SMBJ33A) |
-| Isolation | Galvanically isolated from logic 5 V rail |
-| Note | Use a clean, regulated SELV supply rated ≥ 1 A per module |
+| Input Protection | PTC fuses (F1–F4), reverse-polarity diode (STPS340U), surge TVS (SMBJ33A) |
+| Ground Reference | Field return `GND_FUSED` |
+| Isolation | Field side isolated from logic via DC/DC and opto-devices |
+| Notes | Use a regulated SELV 24 V DC supply rated ≥ 1 A per module. Each module must have its own isolated 24 V supply rail. |
 
 ---
 
 ### 🟢 Digital Inputs
 
 | Parameter | Specification |
-|------------|----------------|
-| Type | Isolated, dry contact or 24 V sourcing input |
-| Circuit | ISO1212DBQ with TVS + PTC protection |
-| Logic Voltage | 9 – 60 V DC (typ. 24 V DC) |
-| Isolation Voltage | 3 kVrms (channel-to-logic) |
-| Notes | Do not connect sensors with open-collector or powered outputs without interface relays. |
+|------------|---------------|
+| Type | Galvanically isolated, dry-contact or sourcing 24 V DC input |
+| Circuit | ISO1212 receiver with TVS (SMBJ26CA) + PTC protection |
+| Operating Range | 9 – 36 V DC (typ. 24 V DC) |
+| Isolation | 3 kVrms (input ↔ logic) |
+| Notes | For switches or sensors only; debounce handled in firmware. |
 
 ---
 
 ### 🔴 Relay Output
 
 | Parameter | Specification |
-|------------|----------------|
-| Type | SPST-NO, mechanical relay (HF115F) |
-| Coil Voltage | 5 V DC (driven from logic side) |
-| Contact Rating | 16 A @ 250 VAC / 30 V DC |
-| Protection | TVS + RC snubber recommended for inductive loads |
-| Notes | Do not exceed voltage/current ratings. Separate signal and power wiring. |
+|------------|---------------|
+| Type | SPST-NO mechanical relay (HF115F/005-1ZS3) |
+| Coil Voltage | 5 V DC (via SFH6156 optocoupler + S8050 driver) |
+| Contact Rating | 16 A @ 250 VAC / 30 V DC (resistive) |
+| Protection | External RC snubber / flyback diode recommended |
+| Notes | Keep field wiring separate from logic; observe polarity and isolation boundaries. |
 
 ---
 
 ### 🔵 RS-485 Communication
 
 | Parameter | Specification |
-|------------|----------------|
+|------------|---------------|
 | Transceiver | MAX485CSA+T |
-| Topology | Differential bus, multi-drop (A/B lines) |
-| Default Settings | 19200 bps, 8N1 |
-| Termination | 120 Ω at module end (enable if last device) |
-| Protection | TVS + RC network for surge suppression |
-| Notes | Maintain correct polarity: **A (+)**, **B (–)**; twisted-pair shielded cable recommended. |
+| Bus Type | Differential, multi-drop (A/B lines) |
+| Default Settings | 19200 bps · 8N1 |
+| Termination | 120 Ω enabled only at end-of-line device |
+| Protection | Surge/ESD network integrated |
+| Notes | Observe polarity (A = +, B = –). Use shielded twisted-pair cable; ground shield at one end only. |
 
 ---
 
 ### 🧰 USB-C Interface
 
 | Parameter | Specification |
-|------------|----------------|
-| Function | WebConfig & Firmware flashing only |
-| Protection | ESD (PRTR5V0U2X), current-limited (CG0603MLC-05E) |
-| Logic Voltage | 5 V DC from host |
-| Isolation | Not galvanically isolated — PC and field grounds connect via USB shield |
-| Notes | Use only for configuration in a safe, non-energized environment. Not intended for field runtime use. |
+|------------|---------------|
+| Function | WebConfig setup & firmware update only |
+| Protection | PRTR5V0U2X ESD + CG0603MLC-05E current limiters |
+| Supply | 5 V DC from host computer (logic domain) |
+| Isolation | Shares logic ground (`GND`); not isolated from RS-485 logic |
+| Notes | Use only when field power is disconnected; not for continuous operation in field. |
 
 ---
 
-> ⚠️ **Important:** The RGB-621-R1 is a SELV-only device.  
-> Never connect mains voltage to any terminal.  
-> Always maintain isolation boundaries and follow local electrical codes during installation.
+> ⚠️ **Important:**  
+> • The **RGB-621-R1** operates **only on 24 V DC SELV/PELV** power.  
+> • **12 V DC** operation is **not supported**.  
+> • Each module and controller has its own 24 V DC supply.  
+> • Never connect mains voltage to any terminal.  
+> • Maintain isolation between `GND_FUSED` (field) and `GND` (logic).  
+> • Follow local electrical codes for fusing and grounding.
 
 ---
 
@@ -318,23 +335,82 @@ Follow these best practices derived from hardware design and schematic domains:
 
 | Item | Description |
 |------|-------------|
-| Module | MODULE-CODE unit |
-| Controller | MiniPLC/MicroPLC or Modbus RTU master |
-| PSU | Regulated 24 VDC |
-| Cable | USB-C and RS-485 twisted pair |
-| Software | Browser with Web Serial support |
+| **Module** | RGB-621-R1 LED control module |
+| **Controller** | HomeMaster **MicroPLC** / **MiniPLC** or any **Modbus RTU master** |
+| **Power Supply (PSU)** | Regulated **24 V DC SELV/PELV**, sized for module and LED load |
+| **Cables** | 1× **USB-C** cable (for setup), 1× **twisted-pair RS-485** cable |
+| **Software** | Any Chromium-based browser (Chrome/Edge) with **Web Serial** support for WebConfig |
+| **Optional** | Shielded wiring for long RS-485 runs, DIN-rail enclosure, terminal labels |
+
+---
 
 ## 4.2 Power
 
-- Describe 24 VDC input
-- List expected current
-- Explain isolated sensor power if present
+- The RGB-621-R1 operates exclusively from a **24 V DC SELV/PELV** supply.  
+  Connect the **+24 V** and **0 V (GND)** to the top power terminals marked **V+** and **0V** or **LED PS**.
+
+- The LED strip’s positive rail (**+24 V**) is routed internally through:
+  - **PTC fuses (F3/F4)** for over-current protection  
+  - **Reverse-polarity diode (STPS340U)**  
+  - **Surge suppressor (SMBJ33A)**  
+  - **Relay K1 (HF115F)**, which switches the LED power output (COM terminal)  
+
+  The LED channels (R/G/B/CW/WW) act as **low-side PWM sinks**, and the LED strip must be **24 V common-anode**.
+
+- **Current consumption (typical):**
+  - Logic + RS-485: ≈ 100 mA  
+  - Relay coil: ≈ 30 mA (active)  
+  - LED load: dependent on connected strips (sized per external 24 V LED PSU)
+
+- **Ground references:**  
+  - `GND_FUSED` → field ground for LED and inputs  
+  - `GND` → logic/USB ground  
+  These are internally isolated — do **not** tie them together externally.
+
+---
 
 ## 4.3 Communication
 
-- RS-485 pinout
-- Address & baudrate setup
-- Use of COM/GND reference
+**RS-485 Pinout (bottom connector):**
+
+| Terminal | Signal | Description |
+|-----------|---------|-------------|
+| **A** | RS-485 A (+) | Non-inverting line |
+| **B** | RS-485 B (–) | Inverting line |
+| **COM** | Common reference (optional) | Field ground reference (GND_FUSED) for long bus runs |
+
+- Use a **twisted-pair shielded cable** (e.g., Cat-5 or RS-485 grade).  
+  Connect the shield to protective earth (PE) at **one end only**.
+
+- **Network topology:**  
+  Daisy-chain (bus) — no star wiring.  
+  Enable the 120 Ω termination resistor **only** at the last module in the chain.
+
+- **Default Modbus settings:**  
+  - **Address:** 1  
+  - **Baud rate:** 19200 bps  
+  - **Data format:** 8 data bits, no parity, 1 stop bit (**8N1**)  
+
+- **Configuration:**  
+  - Connect via **USB-C** and open **WebConfig** in a Chromium-based browser.  
+  - Set module address, baud rate, and optional relay/input parameters.  
+  - Save settings to non-volatile memory.  
+
+- **Ground reference use:**  
+  - In most RS-485 systems, differential A/B are sufficient.  
+  - The **COM** terminal may be connected between devices only if bus transceivers require a shared reference (rare in modern isolated networks).
+
+---
+
+> ⚙️ **Quick Summary**
+> 1. Mount the module on a DIN rail.  
+> 2. Wire +24 V and 0 V to the **LED PS** terminals.  
+> 3. Connect LED strips (common-anode to COM, cathodes to R/G/B/CW/WW).  
+> 4. Wire RS-485 A/B to the controller.  
+> 5. Plug in USB-C, open WebConfig, assign address, set baudrate, test outputs.  
+> 6. Disconnect USB, power up the system, and verify Modbus communication.
+
+---
 
 <a id="installation-wiring"></a>
 
@@ -370,43 +446,125 @@ Summarize steps in 3 phases:
 
 <a id="5-module-code--technical-specification"></a>
 
-# 5. MODULE-CODE — Technical Specification
+# 5. RGB-621-R1 — Technical Specification
 
 ## 5.1 Diagrams & Pinouts
 
-Add photos/diagrams:
-- System block diagram
-- Board layouts
-- Terminal maps
+### 📊 System Block Diagram
+![System Block Diagram](Images/RGB_DIagramBlock.png)
+
+The RGB-621-R1 consists of two stacked PCBs:
+- **MCU Board** — communication, logic, and USB interface  
+- **Field Board (Relay Board)** — power stage, relay, and isolation components
+
+### 🧠 RP2350A MCU Pin Assignments
+![RP2350A Pinouts](Images/RGB_MCU_Pinouts.png)
+
+| Signal | GPIO | Function |
+|---------|------|-----------|
+| RX / TX | GPIO4 / GPIO5 | RS-485 UART (MAX485 interface) |
+| LEDR / LEDG / LEDB / LEDCW / LEDWW | GPIO9-GPIO12 | PWM LED control outputs |
+| DI1 / DI2 | GPIO13 / GPIO14 | Isolated digital inputs (ISO1212) |
+| RELAY | GPIO15 | Relay driver (SFH6156 optocoupler) |
+| BUTTON1 / BUTTON2 | GPIO0 / GPIO1 | Front-panel user buttons |
+| LED1 / LED2 | GPIO2 / GPIO3 | Status LEDs |
+| USB DM / DP | GPIO51 / GPIO52 | USB-C WebConfig interface |
+| QSPI | GPIO55-GPIO60 | External Flash (W25Q32) |
+
+### ⚙️ MCU Board Overview
+![MCU Board Diagram](Images/MCUBoard_Diagram.png)
+
+- **RP2350A microcontroller** — Dual-core Arm Cortex-M33  
+- **MAX485** — RS-485 Modbus transceiver  
+- **USB Type-C** — WebConfig and firmware update interface  
+- **Status LEDs / Buttons** — diagnostics and user interaction  
+
+### ⚡ Field (Relay) Board Overview
+![Relay Board Diagram](Images/RelayBoard_Diagram.png)
+
+- **24 V DC Input** — Main field power (SELV/PELV)  
+- **LED Power Section** — Protected +24 V rail with fuses and surge suppression  
+- **Relay + Varistor** — 16 A SPST-NO relay with optical isolation  
+- **Data Isolators (ISO1212)** — galvanic isolation for two digital inputs  
+- **LED Driver MOSFETs** — five low-side PWM channels (AP9990GH-HF)  
+- **RS-485 Connector** — Modbus A/B/COM terminals  
+
+---
 
 ## 5.2 I/O Summary
 
-Summarize in a table:
-
 | Interface | Qty | Description |
-|-----------|-----|-------------|
-| Inputs |   | Opto-isolated |
-| Relays |   | SPST/SPDT |
-| LEDs |   | Status indication |
-| USB-C | 1 | Setup only |
+|------------|-----|-------------|
+| **Digital Inputs** | 2 | Galvanically isolated 24 V DC inputs (ISO1212) |
+| **Relay Outputs** | 1 | SPST-NO 16 A @ 250 VAC / 30 V DC, optically driven |
+| **PWM Outputs** | 5 | MOSFET low-side (R/G/B/CW/WW) |
+| **Status LEDs** | 8 | Power, TX/RX, DI1, DI2, and channel indicators |
+| **Buttons** | 2 | Local control and configuration |
+| **RS-485 (Modbus)** | 1 | MAX485 transceiver, 19200 bps 8N1 (default) |
+| **USB-C** | 1 | WebConfig / firmware setup (logic domain) |
+| **MCU** | 1 | RP2350A dual-core M33 @ 133 MHz + 32 Mbit QSPI Flash |
 
-## 5.3 Electrical Specs
+---
 
-Cover:
-- Input voltage range
-- Current consumption
-- Sensor rail current
-- Relay contact ratings
-- Isolation details
+## 5.3 Electrical Specifications
+
+| Parameter | Specification |
+|------------|---------------|
+| **Power Supply** | 24 V DC ± 10 % (SELV/PELV) |
+| **Power Consumption** | Typ. 1.8 W  /  Max. 3 W (no LED load) |
+| **LED Channel Voltage** | 24 V DC (common anode) |
+| **LED Channel Current** | ≤ 5 A per channel (max 25 A total, externally fused) |
+| **Digital Input Range** | Logic 0 = 0–9 V, undefined = 9–15 V, Logic 1 = 15–24 V DC |
+| **Relay Output** | SPST-NO 16 A @ 250 VAC / 30 V DC (resistive) |
+| **Isolation Voltage** | 3 kVrms (DI ↔ MCU), opto-relay driver |
+| **Communication** | RS-485 (Modbus RTU), up to 115.2 kbps |
+| **USB Interface** | USB-C 5 V, ESD protected (PRTR5V0U2X) |
+| **Ambient Temperature** | 0 … 40 °C |
+| **Humidity** | ≤ 95 % r.H. (non-condensing) |
+| **Enclosure** | DIN-rail 3-module width, IP20 |
+| **Protections** | PTC fuses, TVS diodes, reverse-polarity Schottky |
+
+---
 
 ## 5.4 Firmware Behavior
 
-Explain:
-- Alarm logic (latched/momentary)
-- Override priority
-- LED feedback modes
+### 🧩 Modbus Operation
+- Operates as a **Modbus RTU slave** via RS-485.  
+- Address, baudrate, and parity configured through **WebConfig (USB-C)**.  
+- Holding Registers control PWM values, relay state, and read digital inputs.
+
+### ⚙️ Relay & Output Logic
+- Relay controlled by Modbus coil register or local logic.  
+- Optional **auto-relay mode** follows LED activity for power saving.
+
+### 🎚️ PWM LED Control
+- Five independent 12-bit PWM channels (R/G/B/CW/WW).  
+- Supports smooth dimming and color temperature transitions.  
+- States retained in non-volatile memory after power cycle.  
+
+### 🔔 Input and Alarm Logic
+- Inputs can trigger scene changes or relay toggle.  
+- Configurable as **momentary**, **latched**, or **edge-triggered**.  
+- Optional latching mode preserves state until cleared by controller.  
+
+### 💡 LED Indicators & Feedback
+| LED | Meaning |
+|------|----------|
+| **PWR** | Module powered and operational |
+| **TX / RX** | RS-485 communication activity |
+| **DI1 / DI2** | Digital input status |
+| **RUN** | Normal operation / heartbeat |
+| **ERR** | Fault / isolation error (blink pattern) |
+
+### 🧠 Firmware Modes
+- **Normal Mode** – standard Modbus slave operation.  
+- **Test Mode** – activated via USB-C WebConfig for manual I/O testing.  
+- **Fail-Safe Mode** – retains last outputs on communication loss.  
 
 ---
+
+> 🔧 **HOMEMASTER – Modular control. Custom logic.**
+
 
 <a id="6-modbus-rtu-communication"></a>
 
