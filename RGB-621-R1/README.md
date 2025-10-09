@@ -450,116 +450,145 @@ Summarize steps in 3 phases:
 
 ## 5.1 Diagrams & Pinouts
 
-### 📊 System Block Diagram
-![System Block Diagram](Images/RGB_DIagramBlock.png)
-
-The RGB-621-R1 consists of two stacked PCBs:
-- **MCU Board** — communication, logic, and USB interface  
-- **Field Board (Relay Board)** — power stage, relay, and isolation components
-
-### 🧠 RP2350A MCU Pin Assignments
-![RP2350A Pinouts](Images/RGB_MCU_Pinouts.png)
-
-| Signal | GPIO | Function |
-|---------|------|-----------|
-| RX / TX | GPIO4 / GPIO5 | RS-485 UART (MAX485 interface) |
-| LEDR / LEDG / LEDB / LEDCW / LEDWW | GPIO9-GPIO12 | PWM LED control outputs |
-| DI1 / DI2 | GPIO13 / GPIO14 | Isolated digital inputs (ISO1212) |
-| RELAY | GPIO15 | Relay driver (SFH6156 optocoupler) |
-| BUTTON1 / BUTTON2 | GPIO0 / GPIO1 | Front-panel user buttons |
-| LED1 / LED2 | GPIO2 / GPIO3 | Status LEDs |
-| USB DM / DP | GPIO51 / GPIO52 | USB-C WebConfig interface |
-| QSPI | GPIO55-GPIO60 | External Flash (W25Q32) |
-
-### ⚙️ MCU Board Overview
-![MCU Board Diagram](Images/MCUBoard_Diagram.png)
-
-- **RP2350A microcontroller** — Dual-core Arm Cortex-M33  
-- **MAX485** — RS-485 Modbus transceiver  
-- **USB Type-C** — WebConfig and firmware update interface  
-- **Status LEDs / Buttons** — diagnostics and user interaction  
-
-### ⚡ Field (Relay) Board Overview
-![Relay Board Diagram](Images/RelayBoard_Diagram.png)
-
-- **24 V DC Input** — Main field power (SELV/PELV)  
-- **LED Power Section** — Protected +24 V rail with fuses and surge suppression  
-- **Relay + Varistor** — 16 A SPST-NO relay with optical isolation  
-- **Data Isolators (ISO1212)** — galvanic isolation for two digital inputs  
-- **LED Driver MOSFETs** — five low-side PWM channels (AP9990GH-HF)  
-- **RS-485 Connector** — Modbus A/B/COM terminals  
+<div align="center">
+  <table>
+    <tr>
+      <td align="center">
+        <strong>System Block Diagram</strong><br>
+        <img src="Images/RGB_DIagramBlock.png" alt="System Block Diagram" width="360">
+      </td>
+      <td align="center">
+        <strong>RP2350A MCU Pinout</strong><br>
+        <img src="Images/RGB_MCU_Pinouts.png" alt="RP2350A Pinouts" width="360">
+      </td>
+    </tr>
+    <tr>
+      <td align="center">
+        <strong>Field Board Layout</strong><br>
+        <img src="Images/RelayBoard_Diagram.png" alt="Field Board Diagram" width="360">
+      </td>
+      <td align="center">
+        <strong>MCU Board Layout</strong><br>
+        <img src="Images/MCUBoard_Diagram.png" alt="MCU Board Diagram" width="360">
+      </td>
+    </tr>
+  </table>
+</div>
 
 ---
 
-## 5.2 I/O Summary
+## 5.2 Overview
 
-| Interface | Qty | Description |
-|------------|-----|-------------|
-| **Digital Inputs** | 2 | Galvanically isolated 24 V DC inputs (ISO1212) |
-| **Relay Outputs** | 1 | SPST-NO 16 A @ 250 VAC / 30 V DC, optically driven |
-| **PWM Outputs** | 5 | MOSFET low-side (R/G/B/CW/WW) |
-| **Status LEDs** | 8 | Power, TX/RX, DI1, DI2, and channel indicators |
-| **Buttons** | 2 | Local control and configuration |
-| **RS-485 (Modbus)** | 1 | MAX485 transceiver, 19200 bps 8N1 (default) |
-| **USB-C** | 1 | WebConfig / firmware setup (logic domain) |
-| **MCU** | 1 | RP2350A dual-core M33 @ 133 MHz + 32 Mbit QSPI Flash |
+- **Function:** RGBCCT LED controller with **5 PWM channels**, **2 isolated digital inputs**, and **1 relay**. :contentReference[oaicite:0]{index=0}  
+- **Role:** **RS-485 Modbus RTU** slave for MicroPLC/MiniPLC/SCADA; address/baud via **USB-C WebConfig**.   
+- **Form factor:** DIN-rail; front **USB-C** service port (ESD-protected). :contentReference[oaicite:2]{index=2}
 
 ---
 
-## 5.3 Electrical Specifications
+## 5.3 I/O Summary
 
-| Parameter | Specification |
-|------------|---------------|
-| **Power Supply** | 24 V DC ± 10 % (SELV/PELV) |
-| **Power Consumption** | Typ. 1.8 W  /  Max. 3 W (no LED load) |
-| **LED Channel Voltage** | 24 V DC (common anode) |
-| **LED Channel Current** | ≤ 5 A per channel (max 25 A total, externally fused) |
-| **Digital Input Range** | Logic 0 = 0–9 V, undefined = 9–15 V, Logic 1 = 15–24 V DC |
-| **Relay Output** | SPST-NO 16 A @ 250 VAC / 30 V DC (resistive) |
-| **Isolation Voltage** | 3 kVrms (DI ↔ MCU), opto-relay driver |
-| **Communication** | RS-485 (Modbus RTU), up to 115.2 kbps |
-| **USB Interface** | USB-C 5 V, ESD protected (PRTR5V0U2X) |
-| **Ambient Temperature** | 0 … 40 °C |
-| **Humidity** | ≤ 95 % r.H. (non-condensing) |
-| **Enclosure** | DIN-rail 3-module width, IP20 |
-| **Protections** | PTC fuses, TVS diodes, reverse-polarity Schottky |
+| Interface | Qty | Electrical / Notes |
+|---|---:|---|
+| **Digital Inputs (DI1, DI2)** | 2 | **Galvanically isolated** (ISO1212), surge-protected; 24 V sourcing or dry-contact. :contentReference[oaicite:3]{index=3} |
+| **Relay (RLY1)** | 1 | **SPST-NO**, coil 5 V; 16 A @ 250 VAC / 30 VDC (resistive).  |
+| **PWM Outputs** | 5 | Low-side MOSFET sinks (AP9990GH-HF) for **R/G/B/CW/WW** channels; common-anode LED wiring. :contentReference[oaicite:5]{index=5} |
+| **Status LEDs** | 8 | Power, TX/RX, DI1, DI2, plus user LEDs. :contentReference[oaicite:6]{index=6} |
+| **Buttons** | 2 | Front buttons for test/override/config. :contentReference[oaicite:7]{index=7} |
+| **RS-485 (Modbus)** | 1 | MAX485 half-duplex transceiver. :contentReference[oaicite:8]{index=8} |
+| **USB-C** | 1 | Setup & firmware; CP2102N bridge per module datasheet. :contentReference[oaicite:9]{index=9} |
 
 ---
 
-## 5.4 Firmware Behavior
+## 5.4 Terminals & Pinout (Front Label Reference)
 
-### 🧩 Modbus Operation
-- Operates as a **Modbus RTU slave** via RS-485.  
-- Address, baudrate, and parity configured through **WebConfig (USB-C)**.  
-- Holding Registers control PWM values, relay state, and read digital inputs.
+<img src="Images/photo1.png" align="left" width="320" alt="RGB-621-R1 module front with terminals">
 
-### ⚙️ Relay & Output Logic
-- Relay controlled by Modbus coil register or local logic.  
-- Optional **auto-relay mode** follows LED activity for power saving.
+**Top row**
+- **LED PS — V+ / 0V:** primary **24 VDC SELV** input (reverse & surge protected). :contentReference[oaicite:10]{index=10}  
+- **RELAY — NO / C:** dry contact output (see ratings below). :contentReference[oaicite:11]{index=11}  
+- **DI 24Vdc — I1 / I2 + GND:** isolated inputs with per-channel protection. :contentReference[oaicite:12]{index=12}  
 
-### 🎚️ PWM LED Control
-- Five independent 12-bit PWM channels (R/G/B/CW/WW).  
-- Supports smooth dimming and color temperature transitions.  
-- States retained in non-volatile memory after power cycle.  
+**Bottom row**
+- **LED — R, G, B, CW, WW:** low-side PWM outputs;  
+  **COM (+):** +24 V common anode to LED strips. :contentReference[oaicite:13]{index=13}  
+- **RS-485 — A, B (COM optional):** Modbus RTU bus. :contentReference[oaicite:14]{index=14}
 
-### 🔔 Input and Alarm Logic
-- Inputs can trigger scene changes or relay toggle.  
-- Configurable as **momentary**, **latched**, or **edge-triggered**.  
-- Optional latching mode preserves state until cleared by controller.  
+<br clear="left"/>
 
-### 💡 LED Indicators & Feedback
-| LED | Meaning |
-|------|----------|
-| **PWR** | Module powered and operational |
-| **TX / RX** | RS-485 communication activity |
-| **DI1 / DI2** | Digital input status |
-| **RUN** | Normal operation / heartbeat |
-| **ERR** | Fault / isolation error (blink pattern) |
+---
 
-### 🧠 Firmware Modes
-- **Normal Mode** – standard Modbus slave operation.  
-- **Test Mode** – activated via USB-C WebConfig for manual I/O testing.  
-- **Fail-Safe Mode** – retains last outputs on communication loss.  
+## 5.5 Electrical
+
+### 5.5.1 Power & Regulation
+- **Input:** **24 VDC ±10 %** (SELV/PELV); input fuses, reverse-polarity Schottky, and TVS surge clamp on field rail. :contentReference[oaicite:15]{index=15}  
+- **Consumption (module only):** **typ. 1.85 W**, **max. 3 W**. :contentReference[oaicite:16]{index=16}  
+- **Regulators:** 24 V → **5 V buck (AP64501)** → **3.3 V LDO (AMS1117-3.3)** for logic domain. :contentReference[oaicite:17]{index=17}
+
+### 5.5.2 Digital Inputs
+- **Front-end:** **ISO1212** dual industrial input receiver with TVS and PTC fusing; isolated to logic. :contentReference[oaicite:18]{index=18}  
+- **Thresholds (datasheet):** logic 0: **0…9.2 V**, undefined: **9.2…15.8 V**, logic 1: **15.8…24 V**. :contentReference[oaicite:19]{index=19}
+
+### 5.5.3 PWM Outputs (LED)
+- **Channels:** **5×** (R/G/B/CW/WW), low-side MOSFETs **AP9990GH-HF**;  
+  LED strips must be **24 V common-anode** (COM tied to +24 V). :contentReference[oaicite:20]{index=20}
+
+### 5.5.4 Relay Output
+- **Type:** **SPST-NO**, coil 5 V (optocoupled driver). :contentReference[oaicite:21]{index=21}  
+- **Ratings (datasheet):** **16 A @ 250 VAC / 30 VDC (resistive)**; derate for inductive loads. :contentReference[oaicite:22]{index=22}
+
+### 5.5.5 RS-485 (Modbus RTU)
+- **Transceiver:** **MAX485**, half-duplex; protected front-end; activity LEDs on TX/RX. :contentReference[oaicite:23]{index=23}  
+- **Data rate (datasheet):** up to **115.2 kbps**; default 19200 bps 8N1 (configurable via WebConfig). :contentReference[oaicite:24]{index=24}
+
+### 5.5.6 USB-C (Service/Config)
+- **Interface:** **USB 2.0 device**, ESD-protected; **CP2102N** USB-UART bridge per datasheet. :contentReference[oaicite:25]{index=25}
+
+### 5.5.7 Environment
+- **Operating:** **0…40 °C**, ≤ 95 % RH (non-condensing). :contentReference[oaicite:26]{index=26}
+
+---
+
+## 5.6 MCU & Storage
+- **MCU:** **Raspberry Pi RP2350A** (dual-core) with crystal, decoupling, and RUN/BOOT circuitry. :contentReference[oaicite:27]{index=27}  
+- **Flash:** **W25Q32** 32-Mbit QSPI NOR for firmware/config. :contentReference[oaicite:28]{index=28}  
+- **Debug/Clock:** **SWD** header; **12 MHz** crystal oscillator. :contentReference[oaicite:29]{index=29}
+
+---
+
+## 5.7 Reliability & Protections
+- **Field power:** resettable PTC fuses, reverse diode, **SMBJ33A** TVS; relay path with MOV/varistor. :contentReference[oaicite:30]{index=30}  
+- **Inputs:** per-channel TVS + PTC; **ISO1212** galvanic isolation. :contentReference[oaicite:31]{index=31}  
+- **Outputs:** MOSFET drivers with proper returns to **GND_FUSED**; guidance to snub inductive loads on relay. :contentReference[oaicite:32]{index=32}  
+- **RS-485:** protected transceiver with biasing/termination provisions; TX/RX LEDs. :contentReference[oaicite:33]{index=33}  
+- **USB:** **PRTR5V0U2X** ESD protection and current limiters on D±/VBUS. :contentReference[oaicite:34]{index=34}
+
+---
+
+## 5.8 Mechanical Details
+
+- **Mounting:** DIN rail **EN 50022, 35 mm**; IP20 enclosure. :contentReference[oaicite:35]{index=35}  
+- **Product dimensions (L×H×W front view):** **52.5 × 90.6 × 67.3 mm** (enclosure depth incl. rail foot). :contentReference[oaicite:36]{index=36}
+
+<div align="center">
+  <img src="Images/RGB-620-R1Dimensions.png" alt="RGB-621-R1 Dimensions" width="520"><br>
+  <em>RGB-621-R1 physical dimensions and DIN-rail profile</em>
+</div>
+
+---
+
+## 5.9 Firmware Behavior
+
+### Modbus & Configuration
+- Operates as **Modbus RTU slave**; address/baud/parity set via **WebConfig** (USB-C). :contentReference[oaicite:37]{index=37}
+
+### Alarm / Input Logic
+- Inputs support **momentary** or **latched** modes with debounce; can trigger scenes or relay actions (configurable).  
+
+### Override Priority
+- Local buttons may **override** outputs in Test mode; PLC/master regains control on exit from Test/Override.
+
+### LED Feedback
+- **PWR** steady when powered; **TX/RX** blink on bus activity; **DI1/DI2** reflect input state; **RUN/ERR** patterns indicate mode/fault. :contentReference[oaicite:38]{index=38}
 
 ---
 
