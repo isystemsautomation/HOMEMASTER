@@ -479,9 +479,9 @@ Summarize steps in 3 phases:
 
 ## 5.2 Overview
 
-- **Function:** RGBCCT LED controller with **5 PWM channels**, **2 isolated digital inputs**, and **1 relay**. :contentReference[oaicite:0]{index=0}  
-- **Role:** **RS-485 Modbus RTU** slave for MicroPLC/MiniPLC/SCADA; address/baud via **USB-C WebConfig**.   
-- **Form factor:** DIN-rail; front **USB-C** service port (ESD-protected). :contentReference[oaicite:2]{index=2}
+- **Function:** RGB + CCT LED controller with **5 PWM channels**, **2 isolated digital inputs**, and **1 relay**  
+- **Role:** **RS-485 Modbus RTU** slave for MicroPLC / MiniPLC / SCADA; configuration via **USB-C WebConfig**  
+- **Form factor:** DIN-rail mount; front **USB-C** service port for diagnostics and firmware
 
 ---
 
@@ -489,13 +489,14 @@ Summarize steps in 3 phases:
 
 | Interface | Qty | Electrical / Notes |
 |---|---:|---|
-| **Digital Inputs (DI1, DI2)** | 2 | **Galvanically isolated** (ISO1212), surge-protected; 24 V sourcing or dry-contact. :contentReference[oaicite:3]{index=3} |
-| **Relay (RLY1)** | 1 | **SPST-NO**, coil 5 V; 16 A @ 250 VAC / 30 VDC (resistive).  |
-| **PWM Outputs** | 5 | Low-side MOSFET sinks (AP9990GH-HF) for **R/G/B/CW/WW** channels; common-anode LED wiring. :contentReference[oaicite:5]{index=5} |
-| **Status LEDs** | 8 | Power, TX/RX, DI1, DI2, plus user LEDs. :contentReference[oaicite:6]{index=6} |
-| **Buttons** | 2 | Front buttons for test/override/config. :contentReference[oaicite:7]{index=7} |
-| **RS-485 (Modbus)** | 1 | MAX485 half-duplex transceiver. :contentReference[oaicite:8]{index=8} |
-| **USB-C** | 1 | Setup & firmware; CP2102N bridge per module datasheet. :contentReference[oaicite:9]{index=9} |
+| **Digital Inputs (DI1, DI2)** | 2 | Galvanically isolated 24 V DC sourcing or dry-contact inputs |
+| **Relay (RLY1)** | 1 | SPST-NO 16 A @ 250 VAC / 30 V DC (resistive), coil 5 V (optocoupled) |
+| **PWM Outputs** | 5 | Low-side MOSFET sinks (AP9990GH-HF) for R/G/B/CW/WW LED channels |
+| **Status LEDs** | 8 | Power, TX/RX, DI1, DI2, RUN, and output status indicators |
+| **Buttons** | 2 | Front buttons for local control / configuration |
+| **RS-485 (Modbus)** | 1 | MAX485 half-duplex interface, 19200 bps 8N1 default |
+| **USB-C** | 1 | WebConfig / firmware setup (logic domain only) |
+| **MCU** | 1 | RP2350A dual-core M33 @ 133 MHz + 32 Mbit QSPI Flash |
 
 ---
 
@@ -504,14 +505,14 @@ Summarize steps in 3 phases:
 <img src="Images/photo1.png" align="left" width="320" alt="RGB-621-R1 module front with terminals">
 
 **Top row**
-- **LED PS — V+ / 0V:** primary **24 VDC SELV** input (reverse & surge protected). :contentReference[oaicite:10]{index=10}  
-- **RELAY — NO / C:** dry contact output (see ratings below). :contentReference[oaicite:11]{index=11}  
-- **DI 24Vdc — I1 / I2 + GND:** isolated inputs with per-channel protection. :contentReference[oaicite:12]{index=12}  
+- **LED PS — V+ / 0V:** primary 24 V DC SELV power input (reverse & surge protected)  
+- **RELAY — NO / C:** dry contact output (see ratings below)  
+- **DI 24Vdc — I1 / I2 + GND:** isolated inputs with per-channel protection  
 
 **Bottom row**
-- **LED — R, G, B, CW, WW:** low-side PWM outputs;  
-  **COM (+):** +24 V common anode to LED strips. :contentReference[oaicite:13]{index=13}  
-- **RS-485 — A, B (COM optional):** Modbus RTU bus. :contentReference[oaicite:14]{index=14}
+- **LED — R, G, B, CW, WW:** low-side PWM outputs  
+  **COM (+):** +24 V common anode to LED strips  
+- **RS-485 — A, B (COM optional):** Modbus RTU bus lines  
 
 <br clear="left"/>
 
@@ -520,54 +521,60 @@ Summarize steps in 3 phases:
 ## 5.5 Electrical
 
 ### 5.5.1 Power & Regulation
-- **Input:** **24 VDC ±10 %** (SELV/PELV); input fuses, reverse-polarity Schottky, and TVS surge clamp on field rail. :contentReference[oaicite:15]{index=15}  
-- **Consumption (module only):** **typ. 1.85 W**, **max. 3 W**. :contentReference[oaicite:16]{index=16}  
-- **Regulators:** 24 V → **5 V buck (AP64501)** → **3.3 V LDO (AMS1117-3.3)** for logic domain. :contentReference[oaicite:17]{index=17}
+- **Input:** 24 V DC ±10 % (SELV/PELV); input PTC fuses, reverse-polarity Schottky, and TVS surge protection  
+- **Consumption:** typ. 1.85 W, max. 3 W (module only, no LED load)  
+- **Regulators:** 24 V → 5 V buck (AP64501) → 3.3 V LDO (AMS1117-3.3) for logic domain  
 
 ### 5.5.2 Digital Inputs
-- **Front-end:** **ISO1212** dual industrial input receiver with TVS and PTC fusing; isolated to logic. :contentReference[oaicite:18]{index=18}  
-- **Thresholds (datasheet):** logic 0: **0…9.2 V**, undefined: **9.2…15.8 V**, logic 1: **15.8…24 V**. :contentReference[oaicite:19]{index=19}
+- **Front-end:** ISO1212 dual industrial receiver with TVS + PTC fusing; 3 kVrms isolation to logic  
+- **Thresholds:** logic 0: 0 – 9.2 V, undefined: 9.2 – 15.8 V, logic 1: 15.8 – 24 V DC  
 
 ### 5.5.3 PWM Outputs (LED)
-- **Channels:** **5×** (R/G/B/CW/WW), low-side MOSFETs **AP9990GH-HF**;  
-  LED strips must be **24 V common-anode** (COM tied to +24 V). :contentReference[oaicite:20]{index=20}
+- **Channels:** 5 × low-side MOSFETs (AP9990GH-HF); LED strips must be 24 V common-anode type  
+- **Drive:** up to 5 A per channel (max 25 A total, external PSU limited)  
+- **Protection:** Reverse and surge clamps on LED power rail  
 
 ### 5.5.4 Relay Output
-- **Type:** **SPST-NO**, coil 5 V (optocoupled driver). :contentReference[oaicite:21]{index=21}  
-- **Ratings (datasheet):** **16 A @ 250 VAC / 30 VDC (resistive)**; derate for inductive loads. :contentReference[oaicite:22]{index=22}
+- **Type:** SPST-NO mechanical relay (HF115F 5 V coil via SFH6156 optocoupler)  
+- **Rating:** 16 A @ 250 VAC / 30 V DC (resistive) – derate for inductive loads  
 
 ### 5.5.5 RS-485 (Modbus RTU)
-- **Transceiver:** **MAX485**, half-duplex; protected front-end; activity LEDs on TX/RX. :contentReference[oaicite:23]{index=23}  
-- **Data rate (datasheet):** up to **115.2 kbps**; default 19200 bps 8N1 (configurable via WebConfig). :contentReference[oaicite:24]{index=24}
+- **Transceiver:** MAX485 half-duplex, protected lines + bias/termination network  
+- **Baud rate:** up to 115.2 kbps; default 19200 bps 8N1  
+- **Indicators:** TX/RX LEDs for activity  
 
 ### 5.5.6 USB-C (Service/Config)
-- **Interface:** **USB 2.0 device**, ESD-protected; **CP2102N** USB-UART bridge per datasheet. :contentReference[oaicite:25]{index=25}
+- **Interface:** USB 2.0 device, ESD-protected; CP2102N bridge to UART  
+- **Purpose:** WebConfig / firmware update; not for field power  
 
 ### 5.5.7 Environment
-- **Operating:** **0…40 °C**, ≤ 95 % RH (non-condensing). :contentReference[oaicite:26]{index=26}
+- **Operating Temp:** 0 – 40 °C  
+- **Humidity:** ≤ 95 % RH (non-condensing)  
 
 ---
 
 ## 5.6 MCU & Storage
-- **MCU:** **Raspberry Pi RP2350A** (dual-core) with crystal, decoupling, and RUN/BOOT circuitry. :contentReference[oaicite:27]{index=27}  
-- **Flash:** **W25Q32** 32-Mbit QSPI NOR for firmware/config. :contentReference[oaicite:28]{index=28}  
-- **Debug/Clock:** **SWD** header; **12 MHz** crystal oscillator. :contentReference[oaicite:29]{index=29}
+- **MCU:** Raspberry Pi RP2350A (dual-core Cortex-M33)  
+- **Flash:** W25Q32 32-Mbit QSPI NOR for firmware and config  
+- **Clock / Debug:** 12 MHz crystal oscillator + SWD service header  
 
 ---
 
 ## 5.7 Reliability & Protections
-- **Field power:** resettable PTC fuses, reverse diode, **SMBJ33A** TVS; relay path with MOV/varistor. :contentReference[oaicite:30]{index=30}  
-- **Inputs:** per-channel TVS + PTC; **ISO1212** galvanic isolation. :contentReference[oaicite:31]{index=31}  
-- **Outputs:** MOSFET drivers with proper returns to **GND_FUSED**; guidance to snub inductive loads on relay. :contentReference[oaicite:32]{index=32}  
-- **RS-485:** protected transceiver with biasing/termination provisions; TX/RX LEDs. :contentReference[oaicite:33]{index=33}  
-- **USB:** **PRTR5V0U2X** ESD protection and current limiters on D±/VBUS. :contentReference[oaicite:34]{index=34}
+- Field power protected by PTC fuses, reverse diode (STPS340U), TVS (SMBJ33A)  
+- Inputs per-channel TVS + PTC; ISO1212 provides isolation  
+- Relay coil flyback diode + varistor network  
+- RS-485 fail-safe bias and surge protection  
+- USB-C ESD protection (PRTR5V0U2X) and current limiting  
 
 ---
 
 ## 5.8 Mechanical Details
 
-- **Mounting:** DIN rail **EN 50022, 35 mm**; IP20 enclosure. :contentReference[oaicite:35]{index=35}  
-- **Product dimensions (L×H×W front view):** **52.5 × 90.6 × 67.3 mm** (enclosure depth incl. rail foot). :contentReference[oaicite:36]{index=36}
+- **Mounting:** DIN-rail EN 50022, 35 mm; enclosure IP20  
+- **Material:** PC/ABS V-0 self-extinguishing; light gray front panel  
+- **Dimensions (L × H × W):** 52.5 × 90.6 × 67.3 mm  
+- **Weight:** ≈ 0.25 kg  
 
 <div align="center">
   <img src="Images/RGB-620-R1Dimensions.png" alt="RGB-621-R1 Dimensions" width="520"><br>
@@ -576,19 +583,46 @@ Summarize steps in 3 phases:
 
 ---
 
-## 5.9 Firmware Behavior
+## 5.9 Absolute Electrical Specifications
+
+| Parameter | Min | Typ | Max | Notes |
+|---|---:|---:|---:|---|
+| **Supply Voltage (V+)** | 20 V | 24 V | 30 V | SELV input; reverse/surge protected |
+| **Power Consumption** | — | 1.85 W | 3.0 W | Module only (no external loads) |
+| **Logic Rails** | — | 5 V / 3.3 V | — | Derived from buck + LDO |
+| **Digital Inputs (DI1–DI2)** | — | — | — | Galvanically isolated 24 V logic; TVS protected |
+| **Relay Contacts (RLY1)** | — | — | — | 16 A @ 250 VAC (cosφ = 1); 9 A @ 250 VAC (cosφ = 0.4); 10 A @ 30 V DC |
+| **LED Channel Voltage** | — | 24 V DC | — | Common-anode RGB+CCT LED strips |
+| **LED Channel Current** | — | — | 5 A per channel | External supply limited; MOSFET AP9990GH-HF rated 60 V |
+| **RS-485 Interface** | — | — | 115.2 kbps | Half-duplex, fail-safe, surge-protected |
+| **USB Interface** | 4.75 V | 5 V | 5.25 V | USB 2.0 device; ESD protected |
+| **Operating Temperature** | 0 °C | — | 40 °C | 95 % RH, non-condensing |
+
+> **Installer Note:** Provide upstream fusing on the 24 V feed and use external snubbers for inductive loads connected to relay contacts.
+
+---
+
+## 5.10 Firmware Behavior
 
 ### Modbus & Configuration
-- Operates as **Modbus RTU slave**; address/baud/parity set via **WebConfig** (USB-C). :contentReference[oaicite:37]{index=37}
+- Operates as Modbus RTU slave on RS-485  
+- Address, baud rate, and parity set via WebConfig (USB-C)  
+- Holding registers control PWM channels and relay; inputs read as coils / discretes  
 
-### Alarm / Input Logic
-- Inputs support **momentary** or **latched** modes with debounce; can trigger scenes or relay actions (configurable).  
+### Input Logic
+- Inputs configurable as momentary or latched; trigger relay or scene actions  
 
 ### Override Priority
-- Local buttons may **override** outputs in Test mode; PLC/master regains control on exit from Test/Override.
+- Local buttons enable manual override in Test Mode; controller regains control on exit  
 
 ### LED Feedback
-- **PWR** steady when powered; **TX/RX** blink on bus activity; **DI1/DI2** reflect input state; **RUN/ERR** patterns indicate mode/fault. :contentReference[oaicite:38]{index=38}
+| LED | Meaning |
+|------|----------|
+| **PWR** | Power ON (status OK) |
+| **TX/RX** | RS-485 activity |
+| **DI1/DI2** | Input state indication |
+| **RUN** | Operating heartbeat |
+| **ERR** | Fault / isolation error (blink pattern) |
 
 ---
 
@@ -622,33 +656,70 @@ Only if supported. Cover:
 
 <a id="8-programming--customization"></a>
 
-# 8. Programming & Customization
+# 8. Programming & Customization (RGB-621-R1)
 
 ## 8.1 Supported Languages
 
-- Arduino
-- C++
+- Arduino (RP2350 core)
+- C/C++ (PIO / SDK)
 - MicroPython
 
 ## 8.2 Flashing
 
-Steps for:
-- USB-C flashing
-- BOOT/RESET button use
-- PlatformIO / Arduino IDE setup
+**USB-C (Web Serial / CDC)**
+1. Connect a USB-C cable from your PC to the module’s **USB** port.
+2. **Enter BOOT mode:** press **Button 1 + Button 2** together (see photo below).
+3. Flash using **PlatformIO** or **Arduino IDE** (serial upload).
+4. When flashing completes, disconnect and power-cycle the module.
+
+> **Reset:** this module **does not** have a button combo for reset.  
+> To reset, **remove 24 VDC power for ≥5 s** and re-apply.
+
+**PlatformIO / Arduino IDE setup**
+- **Board/MCU:** *Raspberry Pi RP2350 / Generic RP235x*
+- **USB upload:** Serial (CDC)
+- **Flash layout (Arduino):** e.g. 2 MB (Sketch 1 MB / FS 1 MB)
+- **Recommended libs (Arduino examples):**
+  - `ModbusSerial` (RTU master/slave helpers)
+  - `Arduino_JSON`
+  - `LittleFS`
+  - `SimpleWebSerial` (for WebConfig bridge)
+  - `Wire` (if needed)
+
+**Pin mapping**
+- See diagrams and the firmware’s `pins.h` for channel → GPIO mapping.  
+  (PWM: **R/G/B/CW/WW**, Inputs: **DI1/DI2**, Relay: **RLY**, RS-485 **RX/TX**.)
+
+**Buttons reference (RGB-621-R1 front)**
+<p align="center">
+  <img src="Images/buttons1.png" alt="Button 1 and Button 2 positions" width="300">
+</p>
+
+- **Button 1 + Button 2** → **BOOT mode**  
+- **Reset** → **power-cycle 24 VDC for ≥5 s**
 
 ## 8.3 Arduino / PlatformIO Notes
 
-Mention:
-- Required libraries
-- Pin mapping
-- Board config
+- **PlatformIO** `platformio.ini` (example):
+  ```ini
+  [env:rgb621]
+  platform = https://github.com/Wiz-IO/wizio-pico.git
+  board = rp235x
+  framework = arduino
+  upload_port = auto
+  monitor_speed = 115200
+  build_flags = -DHM_RGB621
+  ```
+- **Serial console:** 115200 bps by default.
+- **Modbus RTU:** set address/baud in **WebConfig** or via NVS/defines.
+- **PWM:** use hardware PWM channels for R/G/B/CW/WW (12-bit suggested).
 
 ## 8.4 Firmware Updates
 
-- How to update
-- Preserving config
-- Recovery methods
+- Open the project in **PlatformIO** or **Arduino IDE**.
+- Put device in **BOOT** (Button **1+2**) and upload the new build.
+- **Configuration persistence:** device settings (address/baud, channel trims, etc.) are stored in flash and **kept** across updates unless you explicitly erase.
+- **Recovery:** if the device won’t enumerate, power-cycle 24 VDC (≥5 s) and retry **BOOT** (1+2). If needed, flash a minimal “factory” image first, then restore config via WebConfig backup.
 
 ---
 
@@ -656,10 +727,33 @@ Mention:
 
 # 9. Maintenance & Troubleshooting
 
-Optional section. Add:
-- Status LED meanings
-- Reset methods
-- Common issues (no comms, relay won’t trigger, etc.)
+## 9.1 Status LEDs (front panel)
+
+| LED  | Meaning |
+|-----|---------|
+| **PWR** | Steady when powered and firmware is running. |
+| **TX**  | Blinks on Modbus transmit. |
+| **RX**  | Blinks on Modbus receive. |
+| **I.1 / I.2** | Reflect isolated input states. |
+| **RUN/ERR** (if present) | Heartbeat / fault pattern (refer to firmware notes). |
+
+## 9.2 Resets & Modes
+
+- **BOOT mode:** **Button 1 + Button 2** (for flashing).
+- **Reset:** **remove 24 VDC for ≥5 s** and re-apply.
+
+## 9.3 Common Issues
+
+- **No communication (TX/RX dark):**  
+  Check A/B polarity, termination at bus ends (120 Ω), baud/ID match, and shared COM reference if separate PSUs.
+- **Relay won’t trigger:**  
+  Confirm Modbus control vs. local override mode, verify coil/state in WebConfig, and ensure external wiring is on **C/NO** (dry contact). Add snubber for inductive loads.
+- **LED channels do not light:**  
+  Verify **COM (+24 V)** to strip, channel cathodes on **R/G/B/CW/WW**, correct polarity, and adequate 24 V PSU sizing.
+- **Inputs not detected:**  
+  Use **DI 24Vdc** terminals (I1/I2 with GND). Confirm sensor type (dry contact or 24 V sourcing) and debounce/invert settings in WebConfig.
+- **USB not detected:**  
+  Use a data-capable USB-C cable; close any app holding the port; re-enter **BOOT** (1+2).
 
 ---
 
@@ -667,9 +761,9 @@ Optional section. Add:
 
 # 10. Open Source & Licensing
 
-- **Hardware:** CERN-OHL-W v2
-- **Firmware:** GPLv3
-- **Config Tools:** MIT or other as applicable
+- **Hardware:** **CERN-OHL-W v2**
+- **Firmware:** **GPLv3**
+- **Config Tools & examples:** **MIT** (unless stated otherwise)
 
 ---
 
@@ -677,14 +771,13 @@ Optional section. Add:
 
 # 11. Downloads
 
-Include links to:
-
-- Firmware binaries
-- YAML configs
-- WebConfig tool
-- Schematics (PDF)
-- Images and diagrams
-- Datasheets
+- **Repository (module path):**  
+  [`RGB-621-R1` on GitHub](https://github.com/isystemsautomation/HOMEMASTER/tree/main/RGB-621-R1)
+- **Firmware & examples:** `RGB-621-R1/Firmware/`
+- **WebConfig (HTML page):** `RGB-621-R1/Firmware/ConfigToolPage.html`
+- **Schematics (PDF):** `RGB-621-R1/Schematics/`
+- **Datasheet & docs:** `RGB-621-R1/Manuals/`
+- **Images & diagrams:** `RGB-621-R1/Images/`
 
 ---
 
@@ -692,10 +785,10 @@ Include links to:
 
 # 12. Support
 
-- [Official Support Portal](https://www.home-master.eu/support)
-- [WebConfig Tool](https://www.home-master.eu/configtool-[module-code])
-- [YouTube](https://youtube.com/@HomeMaster)
-- [Hackster](https://hackster.io/homemaster)
-- [Reddit](https://reddit.com/r/HomeMaster)
-- [Instagram](https://instagram.com/home_master.eu)
+- **Official Support:** https://www.home-master.eu/support  
+- **WebConfig Tool (RGB-621-R1):** https://www.home-master.eu/configtool-rgb-621-r1  
+- **YouTube:** https://youtube.com/@HomeMaster  
+- **Hackster:** https://hackster.io/homemaster  
+- **Reddit:** https://reddit.com/r/HomeMaster  
+- **Instagram:** https://instagram.com/home_master.eu
 
