@@ -684,11 +684,7 @@ Only if supported. Cover:
   - `Arduino_JSON`
   - `LittleFS`
   - `SimpleWebSerial` (for WebConfig bridge)
-  - `Wire` (if needed)
 
-**Pin mapping**
-- See diagrams and the firmware’s `pins.h` for channel → GPIO mapping.  
-  (PWM: **R/G/B/CW/WW**, Inputs: **DI1/DI2**, Relay: **RLY**, RS-485 **RX/TX**.)
 
 **Buttons reference (RGB-621-R1 front)**
 <p align="center">
@@ -698,23 +694,7 @@ Only if supported. Cover:
 - **Button 1 + Button 2** → **BOOT mode**  
 - **Reset** → **power-cycle 24 VDC for ≥5 s**
 
-## 8.3 Arduino / PlatformIO Notes
-
-- **PlatformIO** `platformio.ini` (example):
-  ```ini
-  [env:rgb621]
-  platform = https://github.com/Wiz-IO/wizio-pico.git
-  board = rp235x
-  framework = arduino
-  upload_port = auto
-  monitor_speed = 115200
-  build_flags = -DHM_RGB621
-  ```
-- **Serial console:** 115200 bps by default.
-- **Modbus RTU:** set address/baud in **WebConfig** or via NVS/defines.
-- **PWM:** use hardware PWM channels for R/G/B/CW/WW (12-bit suggested).
-
-## 8.4 Firmware Updates
+## 8.3 Firmware Updates
 
 - Open the project in **PlatformIO** or **Arduino IDE**.
 - Put device in **BOOT** (Button **1+2**) and upload the new build.
