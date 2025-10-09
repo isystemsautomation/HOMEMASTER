@@ -14,13 +14,11 @@
 ![Modbus](https://img.shields.io/badge/Protocol-Modbus%20RTU-brightgreen)
 ![License](https://img.shields.io/badge/License-GPLv3%20%2F%20CERN--OHL--W-blue)
 
-
-
 # ALM-173-R1 Module for Alarm Systems
 
 **HOMEMASTER – Modular control. Custom logic.**
 
-<img src="Images/photo1.png" align="right" width="440" alt="ALM-173-R1 module photo">
+![ALM-173-R1 module photo](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/ALM-173-R1/Images/photo1.png)
 
 ### Module Description
 
@@ -43,11 +41,7 @@ The **ALM-173-R1** is a configurable **alarm I/O module** with **17 opto-isolate
 * [11. Downloads](#11-downloads)
 * [12. Support](#12-support)
 
-<br clear="left"/>
-
 ---
-
-<a id="1-introduction"></a>
 
 # 1. Introduction
 
@@ -104,10 +98,7 @@ The **ALM-173-R1** is a standalone, intelligent Modbus slave. It runs group logi
 
 > > ⚠️ If multiple ALMs are on the same RS-485 line, assign unique Modbus addresses to each in WebConfig.
 
-
 ---
-
-<a id="2-use-cases"></a>
 
 # 2. Use Cases 🛠️
 
@@ -190,7 +181,6 @@ Each case uses built-in firmware features via the Web Serial UI:
 
 > > 💡 **Tip:** “Any Alarm” is always available via Modbus and can be mapped to a summary relay or LED.
 
-
 # 3. Safety Information
 
 These safety guidelines apply to the **ALM-173-R1** alarm I/O module. Ignoring them may result in **equipment damage**, **system failure**, or **personal injury**.
@@ -270,10 +260,7 @@ Ensure the following before applying power:
 - [ ] RS-485 **A/B polarity and termination** are correct  
 - [ ] Sensor current on **PS/1 (12 V)** and **PS/2 (5 V)** is within limits  
 
-
 ---
-
-<a id="4-installation-quick-start"></a>
 
 # 4. Installation & Quick Start
 
@@ -372,8 +359,6 @@ Runtime control is via **RS‑485 (Modbus RTU)**; **USB‑C** is for local setup
 
 ---
 
-<a id="installation-wiring"></a>
-
 ## 4.4 Installation & Wiring
 
 > ⚠️ **Qualified personnel only.** De-energize the panel; verify with a meter. The ALM-173-R1 is **SELV**—never connect mains to logic/input terminals.
@@ -423,8 +408,6 @@ Runtime control is via **RS‑485 (Modbus RTU)**; **USB‑C** is for local setup
 - Power on: **PWR** steady; **TX/RX** blink under comms.
 
 ---
-
-<a id="software-ui-configuration"></a>
 
 ## 4.5 Software & UI Configuration
 
@@ -480,8 +463,6 @@ For **RLY1…RLY3**:
 
 ---
 
-<a id="4-6-getting-started"></a>
-
 ## 4.6 Getting Started (3 Phases)
 
 **Phase 1 — Wire**
@@ -521,30 +502,28 @@ For **RLY1…RLY3**:
 
 ## 5.1 Diagrams & Pinouts
 
-<div align="center">
-  <table>
-    <tr>
-      <td align="center">
-        <strong>ALM System Diagram</strong><br>
-        <img src="Images/ALM_SystemBlockDiagram.png" alt="ALM System Diagram" width="360">
-      </td>
-      <td align="center">
-        <strong>RP2350 MCU Pinout</strong><br>
-        <img src="Images/ALM_MCU_Pinouts.png" alt="MCU Pinouts" width="360">
-      </td>
-    </tr>
-    <tr>
-      <td align="center">
-        <strong>Field Board Layout</strong><br>
-        <img src="Images/FieldBoard-Diagram.png" alt="Field Board Diagram" width="360">
-      </td>
-      <td align="center">
-        <strong>MCU Board Layout</strong><br>
-        <img src="Images/MCUBoard-Diagram.png" alt="MCU Board Diagram" width="360">
-      </td>
-    </tr>
-  </table>
-</div>
+  
+    
+      
+        ALM System Diagram
+        ![ALM System Diagram](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/ALM-173-R1/Images/ALM_SystemBlockDiagram.png)
+      
+      
+        RP2350 MCU Pinout
+        ![MCU Pinouts](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/ALM-173-R1/Images/ALM_MCU_Pinouts.png)
+      
+    
+    
+      
+        Field Board Layout
+        ![Field Board Diagram](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/ALM-173-R1/Images/FieldBoard-Diagram.png)
+      
+      
+        MCU Board Layout
+        ![MCU Board Diagram](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/ALM-173-R1/Images/MCUBoard-Diagram.png)
+      
+    
+  
 
 ## 5.2 Overview
 
@@ -570,7 +549,7 @@ For **RLY1…RLY3**:
 
 ## 5.4 Terminals & Pinout (Field Side)
 
-<img src="Images/photo1.png" align="left" width="660" alt="ALM-173-R1 module front with terminal labeling">
+![ALM-173-R1 module front with terminal labeling](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/ALM-173-R1/Images/photo1.png)
 
 ### Connector Map (front label reference)
 > Use the front silkscreen to match terminals during wiring. In the enclosure view: **DI1…DI10** are on the top row with paired GNDs, **DI11…DI17** are on the bottom row with paired GNDs.
@@ -582,8 +561,6 @@ For **RLY1…RLY3**:
 - **RS-485 — COM, B, A:** Modbus RTU field bus. Twisted pair; correct A/B polarity; one-point shield bond; termination per trunk design.  
 - **USB (Service):** Web-Serial configuration; not a field power source.  
 - **PWR/TX/RX LEDs:** **PWR** steady ON; **TX/RX** blink on traffic. If not blinking, check polarity, termination, address.
-
-<br clear="left"/>
 
 ---
 
@@ -701,10 +678,8 @@ For **RLY1…RLY3**:
 
 ### Enclosure Dimensions
 
-<div align="center">
-  <img src="Images/ALMMDimensions.png" alt="ALM-173-R1 Dimensions" width="660">
-  <p><em>ALM-173-R1 Physical Dimensions (DIN-rail enclosure)</em></p>
-</div>
+  ![ALM-173-R1 Dimensions](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/ALM-173-R1/Images/ALMMDimensions.png)
+  ALM-173-R1 Physical Dimensions (DIN-rail enclosure)
 
 ---
 
@@ -714,10 +689,6 @@ For **RLY1…RLY3**:
 - **Ingress / safety class:** **IP20**; **Operation Type 1**  
 - **Impulse / altitude / pollution:** **Rated impulse 2.5 kV** (digital output), **max altitude 2000 m**, **Pollution degree 2**  
 - **Installation:** Must be installed by qualified personnel per local codes; SELV only
-
-
-
-<a id="6-modbus-rtu-communication"></a>
 
 # 6. Modbus RTU Communication
 
@@ -851,7 +822,6 @@ Holding Registers (R/W)
 
 ## 6.7 Override Priority
 
-<a id="7-esphome-integration-guide"></a>
 # 7. ESPHome Integration Guide (MicroPLC/MiniPLC + ALM-173-R1)
 
 The **HomeMaster controller (MiniPLC/MicroPLC)** running **ESPHome** acts as the **Modbus RTU master** on RS‑485. It polls the **ALM-173-R1** and publishes entities to **Home Assistant (HA)**. No HA add‑ons are required—everything runs on the controller.
@@ -996,8 +966,6 @@ These appear as ESPHome switches/scripts usable in HA automations.
 
 ---
 
-<a id="8-programming-customization"></a>
-
 # 8. Programming & Customization
 
 ## 8.1 Supported Languages
@@ -1021,10 +989,7 @@ These appear as ESPHome switches/scripts usable in HA automations.
 
 📷 **Button numbering reference:**
 
-<p align="center">
-  <img src="Images/buttons1.png" alt="Button Layout" width="320">
-</p>
-
+  ![Button Layout](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/ALM-173-R1/Images/buttons1.png)
 
 ## 8.4 Firmware Updates
 
@@ -1036,37 +1001,30 @@ To update the firmware, use the Arduino IDE or PlatformIO via USB-C:
 
 ⚠️ Configuration stored in EEPROM is preserved during firmware updates unless manually cleared.
 
-
 ## 8.3 Arduino
 
 * Select the appropriate board profile (Generic RP2350).
 * In the Tools select Flash size 2MB (Sketch: 1MB, FS: 1MB )
 * Add
 
-  * #include <Arduino.h>
-  * #include <ModbusSerial.h>
-  * #include <SimpleWebSerial.h>
-  * #include <Arduino_JSON.h>
-  * #include <LittleFS.h>
-  * #include <Wire.h>
-  * #include <PCF8574.h>
-  * #include <utility>
+  * #include 
+  * #include 
+  * #include 
+  * #include 
+  * #include 
+  * #include 
+  * #include 
+  * #include 
   * #include "hardware/watchdog.h"
-
-<a id="9-maintenance-troubleshooting"></a>
 
 # 9. Maintenance & Troubleshooting
 
 (Section placeholder for future additions.)
 
-<a id="10-open-source-licensing"></a>
-
 # 10. Open Source & Licensing
 
 * **Hardware:** **CERN‑OHL‑W 2.0**
 * **Firmware & code samples:** **GPLv3** (unless otherwise noted)
-
-<a id="11-downloads"></a>
 
 # 11. Downloads
 
@@ -1086,8 +1044,6 @@ The following key project resources are included in this repository:
 
 * **📖 Datasheet & Documentation (if available):** [`Manuals/`](Manuals/)
   Contains PDF datasheets or technical overviews, if applicable.
-
-<a id="12-support"></a>
 
 # 12. Support
 
