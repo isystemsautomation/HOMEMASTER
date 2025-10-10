@@ -502,30 +502,13 @@ For **RLY1…RLY3**:
 
 ## 5.1 Diagrams & Pinouts
 
-<div align="center">
-  <table>
-    <tr>
-      <td align="center">
-        <strong>ALM System Diagram</strong><br>
-        <img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/ALM-173-R1/Images/ALM_SystemBlockDiagram.png" width="360" alt="ALM System Diagram">
-      </td>
-      <td align="center">
-        <strong>RP2350 MCU Pinout</strong><br>
-        <img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/ALM-173-R1/Images/ALM_MCU_Pinouts.png" width="360" alt="MCU Pinouts">
-      </td>
-    </tr>
-    <tr>
-      <td align="center">
-        <strong>Field Board Layout</strong><br>
-        <img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/ALM-173-R1/Images/FieldBoard-Diagram.png" width="360" alt="Field Board Diagram">
-      </td>
-      <td align="center">
-        <strong>MCU Board Layout</strong><br>
-        <img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/ALM-173-R1/Images/MCUBoard-Diagram.png" width="360" alt="MCU Board Diagram">
-      </td>
-    </tr>
-  </table>
-</div>
+| ALM System Diagram | RP2350 MCU Pinout |
+| --- | --- |
+| ![ALM System Diagram](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/ALM-173-R1/Images/ALM_SystemBlockDiagram.png) | ![MCU Pinouts](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/ALM-173-R1/Images/ALM_MCU_Pinouts.png) |
+
+| Field Board Layout | MCU Board Layout |
+| --- | --- |
+| ![Field Board Diagram](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/ALM-173-R1/Images/FieldBoard-Diagram.png) | ![MCU Board Diagram](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/ALM-173-R1/Images/MCUBoard-Diagram.png) |
 
 
 ## 5.2 Overview
