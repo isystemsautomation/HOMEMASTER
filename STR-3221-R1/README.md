@@ -8,49 +8,23 @@
 
 **HOMEMASTER – Modular control. Custom logic.**
 
-<img src="Images/photo1.png" align="right" width="440" alt="STR-3221-R1 photo">
+![Image](Https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/photo1.png)
 
-### Module Description
-
-The **STR-3221-R1** is a configurable smart I/O module designed for **multi-channel LED lighting and automation control**.  
-It includes **32 open-drain MOSFET outputs**, **4 opto-isolated digital inputs**, and **4 local buttons with indicator LEDs**, with configuration via **WebConfig** using **USB-C (Web Serial)**.  
-It connects over **RS-485 (Modbus RTU)** to a **MicroPLC/MiniPLC**, enabling use in **staircase lighting, building automation, alarms, or ambient lighting systems**.
-
----
-
-
-## Table of Contents
-
-* [1. Introduction](#1-introduction)
-* [2. Use Cases](#2-use-cases)
-* [3. Safety Information](#3-safety-information)
-* [4. Installation & Quick Start](#4-installation-quick-start)
-* [5. MODULE-CODE — Technical Specification](#5-module-code--technical-specification)
-* [6. Modbus RTU Communication](#6-modbus-rtu-communication)
-* [7. ESPHome Integration Guide (if applicable)](#7-esphome-integration-guide)
-* [8. Programming & Customization](#8-programming--customization)
-* [9. Maintenance & Troubleshooting](#9-maintenance--troubleshooting)
-* [10. Open Source & Licensing](#10-open-source--licensing)
-* [11. Downloads](#11-downloads)
-* [12. Support](#12-support)
-
-<br clear="left"/>
-
----
-
-<a id="1-introduction"></a>
-
-<a id="1-introduction"></a>
 
 # 1. Introduction
 
 ## 1.1 Overview of the STR-3221-R1
 
-The **STR-3221-R1** is a compact **smart LED / I/O controller** for architectural lighting and automation panels.  
-It provides **32 MOSFET-switched outputs** for 12–24 V DC LED loads and **2 opto-isolated 24 V digital inputs** exposed on terminals (**IN1 GND/+**, **IN2 GND/+**).  
-It integrates with **MicroPLC/MiniPLC** or any Modbus master over **RS-485 (Modbus RTU)** and is configured via **USB-C** using a browser-based **WebConfig (Web Serial)** tool—no special software required.
+The **STR-3221-R1** is a compact and configurable **smart LED / I/O controller** designed for **multi-channel LED lighting and automation control** in architectural and industrial applications.
 
-**One-line purpose:** a **high-density field I/O lighting node** that’s easy to wire, configure, and supervise from PLC/SCADA/HA.
+It provides **32 MOSFET-switched outputs** (open-drain, low-side, 12–24 V DC) for LED loads, along with **4 opto-isolated 24 V digital inputs** and **4 local buttons** each with indicator LEDs.  
+Configuration is handled through a browser-based **WebConfig interface** via **USB-C (Web Serial)** — no additional software or drivers are required.
+
+The module communicates with a **MicroPLC/MiniPLC** or any Modbus master via **RS-485 (Modbus RTU)**, making it ideal for **staircase lighting, building automation, ambient illumination, alarm signaling, or other automation systems**.
+
+Internally, it features robust isolation, surge protection, and power regulation circuits, ensuring reliable field operation and long service life.
+
+**One-line purpose:** a **high-density field I/O lighting node** that’s easy to wire, configure, and supervise from PLC, SCADA, or home automation platforms.
 
 ---
 
@@ -82,15 +56,81 @@ It integrates with **MicroPLC/MiniPLC** or any Modbus master over **RS-485 (Modb
   - **Address:** `21`
   - **Baud:** `115200` (8N1)
 
+---
+
+# 2. STR-3221-R1 — Technical Specification
+
+## 2.1 Diagrams & Pinouts
+
+| Diagrams & Descriptions |
+|--------------------------|
+| ![System Diagram](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/STR3221_SystemBlock.png)<br>**System Block Diagram** — MCU, Modbus interface, power chain, and I/O groups. |
+| ![FieldBoard Layout](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/STR3221_FieldBoard.png)<br>**FieldBoard Layout** — 32 MOSFET outputs, ISO1212 inputs, 24 VDC power rails. |
+| ![MCUBoard Layout](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/STR3221_MCUBoard.png)<br>**MCU Board Layout** — RP2350 MCU, TLC59208F drivers, MAX485, and USB-C. |
+| ![Terminal Map](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/STR3221_Terminals.png)<br>**Terminal Map** — Field wiring view with power, DI, outputs, and RS-485. |
 
 ---
 
 
-<a id="2-use-cases"></a>
+## 2.2 I/O Summary
 
-<a id="2-use-cases"></a>
+| Interface | Qty | Description |
+|-----------:|----:|-------------|
+| **Digital Inputs** | 2 | Opto-isolated **24 VDC** via **ISO1212 (U23)**, surge-protected (F6/F7, D39). |
+| **Outputs** | 32 | Low-side **MOSFET (SI2307A)** channels with **SS24** flyback diodes, grouped with shared **VCC** rails. |
+| **Buttons** | 4 | Local control / override / test switches. |
+| **Status LEDs** | 4 | User-assignable (power, activity, or logic indicator). |
+| **RS-485 (Modbus RTU)** | 1 | Communication bus; **A/B/COM** terminals. |
+| **USB-C (Setup Port)** | 1 | WebConfig / firmware interface (not for powering field devices). |
+| **Power Input** | 1 | **24 VDC (V+, 0V)**; reverse and surge-protected; onboard 5 V / 3.3 V regulation. |
+| **Sensor Rails (SENS.A / SENS.B)** | 2 pairs | Fused 24 V auxiliary rails for external sensors (low current). |
 
-# 2. Use Cases
+---
+
+## 2.3 Electrical Specifications
+
+| Parameter | Min | Typ | Max | Unit | Notes |
+|------------|----:|----:|----:|------|-------|
+| **Supply Voltage (V+)** | 20 | 24 | 30 | VDC | SELV input; reverse/surge protected. |
+| **Logic Rails** | — | 5 / 3.3 | — | VDC | Generated internally (buck + LDO). |
+| **Quiescent Current (no load)** | — | 60 | 100 | mA | Base electronics only. |
+| **Full-Load Current (all outputs)** | — | — | 3.0 | A | At 24 VDC with max LED load. |
+| **Digital Input Range** | 9 | 24 | 30 | VDC | ISO1212-rated 24 V input. |
+| **Input Threshold (ON)** | — | 8 | — | VDC | Typical ISO1212 threshold. |
+| **Sensor Rail Output** | — | 24 | — | VDC | Fused 200 mA (total SENS.A + SENS.B). |
+| **Output Type** | — | — | — | — | Low-side MOSFET (SI2307A) 1 A max per channel. |
+| **Flyback Protection** | — | — | — | — | SS24 diodes on each channel. |
+| **Communication** | — | — | — | — | RS-485 (MAX485), 9600–115200 bps. |
+| **Isolation** | — | — | — | — | Optical (ISO1212 + galvanic separation). |
+| **Operating Temperature** | 0 | — | 40 | °C | 95 % RH non-condensing. |
+
+> ⚙️ **Design domains:**  
+> - Field side: 24 VDC isolated (DI, outputs).  
+> - Logic side: 5 V / 3.3 V MCU, I²C bus, USB-C protected.  
+> - Communication side: RS-485 isolated by line TVS + fuses.
+
+---
+
+## 2.4 Firmware Behavior
+
+| Function | Description |
+|-----------|-------------|
+| **Input Processing** | Debounced and optically isolated; logic reported via Modbus coils/registers. |
+| **Output Control** | 32 channels controlled via Modbus write commands; supports PWM dimming and timed activation sequences. |
+| **Button Actions** | Assignable in firmware: manual test, override ON/OFF, or reset function. |
+| **LED Feedback** | Configurable for steady, blink, or activity indication via TLC59208F drivers. |
+| **Override Priority** | Local overrides (buttons) take precedence over Modbus commands until released. |
+| **WebConfig (USB-C)** | Provides Modbus address setup, baud-rate selection, live I/O status, and firmware update through Web Serial. |
+| **Startup Logic** | On power-up, outputs default to OFF until first Modbus command or internal script execution. |
+| **Fault Handling** | Overcurrent or thermal events trigger fault LED indication; recover automatically when condition clears. |
+
+---
+
+> 🧩 **Note:**  
+> The STR-3221-R1 shares the same firmware architecture as other HOMEMASTER I/O modules, enabling unified Modbus mapping, button/LED behavior, and WebConfig interface.
+
+---
+# 3. Use Cases
 
 These example illustrate how the **STR-3221-R1** can be integrated into real-world automation or lighting systems.
 
@@ -110,12 +150,7 @@ Automatically lights stair LEDs in sequence when motion is detected at the top o
 
 ---
 
-
-
-
-<a id="3-safety-information"></a>
-
-# 3. Safety Information
+# 4. Safety Information
 
 The **STR-3221-R1** is a **SELV (Safety Extra-Low Voltage)** device.  
 Improper wiring, power application, or grounding may cause malfunction or damage.  
@@ -123,7 +158,7 @@ Follow all safety and wiring practices described below.
 
 ---
 
-## 3.1 General Requirements
+## 4.1 General Requirements
 
 | Requirement | Detail |
 |--------------|--------|
@@ -136,7 +171,7 @@ Follow all safety and wiring practices described below.
 
 ---
 
-## 3.2 Installation Practices
+## 4.2 Installation Practices
 
 - **DIN Mounting:**  
   Mount securely on **35 mm DIN rail (EN 50022)** using the rear clip. Apply strain relief on all connected cables to prevent terminal stress.
@@ -160,7 +195,7 @@ Follow all safety and wiring practices described below.
 
 ---
 
-## 3.3 Interface Warnings
+## 4.3 Interface Warnings
 
 ### ⚡ Power (24 VDC Input / LED Supply)
 
@@ -221,12 +256,9 @@ Follow all safety and wiring practices described below.
 > The STR-3221-R1 is designed for **SELV 24 VDC** systems. Never connect mains voltages.  
 > Always de-energize and confirm wiring before service. Proper isolation, grounding, and shielding ensure safe and reliable operation.
 
+# 5. Installation & Quick Start
 
-<a id="4-installation-quick-start"></a>
-
-# 4. Installation & Quick Start
-
-## 4.1 What You Need
+## 5.1 What You Need
 
 | Item | Description |
 |------|-------------|
@@ -236,21 +268,19 @@ Follow all safety and wiring practices described below.
 | Cable | USB-C and RS-485 twisted pair |
 | Software | Browser with Web Serial support |
 
-## 4.2 Power
+## 5.2 Power
 
 - Describe 24 VDC input
 - List expected current
 - Explain isolated sensor power if present
 
-## 4.3 Communication
+## 5.3 Communication
 
 - RS-485 pinout
 - Address & baudrate setup
 - Use of COM/GND reference
 
-<a id="installation-wiring"></a>
-
-## 4.4 Installation & Wiring
+## 5.4 Installation & Wiring
 
 Use diagrams and explain:
 - Inputs
@@ -259,9 +289,7 @@ Use diagrams and explain:
 - RS-485 terminals
 - USB port
 
-<a id="software-ui-configuration"></a>
-
-## 4.5 Software & UI Configuration
+## 5.5 Software & UI Configuration
 
 Cover:
 - WebConfig setup (address, baud)
@@ -269,9 +297,7 @@ Cover:
 - Relay logic mode (group/manual)
 - LED and Button mapping
 
-<a id="4-6-getting-started"></a>
-
-## 4.6 Getting Started
+## 5.6 Getting Started
 
 Summarize steps in 3 phases:
 1. Wiring
@@ -280,87 +306,7 @@ Summarize steps in 3 phases:
 
 ---
 
-<a id="5-module-code--technical-specification"></a>
 
-<a id="5-technical-specification"></a>
-
-# 5. STR-3221-R1 — Technical Specification
-
-## 5.1 Diagrams & Pinouts
-
-<div align="center">
-
-| Diagram | Description |
-|----------|-------------|
-| ![System Diagram](Images/STR3221_SystemBlock.png) | **System Block Diagram** — MCU, Modbus interface, power chain, and I/O groups. |
-| ![FieldBoard Layout](Images/STR3221_FieldBoard.png) | **FieldBoard Layout** — 32 MOSFET outputs, ISO1212 inputs, 24 VDC power rails. |
-| ![MCUBoard Layout](Images/STR3221_MCUBoard.png) | **MCU Board Layout** — RP2350 MCU, TLC59208F drivers, MAX485, and USB-C. |
-| ![Terminal Map](Images/STR3221_Terminals.png) | **Terminal Map** — Field wiring view with power, DI, outputs, and RS-485. |
-
-</div>
-
----
-
-## 5.2 I/O Summary
-
-| Interface | Qty | Description |
-|-----------:|----:|-------------|
-| **Digital Inputs** | 2 | Opto-isolated **24 VDC** via **ISO1212 (U23)**, surge-protected (F6/F7, D39). |
-| **Outputs** | 32 | Low-side **MOSFET (SI2307A)** channels with **SS24** flyback diodes, grouped with shared **VCC** rails. |
-| **Buttons** | 4 | Local control / override / test switches. |
-| **Status LEDs** | 4 | User-assignable (power, activity, or logic indicator). |
-| **RS-485 (Modbus RTU)** | 1 | Communication bus; **A/B/COM** terminals. |
-| **USB-C (Setup Port)** | 1 | WebConfig / firmware interface (not for powering field devices). |
-| **Power Input** | 1 | **24 VDC (V+, 0V)**; reverse and surge-protected; onboard 5 V / 3.3 V regulation. |
-| **Sensor Rails (SENS.A / SENS.B)** | 2 pairs | Fused 24 V auxiliary rails for external sensors (low current). |
-
----
-
-## 5.3 Electrical Specifications
-
-| Parameter | Min | Typ | Max | Unit | Notes |
-|------------|----:|----:|----:|------|-------|
-| **Supply Voltage (V+)** | 20 | 24 | 30 | VDC | SELV input; reverse/surge protected. |
-| **Logic Rails** | — | 5 / 3.3 | — | VDC | Generated internally (buck + LDO). |
-| **Quiescent Current (no load)** | — | 60 | 100 | mA | Base electronics only. |
-| **Full-Load Current (all outputs)** | — | — | 3.0 | A | At 24 VDC with max LED load. |
-| **Digital Input Range** | 9 | 24 | 30 | VDC | ISO1212-rated 24 V input. |
-| **Input Threshold (ON)** | — | 8 | — | VDC | Typical ISO1212 threshold. |
-| **Sensor Rail Output** | — | 24 | — | VDC | Fused 200 mA (total SENS.A + SENS.B). |
-| **Output Type** | — | — | — | — | Low-side MOSFET (SI2307A) 1 A max per channel. |
-| **Flyback Protection** | — | — | — | — | SS24 diodes on each channel. |
-| **Communication** | — | — | — | — | RS-485 (MAX485), 9600–115200 bps. |
-| **Isolation** | — | — | — | — | Optical (ISO1212 + galvanic separation). |
-| **Operating Temperature** | 0 | — | 40 | °C | 95 % RH non-condensing. |
-
-> ⚙️ **Design domains:**  
-> - Field side: 24 VDC isolated (DI, outputs).  
-> - Logic side: 5 V / 3.3 V MCU, I²C bus, USB-C protected.  
-> - Communication side: RS-485 isolated by line TVS + fuses.
-
----
-
-## 5.4 Firmware Behavior
-
-| Function | Description |
-|-----------|-------------|
-| **Input Processing** | Debounced and optically isolated; logic reported via Modbus coils/registers. |
-| **Output Control** | 32 channels controlled via Modbus write commands; supports PWM dimming and timed activation sequences. |
-| **Button Actions** | Assignable in firmware: manual test, override ON/OFF, or reset function. |
-| **LED Feedback** | Configurable for steady, blink, or activity indication via TLC59208F drivers. |
-| **Override Priority** | Local overrides (buttons) take precedence over Modbus commands until released. |
-| **WebConfig (USB-C)** | Provides Modbus address setup, baud-rate selection, live I/O status, and firmware update through Web Serial. |
-| **Startup Logic** | On power-up, outputs default to OFF until first Modbus command or internal script execution. |
-| **Fault Handling** | Overcurrent or thermal events trigger fault LED indication; recover automatically when condition clears. |
-
----
-
-> 🧩 **Note:**  
-> The STR-3221-R1 shares the same firmware architecture as other HOMEMASTER I/O modules, enabling unified Modbus mapping, button/LED behavior, and WebConfig interface.
-
----
-
-<a id="6-modbus-rtu-communication"></a>
 
 # 6. Modbus RTU Communication
 
@@ -373,8 +319,6 @@ Include:
 
 ---
 
-<a id="7-esphome-integration-guide"></a>
-
 # 7. ESPHome Integration Guide
 
 Only if supported. Cover:
@@ -384,8 +328,6 @@ Only if supported. Cover:
 - Home Assistant integration tips
 
 ---
-
-<a id="8-programming--customization"></a>
 
 # 8. Programming & Customization
 
