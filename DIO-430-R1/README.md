@@ -19,7 +19,7 @@
 
 **HOMEMASTER – Modular control. Custom logic.**
 
-![MODULE photo](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/ALM-173-R1/Images/photo1.png)
+![MODULE photo](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/photo1.png)
 
 ---
 
