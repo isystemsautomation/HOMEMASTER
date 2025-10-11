@@ -8,7 +8,7 @@
 
 **HOMEMASTER – Modular control. Custom logic.**
 
-![Image](Https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/photo1.png)
+![Image](Https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/STR-3221-R1/Images/photo1.png)
 
 
 # 1. Introduction
@@ -64,10 +64,10 @@ Internally, it features robust isolation, surge protection, and power regulation
 
 | Diagrams & Descriptions |
 |--------------------------|
-| ![System Diagram](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/STR3221_SystemBlock.png)<br>**System Block Diagram** — MCU, Modbus interface, power chain, and I/O groups. |
-| ![FieldBoard Layout](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/STR3221_FieldBoard.png)<br>**FieldBoard Layout** — 32 MOSFET outputs, ISO1212 inputs, 24 VDC power rails. |
-| ![MCUBoard Layout](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/STR3221_MCUBoard.png)<br>**MCU Board Layout** — RP2350 MCU, TLC59208F drivers, MAX485, and USB-C. |
-| ![Terminal Map](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/STR3221_Terminals.png)<br>**Terminal Map** — Field wiring view with power, DI, outputs, and RS-485. |
+| ![System Diagram](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/STR-3221-R1/Images/STR3221_SystemBlock.png)<br>**System Block Diagram** — MCU, Modbus interface, power chain, and I/O groups. |
+| ![FieldBoard Layout](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/STR-3221-R1/Images/STR3221_FieldBoard.png)<br>**FieldBoard Layout** — 32 MOSFET outputs, ISO1212 inputs, 24 VDC power rails. |
+| ![MCUBoard Layout](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/STR-3221-R1/Images/STR3221_MCUBoard.png)<br>**MCU Board Layout** — RP2350 MCU, TLC59208F drivers, MAX485, and USB-C. |
+| ![Terminal Map](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/STR-3221-R1/Images/STR3221_Terminals.png)<br>**Terminal Map** — Field wiring view with power, DI, outputs, and RS-485. |
 
 ---
 
