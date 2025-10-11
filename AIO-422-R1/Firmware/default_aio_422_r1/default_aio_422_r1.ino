@@ -1,4 +1,4 @@
-// ---- FIX for Arduino auto-prototype: make PersistConfig visible to auto-prototypes 
+// ---- FIX for Arduino auto-prototype: make PersistConfig visible to auto-prototypes
 struct PersistConfig;
 
 // ==== AIO-422-R1 (RP2350 ONLY) ====
@@ -7,7 +7,10 @@ struct PersistConfig;
 // + TWO MCP4725 12-bit DACs on Wire1 (0x61 and 0x60)
 // WebSerial UI, Modbus RTU, LittleFS persistence
 // Buttons: GPIO22..25, LEDs: GPIO18..21
-// ============================================================================
+// NOTE: This build reports BOTH:
+//   - AI telemetry as **field voltage (0–10 V)** after front-end attenuation (scaled up).
+//   - AO telemetry as **field voltage (0–10 V)** after post-amp gain.
+// =========================================================================
 
 #include <Arduino.h>
 #include <Wire.h>
@@ -42,13 +45,29 @@ const uint8_t BUTTON_PINS[4] = {22,23,24,25};
 
 // RTD parameters (common setup)
 static const float RTD_NOMINAL_OHMS = 100.0f;   // PT100 nominal
-static const float RTD_REF_OHMS     = 430.0f;   // reference resistor on breakout
+static const float RTD_REF_OHMS     = 400.0f;   // reference resistor on FieldBoard (was 430)
 static const max31865_numwires_t RTD_WIRES = MAX31865_3WIRE;  // change to _2WIRE/_4WIRE if needed
 
 // MCP4725 parameters
 #define MCP4725_ADDR0  0x61   // U12, A0=+5V (AO1_DAC)
 #define MCP4725_ADDR1  0x60   // U13, A0=GND  (AO0_DAC)
-#define DAC_VREF_MV    5000   // both DACs powered at 5V
+#define DAC_VREF_MV    5000   // both DACs powered at 5V (chip-side)
+
+// ======= DAC Post-amp scaling (LM324 ~ x2 for 0–10 V field outputs) =======
+#ifndef DAC_POSTAMP_GAIN_NUM
+#define DAC_POSTAMP_GAIN_NUM 2
+#define DAC_POSTAMP_GAIN_DEN 1
+#endif
+#define DAC_GAIN_MULT      ((float)DAC_POSTAMP_GAIN_NUM / (float)DAC_POSTAMP_GAIN_DEN)
+#define DAC_FIELD_VREF_MV  ((uint16_t)lroundf((float)DAC_VREF_MV * DAC_GAIN_MULT))  // 10000 mV nominal
+
+// ======= ADC Field scaling (front-end attenuates 0–10 V to ~0–3.3 V at ADC pin) =======
+// If 10 V at the terminal becomes ~3.3 V at the ADS1115 pin, scale ≈ 10/3.3 ≈ 3.0303
+#ifndef ADC_FIELD_SCALE_NUM
+#define ADC_FIELD_SCALE_NUM 30303   // 3.0303 * 10000
+#define ADC_FIELD_SCALE_DEN 10000
+#endif
+#define ADC_FIELD_SCALE ((float)ADC_FIELD_SCALE_NUM / (float)ADC_FIELD_SCALE_DEN)
 
 // ================== Modbus / RS-485 ==================
 #define TX2 4
@@ -59,7 +78,7 @@ ModbusSerial mb(Serial2, SlaveId, TxenPin);
 
 // ================== ADS1115 (ADS1X15) ==================
 ADS1115 ads(0x48, &Wire1);  // bind to Wire1 explicitly
-uint8_t  ads_gain = 0;      // 0..5 -> {2/3,1,2,4,8,16}×
+uint8_t  ads_gain = 1;      // default to ±4.096 V (better for 0..~3.3V swing)
 uint8_t  ads_data_rate = 4; // 0..7 -> {8,16,32,64,128,250,475,860} SPS
 uint16_t sample_ms = 50;    // polling interval
 
@@ -117,12 +136,12 @@ struct PersistConfig {
   uint16_t sample_ms;
   LedCfg   ledCfg[4];
   ButtonCfg buttonCfg[4];
-  uint16_t dac_raw[2];    // NEW: 2x MCP4725 code (0..4095)
+  uint16_t dac_raw[2];    // 2x MCP4725 code (0..4095)
   uint32_t crc32;
 } __attribute__((packed));
 
 static const uint32_t CFG_MAGIC   = 0x32323441UL; // 'A422'
-static const uint16_t CFG_VERSION = 0x0009;       // bumped for dual MCP4725
+static const uint16_t CFG_VERSION = 0x0009;       // dual MCP4725 persisted
 static const char*    CFG_PATH    = "/aio422.bin";
 
 volatile bool   cfgDirty        = false;
@@ -152,7 +171,7 @@ inline bool readPressed(int i){
 void setDefaults() {
   g_mb_address   = 3;
   g_mb_baud      = 19200;
-  ads_gain       = 0;     // 2/3× FS ±6.144V
+  ads_gain       = 1;     // ±4.096V FSR (better match for 0..~3.3V)
   ads_data_rate  = 4;     // 128 SPS
   sample_ms      = 50;
   dac_raw[0]     = 0;     // both start at 0V
@@ -223,15 +242,15 @@ bool loadConfigFS() {
 enum : uint16_t {
   // ADS1115
   IREG_RAW_BASE     = 100,   // 100..103 : raw counts (int16) ch0..ch3
-  IREG_MV_BASE      = 120,   // 120..123 : millivolts (uint16) ch0..ch3
+  IREG_MV_BASE      = 120,   // 120..123 : field millivolts (uint16) ch0..ch3 (scaled)
 
   // MAX31865 RTD
   IREG_RTD_C_BASE     = 140,   // 140..141 : temperature °C x100 (int16)
   IREG_RTD_OHM_BASE   = 150,   // 150..151 : resistance ohms x100 (uint16)
   IREG_RTD_FAULT_BASE = 160,   // 160..161 : fault bitmask (uint16)
 
-  // MCP4725 DACs
-  IREG_DAC_MV_BASE  = 180,   // 180..181 : DAC outputs in mV (uint16)
+  // MCP4725 DACs (field side mV)
+  IREG_DAC_MV_BASE  = 180,   // 180..181 : DAC field outputs in mV (uint16, 0–10000)
 
   // Config (holding)
   HREG_GAIN         = 200,   // ADS gainIndex 0..5 (RW)
@@ -303,8 +322,9 @@ void sendDacEcho() {
   JSONVar obj;
   JSONVar rawArr; rawArr[0] = dac_raw[0]; rawArr[1] = dac_raw[1];
   JSONVar mvArr;
-  mvArr[0] = (uint16_t)lroundf((float)dac_raw[0] * (float)DAC_VREF_MV / 4095.0f);
-  mvArr[1] = (uint16_t)lroundf((float)dac_raw[1] * (float)DAC_VREF_MV / 4095.0f);
+  // Report **field-side** mV (0–10 V)
+  mvArr[0] = (uint16_t)lroundf((float)dac_raw[0] * (float)DAC_FIELD_VREF_MV / 4095.0f);
+  mvArr[1] = (uint16_t)lroundf((float)dac_raw[1] * (float)DAC_FIELD_VREF_MV / 4095.0f);
   obj["raw"] = rawArr;
   obj["mv"]  = mvArr;
   WebSerial.send("DAC", obj);
@@ -546,7 +566,7 @@ void setup() {
   for (uint16_t i=0;i<2;i++) mb.addIreg(IREG_RTD_OHM_BASE   + i);
   for (uint16_t i=0;i<2;i++) mb.addIreg(IREG_RTD_FAULT_BASE + i);
 
-  // DAC telemetry
+  // DAC telemetry (field-side mV)
   for (uint16_t i=0;i<2;i++) mb.addIreg(IREG_DAC_MV_BASE + i);
 
   // ---- Register config (holding) ----
@@ -575,7 +595,7 @@ void setup() {
 
   // Initial echoes
   sendAllEchoesOnce();
-  WebSerial.send("message", "Boot OK (AIO-422-R1, RP2350, ADS1X15 + 2x MAX31865 via SoftSPI + 2x MCP4725 DAC)");
+  WebSerial.send("message", "Boot OK (AIO-422-R1, RP2350, ADS1X15 + 2x MAX31865 via SoftSPI + 2x MCP4725 DAC, field AI/AO mV)");
 }
 
 // ================== HREG write watcher (optional Modbus control) ==================
@@ -753,8 +773,9 @@ void loop() {
     // ---- ADS1115 4 channels ----
     for (int ch=0; ch<4; ch++) {
       int16_t raw = ads.readADC(ch);       // single-shot conversion
-      float   v   = ads.toVoltage(raw);
-      long    mv  = lroundf(v * 1000.0f);
+      float   v_adc   = ads.toVoltage(raw);             // ADC pin volts (~0..3.3V)
+      float   v_field = v_adc * ADC_FIELD_SCALE;        // Field-side volts (~0..10V)
+      long    mv      = lroundf(v_field * 1000.0f);     // publish field mV
       if (mv < 0) mv = 0; if (mv > 65535) mv = 65535;
 
       rawArr[ch] = raw;
@@ -778,13 +799,9 @@ void loop() {
       int32_t ox100 = lroundf(ohms * 100.0f);
       if (ox100 < 0) ox100 = 0; if (ox100 > 65535) ox100 = 65535;
 
-      rtdC_x100[0]   = (int16_t)cx100;
-      rtdOhm_x100[0] = (uint16_t)ox100;
-      rtdFault[0]    = (uint16_t)f;
-
-      mb.Ireg(IREG_RTD_C_BASE + 0, (int16_t)rtdC_x100[0]);
-      mb.Ireg(IREG_RTD_OHM_BASE + 0, (uint16_t)rtdOhm_x100[0]);
-      mb.Ireg(IREG_RTD_FAULT_BASE + 0, (uint16_t)rtdFault[0]);
+      mb.Ireg(IREG_RTD_C_BASE + 0, (int16_t)cx100);
+      mb.Ireg(IREG_RTD_OHM_BASE + 0, (uint16_t)ox100);
+      mb.Ireg(IREG_RTD_FAULT_BASE + 0, (uint16_t)f);
       mb.setIsts(ISTS_RTD_BASE + 0, (f != 0));
     }
 
@@ -801,24 +818,25 @@ void loop() {
       int32_t ox100 = lroundf(ohms * 100.0f);
       if (ox100 < 0) ox100 = 0; if (ox100 > 65535) ox100 = 65535;
 
-      rtdC_x100[1]   = (int16_t)cx100;
-      rtdOhm_x100[1] = (uint16_t)ox100;
-      rtdFault[1]    = (uint16_t)f;
-
-      mb.Ireg(IREG_RTD_C_BASE + 1, (int16_t)rtdC_x100[1]);
-      mb.Ireg(IREG_RTD_OHM_BASE + 1, (uint16_t)rtdOhm_x100[1]);
-      mb.Ireg(IREG_RTD_FAULT_BASE + 1, (uint16_t)rtdFault[1]);
+      mb.Ireg(IREG_RTD_C_BASE + 1, (int16_t)cx100);
+      mb.Ireg(IREG_RTD_OHM_BASE + 1, (uint16_t)ox100);
+      mb.Ireg(IREG_RTD_FAULT_BASE + 1, (uint16_t)f);
       mb.setIsts(ISTS_RTD_BASE + 1, (f != 0));
     }
 
-    // ---- DAC derived telemetry ----
-    uint16_t dac_mv0 = (uint16_t)lroundf((float)dac_raw[0] * (float)DAC_VREF_MV / 4095.0f);
-    uint16_t dac_mv1 = (uint16_t)lroundf((float)dac_raw[1] * (float)DAC_VREF_MV / 4095.0f);
+    // ---- DAC derived telemetry (field side 0–10 V) ----
+    uint16_t dac_mv0 = (uint16_t)lroundf((float)dac_raw[0] * (float)DAC_FIELD_VREF_MV / 4095.0f);
+    uint16_t dac_mv1 = (uint16_t)lroundf((float)dac_raw[1] * (float)DAC_FIELD_VREF_MV / 4095.0f);
     mb.Ireg(IREG_DAC_MV_BASE + 0, dac_mv0);
     mb.Ireg(IREG_DAC_MV_BASE + 1, dac_mv1);
 
     // WebSerial live echoes for the WebConfig UI
     sendSamplesEcho(rawArr, mvArr);
+    // (RTD echoes done implicitly by registers; keep if your UI uses them)
+    // Create local arrays to send
+    int16_t  rtdC_x100[2]   = { (int16_t)mb.Ireg(IREG_RTD_C_BASE+0), (int16_t)mb.Ireg(IREG_RTD_C_BASE+1) };
+    uint16_t rtdOhm_x100[2] = { (uint16_t)mb.Ireg(IREG_RTD_OHM_BASE+0), (uint16_t)mb.Ireg(IREG_RTD_OHM_BASE+1) };
+    uint16_t rtdFault[2]    = { (uint16_t)mb.Ireg(IREG_RTD_FAULT_BASE+0), (uint16_t)mb.Ireg(IREG_RTD_FAULT_BASE+1) };
     sendRTDEcho(rtdC_x100, rtdOhm_x100, rtdFault);
   }
 

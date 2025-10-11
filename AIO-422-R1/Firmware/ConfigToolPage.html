@@ -90,7 +90,7 @@
         </div>
         <input id="dac0-raw" type="number" min="0" max="4095" step="1" value="0" style="width:100%;padding:8px;border-radius:6px;border:1px solid #ccc;margin-bottom:.5rem;">
         <input id="dac0-slider" type="range" min="0" max="4095" step="1" value="0" style="width:100%;">
-        <div style="margin-top:.4rem;color:#666;font-size:.9rem;">Raw: <span id="dac0-raw-label">0</span> / 4095 &nbsp;•&nbsp; Vref 5000 mV</div>
+        <div style="margin-top:.4rem;color:#666;font-size:.9rem;">Raw: <span id="dac0-raw-label">0</span> / 4095 &nbsp;•&nbsp; Vref 10000 mV</div>
       </div>
       <!-- AO1 / 0x61 -->
       <div style="border:1px solid #ddd;border-radius:8px;padding:1rem;background:#fff;">
@@ -100,7 +100,7 @@
         </div>
         <input id="dac1-raw" type="number" min="0" max="4095" step="1" value="0" style="width:100%;padding:8px;border-radius:6px;border:1px solid #ccc;margin-bottom:.5rem;">
         <input id="dac1-slider" type="range" min="0" max="4095" step="1" value="0" style="width:100%;">
-        <div style="margin-top:.4rem;color:#666;font-size:.9rem;">Raw: <span id="dac1-raw-label">0</span> / 4095 &nbsp;•&nbsp; Vref 5000 mV</div>
+        <div style="margin-top:.4rem;color:#666;font-size:.9rem;">Raw: <span id="dac1-raw-label">0</span> / 4095 &nbsp;•&nbsp; Vref 10000 mV</div>
       </div>
     </div>
     <small style="color:#666;">Firmware echoes <code>DAC</code> as <code>{ raw:[r0,r1], mv:[m0,m1] }</code>. Changes are sent as <code>Config</code> → <code>{ t:"dac", cfg:{ idx, raw } }</code>.</small>

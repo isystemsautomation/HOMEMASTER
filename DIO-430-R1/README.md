@@ -19,7 +19,7 @@
 
 **HOMEMASTER – Modular control. Custom logic.**
 
-<img src="Images/photo1.png" align="right" width="440" alt="MODULE photo">
+<img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/ALM-173-R1/Images/photo1.png" align="right" width="440" alt="MODULE photo">
 
 ### Module Description
 
