@@ -8,7 +8,7 @@
 
 **HOMEMASTER – Modular control. Custom logic.**
 
-![Image](Https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/STR-3221-R1/Images/photo1.png)
+![Image](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/STR-3221-R1/Images/photo1.png)
 
 
 # 1. Introduction
