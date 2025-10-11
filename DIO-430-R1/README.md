@@ -19,7 +19,7 @@
 
 **HOMEMASTER – Modular control. Custom logic.**
 
-<img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/ALM-173-R1/Images/photo1.png" align="right" width="440" alt="MODULE photo">
+![MODULE photo](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/ALM-173-R1/Images/photo1.png)
 
 ### Module Description
 
@@ -44,11 +44,7 @@ It connects over **RS-485 (Modbus RTU)** to a **MicroPLC/MiniPLC**, enabling use
 * [11. Downloads](#11-downloads)
 * [12. Support](#12-support)
 
-<br clear="left"/>
-
 ---
-
-<a id="1-introduction"></a>
 
 # 1. Introduction
 
@@ -87,11 +83,6 @@ The factory default settings are:
 The module’s logic (input→relay mapping, LED modes, button behavior) is stored persistently in internal flash via **LittleFS**, and settings can be changed live using **USB-C + WebConfig**.
 
 ---
-
-
-<a id="2-use-cases"></a>
-
-<a id="2-use-cases"></a>
 
 # 2. Use Cases
 
@@ -139,9 +130,6 @@ Lights and irrigation are controlled via digital inputs or remotely from a PLC.
 - Set **LED 1** = `Steady` (light status), **LED 2** = `Blink` (pump running).
 
 ---
-
-
-<a id="3-safety-information"></a>
 
 # 3. Safety Information
 
@@ -250,8 +238,6 @@ These guidelines apply to the DIO-430-R1 I/O module. Ignoring them may result in
 
 ---
 
-<a id="4-installation-quick-start"></a>
-
 # 4. Installation & Quick Start
 
 The DIO-430-R1 joins your system over **RS-485 (Modbus RTU)**. Setup has two parts:  
@@ -335,8 +321,6 @@ Runtime control is via **RS-485 (Modbus RTU)**. **USB-C** is for local setup/dia
 
 ---
 
-<a id="installation-wiring"></a>
-
 ## 4.4 Installation & Wiring
 
 This section shows typical wiring for **power**, **inputs**, **relays**, **RS-485**, and the **USB-C** service port.  
@@ -407,9 +391,6 @@ The lower left terminals expose **B**, **A**, and **COM (GND)**. Use shielded tw
 - Use **USB-C** for **commissioning and diagnostics** only (Web Serial in Chrome/Edge).  
 - Not for powering field devices. Disconnect after setup and hand control to the RS-485 master.
 
-
-<a id="software-ui-configuration"></a>
-
 ## 4.5 Software & UI Configuration
 
 Use the **WebConfig** page (USB-C + Chrome/Edge) to set Modbus comms and map I/O. Changes apply immediately and are saved to flash. 
@@ -467,8 +448,6 @@ For **Relay 1–3**:
 - **Mode**: `Steady` or `Blink` (active when source is ON).  
 - **Activate when**: select the source relay to follow (e.g., LED1 foll
 
-<a id="4-6-getting-started"></a>
-
 ## 4.6 Getting Started (3 Phases)
 
 ### Phase 1 — Wire
@@ -522,10 +501,7 @@ For **Relay 1–3**:
 | Address/Baud | Controller reads module at the configured address/baud without errors |
 | Isolation | No unintended bond between logic **GND** and DI field **GNDx** |
 
-
 ---
-
-<a id="5-module-code--technical-specification"></a>
 
 # 5. DIO-430-R1 — Technical Specification
 
@@ -647,9 +623,6 @@ For **Relay 1–3**:
 | Ingress Rating       | IP20 (panel-mount only) |
 | Altitude             | ≤ 2000 m |
 | Environment          | RoHS / REACH compliant (component selection) |
-
-
-<a id="6-modbus-rtu-communication"></a>
 
 # 6. Modbus RTU Communication
 
@@ -802,8 +775,6 @@ For **Relay 1–3**:
 - **Edge logic:** If a PLC supervises latching/timers, set DI **Action = Pulse**; if you want module-local latching, set **Action = Toggle**.
 
 ---
-
-<a id="7-esphome-integration-guide"></a>
 
 # 7. ESPHome Integration Guide (MiniPLC/MicroPLC + DIO-430-R1)
 
@@ -970,8 +941,6 @@ sensor:
 
 ---
 
-<a id="8-programming--customization"></a>
-
 # 8. Programming & Customization (DIO-430-R1)
 
 ## 8.1 Supported Languages
@@ -986,9 +955,8 @@ sensor:
 > The module exposes a USB device for flashing. **All reset/boot actions are done with the front buttons in hardware.**
 
 **Button layout (front panel):**  
-<p align="center">
-  <img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/buttons1.png" alt="Button Layout 1‑2‑3" width="360">
-</p>
+
+  ![Button Layout 1‑2‑3](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/buttons1.png)
 
 **Combinations**
 - **2 + 3 → BOOT mode** (enter bootloader for flashing)
@@ -1041,8 +1009,6 @@ sensor:
 
 ---
 
-<a id="9-maintenance--troubleshooting"></a>
-
 # 9. Maintenance & Troubleshooting
 
 ## 9.1 Status LEDs (typical)
@@ -1066,8 +1032,6 @@ sensor:
 
 ---
 
-<a id="10-open-source--licensing"></a>
-
 # 10. Open Source & Licensing
 
 - **Hardware:** **CERN‑OHL‑W v2**
@@ -1077,8 +1041,6 @@ sensor:
 See the repository `LICENSE` files for the exact texts and sub‑component licenses.
 
 ---
-
-<a id="11-downloads"></a>
 
 # 11. Downloads
 
@@ -1098,8 +1060,6 @@ See the repository `LICENSE` files for the exact texts and sub‑component licen
 
 ---
 
-<a id="12-support"></a>
-
 # 12. Support
 
 - **Official Support Portal:** https://www.home-master.eu/support
@@ -1108,5 +1068,3 @@ See the repository `LICENSE` files for the exact texts and sub‑component licen
 - **Hackster:** https://hackster.io/homemaster
 - **Reddit:** https://reddit.com/r/HomeMaster
 - **Instagram:** https://instagram.com/home_master.eu
-
-
