@@ -8,7 +8,7 @@
 
 **HOMEMASTER – Modular control. Custom logic.**
 
-<img src="Images/photo1.png" align="right" width="440" alt="RGB-621-R1 photo">
+<img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/RGB-621-R1/Images/photo1.png" align="right" width="440" alt="RGB-621-R1 photo">
 
 ### Module Description
 
@@ -455,21 +455,21 @@ Summarize steps in 3 phases:
     <tr>
       <td align="center">
         <strong>System Block Diagram</strong><br>
-        <img src="Images/RGB_DIagramBlock.png" alt="System Block Diagram" width="360">
+        <img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/RGB-621-R1/Images/RGB_DIagramBlock.png" alt="System Block Diagram" width="360">
       </td>
       <td align="center">
         <strong>RP2350A MCU Pinout</strong><br>
-        <img src="Images/RGB_MCU_Pinouts.png" alt="RP2350A Pinouts" width="360">
+        <img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/RGB-621-R1/Images/RGB_MCU_Pinouts.png" alt="RP2350A Pinouts" width="360">
       </td>
     </tr>
     <tr>
       <td align="center">
         <strong>Field Board Layout</strong><br>
-        <img src="Images/RelayBoard_Diagram.png" alt="Field Board Diagram" width="360">
+        <img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/RGB-621-R1/Images/RelayBoard_Diagram.png" alt="Field Board Diagram" width="360">
       </td>
       <td align="center">
         <strong>MCU Board Layout</strong><br>
-        <img src="Images/MCUBoard_Diagram.png" alt="MCU Board Diagram" width="360">
+        <img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/RGB-621-R1/Images/MCUBoard_Diagram.png" alt="MCU Board Diagram" width="360">
       </td>
     </tr>
   </table>
@@ -502,7 +502,7 @@ Summarize steps in 3 phases:
 
 ## 5.4 Terminals & Pinout (Front Label Reference)
 
-<img src="Images/photo1.png" align="left" width="320" alt="RGB-621-R1 module front with terminals">
+<img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/RGB-621-R1/Images/photo1.png" align="left" width="320" alt="RGB-621-R1 module front with terminals">
 
 **Top row**
 - **LED PS — V+ / 0V:** primary 24 V DC SELV power input (reverse & surge protected)  
@@ -577,7 +577,7 @@ Summarize steps in 3 phases:
 - **Weight:** ≈ 0.25 kg  
 
 <div align="center">
-  <img src="Images/RGB-620-R1Dimensions.png" alt="RGB-621-R1 Dimensions" width="520"><br>
+  <img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/RGB-621-R1/Images/RGB-620-R1Dimensions.png" alt="RGB-621-R1 Dimensions" width="520"><br>
   <em>RGB-621-R1 physical dimensions and DIN-rail profile</em>
 </div>
 
@@ -688,7 +688,7 @@ Only if supported. Cover:
 
 **Buttons reference (RGB-621-R1 front)**
 <p align="center">
-  <img src="Images/buttons1.png" alt="Button 1 and Button 2 positions" width="300">
+  <img src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/RGB-621-R1/Images/buttons1.png" alt="Button 1 and Button 2 positions" width="300">
 </p>
 
 - **Button 1 + Button 2** → **BOOT mode**  
