@@ -21,77 +21,153 @@
 
 ![MODULE photo](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/ALM-173-R1/Images/photo1.png)
 
-### Module Description
-
-The **DIO-430-R1** is a configurable smart I/O module designed for **digital input monitoring and relay-based output control**.  
-It includes **4 isolated digital inputs**, **3 SPDT relays**, and **optional 3 user buttons and 3 user LEDs**, with configuration via **WebConfig** using **USB-C (Web Serial)**.  
-It connects over **RS-485 (Modbus RTU)** to a **MicroPLC/MiniPLC**, enabling use in **building automation, lighting systems, access control, HVAC, and alarms**.
-
----
-
-## Table of Contents
-
-* [1. Introduction](#1-introduction)
-* [2. Use Cases](#2-use-cases)
-* [3. Safety Information](#3-safety-information)
-* [4. Installation & Quick Start](#4-installation-quick-start)
-* [5. MODULE-CODE — Technical Specification](#5-module-code--technical-specification)
-* [6. Modbus RTU Communication](#6-modbus-rtu-communication)
-* [7. ESPHome Integration Guide (if applicable)](#7-esphome-integration-guide)
-* [8. Programming & Customization](#8-programming--customization)
-* [9. Maintenance & Troubleshooting](#9-maintenance--troubleshooting)
-* [10. Open Source & Licensing](#10-open-source--licensing)
-* [11. Downloads](#11-downloads)
-* [12. Support](#12-support)
-
 ---
 
 # 1. Introduction
 
-## 1.1 Overview of the DIO-430-R1
+The **DIO-430-R1** is a configurable smart digital I/O module designed for **digital input monitoring and relay-based output control** in **building automation, lighting, HVAC, alarms, and general control systems**.  
+It offers **4 opto-isolated digital inputs**, **3 high-current SPDT relays**, **3 user buttons**, and **3 configurable user LEDs**. All I/O channels are individually configurable, allowing flexible logic such as toggle, pulse, manual override, and alarm indication.
 
-The **DIO-430-R1** is a smart digital I/O module designed for integration into modular automation systems. It offers **4 opto-isolated digital inputs**, **3 high-current SPDT relays**, **3 user buttons**, and **3 configurable user LEDs**. All I/O channels are individually configurable, enabling flexible behavior such as toggle, pulse, manual override, and alarm indication.
-
-It integrates seamlessly with **HomeMaster MicroPLC and MiniPLC**, as well as **Home Assistant via ESPHome**, **PLC/SCADA systems** via **Modbus RTU (RS-485)**, and supports standalone operation with local logic. Configuration is handled through a driverless **Web Serial interface via USB‑C**, using a browser-based **WebConfig Tool**.  
-Its primary role is to provide reliable relay control and digital input monitoring for building automation, alarms, lighting, and other general-purpose control systems.
-
-## 1.2 Features & Architecture
+It connects via **RS-485 (Modbus RTU)** to a **MicroPLC, MiniPLC, or any compatible controller**, and can also integrate with **Home Assistant (ESPHome)** or **SCADA/PLC systems**.  
+Configuration and diagnostics are performed through a driverless **Web Serial interface via USB-C**, using the browser-based **WebConfig Tool**. The module supports both **master-controlled** and **standalone local logic** modes.
 
 | Subsystem         | Qty | Description |
 |------------------|-----|-------------|
 | Digital Inputs    | 4   | Opto-isolated, dry contact compatible, noise-protected |
-| Relays            | 3   | SPDT (NO/NC), 16 A rated, dry contacts |
+| Relays            | 3   | SPDT (NO/NC), 16 A rated, dry contacts |
 | LEDs              | 3   | Configurable: Steady or Blink modes, linked to relays |
 | Buttons           | 3   | User-configurable for override or reset |
 | Modbus RTU        | Yes | RS-485 interface (Configurable: Addr 1–255, 9600–115200 baud) |
 | USB-C             | Yes | WebConfig tool access via Web Serial (Chrome/Edge) |
-| Power             | 24 VDC | Fused input, reverse-polarity and surge protected |
+| Power             | 24 V DC | Fused input, reverse-polarity and surge protected |
 | MCU               | RP2350 | Dual-core, with QSPI flash, USB, UART, LittleFS |
 | Protection        | TVS, PTC | ESD, surge, and short-circuit protection on I/O and power |
 
-## 1.3 System Role & Communication
+### System Role & Communication
 
-The DIO-430-R1 connects to the **RS-485 Modbus RTU bus** using A/B differential lines and a shared COM/GND terminal. It supports **poll-based communication** where a master controller (like a PLC or MicroPLC) reads input states and writes output commands.  
-The module can function in both **master-controlled** and **standalone local logic** modes, depending on its configuration.
+The module communicates over the **RS-485 Modbus RTU bus**, using A/B differential lines and a shared COM/GND reference. It supports **poll-based communication**, where a master device reads input states and writes relay commands.  
+All configuration — including input-to-relay mapping, LED modes, and button logic — is stored persistently in internal flash via **LittleFS** and can be changed live through **USB-C + WebConfig**.
 
-The factory default settings are:
+**Factory default communication settings:**
 - **Modbus Address:** `3`  
 - **Baud Rate:** `19200`  
 - **Parity:** `None`  
-- **Stop Bits:** `1`  
+- **Stop Bits:** `1`
+
 
 The module’s logic (input→relay mapping, LED modes, button behavior) is stored persistently in internal flash via **LittleFS**, and settings can be changed live using **USB-C + WebConfig**.
 
 ---
 
-# 2. Use Cases
+# 2. DIO-430-R1 — Technical Specification
+
+## 2.1 Diagrams & Pinouts
+
+System overview, board callouts, and pin mapping:
+
+- ![System Block Diagram](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/DIO_SystemBlockDiagram.png)
+- ![Control Board Diagram](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/ControlBoard_Diagram.png)
+- ![Relay Board Diagram](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/RelayBoard_Diagram.png)
+- ![RP2350A Pin Map](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/DIO_MCU_Pinouts.png)
+
+---
+
+## 2.2 I/O and Electrical Summary
+
+| Interface | Qty | Description |
+|------------|----:|-------------|
+| **Digital Inputs** | 4 | Galvanically isolated (ISO1212 class). Supports dry contacts or 24 V signals. PTC + TVS per channel. |
+| **Relay Outputs** | 3 | SPDT (NO/NC/COM), 16 A dry contacts. Use RC/MOV snubbers or interposing contactors for inductive/mains loads. |
+| **User LEDs** | 3 | Configurable (Steady/Blink). Follow relay or logic status. |
+| **Buttons** | 3 | Momentary. Configurable for relay override/toggle. |
+| **RS-485 (Modbus RTU)** | 1 | A/B/COM terminals. Daisy-chain topology. 120 Ω termination at both ends. |
+| **USB-C** | 1 | Web Serial setup, diagnostics, and firmware flashing (ESD-protected). |
+| **Power Input** | 1 | 24 V DC SELV. Reverse-polarity + surge protected. |
+
+**Electrical Ratings**
+
+| Parameter | Min | Typ | Max | Unit | Notes |
+|------------|----:|----:|----:|:----:|------|
+| Supply Voltage | 22 | 24 | 28 | V DC | SELV/PELV input |
+| Logic Consumption | – | 1.5 | 3.0 | W | Excludes relay loads |
+| Digital Input Range | 0 | 24 | 30 | V DC | Isolated, noise-protected |
+| Relay Contact Current | – | – | 16 | A | SPDT dry contacts |
+| Relay Contact Voltage | – | – | 250 | V AC | or 30 V DC max |
+| RS-485 Data Rate | – | 19.2 | 115.2 | kbps | Default 19200 8N1 |
+| USB-C Voltage | 4.75 | 5.0 | 5.25 | V DC | Service only |
+| Operating Temp. | 0 | – | 40 | °C | ≤ 95 % RH, non-condensing |
+
+> **Power budgeting:** logic + LEDs + up to 3 relay coils + sensor loads → add ≥ 30 % PSU headroom.
+
+---
+
+## 2.3 Connectors & Terminal Map
+
+| Block | Pins | Function | Notes |
+|--------|------|-----------|-------|
+| **POWER** | 0V, V+ | 24 V DC input | Reverse/surge protected |
+| **RELAY 1-3** | NO, C, NC | SPDT contacts | Add RC/MOV for inductive loads |
+| **DI 1-4** | INx, GNDx | Isolated digital inputs | 24 V field or dry contact |
+| **RS-485** | B, A, COM | Modbus RTU bus | Terminate 120 Ω at ends |
+| **USB-C** | D+, D−, VBUS, GND | Setup / Service port | Not for field powering |
+
+---
+
+## 2.4 Reliability & Protection
+
+- Reverse-path diode + high-side MOSFET on 24 V input.  
+- Local PTC + TVS protection on field interfaces.  
+- Relay drivers opto-isolated; RC/MOV suppression recommended.  
+- RS-485 with TVS, series protection, and fail-safe biasing.  
+- USB-C ESD-protected; CC resistors per spec.  
+- Non-volatile flash with **auto-save** after configuration changes.
+
+---
+
+## 2.5 Functional Overview
+
+- **Modbus RTU slave** (factory Addr 3, 19200 8N1; configurable 1–255, 9600–115200).  
+- **Inputs → Relays:** per-input Enable/Invert/Action (`None` / `Toggle` / `Pulse`) and Target (`R1–R3` or `All`).  
+- **Buttons:** assignable to relay override (toggle).  
+- **LEDs:** configurable Steady/Blink following relay status.  
+- **Setup via WebConfig:** USB-C → Chrome/Edge; set comms and I/O mapping.  
+- **Persistent config:** stored in LittleFS and restored on boot.
+
+---
+
+## 2.6 Mechanical & Environmental
+
+| Property | Specification |
+|-----------|---------------|
+| Mounting | DIN-rail EN 50022 (35 mm) |
+| Enclosure | PC/ABS V-0, panel mount |
+| Dimensions | 70 × 90.6 × 67.3 mm (W × H × D) |
+| Terminals | Pluggable 5.08 mm, 26–12 AWG (≤ 2.5 mm²), 0.5–0.6 Nm |
+| Ingress Protection | IP20 (panel interior) |
+| Operating Temp | 0–40 °C, ≤ 95 % RH (non-condensing) |
+
+![DIO-430-R1 Dimensions](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/DIODimensions.png)
+
+---
+
+## 2.7 Standards & Compliance
+
+| Standard / Directive | Description |
+|----------------------|-------------|
+| Ingress Rating | IP20 (panel-mount only) |
+| Altitude | ≤ 2000 m |
+| Environmental | RoHS / REACH compliant components |
+
+---
+
+# 3. Use Cases
 
 The **DIO‑430‑R1** supports both **lighting** and **motor/pump control** — making it ideal for mixed automation tasks in smart homes, greenhouses, HVAC, and industrial setups.  
 Below are 3 versatile examples combining both types of loads.
 
 ---
 
-## 2.1 Staircase Light with Motion Sensor + Circulation Pump
+## 3.1 Staircase Light with Motion Sensor + Circulation Pump
 
 Automatically turns ON a staircase light and a circulation pump when motion is detected.
 
@@ -105,7 +181,7 @@ Automatically turns ON a staircase light and a circulation pump when motion is d
 
 ---
 
-## 2.2 Manual Light + Fan Override (Wall Panel)
+## 3.2 Manual Light + Fan Override (Wall Panel)
 
 Wall-mounted buttons allow users to toggle lights and exhaust fans independently.
 
@@ -118,7 +194,7 @@ Wall-mounted buttons allow users to toggle lights and exhaust fans independently
 
 ---
 
-## 2.3 Greenhouse Light + Irrigation Pump Automation
+## 3.3 Greenhouse Light + Irrigation Pump Automation
 
 Lights and irrigation are controlled via digital inputs or remotely from a PLC.
 
@@ -131,7 +207,7 @@ Lights and irrigation are controlled via digital inputs or remotely from a PLC.
 
 ---
 
-# 3. Safety Information
+# 4. Safety Information
 
 These guidelines apply to the DIO-430-R1 I/O module. Ignoring them may result in equipment damage, system failure, or personal injury.
 
@@ -144,7 +220,7 @@ These guidelines apply to the DIO-430-R1 I/O module. Ignoring them may result in
 
 ---
 
-## 3.1 General Requirements
+## 4.1 General Requirements
 
 | Requirement          | Detail |
 |---------------------|--------|
@@ -156,7 +232,7 @@ These guidelines apply to the DIO-430-R1 I/O module. Ignoring them may result in
 
 ---
 
-## 3.2 Installation Practices
+## 4.2 Installation Practices
 
 | Task              | Guidance |
 |-------------------|----------|
@@ -168,7 +244,7 @@ These guidelines apply to the DIO-430-R1 I/O module. Ignoring them may result in
 
 ---
 
-## 3.3 I/O & Interface Warnings
+## 4.3 I/O & Interface Warnings
 
 ### 🔌 Power
 
@@ -238,14 +314,14 @@ These guidelines apply to the DIO-430-R1 I/O module. Ignoring them may result in
 
 ---
 
-# 4. Installation & Quick Start
+# 5. Installation & Quick Start
 
 The DIO-430-R1 joins your system over **RS-485 (Modbus RTU)**. Setup has two parts:  
 1) **Physical wiring**, 2) **Digital configuration** (WebConfig → optional PLC/ESPHome).
 
 ---
 
-## 4.1 What You Need
+## 5.1 What You Need
 
 | Category          | Item / Notes |
 |-------------------|--------------|
@@ -261,15 +337,15 @@ The DIO-430-R1 joins your system over **RS-485 (Modbus RTU)**. Setup has two par
 
 ---
 
-## 4.2 Power
+## 5.2 Power
 
 The module uses **24 VDC** primary. Onboard regulation provides **5 V → 3.3 V** for logic; DI front-end is isolated.
 
-### 4.2.1 Supply Types
+### 5.2.1 Supply Types
 - **24 VDC DIN-rail PSU** → **24Vdc(+) / 0V(–)** power terminals (top row: POWER).   
 - **Sensor side (DI)** — isolated input receivers accept field signals; feed your sensors from the 24 V field rail and return to the **DI GND** pins (per-channel). Do **not** back-power logic from sensor rails. 
 
-### 4.2.2 Sizing (rule of thumb)
+### 5.2.2 Sizing (rule of thumb)
 Account for:
 - Base electronics + LEDs  
 - **Relay coils** (up to **3** simultaneously)  
@@ -277,7 +353,7 @@ Account for:
 
 > Size PSU for **worst-case relays + sensors**, then add **≥30 % headroom**.
 
-### 4.2.3 Power Safety
+### 5.2.3 Power Safety
 - Correct polarity; keep logic **GND** and DI field ground **separate** (respect isolation domains).   
 - Keep upstream **fusing/breaker** in place; the board also has input fuse/TVS/reverse-polarity MOSFET.   
 - Use **snubbers** on inductive loads; prefer **interposing contactors** for motors/pumps.   
@@ -285,11 +361,11 @@ Account for:
 
 ---
 
-## 4.3 Networking & Communication
+## 5.3 Networking & Communication
 
 Runtime control is via **RS-485 (Modbus RTU)**. **USB-C** is for local setup/diagnostics (Web Serial).
 
-### 4.3.1 RS-485 (Modbus RTU)
+### 5.3.1 RS-485 (Modbus RTU)
 
 **Physical**
 - **Terminals (lower front row):** **B**, **A**, **COM/GND** → then DI and DI-GNDs. Maintain A/B polarity, share the **COM/GND** reference with the controller.   
@@ -306,7 +382,7 @@ Runtime control is via **RS-485 (Modbus RTU)**. **USB-C** is for local setup/dia
 - Two end terminations only; daisy-chain topology.  
 - Consistent A/B polarity end-to-end.
 
-### 4.3.2 USB-C (WebConfig)
+### 5.3.2 USB-C (WebConfig)
 
 **Purpose:** Chromium (Chrome/Edge) Web Serial setup/diagnostics page. 
 
@@ -321,7 +397,7 @@ Runtime control is via **RS-485 (Modbus RTU)**. **USB-C** is for local setup/dia
 
 ---
 
-## 4.4 Installation & Wiring
+## 5.4 Installation & Wiring
 
 This section shows typical wiring for **power**, **inputs**, **relays**, **RS-485**, and the **USB-C** service port.  
 > ⚠️ Work on de-energized equipment only. Use SELV/PELV supplies for logic and field inputs. Mains on relay contacts must be wired by qualified personnel.
@@ -391,7 +467,7 @@ The lower left terminals expose **B**, **A**, and **COM (GND)**. Use shielded tw
 - Use **USB-C** for **commissioning and diagnostics** only (Web Serial in Chrome/Edge).  
 - Not for powering field devices. Disconnect after setup and hand control to the RS-485 master.
 
-## 4.5 Software & UI Configuration
+## 5.5 Software & UI Configuration
 
 Use the **WebConfig** page (USB-C + Chrome/Edge) to set Modbus comms and map I/O. Changes apply immediately and are saved to flash. 
 
@@ -448,7 +524,7 @@ For **Relay 1–3**:
 - **Mode**: `Steady` or `Blink` (active when source is ON).  
 - **Activate when**: select the source relay to follow (e.g., LED1 foll
 
-## 4.6 Getting Started (3 Phases)
+## 5.6 Getting Started (3 Phases)
 
 ### Phase 1 — Wire
 - **24 VDC** to **V+ / 0V (GND)** (top POWER terminals)  
@@ -502,127 +578,6 @@ For **Relay 1–3**:
 | Isolation | No unintended bond between logic **GND** and DI field **GNDx** |
 
 ---
-
-# 5. DIO-430-R1 — Technical Specification
-
-## 5.1 Diagrams & Pinouts
-
-> System overview, MCU pin map, and board callouts.
-
-- **System block diagram**  
-  ![System Block](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/DIO_SystemBlockDiagram.png)
-
-- **MCU / Control board callouts**  
-  ![Control Board](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/ControlBoard_Diagram.png)
-
-- **Relay / Field board callouts**  
-  ![Relay Board](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/RelayBoard_Diagram.png)
-
-- **RP2350A pin map (module signals)**  
-  ![MCU Pinouts](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/DIO_MCU_Pinouts.png)
-
----
-
-## 5.2 I/O Summary
-
-| Interface            | Qty | Description |
-|----------------------|----:|-------------|
-| **Digital Inputs**   | 4   | **Galvanically isolated** DI front-end (ISO1212-class receiver). Per-channel PTC + TVS. Supports dry contacts or 24 V field signalling. |
-| **Relay Outputs**    | 3   | **SPDT** dry contacts (**NO/C/NC**), opto-driven coil; suitable for LV loads or to drive **interposing contactors** for mains/inductive loads. |
-| **User LEDs**        | 3   | User indicators; **Steady** / **Blink** modes in UI (follow per-relay state in current WebConfig). |
-| **Buttons**          | 3   | Momentary; map to **Relay override (toggle)** for R1/R2/R3. |
-| **RS-485 (Modbus RTU)** | 1 | **A/B/COM** terminal set; daisy-chain bus topology. |
-| **USB-C**            | 1   | Web Serial setup/diagnostics and firmware flashing; ESD-protected. |
-| **Power Input**      | 1   | **24 VDC** SELV logic supply; reverse-polarity & surge protected; on-board 24→5 V buck + 3.3 V LDO. |
-
----
-
-## 5.3 Absolute Electrical Specifications
-
-> Module-level limits for planning/commissioning. Always obey local codes and contact derating curves for your load type.
-
-| Parameter                     | Min | Typ  | Max  | Unit | Notes |
-|------------------------------|----:|-----:|-----:|:----:|------|
-| Supply Voltage (V+)          | 22  | 24   | 28   | VDC  | SELV/PELV; protected input stage |
-| Power Consumption (logic)    |  –  | 1.5  | 3.0  |  W   | Module only; exclude external loads |
-| Logic Rails                  |  –  | 3.3/5|  –   |  V   | 24→5 V buck + 3.3 V LDO |
-| Digital Inputs (field)       |  0  | 24   | 30   | VDC  | **Galvanic isolation** (ISO1212-class); per-channel PTC + TVS |
-| Relay Contact Current        |  –  |  –   | 16   |  A   | SPDT contacts; use **RC/MOV snubber** or **interposing contactor** for motors/pumps |
-| Relay Contact Voltage        |  –  |  –   | 250  | VAC  | Or 30 VDC typical; observe derating vs. load category |
-| RS-485 Bus Rate              |  –  | 19.2 | 115.2| kbps | Default **19200 8N1**; address 1–255 (factory **3**) |
-| USB-C Port                   | 4.75| 5.0  | 5.25 | VDC  | Service/commissioning; ESD-protected |
-| Operating Temperature        |  0  |  –   | 40   |  °C  | ≤ 95 % RH, non-condensing (panel interior) |
-| Isolation (DI → Logic)       |  –  |  –   |  —   |  —   | **Galvanically isolated** DI front-end; keep field **GNDx** separate from logic **GND** |
-
-**Power budgeting guideline:** base logic + front-panel LEDs + up to **3 relay coils simultaneously** + any sensor loads from the panel’s 24 V rail; add **≥ 30 % headroom**.
-
----
-
-## 5.4 Connector / Terminal Map (Field Side)
-
-| Block / Label | Pin(s) (left→right) | Function / Signal                  | Limits / Notes |
-|---------------|----------------------|------------------------------------|----------------|
-| **POWER**     | **0V, V+**           | 24 VDC SELV input                  | Reverse/surge protected |
-| **RELAY 1**   | **NO, C, NC**        | SPDT dry contact                   | Add RC/MOV for inductive loads |
-| **RELAY 2**   | **NO, C, NC**        | SPDT dry contact                   | As above |
-| **RELAY 3**   | **NO, C, NC**        | SPDT dry contact                   | As above |
-| **RS-485**    | **B, A, COM**        | Modbus RTU bus                     | Terminate **120 Ω** at both physical ends; share **COM/GND** |
-| **DI 1**      | **IN1, GND1**        | **Galvanically isolated** digital input | Dry contact/24 V field signal |
-| **DI 2**      | **IN2, GND2**        | **Galvanically isolated** digital input | 〃 |
-| **DI 3**      | **IN3, GND3**        | **Galvanically isolated** digital input | 〃 |
-| **DI 4**      | **IN4, GND4**        | **Galvanically isolated** digital input | 〃 |
-| **USB-C**     | **D+/D−, VBUS, GND** | Web Serial / Setup (service only)  | Not for field powering loads |
-
----
-
-## 5.5 Reliability & Protection Specifics
-
-- **Primary protection:** reverse-path diode + high-side MOSFET on 24 V input; distributed local fusing/TVS on field interfaces.  
-- **Digital inputs:** per-channel **PTC + TVS** and RC filtering; **galvanically isolated** field domain; firmware debounce/invert.  
-- **Relays:** coil driven via **opto-coupler → transistor → SPDT contacts**; fit **RC/MOV** suppression and prefer **interposing contactors** for motors/pumps or high inrush.  
-- **RS-485:** TVS + series protection; fail-safe biasing; **TX/RX** indicators on the front panel.  
-- **USB-C:** ESD array on D±; CC resistors; intended for commissioning/diagnostics.  
-- **Persistence:** configuration stored in non-volatile flash; **auto-save** after edits in WebConfig.
-
----
-
-## 5.6 Firmware / Functional Overview
-
-- **Modbus & defaults:** RTU **slave**; factory **Address 3**, **19200 8N1**; configurable (1–255; 9600–115200).  
-- **Inputs → Relays:** per input set **Enabled/Invert**, **Action** (`None` / `Toggle` / `Pulse`), and **Control target** (`None` / `Relay 1–3` / `Control all`).  
-- **Manual overrides (Buttons):** map Button 1–3 to **Relay 1–3 override (toggle)**; local control coexists with master commands.  
-- **LED feedback:** three user LEDs with **Steady/Blink** modes following their relays (current WebConfig exposes Mode only); relay LEDs show coil state.  
-- **Setup & diagnostics:** **WebConfig** over USB-C (Chrome/Edge) to set address/baud, map inputs, enable/invert relays, assign buttons/LEDs, and reset the device.  
-- **Startup/persistence:** settings restored on boot from flash.
-
----
-
-## 5.7 Mechanical Details
-
-| Property            | Specification |
-|---------------------|--------------|
-| Mounting            | DIN rail EN 50022 (35 mm) |
-| Enclosure           | PC/ABS V-0, panel-mount, front legends |
-| Dimensions (approx) | **70 × 90.6 × 67.3 mm** (W × H × D) |
-| Terminals           | Pluggable 5.08 mm; 26–12 AWG (to 2.5 mm²); torque 0.5–0.6 Nm |
-| Ingress Protection  | IP20 (panel interior) |
-| Operating Temp.     | 0–40 °C, ≤ 95 % RH non-condensing |
-
-### Mechanical Dimensions
-
-![DIO-430-R1 Dimensions](https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/refs/heads/main/DIO-430-R1/Images/DIODimensions.png)
-
-*Overall: 70 × 90.6 × 67.3 mm (W × H × D), DIN-rail EN 50022.*
-
----
-
-## 5.8 Standards & Compliance
-
-| Standard / Directive | Description |
-|----------------------|-------------|
-| Ingress Rating       | IP20 (panel-mount only) |
-| Altitude             | ≤ 2000 m |
-| Environment          | RoHS / REACH compliant (component selection) |
 
 # 6. Modbus RTU Communication
 
