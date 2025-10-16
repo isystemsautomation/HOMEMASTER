@@ -1,6 +1,6 @@
 <section style="font-family:'Segoe UI',sans-serif;padding:2rem;max-width:1000px;margin:auto;">
   <div style="text-align:center;margin-bottom:2rem;">
-    <img src="https://www.home-master.eu/web/image/product.product/719/image_1024/ALM-173-R1%20Module%20for%20Alarm%20Systems?unique=f079b61" alt="AIO-422-R1" style="max-width:300px;border-radius:8px;opacity:.9;" loading="lazy">
+    <img src="https://www.home-master.eu/web/image/3973-c0758147/photo1.webp" alt="AIO-422-R1" style="max-width:300px;border-radius:8px;opacity:.9;" loading="lazy">
     <h2 style="margin:.5rem 0 0;">AIO-422-R1 Module Configuration</h2>
     <p style="margin:.25rem 0 0;color:#333;">Configure Modbus, ADS1115 (gain / data-rate / sample interval), view 4 analog channels, set 2× DAC outputs, test LEDs, and manage device via Web Serial.</p>
   </div>
@@ -123,6 +123,17 @@
     <div id="leds-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
   </section>
 
+  <!-- ===== PID UI ADDED ===== -->
+  <section style="margin-bottom:1.75rem;">
+    <h2 style="font-size:1.2rem;margin-bottom:.75rem;">PID Controllers (x4)</h2>
+    <div id="pid-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem;"></div>
+    <small style="color:#666;">
+      Firmware echoes <code>PIDConfigList</code> with 4 items. Edits are sent as
+      <code>Config</code> → <code>{ t:"pid", i, cfg:{ ... } }</code>. Kp/Ki/Kd are Q8.8; UI lets you edit decimal and converts to Q8.8.
+    </small>
+  </section>
+  <!-- ===== /PID UI ADDED ===== -->
+
   <div id="log-line" style="margin-bottom:1.5rem;padding:1rem;background:#f9f9f9;border:1px solid #ccc;border-radius:6px;font-size:0.9rem;color:#333;font-family:monospace;">
     <strong>Serial Log:</strong>
     <div id="log-content" style="white-space:pre-wrap;"></div>
@@ -136,7 +147,7 @@
   // ---------- Helpers ----------
   const LOG_MAX = 200;
   const logBuffer = [];
-  const VREF_MV = 5000; // matches firmware constant
+  const VREF_MV = 5000; // local fallback; firmware sends mv in echoes
   const $ = (id) => document.getElementById(id);
 
   function appendLog(label, data) {
@@ -159,7 +170,6 @@
     sel.value = '3';
   }
 
-  // enable/disable controls
   function isPortOpen() {
     try { return typeof connection.isOpen === 'function' ? connection.isOpen() : !!connection.port; }
     catch { return false; }
@@ -276,11 +286,237 @@
     }
   }
 
+  // ===== PID UI ADDED =====
+  const PID_ROUTE = [
+    {v:0,  t:'None'},
+    {v:1,  t:'AO0'},
+    {v:2,  t:'AO1'},
+    {v:10, t:'OUT_VAR0'},
+    {v:11, t:'OUT_VAR1'},
+    {v:12, t:'OUT_VAR2'},
+    {v:13, t:'OUT_VAR3'},
+  ];
+  function q88_to_f(q){ return (q|0) / 256; }
+  function f_to_q88(f){ return Math.max(0, Math.min(65535, Math.round((Number(f)||0) * 256))); }
+  function clamp(v, lo, hi){ v=Number(v)||0; return Math.max(lo, Math.min(hi, v)); }
+
+  function buildPidCards() {
+    const grid = $('pid-grid'); if (!grid) return;
+    grid.innerHTML = '';
+    for (let i = 0; i < 4; i++) {
+      const routeOpts = PID_ROUTE.map(o => `<option value="${o.v}">${o.t}</option>`).join('');
+      const card = document.createElement('div');
+      card.style = "border:1px solid #ddd;border-radius:8px;padding:1rem;background:#fff;";
+      card.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;">
+          <strong>PID ${i}</strong>
+          <small id="pid${i}-hint" style="color:#666;">manual</small>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem 1rem;">
+          <label>Mode
+            <select id="pid${i}-mode" style="width:100%;padding:6px;border-radius:6px;">
+              <option value="0">MANUAL</option>
+              <option value="1">AUTO</option>
+            </select>
+          </label>
+
+          <label>Route
+            <select id="pid${i}-route" style="width:100%;padding:6px;border-radius:6px;">
+              ${routeOpts}
+            </select>
+          </label>
+
+          <label>PV Type
+            <select id="pid${i}-pvtype" style="width:100%;padding:6px;border-radius:6px;">
+              <option value="0">AI (0..3)</option>
+              <option value="1">RTD (0..1)</option>
+              <option value="2">EXTPV (0..3)</option>
+            </select>
+          </label>
+
+          <label>PV Index
+            <input id="pid${i}-pvidx" type="number" min="0" max="3" step="1" value="0" style="width:100%;padding:6px;border-radius:6px;border:1px solid #ccc;">
+          </label>
+
+          <label>SP Source
+            <select id="pid${i}-sptype" style="width:100%;padding:6px;border-radius:6px;">
+              <option value="0">STATIC (mV)</option>
+              <option value="1">EXTSP (0..3)</option>
+              <option value="2">PID OUT (0..3)</option>
+            </select>
+          </label>
+
+          <label>SP Static (mV)
+            <input id="pid${i}-spstatic" type="number" min="0" max="10000" step="10" value="0" style="width:100%;padding:6px;border-radius:6px;border:1px solid #ccc;">
+          </label>
+
+          <label>SP Index
+            <input id="pid${i}-spidx" type="number" min="0" max="3" step="1" value="0" style="width:100%;padding:6px;border-radius:6px;border:1px solid #ccc;">
+          </label>
+
+          <div></div>
+
+          <label>Kp (gain)
+            <input id="pid${i}-kp" type="number" step="0.01" value="1.00" style="width:100%;padding:6px;border-radius:6px;border:1px solid #ccc;">
+            <small id="pid${i}-kpq" style="color:#777;">Q8.8: --</small>
+          </label>
+
+          <label>Ki (1/s)
+            <input id="pid${i}-ki" type="number" step="0.01" value="0.50" style="width:100%;padding:6px;border-radius:6px;border:1px solid #ccc;">
+            <small id="pid${i}-kiq" style="color:#777;">Q8.8: --</small>
+          </label>
+
+          <label>Kd (s)
+            <input id="pid${i}-kd" type="number" step="0.01" value="0.00" style="width:100%;padding:6px;border-radius:6px;border:1px solid #ccc;">
+            <small id="pid${i}-kdq" style="color:#777;">Q8.8: --</small>
+          </label>
+
+          <div></div>
+
+          <label>OUT min (mV)
+            <input id="pid${i}-outmin" type="number" min="0" max="10000" step="10" value="0" style="width:100%;padding:6px;border-radius:6px;border:1px solid #ccc;">
+          </label>
+
+          <label>OUT max (mV)
+            <input id="pid${i}-outmax" type="number" min="0" max="10000" step="10" value="10000" style="width:100%;padding:6px;border-radius:6px;border:1px solid #ccc;">
+          </label>
+
+          <label>Manual OUT (mV)
+            <input id="pid${i}-manmv" type="number" min="0" max="10000" step="10" value="0" style="width:100%;padding:6px;border-radius:6px;border:1px solid #ccc;">
+          </label>
+
+          <div style="display:flex;align-items:end;gap:.5rem;">
+            <button id="pid${i}-apply" type="button" style="padding:.5rem .8rem;background:#0d6efd;color:#fff;border:none;border-radius:6px;">Apply PID ${i}</button>
+            <button id="pid${i}-refresh" type="button" style="padding:.5rem .8rem;background:#6c757d;color:#fff;border:none;border-radius:6px;">Refresh</button>
+          </div>
+        </div>
+      `;
+      grid.appendChild(card);
+    }
+  }
+
+  function reflectPidCard(i, cfg) {
+    const g = (id)=>$('pid'+i+'-'+id);
+    if (cfg.mode       != null) g('mode').value     = String(cfg.mode);
+    if (cfg.route      != null) g('route').value    = String(cfg.route);
+    if (cfg.pv_type    != null) g('pvtype').value   = String(cfg.pv_type);
+    if (cfg.pv_idx     != null) g('pvidx').value    = String(cfg.pv_idx);
+    if (cfg.sp_type    != null) g('sptype').value   = String(cfg.sp_type);
+    if (cfg.sp_static  != null) g('spstatic').value = String(cfg.sp_static);
+    if (cfg.sp_idx     != null) g('spidx').value    = String(cfg.sp_idx);
+
+    if (cfg.kp_q8_8 != null) { g('kp').value = q88_to_f(cfg.kp_q8_8).toFixed(2); $('pid'+i+'-kpq').textContent = 'Q8.8: '+cfg.kp_q8_8; }
+    if (cfg.ki_q8_8 != null) { g('ki').value = q88_to_f(cfg.ki_q8_8).toFixed(2); $('pid'+i+'-kiq').textContent = 'Q8.8: '+cfg.ki_q8_8; }
+    if (cfg.kd_q8_8 != null) { g('kd').value = q88_to_f(cfg.kd_q8_8).toFixed(2); $('pid'+i+'-kdq').textContent = 'Q8.8: '+cfg.kd_q8_8; }
+
+    if (cfg.out_min_mv != null) g('outmin').value = String(cfg.out_min_mv);
+    if (cfg.out_max_mv != null) g('outmax').value = String(cfg.out_max_mv);
+    if (cfg.man_mv     != null) g('manmv').value  = String(cfg.man_mv);
+
+    const hint = $('pid'+i+'-hint');
+    if (hint) hint.textContent = (Number(g('mode').value) === 1) ? 'auto' : 'manual';
+  }
+
+  async function sendPidPartial(i, partial) {
+    await connection.send("Config", { t:"pid", i, cfg: partial });
+    appendLog("Config.pid["+i+"]", partial);
+  }
+
+  function wirePidCard(i) {
+    const g = (id)=>$('pid'+i+'-'+id);
+
+    // Simple “change → send” handlers (debounced a little)
+    const debounce = (fn, ms=120)=>{ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms);} };
+    const send = debounce((partial)=>sendPidPartial(i, partial));
+
+    g('mode').addEventListener('change', ()=> send({ mode: Number(g('mode').value) }) );
+    g('route').addEventListener('change', ()=> send({ route: Number(g('route').value) }) );
+
+    g('pvtype').addEventListener('change', ()=> {
+      const pv_type = Number(g('pvtype').value);
+      const maxIdx = (pv_type === 1) ? 1 : 3; // RTD 0..1, AI/EXTPV 0..3
+      g('pvidx').max = String(maxIdx);
+      g('pvidx').value = String(Math.min(Number(g('pvidx').value||0), maxIdx));
+      send({ pv_type, pv_idx: Number(g('pvidx').value) });
+    });
+    g('pvidx').addEventListener('change', ()=> {
+      const pv_type = Number(g('pvtype').value);
+      const maxIdx = (pv_type === 1) ? 1 : 3;
+      send({ pv_idx: clamp(g('pvidx').value, 0, maxIdx) });
+    });
+
+    g('sptype').addEventListener('change', ()=> send({ sp_type: Number(g('sptype').value) }) );
+    g('spidx').addEventListener('change', ()=> send({ sp_idx: clamp(g('spidx').value, 0, 3) }) );
+    g('spstatic').addEventListener('change', ()=> send({ sp_static: clamp(g('spstatic').value, 0, 10000) }) );
+
+    function syncQ(fieldId, labelId, key){
+      const val = Number($(fieldId).value || 0);
+      const q = f_to_q88(val);
+      $(labelId).textContent = 'Q8.8: '+q;
+      send({ [key]: q });
+    }
+    g('kp').addEventListener('change', ()=> syncQ('pid'+i+'-kp','pid'+i+'-kpq','kp_q8_8'));
+    g('ki').addEventListener('change', ()=> syncQ('pid'+i+'-ki','pid'+i+'-kiq','ki_q8_8'));
+    g('kd').addEventListener('change', ()=> syncQ('pid'+i+'-kd','pid'+i+'-kdq','kd_q8_8'));
+
+    g('outmin').addEventListener('change', ()=> {
+      const omin = clamp(g('outmin').value, 0, 10000);
+      const omax = clamp(g('outmax').value, 0, 10000);
+      if (omin > omax) { g('outmax').value = String(omin); }
+      send({ out_min_mv: Number(g('outmin').value), out_max_mv: Number(g('outmax').value) });
+    });
+    g('outmax').addEventListener('change', ()=> {
+      const omin = clamp(g('outmin').value, 0, 10000);
+      const omax = clamp(g('outmax').value, 0, 10000);
+      if (omax < omin) { g('outmin').value = String(omax); }
+      send({ out_min_mv: Number(g('outmin').value), out_max_mv: Number(g('outmax').value) });
+    });
+
+    g('manmv').addEventListener('change', ()=> send({ man_mv: clamp(g('manmv').value, 0, 10000) }) );
+
+    // Apply button (send all fields at once)
+    $('pid'+i+'-apply').addEventListener('click', async ()=> {
+      const payload = {
+        mode: Number(g('mode').value),
+        route: Number(g('route').value),
+        pv_type: Number(g('pvtype').value),
+        pv_idx: Number(g('pvidx').value),
+        sp_type: Number(g('sptype').value),
+        sp_static: clamp(g('spstatic').value, 0, 10000),
+        sp_idx: clamp(g('spidx').value, 0, 3),
+        kp_q8_8: f_to_q88(g('kp').value),
+        ki_q8_8: f_to_q88(g('ki').value),
+        kd_q8_8: f_to_q88(g('kd').value),
+        out_min_mv: clamp(g('outmin').value, 0, 10000),
+        out_max_mv: clamp(g('outmax').value, 0, 10000),
+        man_mv: clamp(g('manmv').value, 0, 10000),
+      };
+      // ensure min<=max
+      if (payload.out_min_mv > payload.out_max_mv) [payload.out_min_mv, payload.out_max_mv] = [payload.out_max_mv, payload.out_min_mv];
+      await sendPidPartial(i, payload);
+    });
+
+    // Refresh button just asks firmware to echo current list by pinging a no-op change
+    $('pid'+i+'-refresh').addEventListener('click', async ()=> {
+      await sendPidPartial(i, {}); // firmware echoes full list after any PID config call
+    });
+
+    // Update hint when mode changes
+    g('mode').addEventListener('change', ()=> {
+      const hint = $('pid'+i+'-hint');
+      if (hint) hint.textContent = (Number(g('mode').value) === 1) ? 'auto' : 'manual';
+    });
+  }
+  // ===== /PID UI ADDED =====
+
   // ---------- Init UI ----------
   populateAddresses();
   buildChannelCards();
   buildButtons();
   buildLEDs();
+  buildPidCards();
+  for (let i=0;i<4;i++) wirePidCard(i);
 
   // ---------- Web Serial Setup ----------
   const connection = SimpleWebSerial.setupSerialConnection({
@@ -291,6 +527,11 @@
   function onPortStateChange() {
     const open = isPortOpen();
     setEnabled(['reset-button','apply-ads','ledtest-button','savecfg-button','dac0-raw','dac0-slider','dac1-raw','dac1-slider'], open);
+    // enable PID buttons/inputs as a group
+    for (let i=0;i<4;i++) {
+      ['mode','route','pvtype','pvidx','sptype','spstatic','spidx','kp','ki','kd','outmin','outmax','manmv','apply','refresh']
+        .forEach(s => { const el = $('pid'+i+'-'+s); if (el) el.disabled = !open; });
+    }
   }
   connection.on('open',  onPortStateChange);
   connection.on('close', onPortStateChange);
@@ -361,7 +602,6 @@
     }
     if (typeof mv === 'number' && mvEl) mvEl.textContent = `${mv} mV`;
   }
-  // debounce to avoid spamming serial on slider move
   const debouncers = [null,null];
   function sendDac(idx, raw) {
     clearTimeout(debouncers[idx]);
@@ -394,7 +634,6 @@
     if (s) s.addEventListener('input',  syncFromSlider);
     if (s) s.addEventListener('change', syncFromSlider);
   });
-  // consume firmware DAC echo
   connection.on('DAC', (obj) => {
     try {
       const raw = Array.isArray(obj?.raw) ? obj.raw : [];
@@ -414,7 +653,6 @@
     appendLog("values", { mb_address, mb_baud });
   }
 
-  // ADS apply
   $('apply-ads').addEventListener('click', async () => {
     const gainIndex     = parseInt($('ads-gain').value  || "0", 10);
     const dataRateIndex = parseInt($('ads-drate').value || "4", 10);
@@ -423,10 +661,7 @@
     appendLog("Config.ads", { gainIndex, dataRateIndex, sample_ms });
   });
 
-  // Buttons config push
-  for (let i = 1; i <= 4; i++) {
-    $('action-button' + i).addEventListener('change', sendButtonConfig);
-  }
+  for (let i = 1; i <= 4; i++) $('action-button' + i).addEventListener('change', sendButtonConfig);
   async function sendButtonConfig() {
     const list = [];
     for (let i = 1; i <= 4; i++) list.push({ action: parseInt($('action-button' + i).value || "0", 10) });
@@ -434,7 +669,6 @@
     appendLog("Config.buttons", list);
   }
 
-  // LEDs config push
   for (let i = 1; i <= 4; i++) {
     $('mode-led' + i).addEventListener('change',   sendLedConfig);
     $('source-led' + i).addEventListener('change', sendLedConfig);
@@ -451,19 +685,16 @@
     appendLog("Config.leds", list);
   }
 
-  // LED test
   $('ledtest-button').addEventListener('click', async () => {
     await connection.send("command", { action: "ledtest" });
     appendLog("command", "ledtest");
   });
 
-  // Save to flash
   $('savecfg-button').addEventListener('click', async () => {
     await connection.send("command", { action: "save" });
     appendLog("command", "save");
   });
 
-  // Reset (dialog)
   const resetBtn   = $('reset-button');
   const dlg        = $('reset-dialog');
   const dlgCancel  = $('dlg-cancel');
@@ -488,7 +719,13 @@
     }
   }
 
-  // Enable buttons on connect
+  // ---------- Firmware echoes ----------
+  connection.on('PIDConfigList', (list) => {
+    if (!Array.isArray(list)) return;
+    list.forEach((cfg, i) => reflectPidCard(i, cfg || {}));
+  });
+
+  // Enable on connect
   onPortStateChange();
 })();
 </script>
