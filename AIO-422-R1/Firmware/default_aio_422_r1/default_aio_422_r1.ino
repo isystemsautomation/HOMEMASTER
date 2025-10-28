@@ -335,6 +335,11 @@ uint16_t outVar_mV[4] = {0,0,0,0};
 uint16_t extPV_mV[4] = {0,0,0,0};
 uint16_t extSP_mV[4] = {0,0,0,0};
 
+// Keep last PID telemetry for Trend
+uint16_t lastPidPV_mV[4]  = {0,0,0,0};
+uint16_t lastPidSP_mV[4]  = {0,0,0,0};
+uint16_t lastPidOUT_mV[4] = {0,0,0,0};
+
 // helper: Q8.8 to float
 static inline float q88_to_f(uint16_t q){ return (float)q / 256.0f; }
 static inline uint16_t clamp_u16(uint16_t v, uint16_t lo, uint16_t hi){ if(v<lo) return lo; if(v>hi) return hi; return v; }
@@ -456,6 +461,193 @@ void sendRTDEcho(const int16_t c_x100[2], const uint16_t ohm_x100[2], const uint
   JSONVar obj;
   for (int i=0;i<2;i++) { obj["c"][i]=c_x100[i]; obj["ohm"][i]=ohm_x100[i]; obj["fault"][i]=fault[i]; }
   WebSerial.send("AIO_RTD", obj);
+}
+
+// ================== TREND LOGGING (LittleFS ring buffer) ==================
+#define TREND_FILE_PATH "/trend.bin"
+#define TREND_INTERVAL_MS 5000UL
+#define TREND_DURATION_MS (30UL * 60UL * 1000UL) // 30 minutes
+#define TREND_RECORDS_MAX (TREND_DURATION_MS / TREND_INTERVAL_MS) // 360
+
+struct TrendHeader {
+  uint32_t magic;       // 'TRND'
+  uint16_t version;     // 0x0001
+  uint16_t rec_size;    // sizeof(TrendRecord)
+  uint16_t capacity;    // TREND_RECORDS_MAX
+  uint16_t windex;      // next write index [0..capacity-1]
+  uint16_t count;       // number of valid records [0..capacity]
+  uint32_t crc32;       // header CRC
+} __attribute__((packed));
+
+struct TrendRecord {
+  uint32_t ts_ms;
+  uint16_t ai_mV[4];
+  int16_t  rtdC_x100[2];
+  uint16_t ao_mV[2];
+  uint16_t pidPV[4];
+  uint16_t pidSP[4];
+  uint16_t pidOUT[4];
+} __attribute__((packed));
+
+static const uint32_t TREND_MAGIC = 0x444E5254UL; // 'TRND'
+static const uint16_t TREND_VER   = 0x0001;
+
+static unsigned long lastTrendSave = 0;
+static TrendHeader tHdr;
+
+// fwd decls
+void trend_init();
+void trend_clear();
+bool trend_load_header(File &f, TrendHeader &h);
+bool trend_save_header(File &f, TrendHeader &h);
+bool trend_append(const TrendRecord &rec);
+void trend_send_info();
+void trend_dump_all();
+void trend_send_append_echo(const TrendRecord &rec);
+
+// --- Trend impl
+bool trend_load_header(File &f, TrendHeader &h){
+  if (!f) return false;
+  if (f.size() < (int)sizeof(TrendHeader)) return false;
+  TrendHeader tmp{};
+  if (f.read((uint8_t*)&tmp, sizeof(tmp)) != sizeof(tmp)) return false;
+  uint32_t crc = tmp.crc32; tmp.crc32 = 0;
+  if (crc32_update(0, (uint8_t*)&tmp, sizeof(tmp)) != crc) return false;
+  if (tmp.magic != TREND_MAGIC) return false;
+  if (tmp.version != TREND_VER) return false;
+  if (tmp.rec_size != sizeof(TrendRecord)) return false;
+  if (tmp.capacity != TREND_RECORDS_MAX) return false;
+  if (tmp.windex >= tmp.capacity) tmp.windex = 0;
+  if (tmp.count > tmp.capacity) tmp.count = 0;
+  h = tmp;
+  return true;
+}
+
+bool trend_save_header(File &f, TrendHeader &h){
+  if (!f) return false;
+  h.magic = TREND_MAGIC;
+  h.version = TREND_VER;
+  h.rec_size = sizeof(TrendRecord);
+  h.capacity = TREND_RECORDS_MAX;
+  h.windex = (h.windex >= h.capacity) ? 0 : h.windex;
+  if (h.count > h.capacity) h.count = h.capacity;
+  h.crc32 = 0;
+  h.crc32 = crc32_update(0, (uint8_t*)&h, sizeof(h));
+  f.seek(0, SeekSet);
+  size_t n = f.write((uint8_t*)&h, sizeof(h));
+  return n == sizeof(h);
+}
+
+void trend_init(){
+  File f = LittleFS.open(TREND_FILE_PATH, "r+");
+  if (trend_load_header(f, tHdr)) {
+    WebSerial.send("message","Trend: existing ring buffer OK");
+    f.close();
+    trend_send_info();
+    return;
+  }
+  if (f) f.close();
+  // create fresh file
+  TrendHeader h{};
+  h.magic = TREND_MAGIC; h.version = TREND_VER;
+  h.rec_size = sizeof(TrendRecord);
+  h.capacity = TREND_RECORDS_MAX;
+  h.windex = 0; h.count = 0; h.crc32 = 0;
+
+  // Pre-size file: header + capacity * rec_size
+  File nf = LittleFS.open(TREND_FILE_PATH, "w+");
+  if (!nf) { WebSerial.send("message","Trend: create FAILED"); return; }
+  // write header
+  if (!trend_save_header(nf, h)) { nf.close(); WebSerial.send("message","Trend: header write FAILED"); return; }
+  // seek to last byte of data area and write 0 to allocate
+  size_t total = sizeof(TrendHeader) + (size_t)h.capacity * (size_t)h.rec_size;
+  nf.seek(total - 1, SeekSet);
+  uint8_t z = 0; nf.write(&z, 1);
+  nf.flush(); nf.close();
+  tHdr = h;
+  WebSerial.send("message","Trend: new ring buffer created");
+  trend_send_info();
+}
+
+void trend_clear(){
+  tHdr.windex = 0; tHdr.count = 0;
+  File f = LittleFS.open(TREND_FILE_PATH, "r+");
+  if (!f) { trend_init(); return; }
+  if (!trend_save_header(f, tHdr)) { WebSerial.send("message","Trend: clear header write FAILED"); }
+  f.close();
+  trend_send_info();
+}
+
+bool trend_append(const TrendRecord &rec){
+  File f = LittleFS.open(TREND_FILE_PATH, "r+");
+  if (!f) { WebSerial.send("message","Trend: open FAILED"); return false; }
+  TrendHeader h{};
+  if (!trend_load_header(f, h)) {
+    f.close(); trend_init(); return false;
+  }
+  size_t off = sizeof(TrendHeader) + (size_t)h.windex * (size_t)h.rec_size;
+  if (!f.seek(off, SeekSet)) { f.close(); WebSerial.send("message","Trend: seek FAILED"); return false; }
+  size_t n = f.write((const uint8_t*)&rec, sizeof(rec));
+  if (n != sizeof(rec)) { f.close(); WebSerial.send("message","Trend: write FAILED"); return false; }
+  h.windex = (h.windex + 1) % h.capacity;
+  if (h.count < h.capacity) h.count++;
+  if (!trend_save_header(f, h)) { f.close(); WebSerial.send("message","Trend: header upd FAILED"); return false; }
+  f.close();
+  tHdr = h;
+  trend_send_append_echo(rec);
+  return true;
+}
+
+void trend_send_info(){
+  JSONVar o; o["capacity"] = tHdr.capacity; o["count"] = tHdr.count; o["windex"] = tHdr.windex;
+  WebSerial.send("TrendInfo", o);
+}
+
+void trend_dump_all(){
+  File f = LittleFS.open(TREND_FILE_PATH, "r");
+  if (!f) { WebSerial.send("message","Trend dump: open FAILED"); return; }
+  TrendHeader h{};
+  if (!trend_load_header(f, h)) { f.close(); WebSerial.send("message","Trend dump: header bad"); return; }
+
+  JSONVar arr; // array of records
+  if (h.count == 0) {
+    WebSerial.send("TrendFull", arr);
+    f.close(); return;
+  }
+
+  // oldest index
+  uint16_t start = (h.windex + h.capacity - h.count) % h.capacity;
+  TrendRecord rec{};
+  for (uint16_t i=0;i<h.count;i++){
+    size_t idx = (start + i) % h.capacity;
+    size_t off = sizeof(TrendHeader) + idx * (size_t)h.rec_size;
+    f.seek(off, SeekSet);
+    size_t n = f.read((uint8_t*)&rec, sizeof(rec));
+    if (n != sizeof(rec)) break;
+    JSONVar o;
+    o["t"] = (int)rec.ts_ms;
+    for (int k=0;k<4;k++){ o["ai"][k] = rec.ai_mV[k]; }
+    for (int k=0;k<2;k++){ o["rtd"][k] = rec.rtdC_x100[k]; }
+    for (int k=0;k<2;k++){ o["ao"][k]  = rec.ao_mV[k]; }
+    for (int k=0;k<4;k++){ o["pv"][k]  = rec.pidPV[k]; }
+    for (int k=0;k<4;k++){ o["sp"][k]  = rec.pidSP[k]; }
+    for (int k=0;k<4;k++){ o["out"][k] = rec.pidOUT[k]; }
+    arr[i] = o;
+  }
+  f.close();
+  WebSerial.send("TrendFull", arr);
+}
+
+void trend_send_append_echo(const TrendRecord &rec){
+  JSONVar o;
+  o["t"] = (int)rec.ts_ms;
+  for (int k=0;k<4;k++){ o["ai"][k]  = rec.ai_mV[k]; }
+  for (int k=0;k<2;k++){ o["rtd"][k] = rec.rtdC_x100[k]; }
+  for (int k=0;k<2;k++){ o["ao"][k]  = rec.ao_mV[k]; }
+  for (int k=0;k<4;k++){ o["pv"][k]  = rec.pidPV[k]; }
+  for (int k=0;k<4;k++){ o["sp"][k]  = rec.pidSP[k]; }
+  for (int k=0;k<4;k++){ o["out"][k] = rec.pidOUT[k]; }
+  WebSerial.send("TrendAppend", o);
 }
 
 // ---- WebSerial handlers (unchanged semantics) ----
@@ -616,6 +808,15 @@ void handleCommand(JSONVar obj) {
     }
     WebSerial.send("message", "LED test completed");
 
+  } else if (act == "trend_dump") {
+    trend_dump_all();
+
+  } else if (act == "trend_clear") {
+    trend_clear();
+
+  } else if (act == "trend_info") {
+    trend_send_info();
+
   } else {
     WebSerial.send("message", String("Unknown command: ") + actC);
   }
@@ -775,6 +976,9 @@ void setup() {
     LittleFS.format();
     LittleFS.begin();
   }
+  // Trend needs FS; init early
+  trend_init();
+
   if (loadConfigFS()) WebSerial.send("message", "Config loaded from flash");
   else { WebSerial.send("message", "No valid config. Using defaults."); saveConfigFS(); }
 
@@ -835,6 +1039,17 @@ void setup() {
   WebSerial.on("values",  handleValues);
   WebSerial.on("Config",  handleUnifiedConfig);
   WebSerial.on("command", handleCommand);
+
+  // Also allow structured trend commands
+  WebSerial.on("trend", [](JSONVar obj){
+    const char* actC = (const char*)obj["action"];
+    if (!actC){ WebSerial.send("message","trend: missing action"); return; }
+    String act = String(actC); act.toLowerCase();
+    if (act == "dump")       trend_dump_all();
+    else if (act == "clear") trend_clear();
+    else if (act == "info")  trend_send_info();
+    else WebSerial.send("message", String("trend: unknown '")+act+"'");
+  });
 
   // Initial echoes
   sendAllEchoesOnce();
@@ -1057,6 +1272,11 @@ void loop() {
 
       p.last_out_mv = out_mv;
 
+      // Save for trend (latest)
+      lastPidPV_mV[i]  = pv_mv;
+      lastPidSP_mV[i]  = sp_mv;
+      lastPidOUT_mV[i] = out_mv;
+
       // Route output
       switch (p.route) {
         case 1: { // AO0
@@ -1087,6 +1307,23 @@ void loop() {
     sendSamplesEcho(rawArr, ai_mV);
     // RTD echo already prepared
     sendRTDEcho(rtdC_x100, rtdOhm_x100, rtdFault);
+
+    // ---- TREND: every 5 seconds append snapshot ----
+    if (now - lastTrendSave >= TREND_INTERVAL_MS) {
+      lastTrendSave = now;
+      TrendRecord tr{};
+      tr.ts_ms = now;
+      for (int i=0;i<4;i++) tr.ai_mV[i] = ai_mV[i];
+      tr.rtdC_x100[0] = rtdC_x100[0];
+      tr.rtdC_x100[1] = rtdC_x100[1];
+      // AO field mV derived from DAC raw codes
+      tr.ao_mV[0] = (uint16_t)lroundf((float)dac_raw[0] * (float)DAC_FIELD_VREF_MV / 4095.0f);
+      tr.ao_mV[1] = (uint16_t)lroundf((float)dac_raw[1] * (float)DAC_FIELD_VREF_MV / 4095.0f);
+      for (int i=0;i<4;i++){ tr.pidPV[i]  = lastPidPV_mV[i]; }
+      for (int i=0;i<4;i++){ tr.pidSP[i]  = lastPidSP_mV[i]; }
+      for (int i=0;i<4;i++){ tr.pidOUT[i] = lastPidOUT_mV[i]; }
+      trend_append(tr); // also emits TrendAppend for UI
+    }
   }
 
   // Drive LEDs

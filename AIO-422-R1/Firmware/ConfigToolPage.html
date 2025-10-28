@@ -2,7 +2,7 @@
   <div style="text-align:center;margin-bottom:2rem;">
     <img src="https://www.home-master.eu/web/image/3973-c0758147/photo1.webp" alt="AIO-422-R1" style="max-width:300px;border-radius:8px;opacity:.9;" loading="lazy">
     <h2 style="margin:.5rem 0 0;">AIO-422-R1 Module Configuration</h2>
-    <p style="margin:.25rem 0 0;color:#333;">Configure Modbus, ADS1115 (gain / data-rate / sample interval), view 4 analog channels, set 2× DAC outputs, test LEDs, and manage device via Web Serial.</p>
+    <p style="margin:.25rem 0 0;color:#333;">Configure Modbus, ADS1115 (gain / data-rate / sample interval), view 4 analog channels, set 2× DAC outputs, test LEDs, manage device via Web Serial, and view 30-minute trends.</p>
   </div>
 
   <div style="background:#f1f1f1;padding:1rem 1.5rem;margin-bottom:2rem;border-radius:6px;border-left:4px solid #007bff;">
@@ -78,11 +78,10 @@
     </div>
   </section>
 
-  <!-- ============== NEW: Dual DAC section ============== -->
+  <!-- ============== Dual DAC section ============== -->
   <section style="margin-bottom:1.75rem;">
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">DAC Outputs (x2)</h2>
     <div id="dac-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem;">
-      <!-- AO0 / 0x60 -->
       <div style="border:1px solid #ddd;border-radius:8px;padding:1rem;background:#fff;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.25rem;">
           <strong>AO0 (U13, 0x60)</strong>
@@ -92,7 +91,6 @@
         <input id="dac0-slider" type="range" min="0" max="4095" step="1" value="0" style="width:100%;">
         <div style="margin-top:.4rem;color:#666;font-size:.9rem;">Raw: <span id="dac0-raw-label">0</span> / 4095 &nbsp;•&nbsp; Vref 10000 mV</div>
       </div>
-      <!-- AO1 / 0x61 -->
       <div style="border:1px solid #ddd;border-radius:8px;padding:1rem;background:#fff;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.25rem;">
           <strong>AO1 (U12, 0x61)</strong>
@@ -103,28 +101,28 @@
         <div style="margin-top:.4rem;color:#666;font-size:.9rem;">Raw: <span id="dac1-raw-label">0</span> / 4095 &nbsp;•&nbsp; Vref 10000 mV</div>
       </div>
     </div>
-    <small style="color:#666;">Firmware echoes <code>DAC</code> as <code>{ raw:[r0,r1], mv:[m0,m1] }</code>. Changes are sent as <code>Config</code> → <code>{ t:"dac", cfg:{ idx, raw } }</code>.</small>
+    <small style="color:#666;">Firmware echoes <code>DAC</code> as <code>{ raw:[r0,r1], mv:[m0,m1] }</code>.</small>
   </section>
   <!-- ============== /Dual DAC section ============== -->
 
-  <section style="margin-bottom:1.5rem;">
+  <section style="margin-bottom:1.5rem%;">
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Live Channels</h2>
     <div id="chan-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:1rem;"></div>
     <small style="color:#666;">Firmware emits <code>AIO_Samples</code> via WebSerial: <code>{ raw:[..], mv:[..] }</code>.</small>
   </section>
 
-  <section style="margin-bottom:1.5rem;">
+  <section style="margin-bottom:1.5rem%;">
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Buttons (4)</h2>
     <div id="buttons-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
   </section>
 
-  <section style="margin-bottom:1.5rem;">
+  <section style="margin-bottom:1.5rem%;">
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">User LEDs (4)</h2>
     <div id="leds-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
   </section>
 
-  <!-- ===== PID UI ADDED ===== -->
-  <section style="margin-bottom:1.75rem;">
+  <!-- ===== PID UI ===== -->
+  <section style="margin-bottom:1.75rem%;">
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">PID Controllers (x4)</h2>
     <div id="pid-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem;"></div>
     <small style="color:#666;">
@@ -132,7 +130,41 @@
       <code>Config</code> → <code>{ t:"pid", i, cfg:{ ... } }</code>. Kp/Ki/Kd are Q8.8; UI lets you edit decimal and converts to Q8.8.
     </small>
   </section>
-  <!-- ===== /PID UI ADDED ===== -->
+  <!-- ===== /PID UI ===== -->
+
+  <!-- ===== NEW: Trends (last 30 min) ===== -->
+  <section style="margin-bottom:1.75rem%;">
+    <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Trends (last 30 min)</h2>
+
+    <div style="display:flex;flex-wrap:wrap;gap:.5rem 1rem;align-items:center;margin-bottom:.5rem;">
+      <button id="trend-refresh" type="button" style="padding:.5rem .9rem;border:none;border-radius:6px;background:#0d6efd;color:#fff;">Refresh (Dump)</button>
+      <button id="trend-clear"   type="button" style="padding:.5rem .9rem;border:none;border-radius:6px;background:#dc3545;color:#fff;">Clear</button>
+      <button id="trend-info"    type="button" style="padding:.5rem .9rem;border:none;border-radius:6px;background:#6c757d;color:#fff;">Info</button>
+
+      <label style="margin-left:1rem;">
+        <input type="checkbox" id="trend-autoscroll" checked> Auto-scroll
+      </label>
+
+      <label style="margin-left:1rem;">PID view:
+        <select id="trend-pidpick" style="padding:.3rem .4rem;border-radius:6px;border:1px solid #ccc;">
+          <option value="0">PID 0</option>
+          <option value="1">PID 1</option>
+          <option value="2">PID 2</option>
+          <option value="3">PID 3</option>
+        </select>
+      </label>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr;gap:.5rem;">
+      <div id="trend-checks" style="display:flex;flex-wrap:wrap;gap:.4rem 1rem;"></div>
+      <div style="border:1px solid #ddd;border-radius:8px;background:#fff;padding:.5rem;">
+        <canvas id="trend-canvas" height="260"></canvas>
+      </div>
+      <small style="color:#666;">Firmware events: <code>TrendInfo</code>, <code>TrendFull</code>, <code>TrendAppend</code>. Commands: <code>command:{"action":"trend_dump"}</code>, <code>trend_clear</code>, <code>trend_info</code>.</small>
+      <div id="trend-meta" style="color:#555;font-size:.9rem;"></div>
+    </div>
+  </section>
+  <!-- ===== /Trends ===== -->
 
   <div id="log-line" style="margin-bottom:1.5rem;padding:1rem;background:#f9f9f9;border:1px solid #ccc;border-radius:6px;font-size:0.9rem;color:#333;font-family:monospace;">
     <strong>Serial Log:</strong>
@@ -140,8 +172,11 @@
   </div>
 </section>
 
+<!-- libs -->
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
 <script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
 <script>
 (function () {
   // ---------- Helpers ----------
@@ -154,7 +189,7 @@
     const el = $("log-content"); if (!el) return;
     const time = new Date().toLocaleTimeString();
     let body = (typeof data === 'string') ? data : JSON.stringify(data);
-    body = String(body).replace(/\r\n?|\n/g, '\n').replace(/\\r\\n|\\r|\\n/g, '\n');
+    body = String(body).replace(/\r\n?|\n/g, '\\n').replace(/\\r\\n|\\r|\\n/g, '\\n');
     logBuffer.unshift(`[${time}] ${label}: ${body}`);
     if (logBuffer.length > LOG_MAX) logBuffer.pop();
     el.textContent = logBuffer.join('\n');
@@ -286,7 +321,7 @@
     }
   }
 
-  // ===== PID UI ADDED =====
+  // ===== PID UI =====
   const PID_ROUTE = [
     {v:0,  t:'None'},
     {v:1,  t:'AO0'},
@@ -425,8 +460,6 @@
 
   function wirePidCard(i) {
     const g = (id)=>$('pid'+i+'-'+id);
-
-    // Simple “change → send” handlers (debounced a little)
     const debounce = (fn, ms=120)=>{ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms);} };
     const send = debounce((partial)=>sendPidPartial(i, partial));
 
@@ -435,7 +468,7 @@
 
     g('pvtype').addEventListener('change', ()=> {
       const pv_type = Number(g('pvtype').value);
-      const maxIdx = (pv_type === 1) ? 1 : 3; // RTD 0..1, AI/EXTPV 0..3
+      const maxIdx = (pv_type === 1) ? 1 : 3;
       g('pvidx').max = String(maxIdx);
       g('pvidx').value = String(Math.min(Number(g('pvidx').value||0), maxIdx));
       send({ pv_type, pv_idx: Number(g('pvidx').value) });
@@ -475,7 +508,6 @@
 
     g('manmv').addEventListener('change', ()=> send({ man_mv: clamp(g('manmv').value, 0, 10000) }) );
 
-    // Apply button (send all fields at once)
     $('pid'+i+'-apply').addEventListener('click', async ()=> {
       const payload = {
         mode: Number(g('mode').value),
@@ -492,23 +524,19 @@
         out_max_mv: clamp(g('outmax').value, 0, 10000),
         man_mv: clamp(g('manmv').value, 0, 10000),
       };
-      // ensure min<=max
       if (payload.out_min_mv > payload.out_max_mv) [payload.out_min_mv, payload.out_max_mv] = [payload.out_max_mv, payload.out_min_mv];
       await sendPidPartial(i, payload);
     });
 
-    // Refresh button just asks firmware to echo current list by pinging a no-op change
     $('pid'+i+'-refresh').addEventListener('click', async ()=> {
-      await sendPidPartial(i, {}); // firmware echoes full list after any PID config call
+      await sendPidPartial(i, {});
     });
 
-    // Update hint when mode changes
     g('mode').addEventListener('change', ()=> {
       const hint = $('pid'+i+'-hint');
       if (hint) hint.textContent = (Number(g('mode').value) === 1) ? 'auto' : 'manual';
     });
   }
-  // ===== /PID UI ADDED =====
 
   // ---------- Init UI ----------
   populateAddresses();
@@ -526,14 +554,13 @@
 
   function onPortStateChange() {
     const open = isPortOpen();
-    setEnabled(['reset-button','apply-ads','ledtest-button','savecfg-button','dac0-raw','dac0-slider','dac1-raw','dac1-slider'], open);
-    // enable PID buttons/inputs as a group
+    setEnabled(['reset-button','apply-ads','ledtest-button','savecfg-button','dac0-raw','dac0-slider','dac1-raw','dac1-slider','trend-refresh','trend-clear','trend-info','trend-pidpick'], open);
     for (let i=0;i<4;i++) {
       ['mode','route','pvtype','pvidx','sptype','spstatic','spidx','kp','ki','kd','outmin','outmax','manmv','apply','refresh']
         .forEach(s => { const el = $('pid'+i+'-'+s); if (el) el.disabled = !open; });
     }
   }
-  connection.on('open',  onPortStateChange);
+  connection.on('open',  () => { onPortStateChange(); requestTrendAll(); });
   connection.on('close', onPortStateChange);
 
   // Live status
@@ -719,11 +746,186 @@
     }
   }
 
-  // ---------- Firmware echoes ----------
   connection.on('PIDConfigList', (list) => {
     if (!Array.isArray(list)) return;
     list.forEach((cfg, i) => reflectPidCard(i, cfg || {}));
   });
+
+  // ================== TRENDS UI (NEW) ==================
+  const trend = {
+    records: [], // each: {t, ai[4], rtd[2], ao[2], pv[4], sp[4], out[4]}
+    capacity: 360, count: 0, windex: 0,
+    selectedPid: 0,
+    autoscroll: true,
+    checks: [
+      {key:'AI0',  label:'AI0 (mV)',    fn:r=>r.ai?.[0]},
+      {key:'AI1',  label:'AI1 (mV)',    fn:r=>r.ai?.[1]},
+      {key:'AI2',  label:'AI2 (mV)',    fn:r=>r.ai?.[2]},
+      {key:'AI3',  label:'AI3 (mV)',    fn:r=>r.ai?.[3]},
+      {key:'AO0',  label:'AO0 (mV)',    fn:r=>r.ao?.[0]},
+      {key:'AO1',  label:'AO1 (mV)',    fn:r=>r.ao?.[1]},
+      {key:'RTD0', label:'RTD0 (°C)',   fn:r=>((r.rtd?.[0] ?? 0)/100)},
+      {key:'RTD1', label:'RTD1 (°C)',   fn:r=>((r.rtd?.[1] ?? 0)/100)},
+      {key:'PV',   label:'PID PV (mV)', fn:r=>r.pv?.[trend.selectedPid]},
+      {key:'SP',   label:'PID SP (mV)', fn:r=>r.sp?.[trend.selectedPid]},
+      {key:'OUT',  label:'PID OUT (mV)',fn:r=>r.out?.[trend.selectedPid]},
+    ],
+    enabled: new Set(['AI0','AI1','AI2','AI3','PV','SP','OUT']),
+  };
+
+  (function buildTrendChecks(){
+    const wrap = $('trend-checks');
+    wrap.innerHTML = '';
+    trend.checks.forEach(chk => {
+      const id = 'chk-' + chk.key;
+      const label = document.createElement('label');
+      label.style = 'display:flex;align-items:center;gap:.35rem;';
+      label.innerHTML = `<input type="checkbox" id="${id}" ${trend.enabled.has(chk.key)?'checked':''}> ${chk.label}`;
+      wrap.appendChild(label);
+      $(id).addEventListener('change', e => {
+        if (e.target.checked) trend.enabled.add(chk.key);
+        else trend.enabled.delete(chk.key);
+        rebuildTrendDatasets();
+      });
+    });
+    $('trend-pidpick').addEventListener('change', (e)=>{
+      trend.selectedPid = Number(e.target.value)||0;
+      rebuildTrendDatasets();
+    });
+    $('trend-autoscroll').addEventListener('change', e=> trend.autoscroll = !!e.target.checked);
+  })();
+
+  const ctx = $('trend-canvas').getContext('2d');
+  let trendChart = new Chart(ctx, {
+    type: 'line',
+    data: { datasets: [] },
+    options: {
+      animation: false,
+      responsive: true,
+      maintainAspectRatio: false,
+      parsing: false,
+      normalized: true,
+      interaction: { mode: 'nearest', axis: 'x', intersect: false },
+      plugins: { legend: { position: 'bottom' } },
+      scales: {
+        x: {
+          type: 'linear',
+          title: { display: true, text: 'Time (mm:ss)' },
+          ticks: { callback: (v)=> formatMsToMinSec(v) }
+        },
+        y: { title: { display: true, text: 'Value' } }
+      }
+    }
+  });
+
+  function formatMsToMinSec(ms){
+    ms = Number(ms)||0;
+    const s = Math.floor(ms/1000);
+    const mm = String(Math.floor(s/60)).padStart(2,'0');
+    const ss = String(s%60).padStart(2,'0');
+    return `${mm}:${ss}`;
+  }
+
+  const colorPool = [
+    '#0d6efd','#dc3545','#198754','#fd7e14','#6f42c1',
+    '#20c997','#d63384','#0dcaf0','#6c757d','#ffc107','#6610f2'
+  ];
+  function colorFor(i){ return colorPool[i % colorPool.length]; }
+
+  function rebuildTrendDatasets(){
+    const keys = trend.checks.filter(c=>trend.enabled.has(c.key));
+    const datasets = keys.map((c, i)=>({
+      label: c.label,
+      data: trend.records.map(r=>({ x: r.t, y: safeNum(c.fn(r)) })),
+      borderColor: colorFor(i),
+      pointRadius: 0,
+      tension: 0.15
+    }));
+    trendChart.data.datasets = datasets;
+    trendChart.update('none');
+    updateTrendMeta();
+    maybeScroll();
+  }
+
+  function safeNum(v){ v = Number(v); return Number.isFinite(v) ? v : null; }
+
+  function setRecordsFromDump(list){
+    trend.records = Array.isArray(list) ? list.map(normalizeRec) : [];
+    dropToCapacity();
+    rebuildTrendDatasets();
+  }
+  function addRecordAppend(rec){
+    const n = normalizeRec(rec);
+    if (!n) return;
+    trend.records.push(n);
+    dropToCapacity();
+    trendChart.data.datasets.forEach((ds, i)=>{
+      const chk = trend.checks.filter(c=>trend.enabled.has(c.key))[i];
+      if (!chk) return;
+      ds.data.push({x: n.t, y: safeNum(chk.fn(n))});
+      if (ds.data.length > trend.capacity) ds.data.shift();
+    });
+    trendChart.update('none');
+    updateTrendMeta();
+    maybeScroll();
+  }
+
+  function normalizeRec(r){
+    if (!r) return null;
+    return {
+      t: Number(r.t)||0,
+      ai: Array.isArray(r.ai) ? r.ai.map(n=>Number(n)||0) : [0,0,0,0],
+      rtd: Array.isArray(r.rtd) ? r.rtd.map(n=>Number(n)||0) : [0,0],
+      ao: Array.isArray(r.ao) ? r.ao.map(n=>Number(n)||0) : [0,0],
+      pv: Array.isArray(r.pv) ? r.pv.map(n=>Number(n)||0) : [0,0,0,0],
+      sp: Array.isArray(r.sp) ? r.sp.map(n=>Number(n)||0) : [0,0,0,0],
+      out: Array.isArray(r.out) ? r.out.map(n=>Number(n)||0) : [0,0,0,0],
+    };
+  }
+  function dropToCapacity(){
+    const cap = trend.capacity || 360;
+    const extra = Math.max(0, trend.records.length - cap);
+    if (extra) trend.records.splice(0, extra);
+  }
+  function maybeScroll(){
+    if (!trend.autoscroll) return;
+    if (!trend.records.length) return;
+    const lastT = trend.records[trend.records.length-1].t;
+    trendChart.options.scales.x.min = Math.max(0, lastT - 30*60*1000);
+    trendChart.options.scales.x.max = lastT;
+    trendChart.update('none');
+  }
+  function updateTrendMeta(){
+    const el = $('trend-meta');
+    if (!el) return;
+    const n = trend.records.length;
+    const lastT = n ? trend.records[n-1].t : 0;
+    el.textContent = `Samples: ${n} / 360  •  Last @ ${formatMsToMinSec(lastT)}  •  Capacity: ${trend.capacity} (fw count=${trend.count}, windex=${trend.windex})`;
+  }
+
+  // Trend controls
+  $('trend-refresh').addEventListener('click', requestTrendDump);
+  $('trend-clear').addEventListener('click', async ()=>{
+    await connection.send('command', { action:'trend_clear' });
+    appendLog('command','trend_clear');
+    trend.records = [];
+    rebuildTrendDatasets();
+  });
+  $('trend-info').addEventListener('click', requestTrendInfo);
+
+  function requestTrendDump(){ connection.send('command', { action:'trend_dump' }); appendLog('command','trend_dump'); }
+  function requestTrendInfo(){ connection.send('command', { action:'trend_info' }); appendLog('command','trend_info'); }
+  function requestTrendAll(){ requestTrendInfo(); requestTrendDump(); }
+
+  // Trend events
+  connection.on('TrendInfo', (o)=>{
+    trend.capacity = Number(o?.capacity)||360;
+    trend.count    = Number(o?.count)||0;
+    trend.windex   = Number(o?.windex)||0;
+    updateTrendMeta();
+  });
+  connection.on('TrendFull', (list)=> setRecordsFromDump(list||[]));
+  connection.on('TrendAppend', (rec)=> addRecordAppend(rec||null));
 
   // Enable on connect
   onPortStateChange();
