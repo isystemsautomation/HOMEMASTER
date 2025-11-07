@@ -187,7 +187,7 @@ sensor:
     id: ch0_mv
     name: "${aio_prefix} CH0 mV"
     address: 120
-    register_type: input
+    register_type: read
     value_type: U_WORD
     unit_of_measurement: "mV"
     accuracy_decimals: 0
@@ -196,7 +196,7 @@ sensor:
     id: ch1_mv
     name: "${aio_prefix} CH1 mV"
     address: 121
-    register_type: input
+    register_type: read
     value_type: U_WORD
     unit_of_measurement: "mV"
     accuracy_decimals: 0
@@ -205,7 +205,7 @@ sensor:
     id: ch2_mv
     name: "${aio_prefix} CH2 mV"
     address: 122
-    register_type: input
+    register_type: read
     value_type: U_WORD
     unit_of_measurement: "mV"
     accuracy_decimals: 0
@@ -214,7 +214,7 @@ sensor:
     id: ch3_mv
     name: "${aio_prefix} CH3 mV"
     address: 123
-    register_type: input
+    register_type: read
     value_type: U_WORD
     unit_of_measurement: "mV"
     accuracy_decimals: 0
@@ -225,7 +225,7 @@ sensor:
     id: ch0_raw
     name: "${aio_prefix} CH0 raw"
     address: 100
-    register_type: input
+    register_type: read
     value_type: S_WORD
     unit_of_measurement: "cnt"
     accuracy_decimals: 0
@@ -234,7 +234,7 @@ sensor:
     id: ch1_raw
     name: "${aio_prefix} CH1 raw"
     address: 101
-    register_type: input
+    register_type: read
     value_type: S_WORD
     unit_of_measurement: "cnt"
     accuracy_decimals: 0
@@ -243,7 +243,7 @@ sensor:
     id: ch2_raw
     name: "${aio_prefix} CH2 raw"
     address: 102
-    register_type: input
+    register_type: read
     value_type: S_WORD
     unit_of_measurement: "cnt"
     accuracy_decimals: 0
@@ -252,7 +252,7 @@ sensor:
     id: ch3_raw
     name: "${aio_prefix} CH3 raw"
     address: 103
-    register_type: input
+    register_type: read
     value_type: S_WORD
     unit_of_measurement: "cnt"
     accuracy_decimals: 0
@@ -263,7 +263,7 @@ sensor:
     id: rtd1_cx100
     name: "${aio_prefix} RTD1 Temperature"
     address: 140
-    register_type: input
+    register_type: read
     value_type: S_WORD
     unit_of_measurement: "°C"
     accuracy_decimals: 2
@@ -274,7 +274,7 @@ sensor:
     id: rtd2_cx100
     name: "${aio_prefix} RTD2 Temperature"
     address: 141
-    register_type: input
+    register_type: read
     value_type: S_WORD
     unit_of_measurement: "°C"
     accuracy_decimals: 2
@@ -287,7 +287,7 @@ sensor:
     id: rtd1_ohmx100
     name: "${aio_prefix} RTD1 Resistance"
     address: 150
-    register_type: input
+    register_type: read
     value_type: U_WORD
     unit_of_measurement: "Ω"
     accuracy_decimals: 2
@@ -298,20 +298,20 @@ sensor:
     id: rtd2_ohmx100
     name: "${aio_prefix} RTD2 Resistance"
     address: 151
-    register_type: input
+    register_type: read
     value_type: U_WORD
     unit_of_measurement: "Ω"
     accuracy_decimals: 2
     filters:
       - multiply: 0.01
 
-  # NEW: DAC field outputs (mV) @ 180..181
+  # DAC field outputs (mV) @ 180..181
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     id: ao0_mv
     name: "${aio_prefix} AO0 mV"
     address: 180
-    register_type: input
+    register_type: read
     value_type: U_WORD
     unit_of_measurement: "mV"
     accuracy_decimals: 0
@@ -320,7 +320,7 @@ sensor:
     id: ao1_mv
     name: "${aio_prefix} AO1 mV"
     address: 181
-    register_type: input
+    register_type: read
     value_type: U_WORD
     unit_of_measurement: "mV"
     accuracy_decimals: 0
