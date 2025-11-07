@@ -1,0 +1,388 @@
+##
+## WLD-521-R1 — ESPHome Modbus package (MiniPLC/MicroPLC ↔ WLD)
+##
+
+substitutions:
+  wld_id: wld_1
+  wld_prefix: "WLD#1"
+  wld_address: "3"     # firmware default Modbus ID
+
+# If UART/MODBUS aren’t defined globally, uncomment & set pins:
+# uart:
+#   id: rs485_uart
+#   tx_pin: GPIO4
+#   rx_pin: GPIO5
+#   baud_rate: 19200
+#   parity: NONE
+#   stop_bits: 1
+# modbus:
+#   id: modbus_bus
+#   uart_id: rs485_uart
+
+modbus_controller:
+  - id: ${wld_id}
+    address: ${wld_address}
+    modbus_id: modbus_bus
+    update_interval: 1s
+    command_throttle: 0ms
+
+# ===================== Discrete Inputs (FC02) =====================
+binary_sensor:
+  # DI states (1..5)
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} DI1"
+    address: 1
+    register_type: discrete_input
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} DI2"
+    address: 2
+    register_type: discrete_input
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} DI3"
+    address: 3
+    register_type: discrete_input
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} DI4"
+    address: 4
+    register_type: discrete_input
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} DI5"
+    address: 5
+    register_type: discrete_input
+
+  # Relay feedback (60..61)
+  - platform: modbus_controller
+    id: ${wld_id}_r1_state
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} R1 state"
+    address: 60
+    register_type: discrete_input
+  - platform: modbus_controller
+    id: ${wld_id}_r2_state
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} R2 state"
+    address: 61
+    register_type: discrete_input
+
+
+
+
+# ===================== Holding (FC03) =====================
+sensor:
+  # ---------- 1‑Wire Temperatures (10× S32 ×1000) ----------
+  - platform: modbus_controller
+    id: ${wld_id}_ow1_lo
+    modbus_controller_id: ${wld_id}
+    address: 1500
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_ow1_hi
+    modbus_controller_id: ${wld_id}
+    address: 1501
+    register_type: holding
+    value_type: S_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} 1W Temp 1 °C"
+    unit_of_measurement: "°C"
+    accuracy_decimals: 3
+    update_interval: 5s
+    lambda: |-
+      uint32_t lo = id(${wld_id}_ow1_lo).state;
+      int32_t hi = (int16_t)id(${wld_id}_ow1_hi).state;
+      int32_t v = (hi << 16) | lo;
+      return v / 1000.0;
+
+  - platform: modbus_controller
+    id: ${wld_id}_ow2_lo
+    modbus_controller_id: ${wld_id}
+    address: 1502
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_ow2_hi
+    modbus_controller_id: ${wld_id}
+    address: 1503
+    register_type: holding
+    value_type: S_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} 1W Temp 2 °C"
+    unit_of_measurement: "°C"
+    accuracy_decimals: 3
+    update_interval: 5s
+    lambda: |-
+      uint32_t lo = id(${wld_id}_ow2_lo).state;
+      int32_t hi = (int16_t)id(${wld_id}_ow2_hi).state;
+      int32_t v = (hi << 16) | lo;
+      return v / 1000.0;
+
+  - platform: modbus_controller
+    id: ${wld_id}_ow3_lo
+    modbus_controller_id: ${wld_id}
+    address: 1504
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_ow3_hi
+    modbus_controller_id: ${wld_id}
+    address: 1505
+    register_type: holding
+    value_type: S_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} 1W Temp 3 °C"
+    unit_of_measurement: "°C"
+    accuracy_decimals: 3
+    update_interval: 5s
+    lambda: |-
+      uint32_t lo = id(${wld_id}_ow3_lo).state;
+      int32_t hi = (int16_t)id(${wld_id}_ow3_hi).state;
+      int32_t v = (hi << 16) | lo;
+      return v / 1000.0;
+
+  - platform: modbus_controller
+    id: ${wld_id}_ow4_lo
+    modbus_controller_id: ${wld_id}
+    address: 1506
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_ow4_hi
+    modbus_controller_id: ${wld_id}
+    address: 1507
+    register_type: holding
+    value_type: S_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} 1W Temp 4 °C"
+    unit_of_measurement: "°C"
+    accuracy_decimals: 3
+    update_interval: 5s
+    lambda: |-
+      uint32_t lo = id(${wld_id}_ow4_lo).state;
+      int32_t hi = (int16_t)id(${wld_id}_ow4_hi).state;
+      int32_t v = (hi << 16) | lo;
+      return v / 1000.0;
+
+  - platform: modbus_controller
+    id: ${wld_id}_ow5_lo
+    modbus_controller_id: ${wld_id}
+    address: 1508
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_ow5_hi
+    modbus_controller_id: ${wld_id}
+    address: 1509
+    register_type: holding
+    value_type: S_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} 1W Temp 5 °C"
+    unit_of_measurement: "°C"
+    accuracy_decimals: 3
+    update_interval: 5s
+    lambda: |-
+      uint32_t lo = id(${wld_id}_ow5_lo).state;
+      int32_t hi = (int16_t)id(${wld_id}_ow5_hi).state;
+      int32_t v = (hi << 16) | lo;
+      return v / 1000.0;
+
+  - platform: modbus_controller
+    id: ${wld_id}_ow6_lo
+    modbus_controller_id: ${wld_id}
+    address: 1510
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_ow6_hi
+    modbus_controller_id: ${wld_id}
+    address: 1511
+    register_type: holding
+    value_type: S_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} 1W Temp 6 °C"
+    unit_of_measurement: "°C"
+    accuracy_decimals: 3
+    update_interval: 5s
+    lambda: |-
+      uint32_t lo = id(${wld_id}_ow6_lo).state;
+      int32_t hi = (int16_t)id(${wld_id}_ow6_hi).state;
+      int32_t v = (hi << 16) | lo;
+      return v / 1000.0;
+
+  - platform: modbus_controller
+    id: ${wld_id}_ow7_lo
+    modbus_controller_id: ${wld_id}
+    address: 1512
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_ow7_hi
+    modbus_controller_id: ${wld_id}
+    address: 1513
+    register_type: holding
+    value_type: S_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} 1W Temp 7 °C"
+    unit_of_measurement: "°C"
+    accuracy_decimals: 3
+    update_interval: 5s
+    lambda: |-
+      uint32_t lo = id(${wld_id}_ow7_lo).state;
+      int32_t hi = (int16_t)id(${wld_id}_ow7_hi).state;
+      int32_t v = (hi << 16) | lo;
+      return v / 1000.0;
+
+  - platform: modbus_controller
+    id: ${wld_id}_ow8_lo
+    modbus_controller_id: ${wld_id}
+    address: 1514
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_ow8_hi
+    modbus_controller_id: ${wld_id}
+    address: 1515
+    register_type: holding
+    value_type: S_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} 1W Temp 8 °C"
+    unit_of_measurement: "°C"
+    accuracy_decimals: 3
+    update_interval: 5s
+    lambda: |-
+      uint32_t lo = id(${wld_id}_ow8_lo).state;
+      int32_t hi = (int16_t)id(${wld_id}_ow8_hi).state;
+      int32_t v = (hi << 16) | lo;
+      return v / 1000.0;
+
+  - platform: modbus_controller
+    id: ${wld_id}_ow9_lo
+    modbus_controller_id: ${wld_id}
+    address: 1516
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_ow9_hi
+    modbus_controller_id: ${wld_id}
+    address: 1517
+    register_type: holding
+    value_type: S_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} 1W Temp 9 °C"
+    unit_of_measurement: "°C"
+    accuracy_decimals: 3
+    update_interval: 5s
+    lambda: |-
+      uint32_t lo = id(${wld_id}_ow9_lo).state;
+      int32_t hi = (int16_t)id(${wld_id}_ow9_hi).state;
+      int32_t v = (hi << 16) | lo;
+      return v / 1000.0;
+
+  - platform: modbus_controller
+    id: ${wld_id}_ow10_lo
+    modbus_controller_id: ${wld_id}
+    address: 1518
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_ow10_hi
+    modbus_controller_id: ${wld_id}
+    address: 1519
+    register_type: holding
+    value_type: S_WORD
+    internal: true
+  - platform: template
+    name: "${wld_prefix} 1W Temp 10 °C"
+    unit_of_measurement: "°C"
+    accuracy_decimals: 3
+    update_interval: 5s
+    lambda: |-
+      uint32_t lo = id(${wld_id}_ow10_lo).state;
+      int32_t hi = (int16_t)id(${wld_id}_ow10_hi).state;
+      int32_t v = (hi << 16) | lo;
+      return v / 1000.0;
+
+# ===================== Command Coils (FC05/FC01) =====================
+switch:
+  # Relay pulse helpers (internal; pulse & auto-off)
+  - platform: modbus_controller
+    id: ${wld_id}_r1_on_pulse
+    modbus_controller_id: ${wld_id}
+    address: 200
+    register_type: coil
+    internal: true
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_r1_on_pulse
+
+  - platform: modbus_controller
+    id: ${wld_id}_r1_off_pulse
+    modbus_controller_id: ${wld_id}
+    address: 210
+    register_type: coil
+    internal: true
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_r1_off_pulse
+
+  - platform: modbus_controller
+    id: ${wld_id}_r2_on_pulse
+    modbus_controller_id: ${wld_id}
+    address: 201
+    register_type: coil
+    internal: true
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_r2_on_pulse
+
+  - platform: modbus_controller
+    id: ${wld_id}_r2_off_pulse
+    modbus_controller_id: ${wld_id}
+    address: 211
+    register_type: coil
+    internal: true
+    on_turn_on:
+      - delay: 50ms
+      - switch.turn_off: ${wld_id}_r2_off_pulse
+
+# ===================== Convenience Buttons =====================
+button:
+  - platform: template
+    name: "${wld_prefix} R1 ON"
+    on_press:
+      - switch.turn_on: ${wld_id}_r1_on_pulse
+  - platform: template
+    name: "${wld_prefix} R1 OFF"
+    on_press:
+      - switch.turn_on: ${wld_id}_r1_off_pulse
+  - platform: template
+    name: "${wld_prefix} R2 ON"
+    on_press:
+      - switch.turn_on: ${wld_id}_r2_on_pulse
+  - platform: template
+    name: "${wld_prefix} R2 OFF"
+    on_press:
+      - switch.turn_on: ${wld_id}_r2_off_pulse
