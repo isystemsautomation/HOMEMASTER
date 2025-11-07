@@ -5,7 +5,7 @@ modbus_controller:
     update_interval: 1s
     command_throttle: 0ms
 
-# ------------- Discrete Inputs (LEDs & Buttons) -------------
+# ------------- Discrete Inputs (LEDs, Buttons, RTD faults) -------------
 binary_sensor:
   # LED states 300..303
   - platform: modbus_controller
@@ -51,6 +51,18 @@ binary_sensor:
     address: 323
     register_type: discrete_input
 
+  # MAX31865 fault flags 360..361
+  - platform: modbus_controller
+    modbus_controller_id: ${aio_id}
+    name: "${aio_prefix} RTD1 Fault"
+    address: 360
+    register_type: discrete_input
+  - platform: modbus_controller
+    modbus_controller_id: ${aio_id}
+    name: "${aio_prefix} RTD2 Fault"
+    address: 361
+    register_type: discrete_input
+
 # ---------------- Coils (momentary) ----------------
 switch:
   - platform: modbus_controller
@@ -82,6 +94,27 @@ switch:
     on_turn_on:
       - delay: 200ms
       - switch.turn_off: sw_reboot
+
+  # NEW: store current DAC codes into MCP4725 EEPROM
+  - platform: modbus_controller
+    id: sw_dac0_eesave
+    modbus_controller_id: ${aio_id}
+    name: "${aio_prefix} DAC0 EEPROM Save"
+    address: 403
+    register_type: coil
+    on_turn_on:
+      - delay: 200ms
+      - switch.turn_off: sw_dac0_eesave
+
+  - platform: modbus_controller
+    id: sw_dac1_eesave
+    modbus_controller_id: ${aio_id}
+    name: "${aio_prefix} DAC1 EEPROM Save"
+    address: 404
+    register_type: coil
+    on_turn_on:
+      - delay: 200ms
+      - switch.turn_off: sw_dac1_eesave
 
 # ------------- Numbers (Holding Registers) -------------
 number:
@@ -121,15 +154,40 @@ number:
     mode: box
     unit_of_measurement: "ms"
 
+  # NEW: DAC raw codes (0..4095)
+  - platform: modbus_controller
+    modbus_controller_id: ${aio_id}
+    name: "${aio_prefix} DAC0 Raw"
+    address: 210
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 4095
+    step: 1
+    mode: slider
+    unit_of_measurement: "code"
+
+  - platform: modbus_controller
+    modbus_controller_id: ${aio_id}
+    name: "${aio_prefix} DAC1 Raw"
+    address: 211
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 4095
+    step: 1
+    mode: slider
+    unit_of_measurement: "code"
+
 # ---------------- Sensors (Input Registers) ----------------
 sensor:
-  # ADS1115 — mV (U_WORD) @ 120..123
+  # ADS1115 — field mV (U_WORD) @ 120..123
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     id: ch0_mv
     name: "${aio_prefix} CH0 mV"
     address: 120
-    register_type: read
+    register_type: input
     value_type: U_WORD
     unit_of_measurement: "mV"
     accuracy_decimals: 0
@@ -138,7 +196,7 @@ sensor:
     id: ch1_mv
     name: "${aio_prefix} CH1 mV"
     address: 121
-    register_type: read
+    register_type: input
     value_type: U_WORD
     unit_of_measurement: "mV"
     accuracy_decimals: 0
@@ -147,7 +205,7 @@ sensor:
     id: ch2_mv
     name: "${aio_prefix} CH2 mV"
     address: 122
-    register_type: read
+    register_type: input
     value_type: U_WORD
     unit_of_measurement: "mV"
     accuracy_decimals: 0
@@ -156,7 +214,7 @@ sensor:
     id: ch3_mv
     name: "${aio_prefix} CH3 mV"
     address: 123
-    register_type: read
+    register_type: input
     value_type: U_WORD
     unit_of_measurement: "mV"
     accuracy_decimals: 0
@@ -167,7 +225,7 @@ sensor:
     id: ch0_raw
     name: "${aio_prefix} CH0 raw"
     address: 100
-    register_type: read
+    register_type: input
     value_type: S_WORD
     unit_of_measurement: "cnt"
     accuracy_decimals: 0
@@ -176,7 +234,7 @@ sensor:
     id: ch1_raw
     name: "${aio_prefix} CH1 raw"
     address: 101
-    register_type: read
+    register_type: input
     value_type: S_WORD
     unit_of_measurement: "cnt"
     accuracy_decimals: 0
@@ -185,7 +243,7 @@ sensor:
     id: ch2_raw
     name: "${aio_prefix} CH2 raw"
     address: 102
-    register_type: read
+    register_type: input
     value_type: S_WORD
     unit_of_measurement: "cnt"
     accuracy_decimals: 0
@@ -194,7 +252,7 @@ sensor:
     id: ch3_raw
     name: "${aio_prefix} CH3 raw"
     address: 103
-    register_type: read
+    register_type: input
     value_type: S_WORD
     unit_of_measurement: "cnt"
     accuracy_decimals: 0
@@ -205,7 +263,7 @@ sensor:
     id: rtd1_cx100
     name: "${aio_prefix} RTD1 Temperature"
     address: 140
-    register_type: read
+    register_type: input
     value_type: S_WORD
     unit_of_measurement: "°C"
     accuracy_decimals: 2
@@ -216,7 +274,7 @@ sensor:
     id: rtd2_cx100
     name: "${aio_prefix} RTD2 Temperature"
     address: 141
-    register_type: read
+    register_type: input
     value_type: S_WORD
     unit_of_measurement: "°C"
     accuracy_decimals: 2
@@ -229,7 +287,7 @@ sensor:
     id: rtd1_ohmx100
     name: "${aio_prefix} RTD1 Resistance"
     address: 150
-    register_type: read
+    register_type: input
     value_type: U_WORD
     unit_of_measurement: "Ω"
     accuracy_decimals: 2
@@ -240,9 +298,29 @@ sensor:
     id: rtd2_ohmx100
     name: "${aio_prefix} RTD2 Resistance"
     address: 151
-    register_type: read
+    register_type: input
     value_type: U_WORD
     unit_of_measurement: "Ω"
     accuracy_decimals: 2
     filters:
       - multiply: 0.01
+
+  # NEW: DAC field outputs (mV) @ 180..181
+  - platform: modbus_controller
+    modbus_controller_id: ${aio_id}
+    id: ao0_mv
+    name: "${aio_prefix} AO0 mV"
+    address: 180
+    register_type: input
+    value_type: U_WORD
+    unit_of_measurement: "mV"
+    accuracy_decimals: 0
+  - platform: modbus_controller
+    modbus_controller_id: ${aio_id}
+    id: ao1_mv
+    name: "${aio_prefix} AO1 mV"
+    address: 181
+    register_type: input
+    value_type: U_WORD
+    unit_of_measurement: "mV"
+    accuracy_decimals: 0
