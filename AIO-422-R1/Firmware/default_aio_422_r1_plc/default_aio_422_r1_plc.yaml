@@ -5,7 +5,7 @@ modbus_controller:
     update_interval: 1s
     command_throttle: 0ms
 
-# ------------- Discrete Inputs (LEDs, Buttons, RTD faults) -------------
+# ------------- Discrete Inputs (LEDs + RTD faults only) -------------
 binary_sensor:
   # LED states 300..303
   - platform: modbus_controller
@@ -29,28 +29,6 @@ binary_sensor:
     address: 303
     register_type: discrete_input
 
-  # Button states 320..323
-  - platform: modbus_controller
-    modbus_controller_id: ${aio_id}
-    name: "${aio_prefix} Button1"
-    address: 320
-    register_type: discrete_input
-  - platform: modbus_controller
-    modbus_controller_id: ${aio_id}
-    name: "${aio_prefix} Button2"
-    address: 321
-    register_type: discrete_input
-  - platform: modbus_controller
-    modbus_controller_id: ${aio_id}
-    name: "${aio_prefix} Button3"
-    address: 322
-    register_type: discrete_input
-  - platform: modbus_controller
-    modbus_controller_id: ${aio_id}
-    name: "${aio_prefix} Button4"
-    address: 323
-    register_type: discrete_input
-
   # MAX31865 fault flags 360..361
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -63,10 +41,8 @@ binary_sensor:
     address: 361
     register_type: discrete_input
 
-
-# ------------- Numbers (Holding Registers) -------------
+# ------------- Numbers (Holding Registers: DAC raw only) -------------
 number:
-  # NEW: DAC raw codes (0..4095)
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} DAC0 Raw"
@@ -91,7 +67,7 @@ number:
     mode: slider
     unit_of_measurement: "code"
 
-# ---------------- Sensors (Input Registers) ----------------
+# ---------------- Sensors (Input Registers: AI/RTD/DAC mV) ----------------
 sensor:
   # ADS1115 — field mV (U_WORD) @ 120..123
   - platform: modbus_controller
@@ -179,8 +155,7 @@ sensor:
     value_type: S_WORD
     unit_of_measurement: "°C"
     accuracy_decimals: 2
-    filters:
-      - multiply: 0.01
+    filters: [{ multiply: 0.01 }]
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     id: rtd2_cx100
@@ -190,8 +165,7 @@ sensor:
     value_type: S_WORD
     unit_of_measurement: "°C"
     accuracy_decimals: 2
-    filters:
-      - multiply: 0.01
+    filters: [{ multiply: 0.01 }]
 
   # MAX31865 — Ohm x100 (U_WORD) @ 150..151
   - platform: modbus_controller
@@ -203,8 +177,7 @@ sensor:
     value_type: U_WORD
     unit_of_measurement: "Ω"
     accuracy_decimals: 2
-    filters:
-      - multiply: 0.01
+    filters: [{ multiply: 0.01 }]
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     id: rtd2_ohmx100
@@ -214,8 +187,7 @@ sensor:
     value_type: U_WORD
     unit_of_measurement: "Ω"
     accuracy_decimals: 2
-    filters:
-      - multiply: 0.01
+    filters: [{ multiply: 0.01 }]
 
   # DAC field outputs (mV) @ 180..181
   - platform: modbus_controller
