@@ -7,7 +7,6 @@ modbus_controller:
 
 # ===================== Discrete Inputs (FC02) =====================
 binary_sensor:
-  # --- Digital Inputs DI1..DI2 ---
   - platform: modbus_controller
     modbus_controller_id: ${rgb_id}
     name: "${rgb_prefix} DI1"
@@ -20,14 +19,12 @@ binary_sensor:
     address: 2
     register_type: discrete_input
 
-  # --- Relay1 logical state (after cfg/invert) ---
   - platform: modbus_controller
     modbus_controller_id: ${rgb_id}
     name: "${rgb_prefix} Relay1 State"
     address: 60
     register_type: discrete_input
 
-  # --- LED logical states ---
   - platform: modbus_controller
     modbus_controller_id: ${rgb_id}
     name: "${rgb_prefix} LED1"
@@ -40,11 +37,8 @@ binary_sensor:
     address: 91
     register_type: discrete_input
 
-# ===================== Coils (FC01/05) — momentary pulses =====================
-# Relay1 ON: 200 | Relay1 OFF: 210
-# DI1..2 ENABLE: 300..301 | DI1..2 DISABLE: 320..321
+# ===================== Coils (FC01/05) — pulses =====================
 switch:
-  # --- Relay ON/OFF pulses (auto-off in 200ms) ---
   - platform: modbus_controller
     id: ${rgb_id}_rly1_on
     modbus_controller_id: ${rgb_id}
@@ -65,7 +59,6 @@ switch:
       - delay: 200ms
       - switch.turn_off: ${rgb_id}_rly1_off
 
-  # --- DI enable/disable pulses ---
   - platform: modbus_controller
     id: ${rgb_id}_di1_enable
     modbus_controller_id: ${rgb_id}
@@ -106,8 +99,8 @@ switch:
       - delay: 200ms
       - switch.turn_off: ${rgb_id}_di2_disable
 
-# ===================== Numbers (FC03/06/16 Holding) =====================
-# PWM level sliders: 0..255 for R,G,B,WW,CW at 400..404
+# ===================== Holding (FC03/06/16) =====================
+# 5 sliders that write HR 400..404 (0..255). Also HR 480/481.
 number:
   - platform: modbus_controller
     id: ${rgb_id}_r_level
@@ -169,7 +162,6 @@ number:
     step: 1
     mode: slider
 
-  # --- Optional: Modbus address / baud (take effect immediately on device) ---
   - platform: modbus_controller
     id: ${rgb_id}_mb_addr
     modbus_controller_id: ${rgb_id}
@@ -192,8 +184,7 @@ number:
     max_value: 115200
     step: 1
 
-# ===================== Convenience: One-shot "All Off" button =====================
-# Uses only number.set (works on every ESPHome version)
+# ===================== All Off (uses number.set only) =====================
 button:
   - platform: template
     name: "${rgb_prefix} All Channels OFF"
@@ -204,9 +195,8 @@ button:
       - number.set: { id: ${rgb_id}_ww_level, value: 0 }
       - number.set: { id: ${rgb_id}_cw_level, value: 0 }
 
-# ===================== One Light entity via template outputs =====================
-# These outputs track the light's channels and push values into the Modbus numbers.
-# No direct controller calls — just number.set.
+# ===================== One Light via template outputs =====================
+# These outputs mirror the light's channels into the five Modbus numbers.
 output:
   - platform: template
     id: ${rgb_id}_out_r
@@ -258,4 +248,4 @@ light:
     warm_white: ${rgb_id}_out_ww
     cold_white: ${rgb_id}_out_cw
     default_transition_length: 150ms
-    restore_mode: ALWAYS_OFF   # optional
+    restore_mode: ALWAYS_OFF
