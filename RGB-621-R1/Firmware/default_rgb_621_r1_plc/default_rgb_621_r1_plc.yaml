@@ -212,48 +212,58 @@ button:
           address: 404
           value: 0
 
-# ===================== OPTIONAL: Single "Light" control =====================
-# This template light writes the five holding registers (400..404)
-# based on RGB and CWWW values picked in Home Assistant.
-# Notes:
-# - Brightness and channel values are scaled to 0..255
-# - mireds range is typical; adjust to your LEDs
-light:
+# ===================== One Light entity via template outputs =====================
+# Writes holding registers 400..404 whenever the light changes.
+output:
   - platform: template
+    id: ${rgb_id}_out_r
+    type: float
+    write_action:
+      - lambda: |-
+          uint16_t v = (uint16_t) roundf(state * 255.0f);
+          id(${rgb_id}).write_single_register(400, v);
+
+  - platform: template
+    id: ${rgb_id}_out_g
+    type: float
+    write_action:
+      - lambda: |-
+          uint16_t v = (uint16_t) roundf(state * 255.0f);
+          id(${rgb_id}).write_single_register(401, v);
+
+  - platform: template
+    id: ${rgb_id}_out_b
+    type: float
+    write_action:
+      - lambda: |-
+          uint16_t v = (uint16_t) roundf(state * 255.0f);
+          id(${rgb_id}).write_single_register(402, v);
+
+  - platform: template
+    id: ${rgb_id}_out_ww
+    type: float
+    write_action:
+      - lambda: |-
+          uint16_t v = (uint16_t) roundf(state * 255.0f);
+          id(${rgb_id}).write_single_register(403, v);
+
+  - platform: template
+    id: ${rgb_id}_out_cw
+    type: float
+    write_action:
+      - lambda: |-
+          uint16_t v = (uint16_t) roundf(state * 255.0f);
+          id(${rgb_id}).write_single_register(404, v);
+
+light:
+  - platform: rgbww
     id: ${rgb_id}_light
     name: "${rgb_prefix} Light"
+    red: ${rgb_id}_out_r
+    green: ${rgb_id}_out_g
+    blue: ${rgb_id}_out_b
+    warm_white: ${rgb_id}_out_ww
+    cold_white: ${rgb_id}_out_cw
     default_transition_length: 150ms
-    restore_state: false
-    # RGB + CWWW (two white channels)
-    color_mode: rgb_cwww
-    min_mireds: 153
-    max_mireds: 500
-    on_state:
-      - lambda: |-
-          // Read current light state as RGB + CWWW (0.0..1.0)
-          auto v = id(${rgb_id}_light).current_values;
-          float br = v.get_brightness();  // 0..1
-          uint16_t r  = (uint16_t) roundf(v.get_red()   * br * 255.0f);
-          uint16_t g  = (uint16_t) roundf(v.get_green() * br * 255.0f);
-          uint16_t b  = (uint16_t) roundf(v.get_blue()  * br * 255.0f);
-          // Split whites by color temperature ratio (0..1: cw weight)
-          float cw_ratio = v.get_cw();   // cool-white portion 0..1
-          float ww_ratio = v.get_ww();   // warm-white portion 0..1
-          uint16_t ww = (uint16_t) roundf(ww_ratio * br * 255.0f);
-          uint16_t cw = (uint16_t) roundf(cw_ratio * br * 255.0f);
+    restore_mode: ALWAYS_OFF   # optional; remove if you prefer remembering last state
 
-          // Write to holding regs 400..404
-          id(${rgb_id}).write_single_register(400, r);
-          id(${rgb_id}).write_single_register(401, g);
-          id(${rgb_id}).write_single_register(402, b);
-          id(${rgb_id}).write_single_register(403, ww);
-          id(${rgb_id}).write_single_register(404, cw);
-
-    # Switch OFF writes zeros
-    on_turn_off:
-      - lambda: |-
-          id(${rgb_id}).write_single_register(400, 0);
-          id(${rgb_id}).write_single_register(401, 0);
-          id(${rgb_id}).write_single_register(402, 0);
-          id(${rgb_id}).write_single_register(403, 0);
-          id(${rgb_id}).write_single_register(404, 0);
