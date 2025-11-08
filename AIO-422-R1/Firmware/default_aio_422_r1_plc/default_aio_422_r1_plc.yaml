@@ -2,9 +2,9 @@ modbus_controller:
   - id: ${aio_id}
     address: ${aio_address}
     modbus_id: modbus_bus
-    update_interval: 2s
-    command_throttle: 0ms
-
+    update_interval: 2s        # was 1s
+    command_throttle: 10ms     # add a small gap between frames
+    setup_priority: -10.0      # start after UART/modbus is ready
 # ------------- Discrete Inputs (LEDs + RTD faults only) -------------
 binary_sensor:
   # LED states 300..303
