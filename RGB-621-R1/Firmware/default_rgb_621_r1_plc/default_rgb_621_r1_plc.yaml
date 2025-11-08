@@ -1,14 +1,10 @@
-modbus:
-  id: modbus_bus
-  # Comment this out if your transceiver handles TXEN automatically
-  flow_control_pin: ${rs485_txen_pin}
-
 modbus_controller:
   - id: ${rgb_id}
     address: ${rgb_address}
     modbus_id: modbus_bus
-    update_interval: 1s
-    command_throttle: 0ms
+    update_interval: 2s        # was 1s
+    command_throttle: 10ms     # add a small gap between frames
+    setup_priority: -10.0      # start after UART/modbus is ready
 
 # ===================== Discrete Inputs (FC02) =====================
 binary_sensor:
