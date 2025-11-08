@@ -1,3 +1,8 @@
+modbus:
+  id: modbus_bus
+  # Comment this out if your transceiver handles TXEN automatically
+  flow_control_pin: ${rs485_txen_pin}
+
 modbus_controller:
   - id: ${rgb_id}
     address: ${rgb_address}
@@ -187,30 +192,17 @@ number:
     # TIP: use standard values (9600/19200/38400/57600/115200)
 
 # ===================== Convenience: One-shot "All Off" button =====================
+# Uses lambda (works on all ESPHome versions)
 button:
   - platform: template
     name: "${rgb_prefix} All Channels OFF"
     on_press:
-      - modbus_controller.write_register:
-          modbus_controller_id: ${rgb_id}
-          address: 400
-          value: 0
-      - modbus_controller.write_register:
-          modbus_controller_id: ${rgb_id}
-          address: 401
-          value: 0
-      - modbus_controller.write_register:
-          modbus_controller_id: ${rgb_id}
-          address: 402
-          value: 0
-      - modbus_controller.write_register:
-          modbus_controller_id: ${rgb_id}
-          address: 403
-          value: 0
-      - modbus_controller.write_register:
-          modbus_controller_id: ${rgb_id}
-          address: 404
-          value: 0
+      - lambda: |-
+          id(${rgb_id}).write_single_register(400, 0);
+          id(${rgb_id}).write_single_register(401, 0);
+          id(${rgb_id}).write_single_register(402, 0);
+          id(${rgb_id}).write_single_register(403, 0);
+          id(${rgb_id}).write_single_register(404, 0);
 
 # ===================== One Light entity via template outputs =====================
 # Writes holding registers 400..404 whenever the light changes.
@@ -266,4 +258,3 @@ light:
     cold_white: ${rgb_id}_out_cw
     default_transition_length: 150ms
     restore_mode: ALWAYS_OFF   # optional; remove if you prefer remembering last state
-
