@@ -2,9 +2,8 @@ modbus_controller:
   - id: ${rgb_id}
     address: ${rgb_address}
     modbus_id: modbus_bus
-    update_interval: 2s        # was 1s
-    command_throttle: 10ms     # add a small gap between frames
-    setup_priority: -10.0      # start after UART/modbus is ready
+    update_interval: 1s
+    command_throttle: 0ms
 
 # ===================== Discrete Inputs (FC02) =====================
 binary_sensor:
@@ -111,6 +110,7 @@ switch:
 # PWM level sliders: 0..255 for R,G,B,WW,CW at 400..404
 number:
   - platform: modbus_controller
+    id: ${rgb_id}_r_level
     modbus_controller_id: ${rgb_id}
     name: "${rgb_prefix} R Level"
     address: 400
@@ -122,6 +122,7 @@ number:
     mode: slider
 
   - platform: modbus_controller
+    id: ${rgb_id}_g_level
     modbus_controller_id: ${rgb_id}
     name: "${rgb_prefix} G Level"
     address: 401
@@ -133,6 +134,7 @@ number:
     mode: slider
 
   - platform: modbus_controller
+    id: ${rgb_id}_b_level
     modbus_controller_id: ${rgb_id}
     name: "${rgb_prefix} B Level"
     address: 402
@@ -144,6 +146,7 @@ number:
     mode: slider
 
   - platform: modbus_controller
+    id: ${rgb_id}_ww_level
     modbus_controller_id: ${rgb_id}
     name: "${rgb_prefix} WW Level"
     address: 403
@@ -155,6 +158,7 @@ number:
     mode: slider
 
   - platform: modbus_controller
+    id: ${rgb_id}_cw_level
     modbus_controller_id: ${rgb_id}
     name: "${rgb_prefix} CW Level"
     address: 404
@@ -167,6 +171,7 @@ number:
 
   # --- Optional: Modbus address / baud (take effect immediately on device) ---
   - platform: modbus_controller
+    id: ${rgb_id}_mb_addr
     modbus_controller_id: ${rgb_id}
     name: "${rgb_prefix} MB Address"
     address: 480
@@ -177,6 +182,7 @@ number:
     step: 1
 
   - platform: modbus_controller
+    id: ${rgb_id}_mb_baud
     modbus_controller_id: ${rgb_id}
     name: "${rgb_prefix} MB Baud"
     address: 481
@@ -185,63 +191,62 @@ number:
     min_value: 9600
     max_value: 115200
     step: 1
-    # TIP: use standard values (9600/19200/38400/57600/115200)
 
 # ===================== Convenience: One-shot "All Off" button =====================
-# Uses lambda (works on all ESPHome versions)
+# Uses only number.set (works on every ESPHome version)
 button:
   - platform: template
     name: "${rgb_prefix} All Channels OFF"
     on_press:
-      - lambda: |-
-          id(${rgb_id}).write_single_register(400, 0);
-          id(${rgb_id}).write_single_register(401, 0);
-          id(${rgb_id}).write_single_register(402, 0);
-          id(${rgb_id}).write_single_register(403, 0);
-          id(${rgb_id}).write_single_register(404, 0);
+      - number.set: { id: ${rgb_id}_r_level,  value: 0 }
+      - number.set: { id: ${rgb_id}_g_level,  value: 0 }
+      - number.set: { id: ${rgb_id}_b_level,  value: 0 }
+      - number.set: { id: ${rgb_id}_ww_level, value: 0 }
+      - number.set: { id: ${rgb_id}_cw_level, value: 0 }
 
 # ===================== One Light entity via template outputs =====================
-# Writes holding registers 400..404 whenever the light changes.
+# These outputs track the light's channels and push values into the Modbus numbers.
+# No direct controller calls — just number.set.
 output:
   - platform: template
     id: ${rgb_id}_out_r
     type: float
     write_action:
-      - lambda: |-
-          uint16_t v = (uint16_t) roundf(state * 255.0f);
-          id(${rgb_id}).write_single_register(400, v);
+      - number.set:
+          id: ${rgb_id}_r_level
+          value: !lambda 'return roundf(state * 255.0f);'
 
   - platform: template
     id: ${rgb_id}_out_g
     type: float
     write_action:
-      - lambda: |-
-          uint16_t v = (uint16_t) roundf(state * 255.0f);
-          id(${rgb_id}).write_single_register(401, v);
+      - number.set:
+          id: ${rgb_id}_g_level
+          value: !lambda 'return roundf(state * 255.0f);'
 
   - platform: template
     id: ${rgb_id}_out_b
     type: float
     write_action:
-      - lambda: |-
-          uint16_t v = (uint16_t) roundf(state * 255.0f);
-          id(${rgb_id}).write_single_register(402, v);
+      - number.set:
+          id: ${rgb_id}_b_level
+          value: !lambda 'return roundf(state * 255.0f);'
 
   - platform: template
     id: ${rgb_id}_out_ww
     type: float
     write_action:
-      - lambda: |-
-          uint16_t v = (uint16_t) roundf(state * 255.0f);
-          id(${rgb_id}).write_single_register(403, v);
+      - number.set:
+          id: ${rgb_id}_ww_level
+          value: !lambda 'return roundf(state * 255.0f);'
 
   - platform: template
     id: ${rgb_id}_out_cw
     type: float
     write_action:
-      - lambda: |-
-          uint16_t v = (uint16_t) roundf(state * 255.0f);
-          id(${rgb_id}).write_single_register(404, v);
+      - number.set:
+          id: ${rgb_id}_cw_level
+          value: !lambda 'return roundf(state * 255.0f);'
 
 light:
   - platform: rgbww
@@ -253,4 +258,4 @@ light:
     warm_white: ${rgb_id}_out_ww
     cold_white: ${rgb_id}_out_cw
     default_transition_length: 150ms
-    restore_mode: ALWAYS_OFF   # optional; remove if you prefer remembering last state
+    restore_mode: ALWAYS_OFF   # optional
