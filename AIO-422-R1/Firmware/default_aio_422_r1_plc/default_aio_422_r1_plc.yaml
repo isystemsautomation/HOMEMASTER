@@ -27,7 +27,6 @@ number:
     step: 1
     mode: slider
     unit_of_measurement: "code"
-
 # ---------------- Sensors (Input Registers: AI/RTD/DAC mV) ----------------
 sensor:
   # ADS1115 — field mV (U_WORD) @ 120..123
@@ -40,47 +39,4 @@ sensor:
     value_type: U_WORD
     unit_of_measurement: "mV"
     accuracy_decimals: 0
-  # ADS1115 — raw counts (S_WORD) @ 100..103
-  - platform: modbus_controller
-    modbus_controller_id: ${aio_id}
-    id: ch0_raw
-    name: "${aio_prefix} CH0 raw"
-    address: 100
-    register_type: read
-    value_type: S_WORD
-    unit_of_measurement: "cnt"
-    accuracy_decimals: 0
-  # MAX31865 — °C x100 (S_WORD) @ 140..141
-  - platform: modbus_controller
-    modbus_controller_id: ${aio_id}
-    id: rtd1_cx100
-    name: "${aio_prefix} RTD1 Temperature"
-    address: 140
-    register_type: read
-    value_type: S_WORD
-    unit_of_measurement: "°C"
-    accuracy_decimals: 2
-    filters: [{ multiply: 0.01 }]
 
-  # MAX31865 — Ohm x100 (U_WORD) @ 150..151
-  - platform: modbus_controller
-    modbus_controller_id: ${aio_id}
-    id: rtd1_ohmx100
-    name: "${aio_prefix} RTD1 Resistance"
-    address: 150
-    register_type: read
-    value_type: U_WORD
-    unit_of_measurement: "Ω"
-    accuracy_decimals: 2
-    filters: [{ multiply: 0.01 }]
-
-  # DAC field outputs (mV) @ 180..181
-  - platform: modbus_controller
-    modbus_controller_id: ${aio_id}
-    id: ao1_mv
-    name: "${aio_prefix} AO1 mV"
-    address: 181
-    register_type: read
-    value_type: U_WORD
-    unit_of_measurement: "mV"
-    accuracy_decimals: 0
