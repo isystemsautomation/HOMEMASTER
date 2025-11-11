@@ -16,62 +16,6 @@ binary_sensor:
     name: "${enm_prefix} Relay 1 State"
     address: 540
     register_type: discrete_input
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} Relay 2 State"
-    address: 541
-    register_type: discrete_input
-
-  # --- Alarm active flags (0=Alarm,1=Warning,2=Event) for ch=0..3 (L1,L2,L3,Total) ---
-  # L1
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} Alarm L1 (Alarm)"
-    address: 560
-    register_type: discrete_input
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} Alarm L1 (Warning)"
-    address: 561
-    register_type: discrete_input
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} Alarm L1 (Event)"
-    address: 562
-    register_type: discrete_input
-  # L2
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} Alarm L2 (Alarm)"
-    address: 563
-    register_type: discrete_input
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} Alarm L2 (Warning)"
-    address: 564
-    register_type: discrete_input
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} Alarm L2 (Event)"
-    address: 565
-    register_type: discrete_input
-  # L3
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} Alarm L3 (Alarm)"
-    address: 566
-    register_type: discrete_input
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} Alarm L3 (Warning)"
-    address: 567
-    register_type: discrete_input
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} Alarm L3 (Event)"
-    address: 568
-    register_type: discrete_input
-
 # ===================== Coils (FC01/05) =====================
 # Relay coils are maintained (not pulses). Writes honored only if relay is in MODBUS mode and Button Override is OFF.
 switch:
@@ -79,11 +23,6 @@ switch:
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Relay 1"
     address: 600
-    register_type: coil
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} Relay 2"
-    address: 601
     register_type: coil
 
 # ===================== Sensors (FC04 Input Registers RO) =====================
@@ -99,47 +38,12 @@ sensor:
     unit_of_measurement: "V"
     accuracy_decimals: 2
     filters: [{ multiply: 0.01 }]
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} Urms L2"
-    address: 101
-    register_type: read
-    value_type: U_WORD
-    unit_of_measurement: "V"
-    accuracy_decimals: 2
-    filters: [{ multiply: 0.01 }]
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} Urms L3"
-    address: 102
-    register_type: read
-    value_type: U_WORD
-    unit_of_measurement: "V"
-    accuracy_decimals: 2
-    filters: [{ multiply: 0.01 }]
+
 
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Irms L1"
     address: 110
-    register_type: read
-    value_type: U_WORD
-    unit_of_measurement: "A"
-    accuracy_decimals: 3
-    filters: [{ multiply: 0.001 }]
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} Irms L2"
-    address: 111
-    register_type: read
-    value_type: U_WORD
-    unit_of_measurement: "A"
-    accuracy_decimals: 3
-    filters: [{ multiply: 0.001 }]
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} Irms L3"
-    address: 112
     register_type: read
     value_type: U_WORD
     unit_of_measurement: "A"
@@ -152,24 +56,6 @@ sensor:
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Angle L1"
     address: 244
-    register_type: read
-    value_type: S_WORD
-    unit_of_measurement: "°"
-    accuracy_decimals: 1
-    filters: [{ multiply: 0.1 }]
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} Angle L2"
-    address: 245
-    register_type: read
-    value_type: S_WORD
-    unit_of_measurement: "°"
-    accuracy_decimals: 1
-    filters: [{ multiply: 0.1 }]
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} Angle L3"
-    address: 246
     register_type: read
     value_type: S_WORD
     unit_of_measurement: "°"
