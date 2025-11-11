@@ -7,54 +7,15 @@ modbus_controller:
     setup_priority: -10.0      # start after UART/modbus is ready
 # ------------- Discrete Inputs (LEDs + RTD faults only) -------------
 binary_sensor:
-  # LED states 300..303
-  - platform: modbus_controller
-    modbus_controller_id: ${aio_id}
-    name: "${aio_prefix} LED1"
-    address: 300
-    register_type: discrete_input
-  - platform: modbus_controller
-    modbus_controller_id: ${aio_id}
-    name: "${aio_prefix} LED2"
-    address: 301
-    register_type: discrete_input
-  - platform: modbus_controller
-    modbus_controller_id: ${aio_id}
-    name: "${aio_prefix} LED3"
-    address: 302
-    register_type: discrete_input
-  - platform: modbus_controller
-    modbus_controller_id: ${aio_id}
-    name: "${aio_prefix} LED4"
-    address: 303
-    register_type: discrete_input
-
   # MAX31865 fault flags 360..361
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} RTD1 Fault"
     address: 360
     register_type: discrete_input
-  - platform: modbus_controller
-    modbus_controller_id: ${aio_id}
-    name: "${aio_prefix} RTD2 Fault"
-    address: 361
-    register_type: discrete_input
 
 # ------------- Numbers (Holding Registers: DAC raw only) -------------
 number:
-  - platform: modbus_controller
-    modbus_controller_id: ${aio_id}
-    name: "${aio_prefix} DAC0 Raw"
-    address: 210
-    register_type: holding
-    value_type: U_WORD
-    min_value: 0
-    max_value: 4095
-    step: 1
-    mode: slider
-    unit_of_measurement: "code"
-
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} DAC1 Raw"
@@ -79,34 +40,6 @@ sensor:
     value_type: U_WORD
     unit_of_measurement: "mV"
     accuracy_decimals: 0
-  - platform: modbus_controller
-    modbus_controller_id: ${aio_id}
-    id: ch1_mv
-    name: "${aio_prefix} CH1 mV"
-    address: 121
-    register_type: read
-    value_type: U_WORD
-    unit_of_measurement: "mV"
-    accuracy_decimals: 0
-  - platform: modbus_controller
-    modbus_controller_id: ${aio_id}
-    id: ch2_mv
-    name: "${aio_prefix} CH2 mV"
-    address: 122
-    register_type: read
-    value_type: U_WORD
-    unit_of_measurement: "mV"
-    accuracy_decimals: 0
-  - platform: modbus_controller
-    modbus_controller_id: ${aio_id}
-    id: ch3_mv
-    name: "${aio_prefix} CH3 mV"
-    address: 123
-    register_type: read
-    value_type: U_WORD
-    unit_of_measurement: "mV"
-    accuracy_decimals: 0
-
   # ADS1115 — raw counts (S_WORD) @ 100..103
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -117,50 +50,12 @@ sensor:
     value_type: S_WORD
     unit_of_measurement: "cnt"
     accuracy_decimals: 0
-  - platform: modbus_controller
-    modbus_controller_id: ${aio_id}
-    id: ch1_raw
-    name: "${aio_prefix} CH1 raw"
-    address: 101
-    register_type: read
-    value_type: S_WORD
-    unit_of_measurement: "cnt"
-    accuracy_decimals: 0
-  - platform: modbus_controller
-    modbus_controller_id: ${aio_id}
-    id: ch2_raw
-    name: "${aio_prefix} CH2 raw"
-    address: 102
-    register_type: read
-    value_type: S_WORD
-    unit_of_measurement: "cnt"
-    accuracy_decimals: 0
-  - platform: modbus_controller
-    modbus_controller_id: ${aio_id}
-    id: ch3_raw
-    name: "${aio_prefix} CH3 raw"
-    address: 103
-    register_type: read
-    value_type: S_WORD
-    unit_of_measurement: "cnt"
-    accuracy_decimals: 0
-
   # MAX31865 — °C x100 (S_WORD) @ 140..141
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     id: rtd1_cx100
     name: "${aio_prefix} RTD1 Temperature"
     address: 140
-    register_type: read
-    value_type: S_WORD
-    unit_of_measurement: "°C"
-    accuracy_decimals: 2
-    filters: [{ multiply: 0.01 }]
-  - platform: modbus_controller
-    modbus_controller_id: ${aio_id}
-    id: rtd2_cx100
-    name: "${aio_prefix} RTD2 Temperature"
-    address: 141
     register_type: read
     value_type: S_WORD
     unit_of_measurement: "°C"
@@ -178,27 +73,8 @@ sensor:
     unit_of_measurement: "Ω"
     accuracy_decimals: 2
     filters: [{ multiply: 0.01 }]
-  - platform: modbus_controller
-    modbus_controller_id: ${aio_id}
-    id: rtd2_ohmx100
-    name: "${aio_prefix} RTD2 Resistance"
-    address: 151
-    register_type: read
-    value_type: U_WORD
-    unit_of_measurement: "Ω"
-    accuracy_decimals: 2
-    filters: [{ multiply: 0.01 }]
 
   # DAC field outputs (mV) @ 180..181
-  - platform: modbus_controller
-    modbus_controller_id: ${aio_id}
-    id: ao0_mv
-    name: "${aio_prefix} AO0 mV"
-    address: 180
-    register_type: read
-    value_type: U_WORD
-    unit_of_measurement: "mV"
-    accuracy_decimals: 0
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     id: ao1_mv

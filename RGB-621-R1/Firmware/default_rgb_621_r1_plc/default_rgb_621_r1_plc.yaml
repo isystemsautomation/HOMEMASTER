@@ -13,30 +13,6 @@ binary_sensor:
     address: 1
     register_type: discrete_input
 
-  - platform: modbus_controller
-    modbus_controller_id: ${rgb_id}
-    name: "${rgb_prefix} DI2"
-    address: 2
-    register_type: discrete_input
-
-  - platform: modbus_controller
-    modbus_controller_id: ${rgb_id}
-    name: "${rgb_prefix} Relay1 State"
-    address: 60
-    register_type: discrete_input
-
-  - platform: modbus_controller
-    modbus_controller_id: ${rgb_id}
-    name: "${rgb_prefix} LED1"
-    address: 90
-    register_type: discrete_input
-
-  - platform: modbus_controller
-    modbus_controller_id: ${rgb_id}
-    name: "${rgb_prefix} LED2"
-    address: 91
-    register_type: discrete_input
-
 # ===================== Coils (FC01/05) — pulses =====================
 switch:
   - platform: modbus_controller
@@ -58,44 +34,4 @@ switch:
     on_turn_on:
       - delay: 200ms
       - switch.turn_off: ${rgb_id}_rly1_off
-
-  - platform: modbus_controller
-    id: ${rgb_id}_di1_enable
-    modbus_controller_id: ${rgb_id}
-    name: "${rgb_prefix} DI1 Enable (Pulse)"
-    address: 300
-    register_type: coil
-    on_turn_on:
-      - delay: 200ms
-      - switch.turn_off: ${rgb_id}_di1_enable
-
-  - platform: modbus_controller
-    id: ${rgb_id}_di2_enable
-    modbus_controller_id: ${rgb_id}
-    name: "${rgb_prefix} DI2 Enable (Pulse)"
-    address: 301
-    register_type: coil
-    on_turn_on:
-      - delay: 200ms
-      - switch.turn_off: ${rgb_id}_di2_enable
-
-  - platform: modbus_controller
-    id: ${rgb_id}_di1_disable
-    modbus_controller_id: ${rgb_id}
-    name: "${rgb_prefix} DI1 Disable (Pulse)"
-    address: 320
-    register_type: coil
-    on_turn_on:
-      - delay: 200ms
-      - switch.turn_off: ${rgb_id}_di1_disable
-
-  - platform: modbus_controller
-    id: ${rgb_id}_di2_disable
-    modbus_controller_id: ${rgb_id}
-    name: "${rgb_prefix} DI2 Disable (Pulse)"
-    address: 321
-    register_type: coil
-    on_turn_on:
-      - delay: 200ms
-      - switch.turn_off: ${rgb_id}_di2_disable
 
