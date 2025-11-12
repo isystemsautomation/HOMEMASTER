@@ -3,7 +3,7 @@ modbus_controller:
     address: ${aio_address}
     modbus_id: modbus_bus
     update_interval: 1s        # was 1s
-#    command_throttle: 1s     # add a small gap between frames
+    command_throttle: 500ms     # add a small gap between frames
 
 # ------------- Discrete Inputs (LEDs + RTD faults only) -------------
 binary_sensor:
