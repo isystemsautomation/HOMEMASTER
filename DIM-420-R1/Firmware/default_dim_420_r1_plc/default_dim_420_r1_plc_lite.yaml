@@ -12,7 +12,7 @@ binary_sensor:
   - platform: modbus_controller
     modbus_controller_id: ${dim_id}
     name: "${dim_prefix} DI1"
-    address: 1
+    address: 2
     register_type: discrete_input
    # --- Zero-cross health ---
   - platform: modbus_controller
