@@ -98,58 +98,43 @@ number:
 output:
   # RED (HR 400)
   - platform: template
-    id: ${rgb_id}_out_r
+    id: rgb621_out_r
     type: float
     write_action:
-      - modbus_controller.write:
-          id: ${rgb_id}
-          address: 400
-          value: !lambda |-
-            return (uint16_t)(x * 255.0f);
+      - lambda: |-
+          id(rgb_1)->write_register(400, (uint16_t)(x * 255.0f));
 
   # GREEN (HR 401)
   - platform: template
-    id: ${rgb_id}_out_g
+    id: rgb621_out_g
     type: float
     write_action:
-      - modbus_controller.write:
-          id: ${rgb_id}
-          address: 401
-          value: !lambda |-
-            return (uint16_t)(x * 255.0f);
+      - lambda: |-
+          id(rgb_1)->write_register(401, (uint16_t)(x * 255.0f));
 
   # BLUE (HR 402)
   - platform: template
-    id: ${rgb_id}_out_b
+    id: rgb621_out_b
     type: float
     write_action:
-      - modbus_controller.write:
-          id: ${rgb_id}
-          address: 402
-          value: !lambda |-
-            return (uint16_t)(x * 255.0f);
+      - lambda: |-
+          id(rgb_1)->write_register(402, (uint16_t)(x * 255.0f));
 
   # WARM WHITE (HR 403)
   - platform: template
-    id: ${rgb_id}_out_ww
+    id: rgb621_out_ww
     type: float
     write_action:
-      - modbus_controller.write:
-          id: ${rgb_id}
-          address: 403
-          value: !lambda |-
-            return (uint16_t)(x * 255.0f);
+      - lambda: |-
+          id(rgb_1)->write_register(403, (uint16_t)(x * 255.0f));
 
   # COOL WHITE (HR 404)
   - platform: template
-    id: ${rgb_id}_out_cw
+    id: rgb621_out_cw
     type: float
     write_action:
-      - modbus_controller.write:
-          id: ${rgb_id}
-          address: 404
-          value: !lambda |-
-            return (uint16_t)(x * 255.0f);
+      - lambda: |-
+          id(rgb_1)->write_register(404, (uint16_t)(x * 255.0f));
 
 #############################################################
 # RGBWW LIGHT (uses the 5 template outputs above)
