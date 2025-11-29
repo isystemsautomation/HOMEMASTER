@@ -96,70 +96,40 @@ number:
 # TEMPLATE OUTPUTS FOR RGBWW LIGHT (also write 400–404)
 #############################################################
 output:
-  - platform: template
+  - platform: modbus_controller
+    modbus_controller_id: rgb621
     id: rgb621_out_r
-    type: float
-    write_action:
-      - lambda: |-
-          id(rgb_1)->queue_command(
-            esphome::modbus_controller::ModbusCommandItem::create_write_single_register(
-              id(rgb_1),
-              400,
-              (uint16_t)(state * 255.0f)
-            )
-          );
+    address: 400
+    register_type: holding
+    output_type: u_word
 
-  - platform: template
+  - platform: modbus_controller
+    modbus_controller_id: rgb621
     id: rgb621_out_g
-    type: float
-    write_action:
-      - lambda: |-
-          id(rgb_1)->queue_command(
-            esphome::modbus_controller::ModbusCommandItem::create_write_single_register(
-              id(rgb_1),
-              401,
-              (uint16_t)(state * 255.0f)
-            )
-          );
+    address: 401
+    register_type: holding
+    output_type: u_word
 
-  - platform: template
+  - platform: modbus_controller
+    modbus_controller_id: rgb621
     id: rgb621_out_b
-    type: float
-    write_action:
-      - lambda: |-
-          id(rgb_1)->queue_command(
-            esphome::modbus_controller::ModbusCommandItem::create_write_single_register(
-              id(rgb_1),
-              402,
-              (uint16_t)(state * 255.0f)
-            )
-          );
+    address: 402
+    register_type: holding
+    output_type: u_word
 
-  - platform: template
+  - platform: modbus_controller
+    modbus_controller_id: rgb621
     id: rgb621_out_ww
-    type: float
-    write_action:
-      - lambda: |-
-          id(rgb_1)->queue_command(
-            esphome::modbus_controller::ModbusCommandItem::create_write_single_register(
-              id(rgb_1),
-              403,
-              (uint16_t)(state * 255.0f)
-            )
-          );
+    address: 403
+    register_type: holding
+    output_type: u_word
 
-  - platform: template
+  - platform: modbus_controller
+    modbus_controller_id: rgb621
     id: rgb621_out_cw
-    type: float
-    write_action:
-      - lambda: |-
-          id(rgb_1)->queue_command(
-            esphome::modbus_controller::ModbusController::ModbusCommandItem::create_write_single_register(
-              id(rgb_1),
-              404,
-              (uint16_t)(state * 255.0f)
-            )
-          );
+    address: 404
+    register_type: holding
+    output_type: u_word
 
 #############################################################
 # RGBWW LIGHT (uses the 5 template outputs above)
