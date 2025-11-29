@@ -35,3 +35,60 @@ switch:
       - delay: 200ms
       - switch.turn_off: ${rgb_id}_rly1_off
 
+number:
+  # -------- RGB Channels (0–255) --------
+  - platform: modbus_controller
+    name: "RGB621 Red"
+    id: rgb621_red
+    modbus_controller_id: rgb621
+    address: 400
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+
+  - platform: modbus_controller
+    name: "RGB621 Green"
+    id: rgb621_green
+    modbus_controller_id: rgb621
+    address: 401
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+
+  - platform: modbus_controller
+    name: "RGB621 Blue"
+    id: rgb621_blue
+    modbus_controller_id: rgb621
+    address: 402
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+
+  # -------- CCT Channels (0–255) --------
+  - platform: modbus_controller
+    name: "RGB621 Warm White"
+    id: rgb621_ww
+    modbus_controller_id: rgb621
+    address: 403
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
+
+  - platform: modbus_controller
+    name: "RGB621 Cool White"
+    id: rgb621_cw
+    modbus_controller_id: rgb621
+    address: 404
+    register_type: holding
+    value_type: U_WORD
+    min_value: 0
+    max_value: 255
+    step: 1
