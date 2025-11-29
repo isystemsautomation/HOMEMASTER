@@ -101,35 +101,65 @@ output:
     type: float
     write_action:
       - lambda: |-
-          id(rgb_1)->queue_write_register(400, (uint16_t)(state * 255.0f));
+          id(rgb_1)->queue_command(
+            esphome::modbus_controller::ModbusCommandItem::create_write_single_register(
+              id(rgb_1),
+              400,
+              (uint16_t)(state * 255.0f)
+            )
+          );
 
   - platform: template
     id: rgb621_out_g
     type: float
     write_action:
       - lambda: |-
-          id(rgb_1)->queue_write_register(401, (uint16_t)(state * 255.0f));
+          id(rgb_1)->queue_command(
+            esphome::modbus_controller::ModbusCommandItem::create_write_single_register(
+              id(rgb_1),
+              401,
+              (uint16_t)(state * 255.0f)
+            )
+          );
 
   - platform: template
     id: rgb621_out_b
     type: float
     write_action:
       - lambda: |-
-          id(rgb_1)->queue_write_register(402, (uint16_t)(state * 255.0f));
+          id(rgb_1)->queue_command(
+            esphome::modbus_controller::ModbusCommandItem::create_write_single_register(
+              id(rgb_1),
+              402,
+              (uint16_t)(state * 255.0f)
+            )
+          );
 
   - platform: template
     id: rgb621_out_ww
     type: float
     write_action:
       - lambda: |-
-          id(rgb_1)->queue_write_register(403, (uint16_t)(state * 255.0f));
+          id(rgb_1)->queue_command(
+            esphome::modbus_controller::ModbusCommandItem::create_write_single_register(
+              id(rgb_1),
+              403,
+              (uint16_t)(state * 255.0f)
+            )
+          );
 
   - platform: template
     id: rgb621_out_cw
     type: float
     write_action:
       - lambda: |-
-          id(rgb_1)->queue_write_register(404, (uint16_t)(state * 255.0f));
+          id(rgb_1)->queue_command(
+            esphome::modbus_controller::ModbusController::ModbusCommandItem::create_write_single_register(
+              id(rgb_1),
+              404,
+              (uint16_t)(state * 255.0f)
+            )
+          );
 
 #############################################################
 # RGBWW LIGHT (uses the 5 template outputs above)
