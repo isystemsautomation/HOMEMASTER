@@ -96,50 +96,45 @@ number:
 # TEMPLATE OUTPUTS FOR RGBWW LIGHT (also write 400–404)
 #############################################################
 output:
-  - platform: template
+  - platform: modbus_controller
     id: rgb621_out_r
-    type: float
-    write_action:
-      - modbus_controller.write_register:
-          id: rgb621
-          address: 400
-          value: !lambda "return (uint16_t)(state * 255.0f);"
+    modbus_controller_id: ${rgb_id}
+    address: 400
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
 
-  - platform: template
+  - platform: modbus_controller
     id: rgb621_out_g
-    type: float
-    write_action:
-      - modbus_controller.write_register:
-          id: rgb621
-          address: 401
-          value: !lambda "return (uint16_t)(state * 255.0f);"
+    modbus_controller_id: ${rgb_id}
+    address: 401
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
 
-  - platform: template
+  - platform: modbus_controller
     id: rgb621_out_b
-    type: float
-    write_action:
-      - modbus_controller.write_register:
-          id: rgb621
-          address: 402
-          value: !lambda "return (uint16_t)(state * 255.0f);"
+    modbus_controller_id: ${rgb_id}
+    address: 402
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
 
-  - platform: template
+  - platform: modbus_controller
     id: rgb621_out_ww
-    type: float
-    write_action:
-      - modbus_controller.write_register:
-          id: rgb621
-          address: 403
-          value: !lambda "return (uint16_t)(state * 255.0f);"
+    modbus_controller_id: ${rgb_id}
+    address: 403
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
 
-  - platform: template
+  - platform: modbus_controller
     id: rgb621_out_cw
-    type: float
-    write_action:
-      - modbus_controller.write_register:
-          id: rgb621
-          address: 404
-          value: !lambda "return (uint16_t)(state * 255.0f);"
+    modbus_controller_id: ${rgb_id}
+    address: 404
+    register_type: holding
+    value_type: U_WORD
+    multiply: 255.0
 
 #############################################################
 # RGBWW LIGHT (uses the 5 template outputs above)
