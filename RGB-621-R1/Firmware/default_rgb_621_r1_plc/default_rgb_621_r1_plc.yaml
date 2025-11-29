@@ -141,19 +141,14 @@ output:
 #############################################################
 light:
   - platform: rgbww
-    id: ${rgb_id}_light
-    name: "${rgb_prefix} Light"
+    id: rgb_1_light
+    name: "RGB621 Light"
 
-    red: ${rgb_id}_out_r
-    green: ${rgb_id}_out_g
-    blue: ${rgb_id}_out_b
-    warm_white: ${rgb_id}_out_ww
-    cold_white: ${rgb_id}_out_cw
+    red: rgb621_out_r
+    green: rgb621_out_g
+    blue: rgb621_out_b
+    warm_white: rgb621_out_ww
+    cold_white: rgb621_out_cw
 
-    warm_white_color_temperature: 2700 K
-    cold_white_color_temperature: 6500 K
-
-    constant_brightness: true
-    color_interlock: false
-    default_transition_length: 0.2s
-    restore_mode: RESTORE_DEFAULT_OFF
+    warm_white_color_temperature: 370.3703703703704
+    cold_white_color_temperature: 153.84615384615384
