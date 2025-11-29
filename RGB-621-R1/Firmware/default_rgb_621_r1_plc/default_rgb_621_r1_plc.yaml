@@ -149,6 +149,5 @@ light:
     blue: rgb621_out_b
     warm_white: rgb621_out_ww
     cold_white: rgb621_out_cw
-
-    warm_white_color_temperature: 370.3703703703704
-    cold_white_color_temperature: 153.84615384615384
+    warm_white_color_temperature: 2700 K
+    cold_white_color_temperature: 6500 K
