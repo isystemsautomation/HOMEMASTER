@@ -143,7 +143,6 @@ light:
   - platform: rgbww
     id: rgb_1_light
     name: "RGB621 Light"
-
     red: rgb621_out_r
     green: rgb621_out_g
     blue: rgb621_out_b
