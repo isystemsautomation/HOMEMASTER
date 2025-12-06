@@ -1,17 +1,26 @@
-<section style="font-family:'Segoe UI',sans-serif;padding:2rem;max-width:1000px;margin:auto;">
+<section style="font-family:'Segoe UI',sans-serif;padding:2rem;max-width:960px;margin:auto;">
   <div style="text-align:center;margin-bottom:2rem;">
-    <img src="https://www.home-master.eu/web/image/3973-c0758147/photo1.webp" alt="AIO-422-R1" style="max-width:300px;border-radius:8px;opacity:.9;" loading="lazy">
-    <h2 style="margin:.5rem 0 0;">AIO-422-R1 Module Configuration</h2>
-    <p style="margin:.25rem 0 0;color:#333;">Configure Modbus, ADS1115 (gain / data-rate / sample interval), view 4 analog channels, set 2× DAC outputs, test LEDs, manage device via Web Serial, and view 30-minute trends.</p>
+    <img src="https://www.home-master.eu/web/image/product.image/14/image_1024/Untitled-2.webp?unique=1d6564f"
+         alt="AIO-422-R1" style="max-width:300px;border-radius:8px;" loading="lazy">
+    <h2>AIO-422-R1 Module Configuration</h2>
+    <p>
+      Configure Modbus address, baud rate, and monitor
+      <strong>analog inputs (4)</strong>, <strong>analog outputs (2)</strong>,
+      <strong>RTD inputs (2)</strong>, <strong>buttons (4)</strong> and
+      <strong>user LEDs (4)</strong> via Web Serial.
+    </p>
   </div>
 
+  <!-- Active Modbus status -->
   <div style="background:#f1f1f1;padding:1rem 1.5rem;margin-bottom:2rem;border-radius:6px;border-left:4px solid #007bff;">
     <strong>Active Modbus Configuration</strong><br>
     Address: <span id="live-address" style="font-weight:600;">--</span> |
     Baud Rate: <span id="live-baud" style="font-weight:600;">--</span>
   </div>
 
-  <form id="modbus-config" style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:2rem;">
+  <!-- Modbus config + connect -->
+  <form id="modbus-config"
+        style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:2rem;">
     <div>
       <label for="modbus-address"><strong>Modbus Address</strong></label>
       <select id="modbus-address" style="width:100%;padding:10px;border-radius:4px;"></select>
@@ -19,915 +28,379 @@
     <div>
       <label for="modbus-baud"><strong>Baud Rate</strong></label>
       <select id="modbus-baud" style="width:100%;padding:10px;border-radius:4px;">
-        <option>9600</option><option selected>19200</option><option>38400</option><option>57600</option><option>115200</option>
+        <option>9600</option>
+        <option selected>19200</option>
+        <option>38400</option>
+        <option>57600</option>
+        <option>115200</option>
       </select>
     </div>
-    <div style="grid-column:span 2;display:flex;justify-content:flex-end;gap:.75rem;">
-      <button id="connect-button" type="button" style="padding:10px 20px;background:#007bff;color:#fff;border:none;border-radius:4px;">Connect</button>
-      <button id="savecfg-button" type="button" style="padding:10px 20px;background:#198754;color:#fff;border:none;border-radius:4px;" disabled>Save to Flash</button>
-      <button id="ledtest-button" type="button" style="padding:10px 20px;background:#6c757d;color:#fff;border:none;border-radius:4px;" disabled>LED Test</button>
-      <button id="reset-button" type="button" style="padding:10px 20px;background:#dc3545;color:#fff;border:none;border-radius:4px;" disabled>Reset Device</button>
+    <div style="grid-column:span 2;text-align:right;">
+      <button id="connect-button" type="button"
+              style="padding:10px 20px;background:#007bff;color:#fff;border:none;border-radius:4px;">
+        Connect
+      </button>
+      <button id="reset-button" type="button"
+              style="padding:10px 20px;background:#dc3545;color:#fff;border:none;border-radius:4px;margin-left:0.75rem;"
+              disabled>
+        Reset Device
+      </button>
     </div>
   </form>
 
-  <dialog id="reset-dialog" style="border:none;border-radius:10px;padding:0;max-width:420px;width:90%;box-shadow:0 10px 30px rgba(0,0,0,.2);">
+  <!-- Reset dialog -->
+  <dialog id="reset-dialog"
+          style="border:none;border-radius:10px;padding:0;max-width:420px;width:90%;box-shadow:0 10px 30px rgba(0,0,0,.2);">
     <form id="reset-form" method="dialog" style="padding:1rem 1.25rem;">
       <h3 style="margin:.25rem 0 .5rem;">Confirm reset</h3>
-      <p style="margin:.25rem 0 1rem;color:#444;">Are you sure you want to reset the module? The serial connection will be temporarily interrupted.</p>
+      <p style="margin:.25rem 0 1rem;color:#444;">
+        Are you sure you want to reset the module? The serial connection will be temporarily interrupted.
+      </p>
       <div style="display:flex;justify-content:flex-end;gap:.5rem;">
-        <button id="dlg-cancel" value="cancel" style="padding:.5rem .9rem;border-radius:6px;border:1px solid #ccc;background:#fff;">Cancel</button>
-        <button id="dlg-confirm" value="confirm" style="padding:.5rem .9rem;border:none;border-radius:6px;background:#dc3545;color:#fff;">Reset</button>
+        <button id="dlg-cancel" value="cancel"
+                style="padding:.5rem .9rem;border-radius:6px;border:1px solid #ccc;background:#fff;">
+          Cancel
+        </button>
+        <button id="dlg-confirm" value="confirm"
+                style="padding:.5rem .9rem;border:none;border-radius:6px;background:#dc3545;color:#fff;">
+          Reset
+        </button>
       </div>
     </form>
   </dialog>
 
-  <section style="margin-bottom:1.75rem;">
-    <h2 style="font-size:1.2rem;margin-bottom:.75rem;">ADS1115 Configuration</h2>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem;">
-      <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;">
-        <label for="ads-gain"><strong>Gain</strong> <small style="color:#666;">(0..5)</small></label>
-        <select id="ads-gain" style="width:100%;padding:10px;border-radius:4px;">
-          <option value="0">0 → ±6.144V (2/3×)</option>
-          <option value="1">1 → ±4.096V (1×)</option>
-          <option value="2">2 → ±2.048V (2×)</option>
-          <option value="3">3 → ±1.024V (4×)</option>
-          <option value="4">4 → ±0.512V (8×)</option>
-          <option value="5">5 → ±0.256V (16×)</option>
-        </select>
-      </div>
-      <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;">
-        <label for="ads-drate"><strong>Data Rate</strong> <small style="color:#666;">(index 0..7)</small></label>
-        <select id="ads-drate" style="width:100%;padding:10px;border-radius:4px;">
-          <option value="0">0 → 8 SPS</option>
-          <option value="1">1 → 16 SPS</option>
-          <option value="2">2 → 32 SPS</option>
-          <option value="3">3 → 64 SPS</option>
-          <option value="4">4 → 128 SPS</option>
-          <option value="5">5 → 250 SPS</option>
-          <option value="6">6 → 475 SPS</option>
-          <option value="7">7 → 860 SPS</option>
-        </select>
-      </div>
-      <div style="border:1px solid #ddd;border-radius:6px;padding:1rem;">
-        <label for="ads-samplems"><strong>Sample Interval (ms)</strong></label>
-        <input id="ads-samplems" type="number" min="10" max="5000" step="10" value="50" style="width:100%;padding:10px;border-radius:4px;border:1px solid #ccc;">
-      </div>
-    </div>
-    <div style="text-align:right;margin-top:.75rem;">
-      <button id="apply-ads" type="button" style="padding:10px 16px;background:#0d6efd;color:#fff;border:none;border-radius:6px;" disabled>Apply ADS Settings</button>
-    </div>
-  </section>
-
-  <!-- ============== Dual DAC section ============== -->
-  <section style="margin-bottom:1.75rem;">
-    <h2 style="font-size:1.2rem;margin-bottom:.75rem;">DAC Outputs (x2)</h2>
-    <div id="dac-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem;">
-      <div style="border:1px solid #ddd;border-radius:8px;padding:1rem;background:#fff;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.25rem;">
-          <strong>AO0 (U13, 0x60)</strong>
-          <small id="dac0-mv" style="color:#555;">-- mV</small>
-        </div>
-        <input id="dac0-raw" type="number" min="0" max="4095" step="1" value="0" style="width:100%;padding:8px;border-radius:6px;border:1px solid #ccc;margin-bottom:.5rem;">
-        <input id="dac0-slider" type="range" min="0" max="4095" step="1" value="0" style="width:100%;">
-        <div style="margin-top:.4rem;color:#666;font-size:.9rem;">Raw: <span id="dac0-raw-label">0</span> / 4095 &nbsp;•&nbsp; Vref 10000 mV</div>
-      </div>
-      <div style="border:1px solid #ddd;border-radius:8px;padding:1rem;background:#fff;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.25rem;">
-          <strong>AO1 (U12, 0x61)</strong>
-          <small id="dac1-mv" style="color:#555;">-- mV</small>
-        </div>
-        <input id="dac1-raw" type="number" min="0" max="4095" step="1" value="0" style="width:100%;padding:8px;border-radius:6px;border:1px solid #ccc;margin-bottom:.5rem;">
-        <input id="dac1-slider" type="range" min="0" max="4095" step="1" value="0" style="width:100%;">
-        <div style="margin-top:.4rem;color:#666;font-size:.9rem;">Raw: <span id="dac1-raw-label">0</span> / 4095 &nbsp;•&nbsp; Vref 10000 mV</div>
-      </div>
-    </div>
-    <small style="color:#666;">Firmware echoes <code>DAC</code> as <code>{ raw:[r0,r1], mv:[m0,m1] }</code>.</small>
-  </section>
-  <!-- ============== /Dual DAC section ============== -->
-
-  <section style="margin-bottom:1.5rem%;">
-    <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Live Channels</h2>
-    <div id="chan-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:1rem;"></div>
-    <small style="color:#666;">Firmware emits <code>AIO_Samples</code> via WebSerial: <code>{ raw:[..], mv:[..] }</code>.</small>
-  </section>
-
-  <section style="margin-bottom:1.5rem%;">
-    <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Buttons (4)</h2>
-    <div id="buttons-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
-  </section>
-
-  <section style="margin-bottom:1.5rem%;">
-    <h2 style="font-size:1.2rem;margin-bottom:.75rem;">User LEDs (4)</h2>
-    <div id="leds-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
-  </section>
-
-  <!-- ===== PID UI ===== -->
-  <section style="margin-bottom:1.75rem%;">
-    <h2 style="font-size:1.2rem;margin-bottom:.75rem;">PID Controllers (x4)</h2>
-    <div id="pid-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem;"></div>
-    <small style="color:#666;">
-      Firmware echoes <code>PIDConfigList</code> with 4 items. Edits are sent as
-      <code>Config</code> → <code>{ t:"pid", i, cfg:{ ... } }</code>. Kp/Ki/Kd are Q8.8; UI lets you edit decimal and converts to Q8.8.
-    </small>
-  </section>
-  <!-- ===== /PID UI ===== -->
-
-  <!-- ===== NEW: Trends (last 30 min) ===== -->
-  <section style="margin-bottom:1.75rem%;">
-    <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Trends (last 30 min)</h2>
-
-    <div style="display:flex;flex-wrap:wrap;gap:.5rem 1rem;align-items:center;margin-bottom:.5rem;">
-      <button id="trend-refresh" type="button" style="padding:.5rem .9rem;border:none;border-radius:6px;background:#0d6efd;color:#fff;">Refresh (Dump)</button>
-      <button id="trend-clear"   type="button" style="padding:.5rem .9rem;border:none;border-radius:6px;background:#dc3545;color:#fff;">Clear</button>
-      <button id="trend-info"    type="button" style="padding:.5rem .9rem;border:none;border-radius:6px;background:#6c757d;color:#fff;">Info</button>
-
-      <label style="margin-left:1rem;">
-        <input type="checkbox" id="trend-autoscroll" checked> Auto-scroll
-      </label>
-
-      <label style="margin-left:1rem;">PID view:
-        <select id="trend-pidpick" style="padding:.3rem .4rem;border-radius:6px;border:1px solid #ccc;">
-          <option value="0">PID 0</option>
-          <option value="1">PID 1</option>
-          <option value="2">PID 2</option>
-          <option value="3">PID 3</option>
-        </select>
-      </label>
-    </div>
-
-    <div style="display:grid;grid-template-columns:1fr;gap:.5rem;">
-      <div id="trend-checks" style="display:flex;flex-wrap:wrap;gap:.4rem 1rem;"></div>
-      <div style="border:1px solid #ddd;border-radius:8px;background:#fff;padding:.5rem;">
-        <canvas id="trend-canvas" height="260"></canvas>
-      </div>
-      <small style="color:#666;">Firmware events: <code>TrendInfo</code>, <code>TrendFull</code>, <code>TrendAppend</code>. Commands: <code>command:{"action":"trend_dump"}</code>, <code>trend_clear</code>, <code>trend_info</code>.</small>
-      <div id="trend-meta" style="color:#555;font-size:.9rem;"></div>
-    </div>
-  </section>
-  <!-- ===== /Trends ===== -->
-
-  <div id="log-line" style="margin-bottom:1.5rem;padding:1rem;background:#f9f9f9;border:1px solid #ccc;border-radius:6px;font-size:0.9rem;color:#333;font-family:monospace;">
+  <!-- Serial log -->
+  <div id="log-line"
+       style="margin-bottom:1.5rem;padding:1rem;background:#f9f9f9;border:1px solid #ccc;border-radius:6px;font-size:0.9rem;color:#333;font-family:monospace;">
     <strong>Serial Log:</strong>
     <div id="log-content" style="white-space:pre-wrap;"></div>
   </div>
-</section>
 
-<!-- libs -->
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
-<script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- Live sections -->
+  <section>
+    <h2 style="font-size:1.2rem;">Analog Inputs (4 × 0–10&nbsp;V)</h2>
+    <p style="margin-top:-.25rem;color:#555;font-size:.9rem;">
+      Firmware reports field voltage in millivolts (0–10000&nbsp;mV). Voltage is calculated directly.
+    </p>
+    <div id="ai-cards"
+         style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;"></div>
+  </section>
 
-<script>
-(function () {
-  // ---------- Helpers ----------
-  const LOG_MAX = 200;
-  const logBuffer = [];
-  const VREF_MV = 5000; // local fallback; firmware sends mv in echoes
-  const $ = (id) => document.getElementById(id);
+  <section style="margin-top:2rem;">
+    <h2 style="font-size:1.2rem;">Analog Outputs (2 × 0–10&nbsp;V)</h2>
+    <p style="margin-top:-.25rem;color:#555;font-size:.9rem;">
+      DAC raw value is 0..4095 (MCP4725). 4095 ≈ 10&nbsp;V at the terminal.
+    </p>
+    <div id="dac-cards"
+         style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;"></div>
+  </section>
 
-  function appendLog(label, data) {
-    const el = $("log-content"); if (!el) return;
-    const time = new Date().toLocaleTimeString();
-    let body = (typeof data === 'string') ? data : JSON.stringify(data);
-    body = String(body).replace(/\r\n?|\n/g, '\\n').replace(/\\r\\n|\\r|\\n/g, '\\n');
-    logBuffer.unshift(`[${time}] ${label}: ${body}`);
-    if (logBuffer.length > LOG_MAX) logBuffer.pop();
-    el.textContent = logBuffer.join('\n');
-  }
+  <section style="margin-top:2rem;">
+    <h2 style="font-size:1.2rem;">RTD Inputs (2 × PT100)</h2>
+    <div id="rtd-cards"
+         style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;"></div>
+  </section>
 
-  function populateAddresses() {
-    const sel = $('modbus-address'); if (!sel) return;
-    sel.innerHTML = '';
-    for (let i = 1; i <= 255; i++) {
-      const o = document.createElement('option'); o.value = i; o.textContent = i;
-      sel.appendChild(o);
-    }
-    sel.value = '3';
-  }
+  <section style="margin-top:2rem;">
+    <h2 style="font-size:1.2rem;">Buttons (4)</h2>
+    <p style="margin-top:-.25rem;color:#555;font-size:.9rem;">
+      Button states are read directly from the device.
+    </p>
+    <div id="buttons-cards"
+         style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;"></div>
+  </section>
 
-  function isPortOpen() {
-    try { return typeof connection.isOpen === 'function' ? connection.isOpen() : !!connection.port; }
-    catch { return false; }
-  }
-  function setEnabled(ids, enabled) { ids.forEach(id => { const el = $(id); if (el) el.disabled = !enabled; }); }
+  <section style="margin-top:2rem;">
+    <h2 style="font-size:1.2rem;">User LEDs (4)</h2>
+    <div id="leds-cards"
+         style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;"></div>
+  </section>
 
-  // ---------- Channel cards ----------
-  const FULL_SCALE_MV = [6144, 4096, 2048, 1024, 512, 256];
-  function buildChannelCards() {
-    const grid = $('chan-grid'); if (!grid) return;
-    grid.innerHTML = '';
-    for (let ch = 0; ch < 4; ch++) {
-      const card = document.createElement('div');
-      card.style = "border:1px solid #ddd;border-radius:8px;padding:1rem;background:#fff;";
-      card.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;">
-          <strong>Channel A${ch}</strong>
-          <span id="bar-a${ch}" style="flex:1;height:8px;background:#eee;border-radius:4px;margin-left:.75rem;overflow:hidden;">
-            <span id="barfill-a${ch}" style="display:block;height:100%;width:0%;background:#0d6efd;"></span>
-          </span>
-        </div>
-        <div style="display:flex;gap:1rem;align-items:baseline;">
-          <div><span id="mv-a${ch}" style="font-size:1.35rem;font-weight:700;">--</span> <span style="color:#666;">mV</span></div>
-          <div style="color:#666;">raw: <span id="raw-a${ch}">--</span></div>
-        </div>
-        <div style="margin-top:.4rem;color:#666;">FS: <span id="fs-a${ch}">--</span> mV</div>
-      `;
-      grid.appendChild(card);
-    }
-  }
-  function updateFSLabels(gainIdx) {
-    for (let ch = 0; ch < 4; ch++) {
-      const fs = FULL_SCALE_MV[gainIdx] || 6144;
-      const el = $('fs-a'+ch); if (el) el.textContent = fs;
-    }
-  }
-  function paintChannel(ch, mv, raw, gainIdx) {
-    const mvEl = $('mv-a'+ch), rawEl = $('raw-a'+ch), fill = $('barfill-a'+ch);
-    if (mvEl) mvEl.textContent = (typeof mv === 'number' ? mv : '--');
-    if (rawEl) rawEl.textContent = (typeof raw === 'number' ? raw : '--');
-    const fs = FULL_SCALE_MV[gainIdx] || 6144;
-    const pct = (typeof mv === 'number' && fs > 0) ? Math.max(0, Math.min(100, (mv / fs) * 100)) : 0;
-    if (fill) fill.style.width = pct.toFixed(1) + '%';
-  }
+  <!-- Scripts -->
+  <script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
+  <script>
+    (function () {
+      const NUM_AI = 4, NUM_DAC = 2, NUM_BTN = 4, NUM_LED = 4;
+      const LOG_MAX = 4;
+      const logBuffer = [];
+      const $ = (id) => document.getElementById(id);
 
-  // ---------- Buttons & LEDs cards ----------
-  function buildButtons() {
-    const container = $('buttons-config'); if (!container) return;
-    container.innerHTML = '';
-    const ACTIONS = [
-      {value:0,label:'None'},
-      {value:1,label:'Toggle LED1'},
-      {value:2,label:'Toggle LED2'},
-      {value:3,label:'Toggle LED3'},
-      {value:4,label:'Toggle LED4'},
-      {value:5,label:'Cycle ADS gain'},
-      {value:6,label:'LED test'},
-      {value:7,label:'Save config'},
-      {value:8,label:'Reset device'},
-    ];
-    for (let i = 1; i <= 4; i++) {
-      const options = ACTIONS.map(a => `<option value="${a.value}">${a.label}</option>`).join('');
-      const card = document.createElement('div');
-      card.innerHTML = `
-        <div style="border:1px solid #ccc;border-radius:6px;background:#cbdcf7;padding:1rem;">
-          <div style="font-weight:600;">
-            Button ${i}
-            <span id="state-button${i}" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;float:right;"></span>
-          </div>
-          <label>Action:
-            <select id="action-button${i}" style="width:100%;padding:6px;border-radius:4px;">
-              ${options}
-            </select>
-          </label>
-        </div>`;
-      container.appendChild(card);
-    }
-  }
-  function buildLEDs() {
-    const container = $('leds-config'); if (!container) return;
-    container.innerHTML = '';
-    const LED_MODE = [
-      {value:0,label:'Steady (when active)'},
-      {value:1,label:'Blink (when active)'},
-    ];
-    const LED_SOURCE = [
-      {value:0,label:'None'},
-      {value:1,label:'Heartbeat'},
-      {value:2,label:'Button 1 pressed'},
-      {value:3,label:'Button 2 pressed'},
-      {value:4,label:'Button 3 pressed'},
-      {value:5,label:'Button 4 pressed'},
-      {value:6,label:'Any button pressed'},
-      {value:7,label:'Sampling tick'},
-    ];
-    for (let i = 1; i <= 4; i++) {
-      const modeOpts = LED_MODE.map(a => `<option value="${a.value}">${a.label}</option>`).join('');
-      const srcOpts  = LED_SOURCE.map(a => `<option value="${a.value}">${a.label}</option>`).join('');
-      const card = document.createElement('div');
-      card.innerHTML = `
-        <div style="border:1px solid #ccc;border-radius:6px;background:#f3f5d0;padding:1rem;">
-          <div style="font-weight:600;">
-            User LED ${i}
-            <span id="state-led${i}" style="width:12px;height:12px;background:#ccc;border-radius:50%;display:inline-block;float:right;"></span>
-          </div>
-          <label>Mode:
-            <select id="mode-led${i}" style="width:100%;padding:6px;border-radius:4px;">${modeOpts}</select>
-          </label><br>
-          <label>Source:
-            <select id="source-led${i}" style="width:100%;padding:6px;border-radius:4px;">${srcOpts}</select>
-          </label>
-        </div>`;
-      container.appendChild(card);
-    }
-  }
+      const dacValues = [0, 0];
 
-  // ===== PID UI =====
-  const PID_ROUTE = [
-    {v:0,  t:'None'},
-    {v:1,  t:'AO0'},
-    {v:2,  t:'AO1'},
-    {v:10, t:'OUT_VAR0'},
-    {v:11, t:'OUT_VAR1'},
-    {v:12, t:'OUT_VAR2'},
-    {v:13, t:'OUT_VAR3'},
-  ];
-  function q88_to_f(q){ return (q|0) / 256; }
-  function f_to_q88(f){ return Math.max(0, Math.min(65535, Math.round((Number(f)||0) * 256))); }
-  function clamp(v, lo, hi){ v=Number(v)||0; return Math.max(lo, Math.min(hi, v)); }
-
-  function buildPidCards() {
-    const grid = $('pid-grid'); if (!grid) return;
-    grid.innerHTML = '';
-    for (let i = 0; i < 4; i++) {
-      const routeOpts = PID_ROUTE.map(o => `<option value="${o.v}">${o.t}</option>`).join('');
-      const card = document.createElement('div');
-      card.style = "border:1px solid #ddd;border-radius:8px;padding:1rem;background:#fff;";
-      card.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;">
-          <strong>PID ${i}</strong>
-          <small id="pid${i}-hint" style="color:#666;">manual</small>
-        </div>
-
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem 1rem;">
-          <label>Mode
-            <select id="pid${i}-mode" style="width:100%;padding:6px;border-radius:6px;">
-              <option value="0">MANUAL</option>
-              <option value="1">AUTO</option>
-            </select>
-          </label>
-
-          <label>Route
-            <select id="pid${i}-route" style="width:100%;padding:6px;border-radius:6px;">
-              ${routeOpts}
-            </select>
-          </label>
-
-          <label>PV Type
-            <select id="pid${i}-pvtype" style="width:100%;padding:6px;border-radius:6px;">
-              <option value="0">AI (0..3)</option>
-              <option value="1">RTD (0..1)</option>
-              <option value="2">EXTPV (0..3)</option>
-            </select>
-          </label>
-
-          <label>PV Index
-            <input id="pid${i}-pvidx" type="number" min="0" max="3" step="1" value="0" style="width:100%;padding:6px;border-radius:6px;border:1px solid #ccc;">
-          </label>
-
-          <label>SP Source
-            <select id="pid${i}-sptype" style="width:100%;padding:6px;border-radius:6px;">
-              <option value="0">STATIC (mV)</option>
-              <option value="1">EXTSP (0..3)</option>
-              <option value="2">PID OUT (0..3)</option>
-            </select>
-          </label>
-
-          <label>SP Static (mV)
-            <input id="pid${i}-spstatic" type="number" min="0" max="10000" step="10" value="0" style="width:100%;padding:6px;border-radius:6px;border:1px solid #ccc;">
-          </label>
-
-          <label>SP Index
-            <input id="pid${i}-spidx" type="number" min="0" max="3" step="1" value="0" style="width:100%;padding:6px;border-radius:6px;border:1px solid #ccc;">
-          </label>
-
-          <div></div>
-
-          <label>Kp (gain)
-            <input id="pid${i}-kp" type="number" step="0.01" value="1.00" style="width:100%;padding:6px;border-radius:6px;border:1px solid #ccc;">
-            <small id="pid${i}-kpq" style="color:#777;">Q8.8: --</small>
-          </label>
-
-          <label>Ki (1/s)
-            <input id="pid${i}-ki" type="number" step="0.01" value="0.50" style="width:100%;padding:6px;border-radius:6px;border:1px solid #ccc;">
-            <small id="pid${i}-kiq" style="color:#777;">Q8.8: --</small>
-          </label>
-
-          <label>Kd (s)
-            <input id="pid${i}-kd" type="number" step="0.01" value="0.00" style="width:100%;padding:6px;border-radius:6px;border:1px solid #ccc;">
-            <small id="pid${i}-kdq" style="color:#777;">Q8.8: --</small>
-          </label>
-
-          <div></div>
-
-          <label>OUT min (mV)
-            <input id="pid${i}-outmin" type="number" min="0" max="10000" step="10" value="0" style="width:100%;padding:6px;border-radius:6px;border:1px solid #ccc;">
-          </label>
-
-          <label>OUT max (mV)
-            <input id="pid${i}-outmax" type="number" min="0" max="10000" step="10" value="10000" style="width:100%;padding:6px;border-radius:6px;border:1px solid #ccc;">
-          </label>
-
-          <label>Manual OUT (mV)
-            <input id="pid${i}-manmv" type="number" min="0" max="10000" step="10" value="0" style="width:100%;padding:6px;border-radius:6px;border:1px solid #ccc;">
-          </label>
-
-          <div style="display:flex;align-items:end;gap:.5rem;">
-            <button id="pid${i}-apply" type="button" style="padding:.5rem .8rem;background:#0d6efd;color:#fff;border:none;border-radius:6px;">Apply PID ${i}</button>
-            <button id="pid${i}-refresh" type="button" style="padding:.5rem .8rem;background:#6c757d;color:#fff;border:none;border-radius:6px;">Refresh</button>
-          </div>
-        </div>
-      `;
-      grid.appendChild(card);
-    }
-  }
-
-  function reflectPidCard(i, cfg) {
-    const g = (id)=>$('pid'+i+'-'+id);
-    if (cfg.mode       != null) g('mode').value     = String(cfg.mode);
-    if (cfg.route      != null) g('route').value    = String(cfg.route);
-    if (cfg.pv_type    != null) g('pvtype').value   = String(cfg.pv_type);
-    if (cfg.pv_idx     != null) g('pvidx').value    = String(cfg.pv_idx);
-    if (cfg.sp_type    != null) g('sptype').value   = String(cfg.sp_type);
-    if (cfg.sp_static  != null) g('spstatic').value = String(cfg.sp_static);
-    if (cfg.sp_idx     != null) g('spidx').value    = String(cfg.sp_idx);
-
-    if (cfg.kp_q8_8 != null) { g('kp').value = q88_to_f(cfg.kp_q8_8).toFixed(2); $('pid'+i+'-kpq').textContent = 'Q8.8: '+cfg.kp_q8_8; }
-    if (cfg.ki_q8_8 != null) { g('ki').value = q88_to_f(cfg.ki_q8_8).toFixed(2); $('pid'+i+'-kiq').textContent = 'Q8.8: '+cfg.ki_q8_8; }
-    if (cfg.kd_q8_8 != null) { g('kd').value = q88_to_f(cfg.kd_q8_8).toFixed(2); $('pid'+i+'-kdq').textContent = 'Q8.8: '+cfg.kd_q8_8; }
-
-    if (cfg.out_min_mv != null) g('outmin').value = String(cfg.out_min_mv);
-    if (cfg.out_max_mv != null) g('outmax').value = String(cfg.out_max_mv);
-    if (cfg.man_mv     != null) g('manmv').value  = String(cfg.man_mv);
-
-    const hint = $('pid'+i+'-hint');
-    if (hint) hint.textContent = (Number(g('mode').value) === 1) ? 'auto' : 'manual';
-  }
-
-  async function sendPidPartial(i, partial) {
-    await connection.send("Config", { t:"pid", i, cfg: partial });
-    appendLog("Config.pid["+i+"]", partial);
-  }
-
-  function wirePidCard(i) {
-    const g = (id)=>$('pid'+i+'-'+id);
-    const debounce = (fn, ms=120)=>{ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms);} };
-    const send = debounce((partial)=>sendPidPartial(i, partial));
-
-    g('mode').addEventListener('change', ()=> send({ mode: Number(g('mode').value) }) );
-    g('route').addEventListener('change', ()=> send({ route: Number(g('route').value) }) );
-
-    g('pvtype').addEventListener('change', ()=> {
-      const pv_type = Number(g('pvtype').value);
-      const maxIdx = (pv_type === 1) ? 1 : 3;
-      g('pvidx').max = String(maxIdx);
-      g('pvidx').value = String(Math.min(Number(g('pvidx').value||0), maxIdx));
-      send({ pv_type, pv_idx: Number(g('pvidx').value) });
-    });
-    g('pvidx').addEventListener('change', ()=> {
-      const pv_type = Number(g('pvtype').value);
-      const maxIdx = (pv_type === 1) ? 1 : 3;
-      send({ pv_idx: clamp(g('pvidx').value, 0, maxIdx) });
-    });
-
-    g('sptype').addEventListener('change', ()=> send({ sp_type: Number(g('sptype').value) }) );
-    g('spidx').addEventListener('change', ()=> send({ sp_idx: clamp(g('spidx').value, 0, 3) }) );
-    g('spstatic').addEventListener('change', ()=> send({ sp_static: clamp(g('spstatic').value, 0, 10000) }) );
-
-    function syncQ(fieldId, labelId, key){
-      const val = Number($(fieldId).value || 0);
-      const q = f_to_q88(val);
-      $(labelId).textContent = 'Q8.8: '+q;
-      send({ [key]: q });
-    }
-    g('kp').addEventListener('change', ()=> syncQ('pid'+i+'-kp','pid'+i+'-kpq','kp_q8_8'));
-    g('ki').addEventListener('change', ()=> syncQ('pid'+i+'-ki','pid'+i+'-kiq','ki_q8_8'));
-    g('kd').addEventListener('change', ()=> syncQ('pid'+i+'-kd','pid'+i+'-kdq','kd_q8_8'));
-
-    g('outmin').addEventListener('change', ()=> {
-      const omin = clamp(g('outmin').value, 0, 10000);
-      const omax = clamp(g('outmax').value, 0, 10000);
-      if (omin > omax) { g('outmax').value = String(omin); }
-      send({ out_min_mv: Number(g('outmin').value), out_max_mv: Number(g('outmax').value) });
-    });
-    g('outmax').addEventListener('change', ()=> {
-      const omin = clamp(g('outmin').value, 0, 10000);
-      const omax = clamp(g('outmax').value, 0, 10000);
-      if (omax < omin) { g('outmin').value = String(omax); }
-      send({ out_min_mv: Number(g('outmin').value), out_max_mv: Number(g('outmax').value) });
-    });
-
-    g('manmv').addEventListener('change', ()=> send({ man_mv: clamp(g('manmv').value, 0, 10000) }) );
-
-    $('pid'+i+'-apply').addEventListener('click', async ()=> {
-      const payload = {
-        mode: Number(g('mode').value),
-        route: Number(g('route').value),
-        pv_type: Number(g('pvtype').value),
-        pv_idx: Number(g('pvidx').value),
-        sp_type: Number(g('sptype').value),
-        sp_static: clamp(g('spstatic').value, 0, 10000),
-        sp_idx: clamp(g('spidx').value, 0, 3),
-        kp_q8_8: f_to_q88(g('kp').value),
-        ki_q8_8: f_to_q88(g('ki').value),
-        kd_q8_8: f_to_q88(g('kd').value),
-        out_min_mv: clamp(g('outmin').value, 0, 10000),
-        out_max_mv: clamp(g('outmax').value, 0, 10000),
-        man_mv: clamp(g('manmv').value, 0, 10000),
-      };
-      if (payload.out_min_mv > payload.out_max_mv) [payload.out_min_mv, payload.out_max_mv] = [payload.out_max_mv, payload.out_min_mv];
-      await sendPidPartial(i, payload);
-    });
-
-    $('pid'+i+'-refresh').addEventListener('click', async ()=> {
-      await sendPidPartial(i, {});
-    });
-
-    g('mode').addEventListener('change', ()=> {
-      const hint = $('pid'+i+'-hint');
-      if (hint) hint.textContent = (Number(g('mode').value) === 1) ? 'auto' : 'manual';
-    });
-  }
-
-  // ---------- Init UI ----------
-  populateAddresses();
-  buildChannelCards();
-  buildButtons();
-  buildLEDs();
-  buildPidCards();
-  for (let i=0;i<4;i++) wirePidCard(i);
-
-  // ---------- Web Serial Setup ----------
-  const connection = SimpleWebSerial.setupSerialConnection({
-    requestAccessOnPageLoad: false,
-    requestElement: 'connect-button'
-  });
-
-  function onPortStateChange() {
-    const open = isPortOpen();
-    setEnabled(['reset-button','apply-ads','ledtest-button','savecfg-button','dac0-raw','dac0-slider','dac1-raw','dac1-slider','trend-refresh','trend-clear','trend-info','trend-pidpick'], open);
-    for (let i=0;i<4;i++) {
-      ['mode','route','pvtype','pvidx','sptype','spstatic','spidx','kp','ki','kd','outmin','outmax','manmv','apply','refresh']
-        .forEach(s => { const el = $('pid'+i+'-'+s); if (el) el.disabled = !open; });
-    }
-  }
-  connection.on('open',  () => { onPortStateChange(); requestTrendAll(); });
-  connection.on('close', onPortStateChange);
-
-  // Live status
-  connection.on('status', (modbus) => {
-    $('live-address').textContent = (modbus && 'address' in modbus) ? modbus.address : '--';
-    $('live-baud').textContent    = (modbus && 'baud' in modbus)    ? modbus.baud    : '--';
-    if (modbus && modbus.address) $('modbus-address').value = modbus.address;
-    if (modbus && modbus.baud)    $('modbus-baud').value    = String(modbus.baud);
-    onPortStateChange();
-  });
-
-  // ADS config echo
-  let currentGain = 0;
-  connection.on('ADS', (cfg) => {
-    if (!cfg) return;
-    if (typeof cfg.gainIndex     !== 'undefined') { $('ads-gain').value     = String(cfg.gainIndex);     currentGain = cfg.gainIndex|0; }
-    if (typeof cfg.dataRateIndex !== 'undefined') { $('ads-drate').value    = String(cfg.dataRateIndex); }
-    if (typeof cfg.sample_ms     !== 'undefined') { $('ads-samplems').value = String(cfg.sample_ms); }
-    updateFSLabels(currentGain);
-  });
-
-  // Serial log passthrough
-  connection.on('message', (msg) => appendLog("AIO-422-R1", msg));
-
-  // Live ADC samples
-  connection.on('AIO_Samples', (obj) => {
-    try {
-      const raw = Array.isArray(obj?.raw) ? obj.raw : [];
-      const mv  = Array.isArray(obj?.mv)  ? obj.mv  : [];
-      for (let ch = 0; ch < 4; ch++) paintChannel(ch, mv[ch], raw[ch], currentGain);
-    } catch(e) {}
-  });
-
-  // Buttons receive/echo
-  connection.on('ButtonConfigList', (list) => (list || []).forEach((v, i) => {
-    const el = $('action-button' + (i + 1)); if (el) el.value = String(v || 0);
-  }));
-  connection.on('ButtonStateList', (list) => (list || []).forEach((v, i) => {
-    const dot = $('state-button' + (i + 1)); if (dot) dot.style.background = v ? '#4caf50' : '#ccc';
-  }));
-
-  // LEDs receive/echo
-  connection.on('LedConfigList', (list) => (list || []).forEach((obj, i) => {
-    const modeEl = $('mode-led' + (i + 1));
-    const srcEl  = $('source-led' + (i + 1));
-    if (modeEl && obj && typeof obj.mode   !== 'undefined') modeEl.value = String(obj.mode);
-    if (srcEl  && obj && typeof obj.source !== 'undefined') srcEl.value  = String(obj.source);
-  }));
-  connection.on('LedStateList', (list) => (list || []).forEach((v, i) => {
-    const dot = $('state-led' + (i + 1)); if (dot) dot.style.background = v ? '#ffb300' : '#ccc';
-  }));
-
-  // ---------- DAC handling ----------
-  function mvFromRaw(raw) {
-    raw = Number(raw)||0;
-    if (raw < 0) raw = 0; if (raw > 4095) raw = 4095;
-    return Math.round(raw * VREF_MV / 4095);
-  }
-  function reflectDac(idx, raw, mv) {
-    const rId = 'dac'+idx+'-raw', sId = 'dac'+idx+'-slider', lblId = 'dac'+idx+'-raw-label', mvId = 'dac'+idx+'-mv';
-    const r = $(rId), s = $(sId), lbl = $(lblId), mvEl = $(mvId);
-    if (typeof raw === 'number' && !Number.isNaN(raw)) {
-      if (r && document.activeElement !== r) r.value = String(raw);
-      if (s && document.activeElement !== s) s.value = String(raw);
-      if (lbl) lbl.textContent = String(raw);
-    }
-    if (typeof mv === 'number' && mvEl) mvEl.textContent = `${mv} mV`;
-  }
-  const debouncers = [null,null];
-  function sendDac(idx, raw) {
-    clearTimeout(debouncers[idx]);
-    debouncers[idx] = setTimeout(async () => {
-      raw = Math.max(0, Math.min(4095, parseInt(raw||0,10)));
-      await connection.send("Config", { t:"dac", cfg:{ idx, raw } });
-      appendLog("Config.dac", { idx, raw });
-    }, 40);
-  }
-  ['0','1'].forEach(id => {
-    const r = $('dac'+id+'-raw');
-    const s = $('dac'+id+'-slider');
-    const lbl = $('dac'+id+'-raw-label');
-    function syncFromRaw() {
-      const val = parseInt(r.value||'0',10);
-      if (s) s.value = String(val);
-      if (lbl) lbl.textContent = String(val);
-      reflectDac(Number(id), val, mvFromRaw(val));
-      sendDac(Number(id), val);
-    }
-    function syncFromSlider() {
-      const val = parseInt(s.value||'0',10);
-      if (r) r.value = String(val);
-      if (lbl) lbl.textContent = String(val);
-      reflectDac(Number(id), val, mvFromRaw(val));
-      sendDac(Number(id), val);
-    }
-    if (r) r.addEventListener('input',  syncFromRaw);
-    if (r) r.addEventListener('change', syncFromRaw);
-    if (s) s.addEventListener('input',  syncFromSlider);
-    if (s) s.addEventListener('change', syncFromSlider);
-  });
-  connection.on('DAC', (obj) => {
-    try {
-      const raw = Array.isArray(obj?.raw) ? obj.raw : [];
-      const mv  = Array.isArray(obj?.mv)  ? obj.mv  : [];
-      reflectDac(0, raw[0], mv[0] ?? mvFromRaw(raw[0]));
-      reflectDac(1, raw[1], mv[1] ?? mvFromRaw(raw[1]));
-    } catch (e) {}
-  });
-
-  // ---------- Controls ----------
-  $('modbus-address').addEventListener('input', pushModbus);
-  $('modbus-baud').addEventListener('input',    pushModbus);
-  async function pushModbus() {
-    const mb_address = parseInt($('modbus-address').value || "3", 10);
-    const mb_baud    = parseInt($('modbus-baud').value    || "19200", 10);
-    await connection.send("values", { mb_address, mb_baud });
-    appendLog("values", { mb_address, mb_baud });
-  }
-
-  $('apply-ads').addEventListener('click', async () => {
-    const gainIndex     = parseInt($('ads-gain').value  || "0", 10);
-    const dataRateIndex = parseInt($('ads-drate').value || "4", 10);
-    const sample_ms     = parseInt($('ads-samplems').value || "50", 10);
-    await connection.send("Config", { t:"ads", cfg:{ gainIndex, dataRateIndex, sample_ms }});
-    appendLog("Config.ads", { gainIndex, dataRateIndex, sample_ms });
-  });
-
-  for (let i = 1; i <= 4; i++) $('action-button' + i).addEventListener('change', sendButtonConfig);
-  async function sendButtonConfig() {
-    const list = [];
-    for (let i = 1; i <= 4; i++) list.push({ action: parseInt($('action-button' + i).value || "0", 10) });
-    await connection.send("Config", { t: "buttons", list });
-    appendLog("Config.buttons", list);
-  }
-
-  for (let i = 1; i <= 4; i++) {
-    $('mode-led' + i).addEventListener('change',   sendLedConfig);
-    $('source-led' + i).addEventListener('change', sendLedConfig);
-  }
-  async function sendLedConfig() {
-    const list = [];
-    for (let i = 1; i <= 4; i++) {
-      list.push({
-        mode:   parseInt($('mode-led' + i).value   || "0", 10),
-        source: parseInt($('source-led' + i).value || "0", 10)
-      });
-    }
-    await connection.send("Config", { t: "leds", list });
-    appendLog("Config.leds", list);
-  }
-
-  $('ledtest-button').addEventListener('click', async () => {
-    await connection.send("command", { action: "ledtest" });
-    appendLog("command", "ledtest");
-  });
-
-  $('savecfg-button').addEventListener('click', async () => {
-    await connection.send("command", { action: "save" });
-    appendLog("command", "save");
-  });
-
-  const resetBtn   = $('reset-button');
-  const dlg        = $('reset-dialog');
-  const dlgCancel  = $('dlg-cancel');
-  const dlgConfirm = $('dlg-confirm');
-
-  resetBtn.addEventListener('click', () => {
-    if (!isPortOpen()) return;
-    if (dlg && typeof dlg.showModal === 'function') dlg.showModal();
-    else doReset();
-  });
-  dlgCancel.addEventListener('click', (e) => { e.preventDefault(); dlg.close('cancel'); });
-  dlgConfirm.addEventListener('click', async (e) => { e.preventDefault(); dlg.close('confirm'); await doReset(); });
-
-  async function doReset() {
-    try {
-      await connection.send("command", { action: "reset" });
-      appendLog("command", "reset");
-      setEnabled(['reset-button','apply-ads','ledtest-button','savecfg-button','dac0-raw','dac0-slider','dac1-raw','dac1-slider'], false);
-      setTimeout(onPortStateChange, 3000);
-    } catch (err) {
-      appendLog("Error", String(err && err.message || err));
-    }
-  }
-
-  connection.on('PIDConfigList', (list) => {
-    if (!Array.isArray(list)) return;
-    list.forEach((cfg, i) => reflectPidCard(i, cfg || {}));
-  });
-
-  // ================== TRENDS UI (NEW) ==================
-  const trend = {
-    records: [], // each: {t, ai[4], rtd[2], ao[2], pv[4], sp[4], out[4]}
-    capacity: 360, count: 0, windex: 0,
-    selectedPid: 0,
-    autoscroll: true,
-    checks: [
-      {key:'AI0',  label:'AI0 (mV)',    fn:r=>r.ai?.[0]},
-      {key:'AI1',  label:'AI1 (mV)',    fn:r=>r.ai?.[1]},
-      {key:'AI2',  label:'AI2 (mV)',    fn:r=>r.ai?.[2]},
-      {key:'AI3',  label:'AI3 (mV)',    fn:r=>r.ai?.[3]},
-      {key:'AO0',  label:'AO0 (mV)',    fn:r=>r.ao?.[0]},
-      {key:'AO1',  label:'AO1 (mV)',    fn:r=>r.ao?.[1]},
-      {key:'RTD0', label:'RTD0 (°C)',   fn:r=>((r.rtd?.[0] ?? 0)/100)},
-      {key:'RTD1', label:'RTD1 (°C)',   fn:r=>((r.rtd?.[1] ?? 0)/100)},
-      {key:'PV',   label:'PID PV (mV)', fn:r=>r.pv?.[trend.selectedPid]},
-      {key:'SP',   label:'PID SP (mV)', fn:r=>r.sp?.[trend.selectedPid]},
-      {key:'OUT',  label:'PID OUT (mV)',fn:r=>r.out?.[trend.selectedPid]},
-    ],
-    enabled: new Set(['AI0','AI1','AI2','AI3','PV','SP','OUT']),
-  };
-
-  (function buildTrendChecks(){
-    const wrap = $('trend-checks');
-    wrap.innerHTML = '';
-    trend.checks.forEach(chk => {
-      const id = 'chk-' + chk.key;
-      const label = document.createElement('label');
-      label.style = 'display:flex;align-items:center;gap:.35rem;';
-      label.innerHTML = `<input type="checkbox" id="${id}" ${trend.enabled.has(chk.key)?'checked':''}> ${chk.label}`;
-      wrap.appendChild(label);
-      $(id).addEventListener('change', e => {
-        if (e.target.checked) trend.enabled.add(chk.key);
-        else trend.enabled.delete(chk.key);
-        rebuildTrendDatasets();
-      });
-    });
-    $('trend-pidpick').addEventListener('change', (e)=>{
-      trend.selectedPid = Number(e.target.value)||0;
-      rebuildTrendDatasets();
-    });
-    $('trend-autoscroll').addEventListener('change', e=> trend.autoscroll = !!e.target.checked);
-  })();
-
-  const ctx = $('trend-canvas').getContext('2d');
-  let trendChart = new Chart(ctx, {
-    type: 'line',
-    data: { datasets: [] },
-    options: {
-      animation: false,
-      responsive: true,
-      maintainAspectRatio: false,
-      parsing: false,
-      normalized: true,
-      interaction: { mode: 'nearest', axis: 'x', intersect: false },
-      plugins: { legend: { position: 'bottom' } },
-      scales: {
-        x: {
-          type: 'linear',
-          title: { display: true, text: 'Time (mm:ss)' },
-          ticks: { callback: (v)=> formatMsToMinSec(v) }
-        },
-        y: { title: { display: true, text: 'Value' } }
+      function appendLog(label, data) {
+        const logEl = $("log-content");
+        if (!logEl) return;
+        const time = new Date().toLocaleTimeString();
+        const line = `[${time}] ${label}: ` + (typeof data === "string" ? data : JSON.stringify(data));
+        logBuffer.unshift(line);
+        if (logBuffer.length > LOG_MAX) logBuffer.pop();
+        logEl.textContent = logBuffer.join("\n");
       }
-    }
-  });
 
-  function formatMsToMinSec(ms){
-    ms = Number(ms)||0;
-    const s = Math.floor(ms/1000);
-    const mm = String(Math.floor(s/60)).padStart(2,'0');
-    const ss = String(s%60).padStart(2,'0');
-    return `${mm}:${ss}`;
-  }
+      // Populate Modbus addresses
+      (function populateAddresses() {
+        const addrSelect = $("modbus-address");
+        if (!addrSelect) return;
+        for (let i = 1; i <= 255; i++) {
+          const opt = document.createElement("option");
+          opt.value = i;
+          opt.textContent = i;
+          if (i === 3) opt.selected = true;
+          addrSelect.appendChild(opt);
+        }
+      })();
 
-  const colorPool = [
-    '#0d6efd','#dc3545','#198754','#fd7e14','#6f42c1',
-    '#20c997','#d63384','#0dcaf0','#6c757d','#ffc107','#6610f2'
-  ];
-  function colorFor(i){ return colorPool[i % colorPool.length]; }
+      // WebSerial setup
+      const connection = SimpleWebSerial.setupSerialConnection({
+        requestAccessOnPageLoad: false,
+        requestElement: "connect-button"
+      });
 
-  function rebuildTrendDatasets(){
-    const keys = trend.checks.filter(c=>trend.enabled.has(c.key));
-    const datasets = keys.map((c, i)=>({
-      label: c.label,
-      data: trend.records.map(r=>({ x: r.t, y: safeNum(c.fn(r)) })),
-      borderColor: colorFor(i),
-      pointRadius: 0,
-      tension: 0.15
-    }));
-    trendChart.data.datasets = datasets;
-    trendChart.update('none');
-    updateTrendMeta();
-    maybeScroll();
-  }
+      // <<< MODIFIED: make this robust even if isOpen() is missing >>>
+      function updateResetEnabled() {
+        const btn = $("reset-button");
+        if (!btn) return;
+        let isOpen = false;
+        try {
+          if (typeof connection.isOpen === "function") {
+            isOpen = connection.isOpen();
+          } else if ("port" in connection) {
+            isOpen = !!connection.port;
+          }
+        } catch (e) {
+          isOpen = false;
+        }
+        btn.disabled = !isOpen;
+      }
 
-  function safeNum(v){ v = Number(v); return Number.isFinite(v) ? v : null; }
+      // Status handler
+      connection.on("status", (modbus) => {
+        $("live-address").textContent = modbus?.address ?? "--";
+        $("live-baud").textContent = modbus?.baud ?? "--";
+        if (modbus.address) $("modbus-address").value = modbus.address;
+        if (modbus.baud) $("modbus-baud").value = modbus.baud;
+        updateResetEnabled();
+      });
 
-  function setRecordsFromDump(list){
-    trend.records = Array.isArray(list) ? list.map(normalizeRec) : [];
-    dropToCapacity();
-    rebuildTrendDatasets();
-  }
-  function addRecordAppend(rec){
-    const n = normalizeRec(rec);
-    if (!n) return;
-    trend.records.push(n);
-    dropToCapacity();
-    trendChart.data.datasets.forEach((ds, i)=>{
-      const chk = trend.checks.filter(c=>trend.enabled.has(c.key))[i];
-      if (!chk) return;
-      ds.data.push({x: n.t, y: safeNum(chk.fn(n))});
-      if (ds.data.length > trend.capacity) ds.data.shift();
-    });
-    trendChart.update('none');
-    updateTrendMeta();
-    maybeScroll();
-  }
+      connection.on("open", updateResetEnabled);
+      connection.on("close", updateResetEnabled);
+      connection.on("message", (msg) => appendLog("AIO-422-R1", msg));
 
-  function normalizeRec(r){
-    if (!r) return null;
-    return {
-      t: Number(r.t)||0,
-      ai: Array.isArray(r.ai) ? r.ai.map(n=>Number(n)||0) : [0,0,0,0],
-      rtd: Array.isArray(r.rtd) ? r.rtd.map(n=>Number(n)||0) : [0,0],
-      ao: Array.isArray(r.ao) ? r.ao.map(n=>Number(n)||0) : [0,0],
-      pv: Array.isArray(r.pv) ? r.pv.map(n=>Number(n)||0) : [0,0,0,0],
-      sp: Array.isArray(r.sp) ? r.sp.map(n=>Number(n)||0) : [0,0,0,0],
-      out: Array.isArray(r.out) ? r.out.map(n=>Number(n)||0) : [0,0,0,0],
-    };
-  }
-  function dropToCapacity(){
-    const cap = trend.capacity || 360;
-    const extra = Math.max(0, trend.records.length - cap);
-    if (extra) trend.records.splice(0, extra);
-  }
-  function maybeScroll(){
-    if (!trend.autoscroll) return;
-    if (!trend.records.length) return;
-    const lastT = trend.records[trend.records.length-1].t;
-    trendChart.options.scales.x.min = Math.max(0, lastT - 30*60*1000);
-    trendChart.options.scales.x.max = lastT;
-    trendChart.update('none');
-  }
-  function updateTrendMeta(){
-    const el = $('trend-meta');
-    if (!el) return;
-    const n = trend.records.length;
-    const lastT = n ? trend.records[n-1].t : 0;
-    el.textContent = `Samples: ${n} / 360  •  Last @ ${formatMsToMinSec(lastT)}  •  Capacity: ${trend.capacity} (fw count=${trend.count}, windex=${trend.windex})`;
-  }
+      // Modbus config update
+      $("modbus-address").addEventListener("input", updateModbus);
+      $("modbus-baud").addEventListener("input", updateModbus);
 
-  // Trend controls
-  $('trend-refresh').addEventListener('click', requestTrendDump);
-  $('trend-clear').addEventListener('click', async ()=>{
-    await connection.send('command', { action:'trend_clear' });
-    appendLog('command','trend_clear');
-    trend.records = [];
-    rebuildTrendDatasets();
-  });
-  $('trend-info').addEventListener('click', requestTrendInfo);
+      async function updateModbus() {
+        await connection.send("values", {
+          mb_address: parseInt($("modbus-address").value),
+          mb_baud: parseInt($("modbus-baud").value)
+        });
+      }
 
-  function requestTrendDump(){ connection.send('command', { action:'trend_dump' }); appendLog('command','trend_dump'); }
-  function requestTrendInfo(){ connection.send('command', { action:'trend_info' }); appendLog('command','trend_info'); }
-  function requestTrendAll(){ requestTrendInfo(); requestTrendDump(); }
+      async function doReset() {
+        try {
+          await connection.send("command", { action: "reset" });
+          appendLog("System", "Reset command sent");
+          $("reset-button").disabled = true;
+          setTimeout(updateResetEnabled, 3000);
+        } catch (err) {
+          appendLog("Error", err.message || err);
+        }
+      }
 
-  // Trend events
-  connection.on('TrendInfo', (o)=>{
-    trend.capacity = Number(o?.capacity)||360;
-    trend.count    = Number(o?.count)||0;
-    trend.windex   = Number(o?.windex)||0;
-    updateTrendMeta();
-  });
-  connection.on('TrendFull', (list)=> setRecordsFromDump(list||[]));
-  connection.on('TrendAppend', (rec)=> addRecordAppend(rec||null));
+      // <<< ADDED: simple confirm handler for reset button >>>
+      (function setupResetButton() {
+        const resetBtn = $("reset-button");
+        if (!resetBtn) return;
+        resetBtn.addEventListener("click", () => {
+          if (resetBtn.disabled) {
+            appendLog("System", "Connect to the device before resetting.");
+            return;
+          }
+          if (confirm("Are you sure you want to reset the module?")) {
+            doReset();
+          }
+        });
+      })();
 
-  // Enable on connect
-  onPortStateChange();
-})();
-</script>
+      // Build Analog Input cards
+      (function buildAICards() {
+        const container = $("ai-cards");
+        for (let i = 0; i < NUM_AI; i++) {
+          const card = document.createElement("div");
+          card.innerHTML = `
+            <div style="border:1px solid #ccc;border-radius:6px;background:#e6f7e8;padding:1rem;">
+              <div style="display:flex;justify-content:space-between;font-weight:600;">
+                AI${i}
+                <span id="ai-dot-${i}"
+                      style="width:10px;height:10px;border-radius:50%;background:#ccc;display:inline-block;"></span>
+              </div>
+              <div style="margin-top:.5rem;font-size:.9rem;">
+                Raw: <span id="ai-raw-${i}">--</span><br>
+                Voltage: <span id="ai-volts-${i}">--</span> V
+              </div>
+            </div>`;
+          container.appendChild(card);
+        }
+      })();
+
+      // <<< ADDED: build DAC, RTD, Button, LED cards >>>
+      (function buildDacCards() {
+        const container = $("dac-cards");
+        if (!container) return;
+        for (let i = 0; i < NUM_DAC; i++) {
+          const card = document.createElement("div");
+          card.innerHTML = `
+            <div style="border:1px solid #ccc;border-radius:6px;background:#f1f1f1;padding:1rem;">
+              <div style="font-weight:600;margin-bottom:.5rem;">
+                AO${i}
+              </div>
+              <input type="range" min="0" max="4095" value="0"
+                     id="dac-slider-${i}"
+                     style="width:100%;">
+              <div style="display:flex;justify-content:space-between;font-size:.9rem;margin-top:.25rem;">
+                <span>Raw: <span id="dac-raw-${i}">0</span></span>
+                <span>≈ <span id="dac-volts-${i}">0.00</span> V</span>
+              </div>
+            </div>`;
+          container.appendChild(card);
+        }
+      })();
+
+      (function buildRtdCards() {
+        const container = $("rtd-cards");
+        if (!container) return;
+        for (let i = 0; i < 2; i++) {
+          const card = document.createElement("div");
+          card.innerHTML = `
+            <div style="border:1px solid #ccc;border-radius:6px;background:#fff3e0;padding:1rem;">
+              <div style="font-weight:600;margin-bottom:.5rem;">
+                RTD${i + 1}
+              </div>
+              <div style="font-size:.95rem;">
+                Temperature: <span id="rtd-temp-${i}">--</span> °C
+              </div>
+            </div>`;
+          container.appendChild(card);
+        }
+      })();
+
+      (function buildButtonCards() {
+        const container = $("buttons-cards");
+        if (!container) return;
+        for (let i = 0; i < NUM_BTN; i++) {
+          const card = document.createElement("div");
+          card.innerHTML = `
+            <div style="border:1px solid #ccc;border-radius:6px;background:#cbdcf7;padding:1rem;">
+              <div style="font-weight:600;">
+                Button ${i + 1}
+                <span id="btn-dot-${i}"
+                      style="width:12px;height:12px;border-radius:50%;background:#ccc;display:inline-block;float:right;"></span>
+              </div>
+            </div>`;
+          container.appendChild(card);
+        }
+      })();
+
+      (function buildLedCards() {
+        const container = $("leds-cards");
+        if (!container) return;
+        for (let i = 0; i < NUM_LED; i++) {
+          const card = document.createElement("div");
+          card.innerHTML = `
+            <div style="border:1px solid #ccc;border-radius:6px;background:#f3f5d0;padding:1rem;">
+              <div style="font-weight:600;">
+                LED ${i + 1}
+                <span id="led-dot-${i}"
+                      style="width:12px;height:12px;border-radius:50%;background:#ccc;display:inline-block;float:right;"></span>
+              </div>
+            </div>`;
+          container.appendChild(card);
+        }
+      })();
+      // <<< END of added builders >>>
+
+      // -------- AI handler (millivolt-based) --------
+      connection.on("aiValues", (list) => {
+        if (!Array.isArray(list)) return;
+
+        list.forEach((mv, i) => {
+          const mvNum = Number(mv);
+
+          const rawSpan = $("ai-raw-" + i);
+          const vSpan = $("ai-volts-" + i);
+          const dot = $("ai-dot-" + i);
+
+          if (rawSpan) rawSpan.textContent = isNaN(mvNum) ? "--" : mvNum + " mV";
+
+          const volts = mvNum / 1000;
+          if (vSpan && !isNaN(volts)) vSpan.textContent = volts.toFixed(3);
+
+          if (dot) dot.style.background = volts > 0.1 ? "#4caf50" : "#ccc";
+        });
+      });
+
+      // RTD handler
+      connection.on("rtdTemps_x10", (list) => {
+        if (!Array.isArray(list)) return;
+        list.forEach((t10, i) => {
+          const span = $("rtd-temp-"+i);
+          const val = Number(t10);
+          if (!span) return;
+          span.textContent = isNaN(val) ? "--" : (val/10).toFixed(1);
+        });
+      });
+
+      // DAC handler
+      connection.on("dacValues", (list) => {
+        if (!Array.isArray(list)) return;
+        list.forEach((v,i)=>{
+          const val = Number(v)||0;
+          dacValues[i] = val;
+          const slider = $("dac-slider-"+i);
+          const rawEl  = $("dac-raw-"+i);
+          const vEl    = $("dac-volts-"+i);
+          if (slider) slider.value = val;
+          if (rawEl) rawEl.textContent = val;
+          if (vEl) vEl.textContent = (val/4095*10).toFixed(2);
+        });
+      });
+
+      // Button and LED handlers
+      connection.on("ButtonStateList", (list) => {
+        if (!Array.isArray(list)) return;
+        list.forEach((v,i)=>{
+          const dot = $("btn-dot-"+i);
+          if (dot) dot.style.background = v ? "#4caf50" : "#ccc";
+        });
+      });
+
+      connection.on("LedStateList", (list) => {
+        if (!Array.isArray(list)) return;
+        list.forEach((v,i)=>{
+          const dot = $("led-dot-"+i);
+          if (dot) dot.style.background = v ? "#ffb300" : "#ccc";
+        });
+      });
+
+      // DAC slider → send
+      for (let i=0;i<NUM_DAC;i++) {
+        const slider = $("dac-slider-"+i);
+        if (!slider) continue;
+        slider.addEventListener("input", ()=>{
+          const val = Number(slider.value);
+          dacValues[i] = val;
+          const rawEl = $("dac-raw-"+i);
+          const vEl   = $("dac-volts-"+i);
+          if (rawEl) rawEl.textContent = val;
+          if (vEl) vEl.textContent = (val/4095*10).toFixed(2);
+        });
+
+        slider.addEventListener("change", async ()=>{
+          await connection.send("dac", { list: dacValues });
+          appendLog("UI", "DAC update: "+JSON.stringify(dacValues));
+        });
+      }
+    })();
+  </script>
+</section>

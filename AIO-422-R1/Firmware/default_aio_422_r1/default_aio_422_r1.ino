@@ -1,150 +1,128 @@
-// ---- FIX for Arduino auto-prototype: make PersistConfig visible to auto-prototypes
-struct PersistConfig;
-
-// ==== AIO-422-R1 (RP2350 ONLY) ====
-// ADS1115 via ADS1X15.h on Wire1 (SDA=6, SCL=7), 4ch analog (reported as field 0–10V mV)
-// + TWO MAX31865 RTD channels over SOFTWARE SPI (CS/DI/DO/CLK)
-// + TWO MCP4725 12-bit DACs on Wire1 (0x61 and 0x60) -> post-amp to field 0–10V
-// WebSerial UI, Modbus RTU, LittleFS persistence
-// Buttons: GPIO22..25, LEDs: GPIO18..21
-// =========================================================================
+// ==== AIO-422-R1 (RP2350) SIMPLE FW ====
+// 4x AI via ADS1115 (ADS1X15.h) on Wire1 (SDA=6, SCL=7)
+// 2x AO via 2x MCP4725 on Wire1 (0x60,0x61)
+// 2x RTD via 2x MAX31865 over SOFTWARE SPI (CS1=13, CS2=14, DI=11, DO=12, CLK=10)
+// 4x Buttons (GPIO22..25), 4x LEDs (GPIO18..21)
+// WebSerial + Modbus RTU + LittleFS persistence of Modbus/DAC
 
 #include <Arduino.h>
 #include <Wire.h>
 #include <ADS1X15.h>
-#include <Adafruit_MAX31865.h>
 #include <Adafruit_MCP4725.h>
+#include <Adafruit_MAX31865.h>
+
 #include <ModbusSerial.h>
 #include <SimpleWebSerial.h>
 #include <Arduino_JSON.h>
 #include <LittleFS.h>
 #include <utility>
+#include <math.h>                 // for roundf / lroundf
 #include "hardware/watchdog.h"
-#include <math.h>
 
-// ================== Hardware pins ==================
-#define LED_ACTIVE_LOW     0
-#define BUTTON_USES_PULLUP 0
+// ================== UART2 (RS-485 / Modbus) ==================
+#define TX2   4
+#define RX2   5
+const int TxenPin = -1;   // -1 if RS-485 TXEN not used
+int SlaveId = 1;
+ModbusSerial mb(Serial2, SlaveId, TxenPin);
 
-const uint8_t LED_PINS[4]    = {18,19,20,21};
-const uint8_t BUTTON_PINS[4] = {22,23,24,25};
+// ================== GPIO MAP ==================
+static const uint8_t LED_PINS[4] = {18, 19, 20, 21};
+static const uint8_t BTN_PINS[4] = {22, 23, 24, 25};
 
-// I2C pins (ADS1115 + both MCP4725) on Wire1
+static const uint8_t NUM_LED = 4;
+static const uint8_t NUM_BTN = 4;
+
+// ================== I2C / SPI PINS (MATCH WORKING FW) ==================
+// I2C on Wire1
 #define SDA1 6
 #define SCL1 7
 
-// SOFTWARE SPI pins for MAX31865 (DI=MOSI, DO=MISO, CLK=SCK)
+// SOFTWARE SPI pins for MAX31865 (like working firmware)
 #define RTD1_CS   13
 #define RTD2_CS   14
 #define RTD_DI    11
 #define RTD_DO    12
 #define RTD_CLK   10
 
-// RTD parameters
-static const float RTD_NOMINAL_OHMS = 100.0f;   // PT100
-static const float RTD_REF_OHMS     = 400.0f;   // FieldBoard
-static const max31865_numwires_t RTD_WIRES = MAX31865_3WIRE;
-
-// MCP4725 parameters (chip side 0–5V, post-amp → 0–10V)
-#define MCP4725_ADDR0  0x61   // AO1_DAC
-#define MCP4725_ADDR1  0x60   // AO0_DAC
-#define DAC_VREF_MV    5000
-
-// DAC post-amp gain (≈×2)
-#ifndef DAC_POSTAMP_GAIN_NUM
-#define DAC_POSTAMP_GAIN_NUM 2
-#define DAC_POSTAMP_GAIN_DEN 1
-#endif
-#define DAC_GAIN_MULT      ((float)DAC_POSTAMP_GAIN_NUM / (float)DAC_POSTAMP_GAIN_DEN)
-#define DAC_FIELD_VREF_MV  ((uint16_t)lroundf((float)DAC_VREF_MV * DAC_GAIN_MULT)) // 10000 mV nominal
-
-// ADC field scaling (front-end attenuates 0–10V → ~0–3.3V at ADS input)
-#ifndef ADC_FIELD_SCALE_NUM
-#define ADC_FIELD_SCALE_NUM 30303   // 3.0303 * 10000
-#define ADC_FIELD_SCALE_DEN 10000
-#endif
-#define ADC_FIELD_SCALE ((float)ADC_FIELD_SCALE_NUM / (float)ADC_FIELD_SCALE_DEN)
-
-// ================== Modbus / RS-485 ==================
-#define TX2 4
-#define RX2 5
-const int TxenPin = -1;   // set to your DE/RE GPIO if needed
-int SlaveId = 1;
-ModbusSerial mb(Serial2, SlaveId, TxenPin);
-
-// ================== ADS1115 (ADS1X15) ==================
+// ================== Sensors / IO devices ==================
+// ADS1115 via ADS1X15.h, on Wire1 at 0x48
 ADS1115 ads(0x48, &Wire1);
-uint8_t  ads_gain = 1;      // ±4.096V (good for ~0..3.3V)
-uint8_t  ads_data_rate = 4; // 128 SPS
-uint16_t sample_ms = 50;
 
-// ================== MAX31865 (2x RTD, SOFTWARE SPI) ==================
+// MCP4725 DACs (0x60, 0x61) on Wire1
+Adafruit_MCP4725 dac0;                // 0x60
+Adafruit_MCP4725 dac1;                // 0x61
+
+// MAX31865 RTDs via SOFTWARE SPI
 Adafruit_MAX31865 rtd1(RTD1_CS, RTD_DI, RTD_DO, RTD_CLK);
 Adafruit_MAX31865 rtd2(RTD2_CS, RTD_DI, RTD_DO, RTD_CLK);
 
-// ================== MCP4725 DACs ==================
-Adafruit_MCP4725 dac0;  // 0x61
-Adafruit_MCP4725 dac1;  // 0x60
-uint16_t dac_raw[2] = {0, 0};  // 0..4095
+// Flags for successful init
+bool ads_ok     = false;
+bool dac_ok[2]  = {false, false};
+bool rtd_ok[2]  = {false, false};
 
-// ================== Buttons & LEDs config ==================
-struct LedCfg   { uint8_t mode;   uint8_t source; };
-struct ButtonCfg{ uint8_t action; };
+// RTD parameters (from schematic: Rref = 400Ω, PT100 assumed)
+const float RTD_RREF      = 400.0f;
+const float RTD_RNOMINAL  = 100.0f;
+const max31865_numwires_t RTD_WIRES = MAX31865_3WIRE;  // same as working FW
 
-LedCfg    ledCfg[4];
-ButtonCfg buttonCfg[4];
+// ================== ADC field scaling ==================
+// Front-end attenuates 0–10V field → ~0–3.3V at ADS input
+// So field ≈ ADC * 10/3.3 ≈ 3.0303 × ADC
+#define ADC_FIELD_SCALE_NUM 30303   // 3.0303 * 10000
+#define ADC_FIELD_SCALE_DEN 10000
+#define ADC_FIELD_SCALE ((float)ADC_FIELD_SCALE_NUM / (float)ADC_FIELD_SCALE_DEN)
 
-bool      ledManual[4] = {false,false,false,false};
-bool      ledPhys[4]   = {false,false,false,false};
+// ================== Runtime state ==================
+bool buttonState[NUM_BTN] = {false,false,false,false};
+bool buttonPrev[NUM_BTN]  = {false,false,false,false};
+bool ledState[NUM_LED]    = {false,false,false,false};
 
-// Button runtime
-constexpr unsigned long BTN_DEBOUNCE_MS = 30;
-bool buttonState[4]      = {false,false,false,false};
-bool buttonPrev[4]       = {false,false,false,false};
-unsigned long btnChangeAt[4] = {0,0,0,0};
+int16_t  aiRaw[4]   = {0,0,0,0};      // ADS1115 raw codes
+uint16_t aiMv[4]    = {0,0,0,0};      // field mV (0..10000)
+int16_t  rtdTemp_x10[2] = {0,0};      // temperature *10 °C
+
+// DAC raw values (0..4095)
+uint16_t dacRaw[2] = {0,0};
 
 // ================== Web Serial ==================
 SimpleWebSerial WebSerial;
 JSONVar modbusStatus;
 
 // ================== Timing ==================
-unsigned long lastSend = 0;
-const unsigned long sendInterval = 500;
-unsigned long lastBlinkToggle = 0;
-const unsigned long blinkPeriodMs = 500;
-bool blinkPhase = false;
-unsigned long lastSample = 0;
-bool samplingTick = false;
+unsigned long lastSend       = 0;
+const unsigned long sendInterval   = 250;
 
-// ================== Persisted settings ==================
+unsigned long lastSensorRead = 0;
+const unsigned long sensorInterval = 200;
+
+// ================== Persisted Modbus settings ==================
 uint8_t  g_mb_address = 3;
 uint32_t g_mb_baud    = 19200;
 
-// Full definition (appears after the forward declaration)
+// ================== Persistence (LittleFS) ==================
 struct PersistConfig {
-  uint32_t magic;       // 'A422'
+  uint32_t magic;
   uint16_t version;
   uint16_t size;
+
+  uint16_t dacRaw[2];
   uint8_t  mb_address;
   uint32_t mb_baud;
-  uint8_t  ads_gain;
-  uint8_t  ads_data_rate;
-  uint16_t sample_ms;
-  LedCfg   ledCfg[4];
-  ButtonCfg buttonCfg[4];
-  uint16_t dac_raw[2];
+
   uint32_t crc32;
 } __attribute__((packed));
 
-static const uint32_t CFG_MAGIC   = 0x32323441UL; // 'A422'
-static const uint16_t CFG_VERSION = 0x000B;       // version after removing PID & trends
-static const char*    CFG_PATH    = "/aio422.bin";
+static const uint32_t CFG_MAGIC   = 0x314F4941UL; // 'AIO1'
+static const uint16_t CFG_VERSION = 0x0001;
+static const char*    CFG_PATH    = "/cfg.bin";
 
-volatile bool   cfgDirty        = false;
-uint32_t        lastCfgTouchMs  = 0;
-const uint32_t  CFG_AUTOSAVE_MS = 1200;
+volatile bool  cfgDirty        = false;
+uint32_t       lastCfgTouchMs  = 0;
+const uint32_t CFG_AUTOSAVE_MS = 1500;
 
-// ================== CRC32 ==================
+// ================== Utils ==================
 uint32_t crc32_update(uint32_t crc, const uint8_t* data, size_t len) {
   crc = ~crc;
   while (len--) {
@@ -155,136 +133,149 @@ uint32_t crc32_update(uint32_t crc, const uint8_t* data, size_t len) {
   return ~crc;
 }
 
-// ---- local clamp helper for Arduino builds (int range)
-static inline int clampi(int v, int lo, int hi){
-  if(v < lo) return lo;
-  if(v > hi) return hi;
-  return v;
+inline bool timeAfter32(uint32_t a, uint32_t b) {
+  return (int32_t)(a - b) >= 0;
 }
 
-inline bool readPressed(int i){
-#if BUTTON_USES_PULLUP
-  return digitalRead(BUTTON_PINS[i]) == LOW;
-#else
-  return digitalRead(BUTTON_PINS[i]) == HIGH;
-#endif
-}
-
-// ================== Defaults ==================
+// ================== Defaults / persist ==================
 void setDefaults() {
-  g_mb_address   = 3;
-  g_mb_baud      = 19200;
-  ads_gain       = 1;
-  ads_data_rate  = 4;
-  sample_ms      = 50;
-  dac_raw[0]     = 0;
-  dac_raw[1]     = 0;
+  for (int i=0;i<NUM_LED;i++) { ledState[i] = false; }
+  for (int i=0;i<NUM_BTN;i++) { buttonState[i] = buttonPrev[i] = false; }
 
-  for (int i=0;i<4;i++) {
-    ledCfg[i].mode = 0;
-    ledCfg[i].source = (i==0) ? 1 : 0; // LED0 heartbeat
-    buttonCfg[i].action = 0;
-    ledManual[i] = false;
-  }
+  dacRaw[0] = 0;
+  dacRaw[1] = 0;
+
+  g_mb_address = 3;
+  g_mb_baud    = 19200;
 }
 
 void captureToPersist(PersistConfig &pc) {
   pc.magic   = CFG_MAGIC;
   pc.version = CFG_VERSION;
   pc.size    = sizeof(PersistConfig);
-  pc.mb_address   = g_mb_address;
-  pc.mb_baud      = g_mb_baud;
-  pc.ads_gain     = ads_gain;
-  pc.ads_data_rate= ads_data_rate;
-  pc.sample_ms    = sample_ms;
-  memcpy(pc.ledCfg,   ledCfg,   sizeof(ledCfg));
-  memcpy(pc.buttonCfg,buttonCfg,sizeof(buttonCfg));
-  pc.dac_raw[0] = dac_raw[0];
-  pc.dac_raw[1] = dac_raw[1];
+
+  pc.dacRaw[0] = dacRaw[0];
+  pc.dacRaw[1] = dacRaw[1];
+
+  pc.mb_address = g_mb_address;
+  pc.mb_baud    = g_mb_baud;
+
   pc.crc32 = 0;
-  pc.crc32 = crc32_update(0, reinterpret_cast<const uint8_t*>(&pc), sizeof(PersistConfig));
+  pc.crc32 = crc32_update(0, (const uint8_t*)&pc, sizeof(PersistConfig));
 }
 
 bool applyFromPersist(const PersistConfig &pc) {
-  if (pc.magic != CFG_MAGIC) return false;
+  if (pc.magic != CFG_MAGIC || pc.size != sizeof(PersistConfig)) return false;
+
+  PersistConfig tmp = pc;
+  uint32_t crc = tmp.crc32;
+  tmp.crc32 = 0;
+  if (crc32_update(0, (const uint8_t*)&tmp, sizeof(PersistConfig)) != crc) return false;
   if (pc.version != CFG_VERSION) return false;
-  if (pc.size != sizeof(PersistConfig)) return false;
-  PersistConfig tmp = pc; uint32_t crc = tmp.crc32; tmp.crc32 = 0;
-  if (crc32_update(0, reinterpret_cast<const uint8_t*>(&tmp), sizeof(PersistConfig)) != crc)
-    return false;
-  g_mb_address   = pc.mb_address;
-  g_mb_baud      = pc.mb_baud;
-  ads_gain       = pc.ads_gain;
-  ads_data_rate  = pc.ads_data_rate;
-  sample_ms      = pc.sample_ms;
-  memcpy(ledCfg,    pc.ledCfg,    sizeof(ledCfg));
-  memcpy(buttonCfg, pc.buttonCfg, sizeof(buttonCfg));
-  dac_raw[0] = pc.dac_raw[0];
-  dac_raw[1] = pc.dac_raw[1];
-  for (int i=0;i<4;i++) ledManual[i] = false;
+
+  dacRaw[0] = pc.dacRaw[0];
+  dacRaw[1] = pc.dacRaw[1];
+
+  g_mb_address = pc.mb_address;
+  g_mb_baud    = pc.mb_baud;
+
   return true;
 }
 
 bool saveConfigFS() {
-  PersistConfig pc{}; captureToPersist(pc);
-  File f = LittleFS.open(CFG_PATH, "w"); if (!f) return false;
-  size_t n = f.write(reinterpret_cast<const uint8_t*>(&pc), sizeof(pc)); f.close();
-  return n == sizeof(pc);
+  PersistConfig pc{};
+  captureToPersist(pc);
+
+  File f = LittleFS.open(CFG_PATH, "w");
+  if (!f) { WebSerial.send("message", "save: open failed"); return false; }
+  size_t n = f.write((const uint8_t*)&pc, sizeof(pc));
+  f.flush();
+  f.close();
+  if (n != sizeof(pc)) {
+    WebSerial.send("message", String("save: short write ")+n);
+    return false;
+  }
+
+  // quick verify
+  File r = LittleFS.open(CFG_PATH, "r");
+  if (!r) { WebSerial.send("message", "save: reopen failed"); return false; }
+  if ((size_t)r.size() != sizeof(PersistConfig)) {
+    WebSerial.send("message", "save: size mismatch after write");
+    r.close();
+    return false;
+  }
+  PersistConfig back{};
+  size_t nr = r.read((uint8_t*)&back, sizeof(back));
+  r.close();
+  if (nr != sizeof(back)) {
+    WebSerial.send("message", "save: short readback");
+    return false;
+  }
+  PersistConfig tmp = back;
+  uint32_t crc = tmp.crc32;
+  tmp.crc32 = 0;
+  if (crc32_update(0, (const uint8_t*)&tmp, sizeof(tmp)) != crc) {
+    WebSerial.send("message", "save: CRC verify failed");
+    return false;
+  }
+  return true;
 }
 
 bool loadConfigFS() {
-  File f = LittleFS.open(CFG_PATH, "r"); if (!f) return false;
-  if (f.size() != sizeof(PersistConfig)) { f.close(); return false; }
-  PersistConfig pc{}; size_t n = f.read(reinterpret_cast<uint8_t*>(&pc), sizeof(pc)); f.close();
-  if (n != sizeof(pc)) return false;
-  return applyFromPersist(pc);
+  File f = LittleFS.open(CFG_PATH, "r");
+  if (!f) { WebSerial.send("message", "load: open failed"); return false; }
+  if (f.size() != sizeof(PersistConfig)) {
+    WebSerial.send("message", String("load: size ")+f.size()+" != "+sizeof(PersistConfig));
+    f.close();
+    return false;
+  }
+  PersistConfig pc{};
+  size_t n = f.read((uint8_t*)&pc, sizeof(pc));
+  f.close();
+  if (n != sizeof(pc)) { WebSerial.send("message", "load: short read"); return false; }
+  if (!applyFromPersist(pc)) { WebSerial.send("message", "load: magic/version/crc mismatch"); return false; }
+  return true;
 }
 
-// ================== Modbus maps ==================
-enum : uint16_t {
-  // ADS1115
-  IREG_RAW_BASE     = 100,   // 100..103 : raw counts (int16) ch0..ch3
-  IREG_MV_BASE      = 120,   // 120..123 : field millivolts (uint16) ch0..ch3
+// ================== Guarded FS init ==================
+bool initFilesystemAndConfig() {
+  if (!LittleFS.begin()) {
+    WebSerial.send("message", "LittleFS mount failed. Formatting…");
+    if (!LittleFS.format() || !LittleFS.begin()) {
+      WebSerial.send("message", "FATAL: FS mount/format failed");
+      return false;
+    }
+  }
 
-  // MAX31865 RTD
-  IREG_RTD_C_BASE     = 140,   // 140..141 : temperature °C x100 (int16)
-  IREG_RTD_OHM_BASE   = 150,   // 150..151 : resistance ohms x100 (uint16)
-  IREG_RTD_FAULT_BASE = 160,   // 160..161 : fault bitmask (uint16)
+  if (loadConfigFS()) {
+    WebSerial.send("message", "Config loaded from flash");
+    return true;
+  }
 
-  // MCP4725 DACs (field side mV)
-  IREG_DAC_MV_BASE  = 180,   // 180..181 : DAC field outputs in mV (uint16, 0–10000)
+  WebSerial.send("message", "No valid config. Using defaults.");
+  setDefaults();
+  if (saveConfigFS()) {
+    WebSerial.send("message", "Defaults saved");
+    return true;
+  }
 
-  // Existing config (kept)
-  HREG_GAIN         = 200,
-  HREG_DRATE        = 201,
-  HREG_SMPLL_MS     = 202,
-  HREG_DAC0_RAW     = 210,
-  HREG_DAC1_RAW     = 211,
+  WebSerial.send("message", "First save failed. Formatting FS…");
+  if (!LittleFS.format() || !LittleFS.begin()) {
+    WebSerial.send("message", "FATAL: FS mount/format failed");
+    return false;
+  }
 
-  // Discrete
-  ISTS_LED_BASE     = 300,
-  ISTS_BTN_BASE     = 320,
-  ISTS_RTD_BASE     = 360,
+  setDefaults();
+  if (saveConfigFS()) {
+    WebSerial.send("message", "FS formatted and config saved");
+    return true;
+  }
 
-  // Coils
-  COIL_LEDTEST      = 400,
-  COIL_SAVE_CFG     = 401,
-  COIL_REBOOT       = 402,
-  COIL_DAC0_EESAVE  = 403,
-  COIL_DAC1_EESAVE  = 404
-};
-
-// ================== Helpers ==================
-void setLedPhys(uint8_t idx, bool on){
-#if LED_ACTIVE_LOW
-  digitalWrite(LED_PINS[idx], on ? LOW : HIGH);
-#else
-  digitalWrite(LED_PINS[idx], on ? HIGH : LOW);
-#endif
-  ledPhys[idx] = on;
-  mb.setIsts(ISTS_LED_BASE + idx, on);
+  WebSerial.send("message", "FATAL: save still failing after format");
+  return false;
 }
 
+// ================== SFINAE helper for ModbusSerial ==================
 template <class M>
 inline auto setSlaveIdIfAvailable(M& m, uint8_t id)
   -> decltype(std::declval<M&>().setSlaveId(uint8_t{}), void()) { m.setSlaveId(id); }
@@ -292,12 +283,77 @@ inline void setSlaveIdIfAvailable(...) {}
 
 void applyModbusSettings(uint8_t addr, uint32_t baud) {
   if ((uint32_t)modbusStatus["baud"] != baud) {
-    Serial2.end(); Serial2.begin(baud); mb.config(baud);
+    Serial2.end();
+    Serial2.begin(baud);
+    mb.config(baud);
   }
   setSlaveIdIfAvailable(mb, addr);
-  g_mb_address = addr; g_mb_baud = baud;
+  g_mb_address = addr;
+  g_mb_baud    = baud;
   modbusStatus["address"] = g_mb_address;
   modbusStatus["baud"]    = g_mb_baud;
+}
+
+// ================== Modbus map ==================
+enum : uint16_t {
+  ISTS_BTN_BASE   = 1,     // 1..4  : buttons
+  ISTS_LED_BASE   = 20,    // 20..23: LED states
+
+  IREG_AI_BASE     = 100,  // 100..103: ADS1115 raw counts (int16)
+  IREG_TEMP_BASE   = 120,  // 120..121: RTD temps *10°C (signed)
+  IREG_AI_MV_BASE  = 140,  // 140..143: AI field mV (0..10000)
+
+  HREG_DAC_BASE    = 200   // 200..201: DAC raw value 0..4095
+};
+
+// ================== Fw decls ==================
+void handleValues(JSONVar values);
+void handleCommand(JSONVar obj);
+void handleDac(JSONVar obj);
+void performReset();
+void sendAllEchoesOnce();
+void writeDac(int idx, uint16_t value);
+void readSensors();
+
+// ================== Command handler / reset ==================
+void handleCommand(JSONVar obj) {
+  const char* actC = (const char*)obj["action"];
+  if (!actC) { WebSerial.send("message", "command: missing 'action'"); return; }
+  String act = String(actC);
+  act.toLowerCase();
+
+  if (act == "reset" || act == "reboot") {
+    bool ok = saveConfigFS();
+    WebSerial.send("message", ok ? "Saved. Rebooting…" : "WARNING: Save verify FAILED. Rebooting anyway…");
+    delay(400);
+    performReset();
+  } else if (act == "save") {
+    if (saveConfigFS()) WebSerial.send("message", "Configuration saved");
+    else               WebSerial.send("message", "ERROR: Save failed");
+  } else if (act == "load") {
+    if (loadConfigFS()) {
+      WebSerial.send("message", "Configuration loaded");
+      applyModbusSettings(g_mb_address, g_mb_baud);
+      writeDac(0, dacRaw[0]);
+      writeDac(1, dacRaw[1]);
+      sendAllEchoesOnce();
+    } else {
+      WebSerial.send("message", "ERROR: Load failed/invalid");
+    }
+  } else if (act == "factory") {
+    setDefaults();
+    if (saveConfigFS()) {
+      WebSerial.send("message", "Factory defaults restored & saved");
+      applyModbusSettings(g_mb_address, g_mb_baud);
+      writeDac(0, dacRaw[0]);
+      writeDac(1, dacRaw[1]);
+      sendAllEchoesOnce();
+    } else {
+      WebSerial.send("message", "ERROR: Save after factory reset failed");
+    }
+  } else {
+    WebSerial.send("message", String("Unknown command: ") + actC);
+  }
 }
 
 void performReset() {
@@ -307,191 +363,92 @@ void performReset() {
   while (true) { __asm__("wfi"); }
 }
 
-// ---- WebSerial echo (minimal) ----
-void sendStatusEcho() {
-  modbusStatus["address"] = g_mb_address;
-  modbusStatus["baud"]    = g_mb_baud;
-  WebSerial.send("status", modbusStatus);
-}
-void sendAdsEcho() {
-  JSONVar adsEcho;
-  adsEcho["gainIndex"]     = ads_gain;
-  adsEcho["dataRateIndex"] = ads_data_rate;
-  adsEcho["sample_ms"]     = sample_ms;
-  WebSerial.send("ADS", adsEcho);
-}
-void sendDacEcho() {
-  JSONVar obj;
-  JSONVar rawArr; rawArr[0] = dac_raw[0]; rawArr[1] = dac_raw[1];
-  JSONVar mvArr;
-  mvArr[0] = (uint16_t)lroundf((float)dac_raw[0] * (float)DAC_FIELD_VREF_MV / 4095.0f);
-  mvArr[1] = (uint16_t)lroundf((float)dac_raw[1] * (float)DAC_FIELD_VREF_MV / 4095.0f);
-  obj["raw"] = rawArr;
-  obj["mv"]  = mvArr;
-  WebSerial.send("DAC", obj);
-}
-JSONVar LedConfigListFromCfg() {
-  JSONVar arr;
-  for (int i = 0; i < 4; i++) { JSONVar o; o["mode"]=ledCfg[i].mode; o["source"]=ledCfg[i].source; arr[i]=o; }
-  return arr;
-}
-
-void sendAllEchoesOnce() {
-  sendStatusEcho(); sendAdsEcho(); sendDacEcho();
-  JSONVar btnCfg; for(int i=0;i<4;i++) btnCfg[i]=buttonCfg[i].action;
-  WebSerial.send("ButtonConfigList", btnCfg);
-  WebSerial.send("LedConfigList", LedConfigListFromCfg());
-  JSONVar btnState; for(int i=0;i<4;i++) btnState[i]=buttonState[i];
-  WebSerial.send("ButtonStateList", btnState);
-  JSONVar ledState; for(int i=0;i<4;i++) ledState[i]=ledPhys[i];
-  WebSerial.send("LedStateList", ledState);
-}
-
-void sendSamplesEcho(const int16_t raw[4], const uint16_t mv[4]) {
-  JSONVar smp; for (int i=0;i<4;i++){ smp["raw"][i] = raw[i]; smp["mv"][i] = mv[i]; }
-  WebSerial.send("AIO_Samples", smp);
-}
-
-void sendRTDEcho(const int16_t c_x100[2], const uint16_t ohm_x100[2], const uint16_t fault[2]) {
-  JSONVar obj;
-  for (int i=0;i<2;i++) { obj["c"][i]=c_x100[i]; obj["ohm"][i]=ohm_x100[i]; obj["fault"][i]=fault[i]; }
-  WebSerial.send("AIO_RTD", obj);
-}
-
-// ---- WebSerial handlers (no PID, no Trend) ----
+// ================== WebSerial handlers ==================
 void handleValues(JSONVar values) {
   int addr = (int)values["mb_address"];
   int baud = (int)values["mb_baud"];
   addr = constrain(addr, 1, 255);
   baud = constrain(baud, 9600, 115200);
+
   applyModbusSettings((uint8_t)addr, (uint32_t)baud);
   WebSerial.send("message", "Modbus configuration updated");
-  cfgDirty = true; lastCfgTouchMs = millis();
+
+  cfgDirty = true;
+  lastCfgTouchMs = millis();
 }
 
-void handleUnifiedConfig(JSONVar obj) {
-  const char* t = (const char*)obj["t"];
-  if (!t) { WebSerial.send("message", "Config: missing 't'"); return; }
-  String type = String(t);
-  bool changed = false;
+// expects: { "list":[dac0,dac1] } values 0..4095
+void handleDac(JSONVar obj) {
+  JSONVar list = obj["list"];
+  if (JSON.typeof(list) != "array") return;
 
-  if (type == "ads") {
-    JSONVar cfg = obj["cfg"];
-    int g  = (int)cfg["gainIndex"];
-    int dr = (int)cfg["dataRateIndex"];
-    int sm = (int)cfg["sample_ms"];
-    ads_gain      = (uint8_t)constrain(g,  0, 5);
-    ads_data_rate = (uint8_t)constrain(dr, 0, 7);
-    sample_ms     = (uint16_t)constrain(sm,10,5000);
-    ads.setGain(ads_gain);
-    ads.setDataRate(ads_data_rate);
-    mb.Hreg(HREG_GAIN, ads_gain);
-    mb.Hreg(HREG_DRATE, ads_data_rate);
-    mb.Hreg(HREG_SMPLL_MS, sample_ms);
-    sendAdsEcho();
-    WebSerial.send("message", "ADS configuration updated");
-    changed = true;
+  uint32_t now = millis();
 
-  } else if (type == "dac") {
-    JSONVar cfg = obj["cfg"];
-    int idx = (cfg.hasOwnProperty("idx")) ? (int)cfg["idx"] : 0;
-    idx = constrain(idx, 0, 1);
-    int raw = (int)cfg["raw"];
-    if (idx == 0) {
-      dac_raw[0] = (uint16_t)constrain(raw, 0, 4095);
-      dac0.setVoltage(dac_raw[0], false);
-      mb.Hreg(HREG_DAC0_RAW, dac_raw[0]);
-      mb.Ireg(IREG_DAC_MV_BASE + 0, (uint16_t)lroundf((float)dac_raw[0] * (float)DAC_FIELD_VREF_MV / 4095.0f));
-    } else {
-      dac_raw[1] = (uint16_t)constrain(raw, 0, 4095);
-      dac1.setVoltage(dac_raw[1], false);
-      mb.Hreg(HREG_DAC1_RAW, dac_raw[1]);
-      mb.Ireg(IREG_DAC_MV_BASE + 1, (uint16_t)lroundf((float)dac_raw[1] * (float)DAC_FIELD_VREF_MV / 4095.0f));
-    }
-    sendDacEcho();
-    WebSerial.send("message", "DAC updated");
-    changed = true;
-
-  } else if (type == "buttons") {
-    JSONVar list = obj["list"];
-    for (int i=0;i<4 && i<list.length();i++) buttonCfg[i].action = (uint8_t)constrain((int)list[i]["action"], 0, 8);
-    WebSerial.send("message", "Buttons configuration updated");
-    JSONVar btnCfg; for(int i=0;i<4;i++) btnCfg[i]=buttonCfg[i].action;
-    WebSerial.send("ButtonConfigList", btnCfg);
-    changed = true;
-
-  } else if (type == "leds") {
-    JSONVar list = obj["list"];
-    for (int i=0;i<4 && i<list.length();i++) {
-      ledCfg[i].mode   = (uint8_t)constrain((int)list[i]["mode"],   0, 1);
-      ledCfg[i].source = (uint8_t)constrain((int)list[i]["source"], 0, 7);
-    }
-    WebSerial.send("message", "LEDs configuration updated");
-    WebSerial.send("LedConfigList", LedConfigListFromCfg());
-    changed = true;
-
-  } else {
-    WebSerial.send("message", String("Unknown Config type: ") + t);
+  for (int i = 0; i < 2 && i < (int)list.length(); i++) {
+    long v = (long)list[i];
+    v = constrain(v, 0L, 4095L);
+    dacRaw[i] = (uint16_t)v;
+    writeDac(i, dacRaw[i]);
+    mb.Hreg(HREG_DAC_BASE + i, dacRaw[i]);
   }
 
-  if (changed) { cfgDirty = true; lastCfgTouchMs = millis(); }
+  cfgDirty       = true;
+  lastCfgTouchMs = now;
+  WebSerial.send("message", "DAC values updated");
 }
 
-// Commands
-void handleCommand(JSONVar obj) {
-  const char* actC = (const char*)obj["action"];
-  if (!actC) { WebSerial.send("message", "command: missing 'action'"); return; }
-  String act = String(actC); act.toLowerCase();
+// ================== DAC write helper ==================
+void writeDac(int idx, uint16_t value) {
+  if (idx == 0 && dac_ok[0]) {
+    dac0.setVoltage(value, false);
+  } else if (idx == 1 && dac_ok[1]) {
+    dac1.setVoltage(value, false);
+  }
+}
 
-  if (act == "reset" || act == "reboot") {
-    saveConfigFS();
-    WebSerial.send("message", "Rebooting…");
-    delay(120);
-    performReset();
+// ================== Sensor read helper ==================
+void readSensors() {
+  // --- Analog inputs via ADS1115 (ADS1X15) ---
+  if (ads_ok) {
+    for (int ch=0; ch<4; ch++) {
+      int16_t raw = ads.readADC(ch);      // single-ended channel ch
+      aiRaw[ch] = raw;
 
-  } else if (act == "save") {
-    if (saveConfigFS()) WebSerial.send("message", "Configuration saved");
-    else                WebSerial.send("message", "ERROR: Save failed");
+      // Convert to volts at ADS pin, then to field mV (0–10V)
+      float v_adc   = ads.toVoltage(raw);         // V at ADC input
+      float v_field = v_adc * ADC_FIELD_SCALE;    // V at field side
+      long  mv      = lroundf(v_field * 1000.0f); // mV
 
-  } else if (act == "load") {
-    if (loadConfigFS()) {
-      WebSerial.send("message", "Configuration loaded");
-      applyModbusSettings(g_mb_address, g_mb_baud);
-      ads.setGain(ads_gain);
-      ads.setDataRate(ads_data_rate);
-      dac0.setVoltage(dac_raw[0], false);
-      dac1.setVoltage(dac_raw[1], false);
-      // refresh DAC mV iregs
-      mb.Ireg(IREG_DAC_MV_BASE + 0, (uint16_t)lroundf((float)dac_raw[0] * (float)DAC_FIELD_VREF_MV / 4095.0f));
-      mb.Ireg(IREG_DAC_MV_BASE + 1, (uint16_t)lroundf((float)dac_raw[1] * (float)DAC_FIELD_VREF_MV / 4095.0f));
-      sendAllEchoesOnce();
-    } else WebSerial.send("message", "ERROR: Load failed/invalid");
+      if (mv < 0)      mv = 0;
+      if (mv > 65535)  mv = 65535;
 
-  } else if (act == "factory") {
-    setDefaults();
-    if (saveConfigFS()) {
-      WebSerial.send("message", "Factory defaults restored & saved");
-      applyModbusSettings(g_mb_address, g_mb_baud);
-      ads.setGain(ads_gain);
-      ads.setDataRate(ads_data_rate);
-      dac0.setVoltage(dac_raw[0], false);
-      dac1.setVoltage(dac_raw[1], false);
-      mb.Ireg(IREG_DAC_MV_BASE + 0, (uint16_t)lroundf((float)dac_raw[0] * (float)DAC_FIELD_VREF_MV / 4095.0f));
-      mb.Ireg(IREG_DAC_MV_BASE + 1, (uint16_t)lroundf((float)dac_raw[1] * (float)DAC_FIELD_VREF_MV / 4095.0f));
-      sendAllEchoesOnce();
-    } else WebSerial.send("message", "ERROR: Save after factory reset failed");
+      aiMv[ch] = (uint16_t)mv;
 
-  } else if (act == "ledtest") {
-    for (int k=0;k<2;k++) {
-      for (int i=0;i<4;i++) setLedPhys(i, true);
-      delay(120);
-      for (int i=0;i<4;i++) setLedPhys(i, false);
-      delay(120);
+      // Modbus: raw counts and field mV
+      mb.Ireg(IREG_AI_BASE    + ch, (uint16_t)raw);
+      mb.Ireg(IREG_AI_MV_BASE + ch, aiMv[ch]);
     }
-    WebSerial.send("message", "LED test completed");
-
   } else {
-    WebSerial.send("message", String("Unknown command: ") + actC);
+    for (int ch=0; ch<4; ch++) {
+      aiRaw[ch] = 0;
+      aiMv[ch]  = 0;
+      mb.Ireg(IREG_AI_BASE    + ch, 0);
+      mb.Ireg(IREG_AI_MV_BASE + ch, 0);
+    }
+  }
+
+  // --- RTDs via MAX31865 (software SPI) ---
+  Adafruit_MAX31865* rtds[2] = { &rtd1, &rtd2 };
+  for (int i=0;i<2;i++) {
+    if (!rtd_ok[i]) {
+      rtdTemp_x10[i] = 0;
+      mb.Ireg(IREG_TEMP_BASE + i, 0);
+      continue;
+    }
+    float temp = rtds[i]->temperature(RTD_RNOMINAL, RTD_RREF);
+    int16_t t10 = (int16_t)roundf(temp * 10.0f);
+    rtdTemp_x10[i] = t10;
+    mb.Ireg(IREG_TEMP_BASE + i, (uint16_t)t10);
   }
 }
 
@@ -499,308 +456,196 @@ void handleCommand(JSONVar obj) {
 void setup() {
   Serial.begin(115200);
 
-  // GPIO init
-  for (uint8_t i=0;i<4;i++) { pinMode(LED_PINS[i], OUTPUT); setLedPhys(i, false); }
-  for (uint8_t i=0;i<4;i++) {
-#if BUTTON_USES_PULLUP
-    pinMode(BUTTON_PINS[i], INPUT_PULLUP);
-#else
-    pinMode(BUTTON_PINS[i], INPUT);
-#endif
+  // GPIO
+  for (uint8_t i=0;i<NUM_LED;i++) {
+    pinMode(LED_PINS[i], OUTPUT);
+    digitalWrite(LED_PINS[i], LOW);
+    ledState[i] = false;
+  }
+  for (uint8_t i=0;i<NUM_BTN;i++) {
+    // Same as working firmware: BUTTON_USES_PULLUP == 0 → INPUT, HIGH = pressed
+    pinMode(BTN_PINS[i], INPUT);
+    buttonState[i] = buttonPrev[i] = false;
   }
 
   setDefaults();
 
-  // LittleFS
-  if (!LittleFS.begin()) {
-    WebSerial.send("message", "LittleFS mount failed. Formatting…");
-    LittleFS.format();
-    LittleFS.begin();
+  // WebSerial hooks
+  WebSerial.on("values",  handleValues);
+  WebSerial.on("command", handleCommand);
+  WebSerial.on("dac",     handleDac);
+
+  // Guarded FS init
+  if (!initFilesystemAndConfig()) {
+    WebSerial.send("message", "FATAL: Filesystem/config init failed");
   }
 
-  if (loadConfigFS()) WebSerial.send("message", "Config loaded from flash");
-  else { WebSerial.send("message", "No valid config. Using defaults."); saveConfigFS(); }
+  // I2C setup (Wire1 on SDA1/SCL1, exactly like working firmware)
+  Wire1.setSDA(SDA1);
+  Wire1.setSCL(SCL1);
+  Wire1.begin();
+  Wire1.setClock(400000);
 
-  // I2C init
-  Wire1.setSDA(SDA1); Wire1.setSCL(SCL1);
-  Wire1.begin(); Wire1.setClock(400000);
+  // --- ADS1115 ---
+  ads_ok = ads.begin();
+  if (ads_ok) {
+    // gain & data rate similar to working FW defaults
+    ads.setGain(1);        // GAIN_ONE (±4.096V) in ADS1X15 lib
+    ads.setDataRate(4);    // 128 SPS
+    WebSerial.send("message", "ADS1115 OK @0x48 (Wire1)");
+  } else {
+    WebSerial.send("message", "ERROR: ADS1115 not found @0x48");
+  }
 
-  // ADS1115
-  if (!ads.begin()) WebSerial.send("message", "ERROR: ADS1115 not found at 0x48");
-  ads.setGain(ads_gain);
-  ads.setDataRate(ads_data_rate);
-  ads.setMode(1);
+  // --- DACs MCP4725 (Wire1) ---
+  dac_ok[0] = dac0.begin(0x60, &Wire1);
+  dac_ok[1] = dac1.begin(0x61, &Wire1);
+  if (dac_ok[0]) WebSerial.send("message", "MCP4725 #0 OK @0x60 (Wire1)");
+  else           WebSerial.send("message", "ERROR: MCP4725 #0 not found");
+  if (dac_ok[1]) WebSerial.send("message", "MCP4725 #1 OK @0x61 (Wire1)");
+  else           WebSerial.send("message", "ERROR: MCP4725 #1 not found");
 
-  // DACs
-  if (!dac0.begin(MCP4725_ADDR0, &Wire1)) WebSerial.send("message", "ERROR: MCP4725 #0 not found at 0x61");
-  else dac0.setVoltage(dac_raw[0], false);
-  if (!dac1.begin(MCP4725_ADDR1, &Wire1)) WebSerial.send("message", "ERROR: MCP4725 #1 not found at 0x60");
-  else dac1.setVoltage(dac_raw[1], false);
+  // --- MAX31865 RTDs (software SPI) ---
+  rtd_ok[0] = rtd1.begin(RTD_WIRES);
+  rtd_ok[1] = rtd2.begin(RTD_WIRES);
+  if (rtd_ok[0]) WebSerial.send("message", "MAX31865 RTD1 OK");
+  else           WebSerial.send("message", "ERROR: MAX31865 RTD1 fail");
+  if (rtd_ok[1]) WebSerial.send("message", "MAX31865 RTD2 OK");
+  else           WebSerial.send("message", "ERROR: MAX31865 RTD2 fail");
 
-  // MAX31865
-  if (!rtd1.begin(RTD_WIRES)) WebSerial.send("message", "ERROR: RTD1 init failed");
-  if (!rtd2.begin(RTD_WIRES)) WebSerial.send("message", "ERROR: RTD2 init failed");
+  // Apply persisted DAC outputs
+  writeDac(0, dacRaw[0]);
+  writeDac(1, dacRaw[1]);
 
-  // Serial2 / Modbus RTU
-  Serial2.setTX(TX2); Serial2.setRX(RX2);
+  // Serial2 / Modbus
+  Serial2.setTX(TX2);
+  Serial2.setRX(RX2);
   Serial2.begin(g_mb_baud);
   mb.config(g_mb_baud);
   setSlaveIdIfAvailable(mb, g_mb_address);
+  mb.setAdditionalServerData("AIO422-AIO");
 
-  // ---- Register telemetry ----
-  for (uint16_t i=0;i<4;i++) mb.addIreg(IREG_RAW_BASE + i);
-  for (uint16_t i=0;i<4;i++) mb.addIreg(IREG_MV_BASE  + i);
-  for (uint16_t i=0;i<2;i++) mb.addIreg(IREG_RTD_C_BASE     + i);
-  for (uint16_t i=0;i<2;i++) mb.addIreg(IREG_RTD_OHM_BASE   + i);
-  for (uint16_t i=0;i<2;i++) mb.addIreg(IREG_RTD_FAULT_BASE + i);
-  for (uint16_t i=0;i<2;i++) mb.addIreg(IREG_DAC_MV_BASE + i);
+  // Modbus status object
+  modbusStatus["address"] = g_mb_address;
+  modbusStatus["baud"]    = g_mb_baud;
+  modbusStatus["state"]   = 0;
 
-  // ---- Existing config ----
-  mb.addHreg(HREG_GAIN);         mb.Hreg(HREG_GAIN, ads_gain);
-  mb.addHreg(HREG_DRATE);        mb.Hreg(HREG_DRATE, ads_data_rate);
-  mb.addHreg(HREG_SMPLL_MS);     mb.Hreg(HREG_SMPLL_MS, sample_ms);
-  mb.addHreg(HREG_DAC0_RAW);     mb.Hreg(HREG_DAC0_RAW, dac_raw[0]);
-  mb.addHreg(HREG_DAC1_RAW);     mb.Hreg(HREG_DAC1_RAW, dac_raw[1]);
+  // ---- Modbus map ----
+  // Discrete inputs
+  for (uint16_t i=0;i<NUM_BTN;i++) mb.addIsts(ISTS_BTN_BASE + i);
+  for (uint16_t i=0;i<NUM_LED;i++) mb.addIsts(ISTS_LED_BASE + i);
 
-  // Discrete stats / coils
-  for (uint16_t i=0;i<4;i++) mb.addIsts(ISTS_LED_BASE + i);
-  for (uint16_t i=0;i<4;i++) mb.addIsts(ISTS_BTN_BASE + i);
-  for (uint16_t i=0;i<2;i++) mb.addIsts(ISTS_RTD_BASE + i);
-  mb.addCoil(COIL_LEDTEST); mb.addCoil(COIL_SAVE_CFG);
-  mb.addCoil(COIL_REBOOT);  mb.addCoil(COIL_DAC0_EESAVE);
-  mb.addCoil(COIL_DAC1_EESAVE);
+  // Input registers (analog in / temps / mV)
+  for (uint16_t i=0;i<4;i++) mb.addIreg(IREG_AI_BASE    + i);   // raw
+  for (uint16_t i=0;i<2;i++) mb.addIreg(IREG_TEMP_BASE  + i);   // RTD temps
+  for (uint16_t i=0;i<4;i++) mb.addIreg(IREG_AI_MV_BASE + i);   // field mV
 
-  // init DAC mV iregs from current codes
-  mb.Ireg(IREG_DAC_MV_BASE + 0, (uint16_t)lroundf((float)dac_raw[0] * (float)DAC_FIELD_VREF_MV / 4095.0f));
-  mb.Ireg(IREG_DAC_MV_BASE + 1, (uint16_t)lroundf((float)dac_raw[1] * (float)DAC_FIELD_VREF_MV / 4095.0f));
+  // Holding registers (DACs)
+  for (uint16_t i=0;i<2;i++) {
+    mb.addHreg(HREG_DAC_BASE + i, dacRaw[i]);
+  }
 
-  // WebSerial
-  WebSerial.on("values",  handleValues);
-  WebSerial.on("Config",  handleUnifiedConfig);
-  WebSerial.on("command", handleCommand);
-
-  // Initial echoes
+  WebSerial.send("message",
+    "Boot OK (AIO-422-R1 RP2350: ADS1115@Wire1, 2xMCP4725@Wire1, 2xMAX31865 softSPI, 4 BTN, 4 LED)");
   sendAllEchoesOnce();
-  WebSerial.send("message", "Boot OK (AIO-422-R1, RP2350, ADS1115 field AI, 2x MAX31865, 2x MCP4725, no PID, no trends)");
 }
 
-// ================== HREG write watcher ==================
-void serviceHregWrites() {
-  static uint16_t prevGain = 0xFFFF, prevDr = 0xFFFF, prevSm = 0xFFFF;
-  static uint16_t prevDac0 = 0xFFFF, prevDac1 = 0xFFFF;
+// ================== send initial state ==================
+void sendAllEchoesOnce() {
+  JSONVar dacList;
+  dacList[0] = dacRaw[0];
+  dacList[1] = dacRaw[1];
+  WebSerial.send("dacValues", dacList);
 
-  uint16_t g  = mb.Hreg(HREG_GAIN);
-  uint16_t dr = mb.Hreg(HREG_DRATE);
-  uint16_t sm = mb.Hreg(HREG_SMPLL_MS);
-  uint16_t dv0 = mb.Hreg(HREG_DAC0_RAW);
-  uint16_t dv1 = mb.Hreg(HREG_DAC1_RAW);
+  JSONVar ledList;
+  for (int i=0;i<NUM_LED;i++) ledList[i] = ledState[i];
+  WebSerial.send("LedStateList", ledList);
 
-  bool changed = false;
+  JSONVar btnList;
+  for (int i=0;i<NUM_BTN;i++) btnList[i] = buttonState[i];
+  WebSerial.send("ButtonStateList", btnList);
 
-  if (g != prevGain)   { prevGain = g; ads_gain = constrain((int)g, 0, 5); ads.setGain(ads_gain); changed = true; }
-  if (dr != prevDr)    { prevDr = dr; ads_data_rate = constrain((int)dr, 0, 7); ads.setDataRate(ads_data_rate); changed = true; }
-  if (sm != prevSm)    { prevSm = sm; sample_ms = constrain((int)sm, 10, 5000); changed = true; }
-
-  // Manual raw writes -> set DACs and mirror mV iregs
-  if (dv0 != prevDac0) {
-    prevDac0 = dv0; dac_raw[0] = constrain((int)dv0, 0, 4095);
-    dac0.setVoltage(dac_raw[0], false);
-    mb.Ireg(IREG_DAC_MV_BASE + 0, (uint16_t)lroundf((float)dac_raw[0] * (float)DAC_FIELD_VREF_MV / 4095.0f));
-    changed = true;
-  }
-  if (dv1 != prevDac1) {
-    prevDac1 = dv1; dac_raw[1] = constrain((int)dv1, 0, 4095);
-    dac1.setVoltage(dac_raw[1], false);
-    mb.Ireg(IREG_DAC_MV_BASE + 1, (uint16_t)lroundf((float)dac_raw[1] * (float)DAC_FIELD_VREF_MV / 4095.0f));
-    changed = true;
-  }
-
-  if (changed) { cfgDirty = true; lastCfgTouchMs = millis(); sendAdsEcho(); sendDacEcho(); }
-}
-
-// ================== Button actions ==================
-void doButtonAction(uint8_t idx) {
-  uint8_t act = buttonCfg[idx].action;
-  switch (act) {
-    case 0: break;
-    case 1: case 2: case 3: case 4: {
-      uint8_t led = act - 1;
-      ledManual[led] = !ledManual[led];
-      break;
-    }
-    case 5: {
-      ads_gain = (ads_gain + 1) % 6;
-      ads.setGain(ads_gain);
-      mb.Hreg(HREG_GAIN, ads_gain);
-      sendAdsEcho();
-      WebSerial.send("message", String("ADS gain -> index ") + ads_gain);
-      cfgDirty = true; lastCfgTouchMs = millis();
-      break;
-    }
-    case 6: {
-      for (int k=0;k<2;k++) {
-        for (int i=0;i<4;i++) setLedPhys(i, true);
-        delay(100);
-        for (int i=0;i<4;i++) setLedPhys(i, false);
-        delay(100);
-      }
-      break;
-    }
-    case 7: {
-      if (saveConfigFS()) WebSerial.send("message", "Configuration saved");
-      else                WebSerial.send("message", "ERROR: Save failed");
-      break;
-    }
-    case 8: {
-      WebSerial.send("message", "Rebooting…");
-      delay(120);
-      performReset();
-      break;
-    }
-  }
-}
-
-// ================== LED source evaluation ==================
-bool evalLedSource(uint8_t src) {
-  switch (src) {
-    case 0: return false;
-    case 1: return blinkPhase;
-    case 2: return buttonState[0];
-    case 3: return buttonState[1];
-    case 4: return buttonState[2];
-    case 5: return buttonState[3];
-    case 6: return buttonState[0]||buttonState[1]||buttonState[2]||buttonState[3];
-    case 7: return samplingTick;
-    default: return false;
-  }
+  modbusStatus["address"] = g_mb_address;
+  modbusStatus["baud"]    = g_mb_baud;
+  WebSerial.send("status", modbusStatus);
 }
 
 // ================== Main loop ==================
 void loop() {
   unsigned long now = millis();
 
-  if (now - lastBlinkToggle >= blinkPeriodMs) { lastBlinkToggle = now; blinkPhase = !blinkPhase; }
+  mb.task();      // Modbus polling
 
+  // --- auto-save after quiet period ---
   if (cfgDirty && (now - lastCfgTouchMs >= CFG_AUTOSAVE_MS)) {
     if (saveConfigFS()) WebSerial.send("message", "Configuration saved");
-    else                WebSerial.send("message", "ERROR: Save failed");
+    else               WebSerial.send("message", "ERROR: Save failed");
     cfgDirty = false;
   }
 
-  mb.task();
-  serviceHregWrites();
+  // --- buttons & LEDs (simple: button i toggles LED i) ---
+  for (int i=0;i<NUM_BTN;i++) {
+    bool pressed = (digitalRead(BTN_PINS[i]) == HIGH);  // same as working FW
+    buttonPrev[i]  = buttonState[i];
+    buttonState[i] = pressed;
 
-  // Coils
-  if (mb.Coil(COIL_LEDTEST)) {
-    for (int k=0;k<2;k++) { for (int i=0;i<4;i++) setLedPhys(i, true); delay(120); for (int i=0;i<4;i++) setLedPhys(i, false); delay(120); }
-    mb.Coil(COIL_LEDTEST, false);
-  }
-  if (mb.Coil(COIL_SAVE_CFG)) {
-    if (saveConfigFS()) WebSerial.send("message", "Configuration saved");
-    else                WebSerial.send("message", "ERROR: Save failed");
-    mb.Coil(COIL_SAVE_CFG, false);
-  }
-  if (mb.Coil(COIL_REBOOT)) { WebSerial.send("message", "Rebooting…"); delay(120); performReset(); }
-  if (mb.Coil(COIL_DAC0_EESAVE)) { dac0.setVoltage(dac_raw[0], true); WebSerial.send("message", "DAC0: code written to EEPROM"); mb.Coil(COIL_DAC0_EESAVE, false); }
-  if (mb.Coil(COIL_DAC1_EESAVE)) { dac1.setVoltage(dac_raw[1], true); WebSerial.send("message", "DAC1: code written to EEPROM"); mb.Coil(COIL_DAC1_EESAVE, false); }
-
-  // Buttons debounce
-  for (int i = 0; i < 4; i++) {
-    bool pressed = readPressed(i);
-    if (pressed != buttonState[i] && (now - btnChangeAt[i] >= BTN_DEBOUNCE_MS)) {
-      btnChangeAt[i] = now;
-      buttonPrev[i]  = buttonState[i];
-      buttonState[i] = pressed;
-      if (buttonPrev[i] && !buttonState[i]) doButtonAction(i); // on release
-    }
-    mb.setIsts(ISTS_BTN_BASE + i, buttonState[i]);
-  }
-
-  // Sampling
-  static int16_t  rawArr[4] = {0,0,0,0};
-  static uint16_t ai_mV[4]  = {0,0,0,0};  // field mV
-  static int16_t  rtdC_x100[2]   = {0,0};
-  static uint16_t rtdOhm_x100[2] = {0,0};
-  static uint16_t rtdFault[2]    = {0,0};
-
-  samplingTick = false;
-
-  if (now - lastSample >= sample_ms) {
-    lastSample = now;
-    samplingTick = true;
-
-    // ADS1115 -> field mV
-    for (int ch=0; ch<4; ch++) {
-      int16_t raw = ads.readADC(ch);
-      float   v_adc   = ads.toVoltage(raw);
-      float   v_field = v_adc * ADC_FIELD_SCALE;
-      long    mv      = lroundf(v_field * 1000.0f);
-      if (mv < 0) mv = 0; if (mv > 65535) mv = 65535;
-      rawArr[ch] = raw;
-      ai_mV[ch]  = (uint16_t)mv;
-      mb.Ireg(IREG_RAW_BASE + ch, (int16_t)rawArr[ch]);
-      mb.Ireg(IREG_MV_BASE  + ch, (uint16_t)ai_mV[ch]);
+    // rising edge (inactive -> active)
+    if (!buttonPrev[i] && buttonState[i]) {
+      ledState[i] = !ledState[i];
+      digitalWrite(LED_PINS[i], ledState[i] ? HIGH : LOW);
     }
 
-    // RTD1
-    {
-      uint16_t rtd = rtd1.readRTD();
-      float ohms = (float)rtd * RTD_REF_OHMS / 32768.0f;
-      float tC   = rtd1.temperature(RTD_NOMINAL_OHMS, RTD_REF_OHMS);
-      uint8_t f  = rtd1.readFault(); if (f) rtd1.clearFault();
-      int32_t cx100 = lroundf(tC * 100.0f);
-      int32_t ox100 = lroundf(ohms * 100.0f);
-      if (cx100 < -32768) cx100 = -32768; if (cx100 > 32767) cx100 = 32767;
-      if (ox100 < 0) ox100 = 0; if (ox100 > 65535) ox100 = 65535;
-      rtdC_x100[0]   = (int16_t)cx100;
-      rtdOhm_x100[0] = (uint16_t)ox100;
-      rtdFault[0]    = (uint16_t)f;
-      mb.Ireg(IREG_RTD_C_BASE + 0, (int16_t)rtdC_x100[0]);
-      mb.Ireg(IREG_RTD_OHM_BASE + 0, (uint16_t)rtdOhm_x100[0]);
-      mb.Ireg(IREG_RTD_FAULT_BASE + 0, (uint16_t)rtdFault[0]);
-      mb.setIsts(ISTS_RTD_BASE + 0, (f != 0));
-    }
-    // RTD2
-    {
-      uint16_t rtd = rtd2.readRTD();
-      float ohms = (float)rtd * RTD_REF_OHMS / 32768.0f;
-      float tC   = rtd2.temperature(RTD_NOMINAL_OHMS, RTD_REF_OHMS);
-      uint8_t f  = rtd2.readFault(); if (f) rtd2.clearFault();
-      int32_t cx100 = lroundf(tC * 100.0f);
-      int32_t ox100 = lroundf(ohms * 100.0f);
-      if (cx100 < -32768) cx100 = -32768; if (cx100 > 32767) cx100 = 32767;
-      if (ox100 < 0) ox100 = 0; if (ox100 > 65535) ox100 = 65535;
-      rtdC_x100[1]   = (int16_t)cx100;
-      rtdOhm_x100[1] = (uint16_t)ox100;
-      rtdFault[1]    = (uint16_t)f;
-      mb.Ireg(IREG_RTD_C_BASE + 1, (int16_t)rtdC_x100[1]);
-      mb.Ireg(IREG_RTD_OHM_BASE + 1, (uint16_t)rtdOhm_x100[1]);
-      mb.Ireg(IREG_RTD_FAULT_BASE + 1, (uint16_t)rtdFault[1]);
-      mb.setIsts(ISTS_RTD_BASE + 1, (f != 0));
-    }
-
-    // WebSerial echoes
-    sendSamplesEcho(rawArr, ai_mV);
-    sendRTDEcho(rtdC_x100, rtdOhm_x100, rtdFault);
+    mb.setIsts(ISTS_BTN_BASE + i, pressed);
   }
 
-  // Drive LEDs
-  JSONVar ledStateList;
-  for (int i=0;i<4;i++) {
-    bool activeFromSource = evalLedSource(ledCfg[i].source);
-    bool active = (activeFromSource || ledManual[i]);
-    bool phys = (ledCfg[i].mode == 0) ? active : (active && blinkPhase);
-    setLedPhys(i, phys);
-    ledStateList[i] = phys;
+  for (int i=0;i<NUM_LED;i++) {
+    mb.setIsts(ISTS_LED_BASE + i, ledState[i]);
   }
 
-  // Periodic status echo
+  // --- DACs from Modbus holding registers ---
+  for (int i=0;i<2;i++) {
+    uint16_t regVal = mb.Hreg(HREG_DAC_BASE + i);
+    if (regVal != dacRaw[i]) {
+      dacRaw[i] = regVal;
+      writeDac(i, dacRaw[i]);
+      cfgDirty = true;
+      lastCfgTouchMs = now;
+    }
+  }
+
+  // --- periodic sensor read ---
+  if (now - lastSensorRead >= sensorInterval) {
+    lastSensorRead = now;
+    readSensors();
+  }
+
+  // --- WebSerial periodic updates ---
   if (now - lastSend >= sendInterval) {
     lastSend = now;
+
     WebSerial.check();
-    sendStatusEcho();
-    JSONVar btnState; for(int i=0;i<4;i++) btnState[i]=buttonState[i];
-    WebSerial.send("ButtonStateList", btnState);
-    WebSerial.send("LedStateList", ledStateList);
+    WebSerial.send("status", modbusStatus);
+
+    // send field mV values to UI
+    JSONVar aiList;
+    for (int i=0;i<4;i++) aiList[i] = aiMv[i];
+    WebSerial.send("aiValues", aiList);
+
+    JSONVar tempList;
+    for (int i=0;i<2;i++) tempList[i] = rtdTemp_x10[i];
+    WebSerial.send("rtdTemps_x10", tempList);
+
+    JSONVar dacList;
+    dacList[0] = dacRaw[0];
+    dacList[1] = dacRaw[1];
+    WebSerial.send("dacValues", dacList);
+
+    JSONVar ledList;
+    for (int i=0;i<NUM_LED;i++) ledList[i] = ledState[i];
+    WebSerial.send("LedStateList", ledList);
+
+    JSONVar btnList;
+    for (int i=0;i<NUM_BTN;i++) btnList[i] = buttonState[i];
+    WebSerial.send("ButtonStateList", btnList);
   }
 }
