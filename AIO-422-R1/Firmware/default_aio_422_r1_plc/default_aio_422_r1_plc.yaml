@@ -5,19 +5,6 @@ modbus_controller:
     update_interval: 5s        # was 1s
     command_throttle: 2s     # add a small gap between frames
 
-# ------------- Discrete Inputs (LEDs + RTD faults only) -------------
-binary_sensor:
-  # MAX31865 fault flags 360..361
-  - platform: modbus_controller
-    modbus_controller_id: ${aio_id}
-    name: "${aio_prefix} RTD1 Fault"
-    address: 360
-    register_type: discrete_input
-
-# ================= Discrete Inputs (Buttons & LEDs) =================
-# FW map:
-#   ISTS_BTN_BASE = 1  → 1..4  = buttons 1..4
-#   ISTS_LED_BASE = 20 → 20..23 = LEDs 1..4
 binary_sensor:
   # ---- Buttons ----
   - platform: modbus_controller
