@@ -1,4 +1,4 @@
-// ==== AIO-422-R1 (RP2350) SIMPLE FW ====
+// ==== AIO-422-R1 (RP2350) SIMPLE FW (ALL ANALOG → HOLDING REGS) ====
 // 4x AI via ADS1115 (ADS1X15.h) on Wire1 (SDA=6, SCL=7)
 // 2x AO via 2x MCP4725 on Wire1 (0x60,0x61)
 // 2x RTD via 2x MAX31865 over SOFTWARE SPI (CS1=13, CS2=14, DI=11, DO=12, CLK=10)
@@ -63,7 +63,7 @@ bool dac_ok[2]  = {false, false};
 bool rtd_ok[2]  = {false, false};
 
 // RTD parameters (from schematic: Rref = 400Ω, PT100 assumed)
-const float RTD_RREF      = 200.0f;
+const float RTD_RREF      = 200.0f;     // NOTE: schematic says 400Ω, firmware uses 200Ω
 const float RTD_RNOMINAL  = 100.0f;
 const max31865_numwires_t RTD_WIRES = MAX31865_2WIRE;  // same as working FW
 
@@ -295,14 +295,14 @@ void applyModbusSettings(uint8_t addr, uint32_t baud) {
 }
 
 // ================== Modbus map ==================
+// NOTE: all analog values are now HOLDING REGISTERS (FC3)
 enum : uint16_t {
-  ISTS_BTN_BASE   = 1,     // 1..4  : buttons
-  ISTS_LED_BASE   = 20,    // 20..23: LED states
+  ISTS_BTN_BASE   = 1,     // 1..4  : buttons        (discrete inputs)
+  ISTS_LED_BASE   = 20,    // 20..23: LED states     (discrete inputs)
 
-  IREG_AI_BASE     = 100,  // 100..103: ADS1115 raw counts (int16)
-  IREG_TEMP_BASE   = 120,  // 120..121: RTD temps *10°C (signed)
-  IREG_AI_MV_BASE  = 140,  // 140..143: AI field mV (0..10000)
-
+  HREG_AI_BASE     = 100,  // 100..103: ADS1115 raw counts (int16)
+  HREG_TEMP_BASE   = 120,  // 120..121: RTD temps *10°C (signed)
+  HREG_AI_MV_BASE  = 140,  // 140..143: AI field mV (0..10000)
   HREG_DAC_BASE    = 200   // 200..201: DAC raw value 0..4095
 };
 
@@ -424,16 +424,16 @@ void readSensors() {
 
       aiMv[ch] = (uint16_t)mv;
 
-      // Modbus: raw counts and field mV
-      mb.Ireg(IREG_AI_BASE    + ch, (uint16_t)raw);
-      mb.Ireg(IREG_AI_MV_BASE + ch, aiMv[ch]);
+      // Modbus: raw counts and field mV -> HOLDING registers
+      mb.Hreg(HREG_AI_BASE    + ch, (uint16_t)raw);
+      mb.Hreg(HREG_AI_MV_BASE + ch, aiMv[ch]);
     }
   } else {
     for (int ch=0; ch<4; ch++) {
       aiRaw[ch] = 0;
       aiMv[ch]  = 0;
-      mb.Ireg(IREG_AI_BASE    + ch, 0);
-      mb.Ireg(IREG_AI_MV_BASE + ch, 0);
+      mb.Hreg(HREG_AI_BASE    + ch, 0);
+      mb.Hreg(HREG_AI_MV_BASE + ch, 0);
     }
   }
 
@@ -442,13 +442,13 @@ void readSensors() {
   for (int i=0;i<2;i++) {
     if (!rtd_ok[i]) {
       rtdTemp_x10[i] = 0;
-      mb.Ireg(IREG_TEMP_BASE + i, 0);
+      mb.Hreg(HREG_TEMP_BASE + i, 0);
       continue;
     }
     float temp = rtds[i]->temperature(RTD_RNOMINAL, RTD_RREF);
     int16_t t10 = (int16_t)roundf(temp * 10.0f);
     rtdTemp_x10[i] = t10;
-    mb.Ireg(IREG_TEMP_BASE + i, (uint16_t)t10);
+    mb.Hreg(HREG_TEMP_BASE + i, (uint16_t)t10);
   }
 }
 
@@ -531,22 +531,19 @@ void setup() {
   modbusStatus["state"]   = 0;
 
   // ---- Modbus map ----
-  // Discrete inputs
+  // Discrete inputs (FC02)
   for (uint16_t i=0;i<NUM_BTN;i++) mb.addIsts(ISTS_BTN_BASE + i);
   for (uint16_t i=0;i<NUM_LED;i++) mb.addIsts(ISTS_LED_BASE + i);
 
-  // Input registers (analog in / temps / mV)
-  for (uint16_t i=0;i<4;i++) mb.addIreg(IREG_AI_BASE    + i);   // raw
-  for (uint16_t i=0;i<2;i++) mb.addIreg(IREG_TEMP_BASE  + i);   // RTD temps
-  for (uint16_t i=0;i<4;i++) mb.addIreg(IREG_AI_MV_BASE + i);   // field mV
-
-  // Holding registers (DACs)
-  for (uint16_t i=0;i<2;i++) {
-    mb.addHreg(HREG_DAC_BASE + i, dacRaw[i]);
-  }
+  // Holding registers (AI raw, RTD temps, AI mV, DACs) all via FC03
+  for (uint16_t i=0;i<4;i++) mb.addHreg(HREG_AI_BASE    + i);   // 100..103: raw
+  for (uint16_t i=0;i<2;i++) mb.addHreg(HREG_TEMP_BASE  + i);   // 120..121: RTD temps
+  for (uint16_t i=0;i<4;i++) mb.addHreg(HREG_AI_MV_BASE + i);   // 140..143: field mV
+  for (uint16_t i=0;i<2;i++) mb.addHreg(HREG_DAC_BASE   + i, dacRaw[i]); // 200..201: DAC raw
 
   WebSerial.send("message",
-    "Boot OK (AIO-422-R1 RP2350: ADS1115@Wire1, 2xMCP4725@Wire1, 2xMAX31865 softSPI, 4 BTN, 4 LED)");
+    "Boot OK (AIO-422-R1 RP2350: ADS1115@Wire1, 2xMCP4725@Wire1, 2xMAX31865 softSPI, 4 BTN, 4 LED, all analog on HREG)");
+
   sendAllEchoesOnce();
 }
 

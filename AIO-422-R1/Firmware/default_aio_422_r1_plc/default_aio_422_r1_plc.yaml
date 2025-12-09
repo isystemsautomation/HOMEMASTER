@@ -97,7 +97,7 @@ sensor:
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} AI0 Raw"
     address: 100
-    register_type: read
+    register_type: holding
     value_type: S_WORD
     unit_of_measurement: "cnt"
     accuracy_decimals: 0
@@ -106,7 +106,7 @@ sensor:
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} AI1 Raw"
     address: 101
-    register_type: read
+    register_type: holding
     value_type: S_WORD
     unit_of_measurement: "cnt"
     accuracy_decimals: 0
@@ -115,7 +115,7 @@ sensor:
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} AI2 Raw"
     address: 102
-    register_type: read
+    register_type: holding
     value_type: S_WORD
     unit_of_measurement: "cnt"
     accuracy_decimals: 0
@@ -124,7 +124,7 @@ sensor:
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} AI3 Raw"
     address: 103
-    register_type: read
+    register_type: holding
     value_type: S_WORD
     unit_of_measurement: "cnt"
     accuracy_decimals: 0
@@ -134,7 +134,7 @@ sensor:
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} RTD1 Temperature"
     address: 120
-    register_type: read
+    register_type: holding
     value_type: S_WORD
     unit_of_measurement: "°C"
     accuracy_decimals: 1
@@ -145,7 +145,7 @@ sensor:
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} RTD2 Temperature"
     address: 121
-    register_type: read
+    register_type: holding
     value_type: S_WORD
     unit_of_measurement: "°C"
     accuracy_decimals: 1
@@ -157,7 +157,7 @@ sensor:
     id: ch0_mv
     name: "${aio_prefix} AI0 mV"
     address: 140
-    register_type: read
+    register_type: holding
     value_type: U_WORD
     unit_of_measurement: "mV"
     accuracy_decimals: 0
@@ -167,7 +167,7 @@ sensor:
     id: ch1_mv
     name: "${aio_prefix} AI1 mV"
     address: 141
-    register_type: read
+    register_type: holding
     value_type: U_WORD
     unit_of_measurement: "mV"
     accuracy_decimals: 0
@@ -177,7 +177,7 @@ sensor:
     id: ch2_mv
     name: "${aio_prefix} AI2 mV"
     address: 142
-    register_type: read
+    register_type: holding
     value_type: U_WORD
     unit_of_measurement: "mV"
     accuracy_decimals: 0
@@ -187,7 +187,7 @@ sensor:
     id: ch3_mv
     name: "${aio_prefix} AI3 mV"
     address: 143
-    register_type: read
+    register_type: holding
     value_type: U_WORD
     unit_of_measurement: "mV"
     accuracy_decimals: 0
