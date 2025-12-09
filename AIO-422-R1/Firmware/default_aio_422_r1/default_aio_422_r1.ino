@@ -63,9 +63,9 @@ bool dac_ok[2]  = {false, false};
 bool rtd_ok[2]  = {false, false};
 
 // RTD parameters (from schematic: Rref = 400Ω, PT100 assumed)
-const float RTD_RREF      = 400.0f;
+const float RTD_RREF      = 200.0f;
 const float RTD_RNOMINAL  = 100.0f;
-const max31865_numwires_t RTD_WIRES = MAX31865_3WIRE;  // same as working FW
+const max31865_numwires_t RTD_WIRES = MAX31865_2WIRE;  // same as working FW
 
 // ================== ADC field scaling ==================
 // Front-end attenuates 0–10V field → ~0–3.3V at ADS input
