@@ -100,6 +100,7 @@ sensor:
     address: 100
     register_type: read
     value_type: S_WORD
+    force_new_range: true
     unit_of_measurement: "cnt"
     accuracy_decimals: 0
 
@@ -109,6 +110,7 @@ sensor:
     address: 101
     register_type: read
     value_type: S_WORD
+    force_new_range: true
     unit_of_measurement: "cnt"
     accuracy_decimals: 0
 
@@ -118,6 +120,7 @@ sensor:
     address: 102
     register_type: read
     value_type: S_WORD
+    force_new_range: true
     unit_of_measurement: "cnt"
     accuracy_decimals: 0
 
@@ -127,6 +130,7 @@ sensor:
     address: 103
     register_type: read
     value_type: S_WORD
+    force_new_range: true
     unit_of_measurement: "cnt"
     accuracy_decimals: 0
   # ---- RTD temperatures (PT100 via MAX31865) ----
@@ -149,6 +153,7 @@ sensor:
     address: 121
     register_type: read
     value_type: S_WORD
+    force_new_range: true
     unit_of_measurement: "°C"
     accuracy_decimals: 1
     filters:
@@ -172,6 +177,7 @@ sensor:
     address: 141
     register_type: read
     value_type: U_WORD
+    force_new_range: true
     unit_of_measurement: "mV"
     accuracy_decimals: 0
 
@@ -182,6 +188,7 @@ sensor:
     address: 142
     register_type: read
     value_type: U_WORD
+    force_new_range: true
     unit_of_measurement: "mV"
     accuracy_decimals: 0
 
@@ -192,6 +199,7 @@ sensor:
     address: 143
     register_type: read
     value_type: U_WORD
+    force_new_range: true
     unit_of_measurement: "mV"
     accuracy_decimals: 0
 
