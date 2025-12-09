@@ -137,6 +137,7 @@ sensor:
     address: 120
     register_type: read
     value_type: S_WORD
+    force_new_range: true
     unit_of_measurement: "°C"
     accuracy_decimals: 1
     filters:
@@ -161,6 +162,7 @@ sensor:
     register_type: read
     value_type: U_WORD
     unit_of_measurement: "mV"
+    force_new_range: true
     accuracy_decimals: 0
 
   - platform: modbus_controller
