@@ -3,15 +3,16 @@ modbus_controller:
     address: ${aio_address}
     modbus_id: modbus_bus
     update_interval: 1s
-    command_throttle: 0ms
+    command_throttle: 10ms
 
 binary_sensor:
-  # ---- Buttons ----
+  # ---- Buttons 1..4 (discrete inputs, FC02) ----
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} Button 1"
     address: 1
     register_type: discrete_input
+    force_new_range: true
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -31,12 +32,13 @@ binary_sensor:
     address: 4
     register_type: discrete_input
 
-  # ---- LEDs (read-only state from firmware) ----
+  # ---- LEDs 20..23 (discrete inputs, FC02) ----
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} LED 1"
     address: 20
     register_type: discrete_input
+    force_new_range: true
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -93,7 +95,7 @@ number:
 #   IREG_TEMP_BASE  = 120  → 120..121 = RTD temps *10 °C (signed)
 #   IREG_AI_MV_BASE = 140  → 140..143 = AI field voltage in mV (0..10000)
 sensor:
-  # ---- AI raw counts ----
+  # ---- AI raw counts 100..103 (FC04) ----
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} AI0 Raw"
@@ -102,6 +104,7 @@ sensor:
     value_type: S_WORD
     unit_of_measurement: "cnt"
     accuracy_decimals: 0
+    force_new_range: true
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -129,8 +132,8 @@ sensor:
     value_type: S_WORD
     unit_of_measurement: "cnt"
     accuracy_decimals: 0
-  # ---- RTD temperatures (PT100 via MAX31865) ----
-  # firmware reports °C * 10 as signed int16
+
+  # ---- RTD temperatures 120..121 (°C * 10, FC04) ----
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} RTD1 Temperature"
@@ -141,6 +144,7 @@ sensor:
     accuracy_decimals: 1
     filters:
       - multiply: 0.1
+    force_new_range: true
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -152,7 +156,8 @@ sensor:
     accuracy_decimals: 1
     filters:
       - multiply: 0.1
-  # ---- AI field voltage in mV (0–10000 mV) ----
+
+  # ---- AI field voltage in mV 140..143 (FC04) ----
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     id: ch0_mv
@@ -162,6 +167,7 @@ sensor:
     value_type: U_WORD
     unit_of_measurement: "mV"
     accuracy_decimals: 0
+    force_new_range: true
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -192,4 +198,3 @@ sensor:
     value_type: U_WORD
     unit_of_measurement: "mV"
     accuracy_decimals: 0
-
