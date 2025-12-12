@@ -479,19 +479,16 @@ void handlePid(JSONVar obj) {
     if (JSON.typeof(pv) == "array" && i < (int)pv.length()) {
       int v = (int)pv[i];
       p.pvSource = clamp_u8(v, 0, 6);
-      mb.Hreg(HREG_PID_PVSEL_BASE + i, (uint16_t)p.pvSource);
     }
 
     if (JSON.typeof(spSrc) == "array" && i < (int)spSrc.length()) {
       int v = (int)spSrc[i];
       p.spSource = clamp_u8(v, 0, 8);   // 0..4 = manual/SP1..4, 5..8 = PID1..4 OUT
-      mb.Hreg(HREG_PID_SPSEL_BASE + i, (uint16_t)p.spSource);
     }
 
     if (JSON.typeof(out) == "array" && i < (int)out.length()) {
       int v = (int)out[i];
       p.outTarget = clamp_u8(v, 0, 3);
-      mb.Hreg(HREG_PID_OUTSEL_BASE + i, (uint16_t)p.outTarget);
     }
 
     if (JSON.typeof(kp) == "array" && i < (int)kp.length()) {
@@ -561,14 +558,12 @@ void readSensors() {
 
       aiMv[ch] = (uint16_t)mv;
 
-      mb.Hreg(HREG_AI_BASE    + ch, (uint16_t)raw);
       mb.Hreg(HREG_AI_MV_BASE + ch, aiMv[ch]);
     }
   } else {
     for (int ch=0; ch<4; ch++) {
       aiRaw[ch] = 0;
       aiMv[ch]  = 0;
-      mb.Hreg(HREG_AI_BASE    + ch, 0);
       mb.Hreg(HREG_AI_MV_BASE + ch, 0);
     }
   }
@@ -666,9 +661,7 @@ void updatePids() {
       newOutRaw[i] = 0.0f;
       newOutPct[i] = 0.0f;
 
-      mb.Hreg(HREG_PID_OUT_BASE   + i, 0);
-      mb.Hreg(HREG_PID_PVVAL_BASE + i, 0);
-      mb.Hreg(HREG_PID_ERR_BASE   + i, 0);
+      mb.Hreg(HREG_PID_OUT_BASE   + i, 0); 
       continue;
     }
 
@@ -705,8 +698,6 @@ void updatePids() {
     newOutPct[i] = uPct;
 
     mb.Hreg(HREG_PID_OUT_BASE   + i, (uint16_t)lroundf(outRawF));
-    mb.Hreg(HREG_PID_PVVAL_BASE + i, (uint16_t)(int16_t)lroundf(pvRaw));
-    mb.Hreg(HREG_PID_ERR_BASE   + i, (uint16_t)(int16_t)lroundf(errRaw));
   }
 
   // Pass 2: publish virtual outputs together (so PID->PID SP sees stable values next cycle)
@@ -880,7 +871,6 @@ void setup() {
   for (uint16_t i=0;i<NUM_BTN;i++) mb.addIsts(ISTS_BTN_BASE + i);
   for (uint16_t i=0;i<NUM_LED;i++) mb.addIsts(ISTS_LED_BASE + i);
 
-  for (uint16_t i=0;i<4;i++) mb.addHreg(HREG_AI_BASE    + i);
   for (uint16_t i=0;i<2;i++) mb.addHreg(HREG_TEMP_BASE  + i);
   for (uint16_t i=0;i<4;i++) mb.addHreg(HREG_AI_MV_BASE + i);
   for (uint16_t i=0;i<2;i++) mb.addHreg(HREG_DAC_BASE   + i, dacRaw[i]);
@@ -888,15 +878,10 @@ void setup() {
   for (uint16_t i=0;i<4;i++) {
     mb.addHreg(HREG_SP_BASE        + i, 0);
     mb.addHreg(HREG_PID_EN_BASE    + i, 0);
-    mb.addHreg(HREG_PID_PVSEL_BASE + i, 0);
-    mb.addHreg(HREG_PID_SPSEL_BASE + i, 0);
-    mb.addHreg(HREG_PID_OUTSEL_BASE+ i, 0);
     mb.addHreg(HREG_PID_KP_BASE    + i, 0);
     mb.addHreg(HREG_PID_KI_BASE    + i, 0);
     mb.addHreg(HREG_PID_KD_BASE    + i, 0);
     mb.addHreg(HREG_PID_OUT_BASE   + i, 0);
-    mb.addHreg(HREG_PID_PVVAL_BASE + i, 0);
-    mb.addHreg(HREG_PID_ERR_BASE   + i, 0);
   }
 
   WebSerial.send("message",
