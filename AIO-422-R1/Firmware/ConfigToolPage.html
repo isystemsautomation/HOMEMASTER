@@ -6,8 +6,9 @@
     <p>
       Configure Modbus address, baud rate, and monitor
       <strong>analog inputs (4)</strong>, <strong>analog outputs (2)</strong>,
-      <strong>RTD inputs (2)</strong>, <strong>buttons (4)</strong> and
-      <strong>user LEDs (4)</strong> via Web Serial.
+      <strong>RTD inputs (2)</strong>, <strong>buttons (4)</strong>,
+      <strong>user LEDs (4)</strong>, and <strong>4× PID controllers</strong>
+      via Web Serial.
     </p>
   </div>
 
@@ -47,27 +48,6 @@
       </button>
     </div>
   </form>
-
-  <!-- Reset dialog -->
-  <dialog id="reset-dialog"
-          style="border:none;border-radius:10px;padding:0;max-width:420px;width:90%;box-shadow:0 10px 30px rgba(0,0,0,.2);">
-    <form id="reset-form" method="dialog" style="padding:1rem 1.25rem;">
-      <h3 style="margin:.25rem 0 .5rem;">Confirm reset</h3>
-      <p style="margin:.25rem 0 1rem;color:#444;">
-        Are you sure you want to reset the module? The serial connection will be temporarily interrupted.
-      </p>
-      <div style="display:flex;justify-content:flex-end;gap:.5rem;">
-        <button id="dlg-cancel" value="cancel"
-                style="padding:.5rem .9rem;border-radius:6px;border:1px solid #ccc;background:#fff;">
-          Cancel
-        </button>
-        <button id="dlg-confirm" value="confirm"
-                style="padding:.5rem .9rem;border:none;border-radius:6px;background:#dc3545;color:#fff;">
-          Reset
-        </button>
-      </div>
-    </form>
-  </dialog>
 
   <!-- Serial log -->
   <div id="log-line"
@@ -116,16 +96,65 @@
          style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;"></div>
   </section>
 
+  <!-- PID Controllers -->
+  <section style="margin-top:2rem;">
+    <h2 style="font-size:1.2rem;">PID Controllers (4)</h2>
+    <p style="margin-top:-.25rem;color:#555;font-size:.9rem;">
+      Each PID works internally in <strong>0–100%</strong> (PV, SP, OUT). Scaling is configured here in raw units.
+      Modbus still uses raw values only.
+    </p>
+    <div id="pid-cards"
+         style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;margin-bottom:0.75rem;"></div>
+    <div style="text-align:right;">
+      <button id="pid-apply-all" type="button"
+              style="padding:8px 16px;background:#28a745;color:#fff;border:none;border-radius:4px;">
+        Apply PID Configuration
+      </button>
+    </div>
+  </section>
+
   <!-- Scripts -->
   <script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
   <script>
     (function () {
-      const NUM_AI = 4, NUM_DAC = 2, NUM_BTN = 4, NUM_LED = 4;
+      const NUM_AI  = 4;
+      const NUM_DAC = 2;
+      const NUM_BTN = 4;
+      const NUM_LED = 4;
+      const NUM_PID = 4;
+
       const LOG_MAX = 4;
       const logBuffer = [];
       const $ = (id) => document.getElementById(id);
 
       const dacValues = [0, 0];
+
+      // PID config buffers
+      const pidSp     = [0, 0, 0, 0];  // SP raw
+      const pidEn     = [0, 0, 0, 0];  // 0/1
+      const pidPvSrc  = [0, 0, 0, 0];  // 0,1..4,5,6
+      const pidSpSrc  = [0, 0, 0, 0];  // 0..4
+      const pidOutSel = [0, 0, 0, 0];  // 0..2
+      const pidKp     = [0, 0, 0, 0];  // real gains
+      const pidKi     = [0, 0, 0, 0];
+      const pidKd     = [0, 0, 0, 0];
+
+      // Scaling buffers (RAW units)
+      const pidPvMin  = [0, 0, 0, 0];
+      const pidPvMax  = [10000, 10000, 10000, 10000];
+      const pidOutMin = [0, 0, 0, 0];
+      const pidOutMax = [4095, 4095, 4095, 4095];
+
+      // per-PID editing lock
+      const pidEditing = [false, false, false, false];
+
+      const toList = (v) => {
+        if (Array.isArray(v)) return v;
+        if (v && typeof v === "object") {
+          return Object.keys(v).sort((a,b)=>Number(a)-Number(b)).map(k => v[k]);
+        }
+        return [];
+      };
 
       function appendLog(label, data) {
         const logEl = $("log-content");
@@ -137,7 +166,7 @@
         logEl.textContent = logBuffer.join("\n");
       }
 
-      // Populate Modbus addresses
+      // Populate Modbus addresses 1..255
       (function populateAddresses() {
         const addrSelect = $("modbus-address");
         if (!addrSelect) return;
@@ -156,7 +185,6 @@
         requestElement: "connect-button"
       });
 
-      // <<< MODIFIED: make this robust even if isOpen() is missing >>>
       function updateResetEnabled() {
         const btn = $("reset-button");
         if (!btn) return;
@@ -182,7 +210,9 @@
         updateResetEnabled();
       });
 
-      connection.on("open", updateResetEnabled);
+      connection.on("open", () => {
+        updateResetEnabled();
+      });
       connection.on("close", updateResetEnabled);
       connection.on("message", (msg) => appendLog("AIO-422-R1", msg));
 
@@ -192,8 +222,8 @@
 
       async function updateModbus() {
         await connection.send("values", {
-          mb_address: parseInt($("modbus-address").value),
-          mb_baud: parseInt($("modbus-baud").value)
+          mb_address: parseInt($("modbus-address").value, 10),
+          mb_baud: parseInt($("modbus-baud").value, 10)
         });
       }
 
@@ -208,7 +238,6 @@
         }
       }
 
-      // <<< ADDED: simple confirm handler for reset button >>>
       (function setupResetButton() {
         const resetBtn = $("reset-button");
         if (!resetBtn) return;
@@ -226,17 +255,18 @@
       // Build Analog Input cards
       (function buildAICards() {
         const container = $("ai-cards");
+        if (!container) return;
         for (let i = 0; i < NUM_AI; i++) {
           const card = document.createElement("div");
           card.innerHTML = `
             <div style="border:1px solid #ccc;border-radius:6px;background:#e6f7e8;padding:1rem;">
               <div style="display:flex;justify-content:space-between;font-weight:600;">
-                AI${i}
+                AI${i + 1}
                 <span id="ai-dot-${i}"
                       style="width:10px;height:10px;border-radius:50%;background:#ccc;display:inline-block;"></span>
               </div>
               <div style="margin-top:.5rem;font-size:.9rem;">
-                Raw: <span id="ai-raw-${i}">--</span><br>
+                Raw mV: <span id="ai-raw-${i}">--</span><br>
                 Voltage: <span id="ai-volts-${i}">--</span> V
               </div>
             </div>`;
@@ -244,7 +274,7 @@
         }
       })();
 
-      // <<< ADDED: build DAC, RTD, Button, LED cards >>>
+      // Build DAC cards
       (function buildDacCards() {
         const container = $("dac-cards");
         if (!container) return;
@@ -253,7 +283,7 @@
           card.innerHTML = `
             <div style="border:1px solid #ccc;border-radius:6px;background:#f1f1f1;padding:1rem;">
               <div style="font-weight:600;margin-bottom:.5rem;">
-                AO${i}
+                AO${i + 1}
               </div>
               <input type="range" min="0" max="4095" value="0"
                      id="dac-slider-${i}"
@@ -267,6 +297,7 @@
         }
       })();
 
+      // Build RTD cards
       (function buildRtdCards() {
         const container = $("rtd-cards");
         if (!container) return;
@@ -285,6 +316,7 @@
         }
       })();
 
+      // Build Button cards
       (function buildButtonCards() {
         const container = $("buttons-cards");
         if (!container) return;
@@ -302,6 +334,7 @@
         }
       })();
 
+      // Build LED cards
       (function buildLedCards() {
         const container = $("leds-cards");
         if (!container) return;
@@ -318,20 +351,389 @@
           container.appendChild(card);
         }
       })();
-      // <<< END of added builders >>>
+
+      function markPidEditing(index, editing) {
+        pidEditing[index] = editing;
+      }
+
+      // ---------------- PID cards ----------------
+      (function buildPidCards() {
+        const container = $("pid-cards");
+        if (!container) return;
+
+        for (let i = 0; i < NUM_PID; i++) {
+          const idx = i + 1;
+          const card = document.createElement("div");
+          card.innerHTML = `
+            <div style="border:1px solid #ccc;border-radius:6px;background:#eef8ff;padding:1rem;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;">
+                <span style="font-weight:600;">PID ${idx}</span>
+                <div style="font-size:.85rem;">
+                  <label for="pid-en-${i}" style="margin-right:4px;">State</label>
+                  <select id="pid-en-${i}"
+                          style="padding:4px 6px;border-radius:4px;border:1px solid #ccc;">
+                    <option value="0">Disabled</option>
+                    <option value="1">Enabled</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;">
+                <div style="grid-column:span 2;">
+                  <label style="font-size:.85rem;">Setpoint SP${idx} (raw)</label>
+                  <input type="number" id="pid-sp-${i}"
+                         style="width:100%;padding:4px 6px;border-radius:4px;border:1px solid #ccc;"
+                         value="0" step="1">
+                  <div style="font-size:.75rem;color:#777;margin-top:2px;">
+                    Raw units (mV for AI sources, °C×10 for RTD sources).
+                  </div>
+                </div>
+
+                <div style="grid-column:span 2;">
+                  <label style="font-size:.85rem;">PV Source</label>
+                  <select id="pid-pv-${i}"
+                          style="width:100%;padding:4px 6px;border-radius:4px;border:1px solid #ccc;">
+                    <option value="0">None</option>
+                    <option value="1">AI1 (mV)</option>
+                    <option value="2">AI2 (mV)</option>
+                    <option value="3">AI3 (mV)</option>
+                    <option value="4">AI4 (mV)</option>
+                    <option value="5">RTD1 (°C×10)</option>
+                    <option value="6">RTD2 (°C×10)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style="font-size:.85rem;">SP Source</label>
+                  <select id="pid-spsrc-${i}"
+                          style="width:100%;padding:4px 6px;border-radius:4px;border:1px solid #ccc;">
+                    <option value="0">Manual SP</option>
+                    <option value="1">SP1 (Modbus)</option>
+                    <option value="2">SP2 (Modbus)</option>
+                    <option value="3">SP3 (Modbus)</option>
+                    <option value="4">SP4 (Modbus)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style="font-size:.85rem;">Output Target</label>
+                  <select id="pid-out-${i}"
+                          style="width:100%;padding:4px 6px;border-radius:4px;border:1px solid #ccc;">
+                    <option value="0">None</option>
+                    <option value="1">AO1</option>
+                    <option value="2">AO2</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style="font-size:.85rem;">Kp</label>
+                  <input type="number" id="pid-kp-${i}"
+                         style="width:100%;padding:4px 6px;border-radius:4px;border:1px solid:#ccc;"
+                         value="0" step="0.01">
+                </div>
+                <div>
+                  <label style="font-size:.85rem;">Ki</label>
+                  <input type="number" id="pid-ki-${i}"
+                         style="width:100%;padding:4px 6px;border-radius:4px;border:1px solid:#ccc;"
+                         value="0" step="0.01">
+                </div>
+                <div>
+                  <label style="font-size:.85rem;">Kd</label>
+                  <input type="number" id="pid-kd-${i}"
+                         style="width:100%;padding:4px 6px;border-radius:4px;border:1px solid:#ccc;"
+                         value="0" step="0.01">
+                </div>
+
+                <!-- Scaling block -->
+                <div style="grid-column:span 2;border-top:1px dashed #ccc;margin-top:.5rem;padding-top:.5rem;font-size:.8rem;">
+                  <div style="font-weight:600;margin-bottom:.25rem;">Scaling (raw → 0–100%)</div>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:.25rem;">
+                    <div>
+                      <label style="font-size:.8rem;">PV min</label>
+                      <input type="number" id="pid-pvmin-${i}"
+                             style="width:100%;padding:3px 5px;border-radius:4px;border:1px solid #ccc;"
+                             value="0" step="1">
+                    </div>
+                    <div>
+                      <label style="font-size:.8rem;">PV max</label>
+                      <input type="number" id="pid-pvmax-${i}"
+                             style="width:100%;padding:3px 5px;border-radius:4px;border:1px solid #ccc;"
+                             value="10000" step="1">
+                    </div>
+                    <div>
+                      <label style="font-size:.8rem;">OUT min</label>
+                      <input type="number" id="pid-outmin-${i}"
+                             style="width:100%;padding:3px 5px;border-radius:4px;border:1px solid #ccc;"
+                             value="0" step="1">
+                    </div>
+                    <div>
+                      <label style="font-size:.8rem;">OUT max</label>
+                      <input type="number" id="pid-outmax-${i}"
+                             style="width:100%;padding:3px 5px;border-radius:4px;border:1px solid #ccc;"
+                             value="4095" step="1">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Internal % display -->
+                <div style="grid-column:span 2;margin-top:.25rem;font-size:.8rem;background:#ffffff;border-radius:4px;padding:.4rem .5rem;">
+                  <div>
+                    PV: <span id="pid-pv-pct-${i}">--</span> % &nbsp; | &nbsp;
+                    SP: <span id="pid-sp-pct-${i}">--</span> % &nbsp; | &nbsp;
+                    OUT: <span id="pid-out-pct-${i}">--</span> %
+                  </div>
+                </div>
+              </div>
+            </div>`;
+          container.appendChild(card);
+        }
+
+        // wire DOM to buffers and editing lock
+        for (let i = 0; i < NUM_PID; i++) {
+          const controls = [
+            $("pid-en-" + i),
+            $("pid-sp-" + i),
+            $("pid-pv-" + i),
+            $("pid-spsrc-" + i),
+            $("pid-out-" + i),
+            $("pid-kp-" + i),
+            $("pid-ki-" + i),
+            $("pid-kd-" + i),
+            $("pid-pvmin-" + i),
+            $("pid-pvmax-" + i),
+            $("pid-outmin-" + i),
+            $("pid-outmax-" + i)
+          ];
+
+          controls.forEach((el) => {
+            if (!el) return;
+            el.addEventListener("focus", () => markPidEditing(i, true));
+            el.addEventListener("blur", () => {
+              markPidEditing(i, false);
+              sendPidConfig(); // send updated state after editing
+            });
+          });
+
+          const enEl     = $("pid-en-" + i);
+          const spEl     = $("pid-sp-" + i);
+          const pvEl     = $("pid-pv-" + i);
+          const spSrcEl  = $("pid-spsrc-" + i);
+          const outEl    = $("pid-out-" + i);
+          const kpEl     = $("pid-kp-" + i);
+          const kiEl     = $("pid-ki-" + i);
+          const kdEl     = $("pid-kd-" + i);
+          const pvMinEl  = $("pid-pvmin-" + i);
+          const pvMaxEl  = $("pid-pvmax-" + i);
+          const outMinEl = $("pid-outmin-" + i);
+          const outMaxEl = $("pid-outmax-" + i);
+
+          if (enEl)    enEl.addEventListener("change", () => { pidEn[i]     = parseInt(enEl.value, 10) || 0; });
+          if (spEl)    spEl.addEventListener("change", () => { pidSp[i]     = parseInt(spEl.value, 10) || 0; });
+          if (pvEl)    pvEl.addEventListener("change", () => { pidPvSrc[i]  = parseInt(pvEl.value, 10) || 0; });
+          if (spSrcEl) spSrcEl.addEventListener("change", () => { pidSpSrc[i]= parseInt(spSrcEl.value, 10) || 0; });
+          if (outEl)   outEl.addEventListener("change", () => { pidOutSel[i]= parseInt(outEl.value, 10) || 0; });
+          if (kpEl)    kpEl.addEventListener("change", () => { pidKp[i]     = parseFloat(kpEl.value) || 0; });
+          if (kiEl)    kiEl.addEventListener("change", () => { pidKi[i]     = parseFloat(kiEl.value) || 0; });
+          if (kdEl)    kdEl.addEventListener("change", () => { pidKd[i]     = parseFloat(kdEl.value) || 0; });
+
+          if (pvMinEl) pvMinEl.addEventListener("change", () => { pidPvMin[i]  = parseFloat(pvMinEl.value)  || 0; });
+          if (pvMaxEl) pvMaxEl.addEventListener("change", () => { pidPvMax[i]  = parseFloat(pvMaxEl.value)  || 0; });
+          if (outMinEl)outMinEl.addEventListener("change", () => { pidOutMin[i] = parseFloat(outMinEl.value) || 0; });
+          if (outMaxEl)outMaxEl.addEventListener("change", () => { pidOutMax[i] = parseFloat(outMaxEl.value) || 0; });
+        }
+
+        const applyBtn = $("pid-apply-all");
+        if (applyBtn) {
+          applyBtn.addEventListener("click", sendPidConfig);
+        }
+      })();
+
+      // send current PID buffers to controller
+      async function sendPidConfig() {
+        try {
+          const spArr     = [];
+          const enArr     = [];
+          const pvArr     = [];
+          const spSrcArr  = [];
+          const outArr    = [];
+          const kpArr     = [];
+          const kiArr     = [];
+          const kdArr     = [];
+          const pvMinArr  = [];
+          const pvMaxArr  = [];
+          const outMinArr = [];
+          const outMaxArr = [];
+
+          for (let i = 0; i < NUM_PID; i++) {
+            // refresh from DOM just before send
+            const enEl     = $("pid-en-" + i);
+            const spEl     = $("pid-sp-" + i);
+            const pvEl     = $("pid-pv-" + i);
+            const spSrcEl  = $("pid-spsrc-" + i);
+            const outEl    = $("pid-out-" + i);
+            const kpEl     = $("pid-kp-" + i);
+            const kiEl     = $("pid-ki-" + i);
+            const kdEl     = $("pid-kd-" + i);
+            const pvMinEl  = $("pid-pvmin-" + i);
+            const pvMaxEl  = $("pid-pvmax-" + i);
+            const outMinEl = $("pid-outmin-" + i);
+            const outMaxEl = $("pid-outmax-" + i);
+
+            pidEn[i]     = enEl     ? (parseInt(enEl.value, 10) || 0)   : pidEn[i];
+            pidSp[i]     = spEl     ? (parseInt(spEl.value, 10) || 0)   : pidSp[i];
+            pidPvSrc[i]  = pvEl     ? (parseInt(pvEl.value, 10) || 0)   : pidPvSrc[i];
+            pidSpSrc[i]  = spSrcEl  ? (parseInt(spSrcEl.value, 10) || 0): pidSpSrc[i];
+            pidOutSel[i] = outEl    ? (parseInt(outEl.value, 10) || 0)  : pidOutSel[i];
+            pidKp[i]     = kpEl     ? (parseFloat(kpEl.value) || 0)     : pidKp[i];
+            pidKi[i]     = kiEl     ? (parseFloat(kiEl.value) || 0)     : pidKi[i];
+            pidKd[i]     = kdEl     ? (parseFloat(kdEl.value) || 0)     : pidKd[i];
+
+            pidPvMin[i]  = pvMinEl  ? (parseFloat(pvMinEl.value) || 0)  : pidPvMin[i];
+            pidPvMax[i]  = pvMaxEl  ? (parseFloat(pvMaxEl.value) || 0)  : pidPvMax[i];
+            pidOutMin[i] = outMinEl ? (parseFloat(outMinEl.value) || 0) : pidOutMin[i];
+            pidOutMax[i] = outMaxEl ? (parseFloat(outMaxEl.value) || 0) : pidOutMax[i];
+
+            spArr.push(pidSp[i]);
+            enArr.push(pidEn[i]);
+            pvArr.push(pidPvSrc[i]);
+            spSrcArr.push(pidSpSrc[i]);
+            outArr.push(pidOutSel[i]);
+            kpArr.push(Math.round(pidKp[i] * 100));
+            kiArr.push(Math.round(pidKi[i] * 100));
+            kdArr.push(Math.round(pidKd[i] * 100));
+
+            pvMinArr.push(pidPvMin[i]);
+            pvMaxArr.push(pidPvMax[i]);
+            outMinArr.push(pidOutMin[i]);
+            outMaxArr.push(pidOutMax[i]);
+          }
+
+          const payload = {
+            sp:      spArr,
+            en:      enArr,
+            pv:      pvArr,
+            sp_src:  spSrcArr,
+            out:     outArr,
+            kp:      kpArr,
+            ki:      kiArr,
+            kd:      kdArr,
+            pv_min:  pvMinArr,
+            pv_max:  pvMaxArr,
+            out_min: outMinArr,
+            out_max: outMaxArr
+          };
+
+          await connection.send("pid", payload);
+          appendLog("UI", "PID config sent: " + JSON.stringify(payload));
+        } catch (err) {
+          appendLog("Error", err.message || err);
+        }
+      }
+
+      // -------- PID state handler from firmware --------
+      connection.on("pidState", (state) => {
+        if (!state) return;
+        const sp        = toList(state.sp);
+        const en        = toList(state.en);
+        const pvSel     = toList(state.pv);
+        const spSrc     = toList(state.sp_src);
+        const outSel    = toList(state.out);
+        const kpArr     = toList(state.kp);
+        const kiArr     = toList(state.ki);
+        const kdArr     = toList(state.kd);
+        const pvMinArr  = toList(state.pv_min || []);
+        const pvMaxArr  = toList(state.pv_max || []);
+        const outMinArr = toList(state.out_min || []);
+        const outMaxArr = toList(state.out_max || []);
+        const pvPctArr  = toList(state.pv_pct || []);
+        const spPctArr  = toList(state.sp_pct || []);
+        const outPctArr = toList(state.out_pct || []);
+
+        for (let i = 0; i < NUM_PID; i++) {
+          if (pidEditing[i]) continue;  // do not overwrite while editing
+
+          const spVal      = Number(sp[i]       ?? 0);
+          const enVal      = Number(en[i]       ?? 0);
+          const pvVal      = Number(pvSel[i]    ?? 0);
+          const spSrcVal   = Number(spSrc[i]    ?? 0);
+          const outVal     = Number(outSel[i]   ?? 0);
+          const kpVal      = Number(kpArr[i]    ?? 0) / 100;
+          const kiVal      = Number(kiArr[i]    ?? 0) / 100;
+          const kdVal      = Number(kdArr[i]    ?? 0) / 100;
+
+          const pvMinVal   = Number(pvMinArr[i] ?? pidPvMin[i]);
+          const pvMaxVal   = Number(pvMaxArr[i] ?? pidPvMax[i]);
+          const outMinVal  = Number(outMinArr[i]?? pidOutMin[i]);
+          const outMaxVal  = Number(outMaxArr[i]?? pidOutMax[i]);
+
+          const pvPctVal   = Number(pvPctArr[i] ?? NaN);
+          const spPctVal   = Number(spPctArr[i] ?? NaN);
+          const outPctVal  = Number(outPctArr[i]?? NaN);
+
+          pidSp[i]     = spVal;
+          pidEn[i]     = enVal;
+          pidPvSrc[i]  = pvVal;
+          pidSpSrc[i]  = spSrcVal;
+          pidOutSel[i] = outVal;
+          pidKp[i]     = kpVal;
+          pidKi[i]     = kiVal;
+          pidKd[i]     = kdVal;
+
+          pidPvMin[i]  = pvMinVal;
+          pidPvMax[i]  = pvMaxVal;
+          pidOutMin[i] = outMinVal;
+          pidOutMax[i] = outMaxVal;
+
+          const enEl      = $("pid-en-" + i);
+          const spEl      = $("pid-sp-" + i);
+          const pvEl      = $("pid-pv-" + i);
+          const spSrcEl   = $("pid-spsrc-" + i);
+          const outEl     = $("pid-out-" + i);
+          const kpEl      = $("pid-kp-" + i);
+          const kiEl      = $("pid-ki-" + i);
+          const kdEl      = $("pid-kd-" + i);
+          const pvMinEl   = $("pid-pvmin-" + i);
+          const pvMaxEl   = $("pid-pvmax-" + i);
+          const outMinEl  = $("pid-outmin-" + i);
+          const outMaxEl  = $("pid-outmax-" + i);
+          const pvPctEl   = $("pid-pv-pct-" + i);
+          const spPctEl   = $("pid-sp-pct-" + i);
+          const outPctEl  = $("pid-out-pct-" + i);
+
+          if (enEl)     enEl.value    = String(enVal);
+          if (spEl)     spEl.value    = String(spVal);
+          if (pvEl)     pvEl.value    = String(pvVal);
+          if (spSrcEl)  spSrcEl.value = String(spSrcVal);
+          if (outEl)    outEl.value   = String(outVal);
+          if (kpEl)     kpEl.value    = kpVal.toString();
+          if (kiEl)     kiEl.value    = kiVal.toString();
+          if (kdEl)     kdEl.value    = kdVal.toString();
+
+          if (pvMinEl)  pvMinEl.value = pvMinVal.toString();
+          if (pvMaxEl)  pvMaxEl.value = pvMaxVal.toString();
+          if (outMinEl) outMinEl.value= outMinVal.toString();
+          if (outMaxEl) outMaxEl.value= outMaxVal.toString();
+
+          if (pvPctEl)  pvPctEl.textContent  = isNaN(pvPctVal)  ? "--" : pvPctVal.toFixed(1);
+          if (spPctEl)  spPctEl.textContent  = isNaN(spPctVal)  ? "--" : spPctVal.toFixed(1);
+          if (outPctEl) outPctEl.textContent = isNaN(outPctVal) ? "--" : outPctVal.toFixed(1);
+        }
+
+        appendLog("FW", "PID state + scaling synced from device");
+      });
 
       // -------- AI handler (millivolt-based) --------
       connection.on("aiValues", (list) => {
-        if (!Array.isArray(list)) return;
+        if (!Array.isArray(list) && !(list && typeof list === "object")) return;
+        const vals = toList(list);
 
-        list.forEach((mv, i) => {
+        vals.forEach((mv, i) => {
           const mvNum = Number(mv);
-
           const rawSpan = $("ai-raw-" + i);
-          const vSpan = $("ai-volts-" + i);
-          const dot = $("ai-dot-" + i);
+          const vSpan   = $("ai-volts-" + i);
+          const dot     = $("ai-dot-" + i);
 
-          if (rawSpan) rawSpan.textContent = isNaN(mvNum) ? "--" : mvNum + " mV";
+          if (rawSpan) rawSpan.textContent = isNaN(mvNum) ? "--" : mvNum.toString();
 
           const volts = mvNum / 1000;
           if (vSpan && !isNaN(volts)) vSpan.textContent = volts.toFixed(3);
@@ -340,65 +742,70 @@
         });
       });
 
-      // RTD handler
+      // RTD handler (°C×10 from firmware)
       connection.on("rtdTemps_x10", (list) => {
-        if (!Array.isArray(list)) return;
-        list.forEach((t10, i) => {
-          const span = $("rtd-temp-"+i);
+        if (!Array.isArray(list) && !(list && typeof list === "object")) return;
+        const vals = toList(list);
+        vals.forEach((t10, i) => {
+          const span = $("rtd-temp-" + i);
           const val = Number(t10);
           if (!span) return;
-          span.textContent = isNaN(val) ? "--" : (val/10).toFixed(1);
+          span.textContent = isNaN(val) ? "--" : (val / 10).toFixed(1);
         });
       });
 
       // DAC handler
       connection.on("dacValues", (list) => {
-        if (!Array.isArray(list)) return;
-        list.forEach((v,i)=>{
-          const val = Number(v)||0;
+        if (!Array.isArray(list) && !(list && typeof list === "object")) return;
+        const vals = toList(list);
+        vals.forEach((v, i) => {
+          const val = Number(v) || 0;
           dacValues[i] = val;
-          const slider = $("dac-slider-"+i);
-          const rawEl  = $("dac-raw-"+i);
-          const vEl    = $("dac-volts-"+i);
+          const slider = $("dac-slider-" + i);
+          const rawEl  = $("dac-raw-" + i);
+          const vEl    = $("dac-volts-" + i);
           if (slider) slider.value = val;
-          if (rawEl) rawEl.textContent = val;
-          if (vEl) vEl.textContent = (val/4095*10).toFixed(2);
+          if (rawEl)  rawEl.textContent = val;
+          if (vEl)    vEl.textContent = (val / 4095 * 10).toFixed(2);
         });
       });
 
       // Button and LED handlers
       connection.on("ButtonStateList", (list) => {
-        if (!Array.isArray(list)) return;
-        list.forEach((v,i)=>{
-          const dot = $("btn-dot-"+i);
+        if (!Array.isArray(list) && !(list && typeof list === "object")) return;
+        const vals = toList(list);
+        vals.forEach((v, i) => {
+          const dot = $("btn-dot-" + i);
           if (dot) dot.style.background = v ? "#4caf50" : "#ccc";
         });
       });
 
       connection.on("LedStateList", (list) => {
-        if (!Array.isArray(list)) return;
-        list.forEach((v,i)=>{
-          const dot = $("led-dot-"+i);
+        if (!Array.isArray(list) && !(list && typeof list === "object")) return;
+        const vals = toList(list);
+        vals.forEach((v, i) => {
+          const dot = $("led-dot-" + i);
           if (dot) dot.style.background = v ? "#ffb300" : "#ccc";
         });
       });
 
       // DAC slider → send
-      for (let i=0;i<NUM_DAC;i++) {
-        const slider = $("dac-slider-"+i);
+      for (let i = 0; i < NUM_DAC; i++) {
+        const slider = $("dac-slider-" + i);
         if (!slider) continue;
-        slider.addEventListener("input", ()=>{
+
+        slider.addEventListener("input", () => {
           const val = Number(slider.value);
           dacValues[i] = val;
-          const rawEl = $("dac-raw-"+i);
-          const vEl   = $("dac-volts-"+i);
+          const rawEl = $("dac-raw-" + i);
+          const vEl   = $("dac-volts-" + i);
           if (rawEl) rawEl.textContent = val;
-          if (vEl) vEl.textContent = (val/4095*10).toFixed(2);
+          if (vEl) vEl.textContent = (val / 4095 * 10).toFixed(2);
         });
 
-        slider.addEventListener("change", async ()=>{
+        slider.addEventListener("change", async () => {
           await connection.send("dac", { list: dacValues });
-          appendLog("UI", "DAC update: "+JSON.stringify(dacValues));
+          appendLog("UI", "DAC update: " + JSON.stringify(dacValues));
         });
       }
     })();
