@@ -84,16 +84,20 @@
   <section style="margin-top:2rem;">
     <h2 style="font-size:1.2rem;">Buttons (4)</h2>
     <p style="margin-top:-.25rem;color:#555;font-size:.9rem;">
-      Button states are read directly from the device.
+      Button states are read directly from the device. Button action is <strong>Web-only</strong> (saved in flash).
     </p>
     <div id="buttons-cards"
-         style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;"></div>
+         style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;"></div>
   </section>
 
   <section style="margin-top:2rem;">
     <h2 style="font-size:1.2rem;">User LEDs (4)</h2>
+    <p style="margin-top:-.25rem;color:#555;font-size:.9rem;">
+      Each LED can be <strong>manual</strong> (toggled by the button) or <strong>driven by a source</strong>
+      (PID enabled / PID OUT 0% / PID OUT 100% / AO 0% / AO 100%).
+    </p>
     <div id="leds-cards"
-         style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;"></div>
+         style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem;"></div>
   </section>
 
   <!-- PID Controllers (4 rows: left settings, right trend) -->
@@ -130,6 +134,19 @@
 
       const dacValues = [0, 0];
 
+      // ===== Button action selection (0..6) =====
+      // 0 = Manual LED toggle (legacy) (only if LED source is Manual for same index)
+      // 1..4 = Toggle PID1..PID4 enable
+      // 5 = Toggle AO1+AO2 to 0     (toggle 0 <-> 4095)
+      // 6 = Toggle AO1+AO2 to 4095  (toggle 4095 <-> 0)
+      const btnAction  = [0,0,0,0];
+      const btnEditing = [false,false,false,false];
+
+      // LED source selection buffers (0..16)
+      // 0=Manual, 1..4=PID enabled, 5..8=PID out 0%, 9..12=PID out 100%, 13..16=AO thresholds
+      const ledSrc = [0,0,0,0];
+      const ledEditing = [false,false,false,false];
+
       // PID config buffers
       const pidSp     = [0, 0, 0, 0];  // SP raw
       const pidEn     = [0, 0, 0, 0];  // 0/1
@@ -140,20 +157,20 @@
       const pidKi     = [0, 0, 0, 0];
       const pidKd     = [0, 0, 0, 0];
 
-      // Scaling buffers (RAW units) - used for display + device config
+      // Scaling buffers (RAW units)
       const pidPvMin  = [0, 0, 0, 0];
       const pidPvMax  = [10000, 10000, 10000, 10000];
       const pidOutMin = [0, 0, 0, 0];
       const pidOutMax = [4095, 4095, 4095, 4095];
 
-      // Direct/Reverse mode (0=Direct, 1=Reverse) - separate message
+      // Direct/Reverse mode (0=Direct, 1=Reverse)
       const pidMode   = [0, 0, 0, 0];
 
       // per-PID editing lock
       const pidEditing = [false, false, false, false];
 
-      // --- Trend buffers (live only, in-memory only) ---
-      const EXPECTED_SAMPLE_MS = 250; // your firmware sends ~250ms
+      // --- Trend buffers ---
+      const EXPECTED_SAMPLE_MS = 250;
       const trend = Array.from({length: NUM_PID}, () => ({
         winMin: 10,
         maxPoints: Math.floor((10 * 60 * 1000) / EXPECTED_SAMPLE_MS),
@@ -346,47 +363,205 @@
         }
       })();
 
-      // Build Button cards
+      // ===== Button actions (FULL) =====
+      function markBtnEditing(i, editing) { btnEditing[i] = editing; }
+
+      async function sendBtnCfg() {
+        try {
+          await connection.send("btnCfg", { action: btnAction });
+          appendLog("UI", "Button actions sent: " + JSON.stringify(btnAction));
+        } catch (err) {
+          appendLog("Error", err.message || err);
+        }
+      }
+
+      // Firmware sends this on boot + periodically (as in the firmware I sent you)
+      connection.on("ButtonActionList", (list) => {
+        const vals = toList(list);
+        if (!vals.length) return;
+        for (let i=0;i<NUM_BTN;i++) {
+          const v = Number(vals[i] ?? btnAction[i]) || 0;
+          btnAction[i] = Math.max(0, Math.min(6, v));
+          const sel = $("btn-act-" + i);
+          if (sel && !btnEditing[i]) sel.value = String(btnAction[i]);
+        }
+      });
+
+      // Optional: if firmware ever echoes "btnCfg"
+      connection.on("btnCfg", (data) => {
+        const vals = toList(data?.action || []);
+        if (!vals.length) return;
+        for (let i=0;i<NUM_BTN;i++) {
+          const v = Number(vals[i] ?? btnAction[i]) || 0;
+          btnAction[i] = Math.max(0, Math.min(6, v));
+          const sel = $("btn-act-" + i);
+          if (sel && !btnEditing[i]) sel.value = String(btnAction[i]);
+        }
+      });
+
+      // Build Button cards (with action select)
       (function buildButtonCards() {
         const container = $("buttons-cards");
         if (!container) return;
+
+        const options = [
+          [0, "Manual LED toggle (legacy)"],
+          [1, "Toggle PID1 enable"],
+          [2, "Toggle PID2 enable"],
+          [3, "Toggle PID3 enable"],
+          [4, "Toggle PID4 enable"],
+          [5, "Toggle AO1 to 0%-100%"],
+          [6, "Toggle AO2 to 0%-100"],
+        ];
+
         for (let i = 0; i < NUM_BTN; i++) {
           const card = document.createElement("div");
+          const optHtml = options.map(([v,t]) => `<option value="${v}">${t}</option>`).join("");
+
           card.innerHTML = `
             <div style="border:1px solid #ccc;border-radius:6px;background:#cbdcf7;padding:1rem;">
-              <div style="font-weight:600;">
-                Button ${i + 1}
+              <div style="font-weight:600;display:flex;justify-content:space-between;align-items:center;">
+                <span>Button ${i + 1}</span>
                 <span id="btn-dot-${i}"
-                      style="width:12px;height:12px;border-radius:50%;background:#ccc;display:inline-block;float:right;"></span>
+                      style="width:12px;height:12px;border-radius:50%;background:#ccc;display:inline-block;"></span>
               </div>
-            </div>`;
+
+              <div style="margin-top:.7rem;">
+                <label style="font-size:.85rem;">Action</label>
+                <select id="btn-act-${i}"
+                        style="width:100%;padding:6px;border-radius:4px;border:1px solid #ccc;">
+                  ${optHtml}
+                </select>
+                <div style="font-size:.75rem;color:#567;margin-top:4px;line-height:1.2;">
+                  Runs on button <strong>push</strong> (rising edge). Saved in flash.
+                </div>
+              </div>
+            </div>
+          `;
           container.appendChild(card);
+
+          const sel = $("btn-act-" + i);
+          if (sel) {
+            sel.value = "0";
+            sel.addEventListener("focus", () => markBtnEditing(i, true));
+            sel.addEventListener("blur", () => { markBtnEditing(i, false); sendBtnCfg(); });
+            sel.addEventListener("change", () => {
+              btnAction[i] = parseInt(sel.value, 10) || 0;
+              sendBtnCfg();
+            });
+          }
         }
       })();
 
-      // Build LED cards
+      // -------- LED Source Config (FULL) --------
+      function markLedEditing(i, editing) { ledEditing[i] = editing; }
+
+      async function sendLedCfg() {
+        try {
+          await connection.send("ledCfg", { src: ledSrc });
+          appendLog("UI", "LED sources sent: " + JSON.stringify(ledSrc));
+        } catch (err) {
+          appendLog("Error", err.message || err);
+        }
+      }
+
+      // Firmware sends "LedSourceList" in your firmware (preferred), but keep "ledCfg" too
+      connection.on("LedSourceList", (list) => {
+        const arr = toList(list);
+        if (!arr.length) return;
+
+        for (let i=0;i<NUM_LED;i++) {
+          const v = Number(arr[i] ?? ledSrc[i]) || 0;
+          ledSrc[i] = Math.max(0, Math.min(16, v));
+
+          const sel = $("led-src-" + i);
+          if (sel && !ledEditing[i]) sel.value = String(ledSrc[i]);
+        }
+      });
+
+      connection.on("ledCfg", (data) => {
+        const arr = toList(data?.src || []);
+        if (!arr.length) return;
+
+        for (let i=0;i<NUM_LED;i++) {
+          const v = Number(arr[i] ?? ledSrc[i]) || 0;
+          ledSrc[i] = Math.max(0, Math.min(16, v));
+
+          const sel = $("led-src-" + i);
+          if (sel && !ledEditing[i]) sel.value = String(ledSrc[i]);
+        }
+      });
+
+      // Build LED cards (with source selection)
       (function buildLedCards() {
         const container = $("leds-cards");
         if (!container) return;
+
+        const options = [
+          [0,  "Manual (button toggle)"],
+          [1,  "PID1 Enabled"],
+          [2,  "PID2 Enabled"],
+          [3,  "PID3 Enabled"],
+          [4,  "PID4 Enabled"],
+          [5,  "PID1 OUT = 0%"],
+          [6,  "PID2 OUT = 0%"],
+          [7,  "PID3 OUT = 0%"],
+          [8,  "PID4 OUT = 0%"],
+          [9,  "PID1 OUT = 100%"],
+          [10, "PID2 OUT = 100%"],
+          [11, "PID3 OUT = 100%"],
+          [12, "PID4 OUT = 100%"],
+          [13, "AO1 = 0%"],
+          [14, "AO2 = 0%"],
+          [15, "AO1 = 100%"],
+          [16, "AO2 = 100%"]
+        ];
+
         for (let i = 0; i < NUM_LED; i++) {
           const card = document.createElement("div");
+
+          const optHtml = options.map(([v, t]) =>
+            `<option value="${v}">${t}</option>`
+          ).join("");
+
           card.innerHTML = `
             <div style="border:1px solid #ccc;border-radius:6px;background:#f3f5d0;padding:1rem;">
-              <div style="font-weight:600;">
-                LED ${i + 1}
+              <div style="display:flex;justify-content:space-between;align-items:center;font-weight:600;">
+                <span>LED ${i + 1}</span>
                 <span id="led-dot-${i}"
-                      style="width:12px;height:12px;border-radius:50%;background:#ccc;display:inline-block;float:right;"></span>
+                      style="width:12px;height:12px;border-radius:50%;background:#ccc;display:inline-block;"></span>
               </div>
-            </div>`;
+
+              <div style="margin-top:.6rem;">
+                <label style="font-size:.85rem;">Source</label>
+                <select id="led-src-${i}"
+                        style="width:100%;padding:6px;border-radius:4px;border:1px solid #ccc;">
+                  ${optHtml}
+                </select>
+                <div style="font-size:.75rem;color:#777;margin-top:4px;line-height:1.2;">
+                  Manual: button toggles LED. Otherwise firmware forces LED from selected source.
+                </div>
+              </div>
+            </div>
+          `;
           container.appendChild(card);
+
+          const sel = $("led-src-" + i);
+          if (sel) {
+            sel.value = "0";
+            sel.addEventListener("focus", () => markLedEditing(i, true));
+            sel.addEventListener("blur", () => { markLedEditing(i, false); sendLedCfg(); });
+            sel.addEventListener("change", () => {
+              ledSrc[i] = parseInt(sel.value, 10) || 0;
+              sendLedCfg();
+            });
+          }
         }
       })();
 
-      function markPidEditing(index, editing) {
-        pidEditing[index] = editing;
-      }
+      function markPidEditing(index, editing) { pidEditing[index] = editing; }
 
-      // -------- Trend drawing (simple canvas, % scale 0..100) --------
+      // -------- Trend drawing --------
       function drawTrend(pidIndex, force=false) {
         const tr = trend[pidIndex];
         const now = Date.now();
@@ -525,6 +700,10 @@
                       <option value="4">AI4 (mV)</option>
                       <option value="5">RTD1 (°C×10)</option>
                       <option value="6">RTD2 (°C×10)</option>
+                      <option value="7">PV1 (Modbus)</option>
+                      <option value="8">PV2 (Modbus)</option>
+                      <option value="9">PV3 (Modbus)</option>
+                      <option value="10">PV4 (Modbus)</option>
                     </select>
                   </div>
 
@@ -613,7 +792,7 @@
                 </div>
               </div>
 
-              <!-- RIGHT: trend (FIXED to never overflow blue row) -->
+              <!-- RIGHT: trend -->
               <div style="
                 background:#ffffff;
                 border:1px solid #d8d8d8;
@@ -641,7 +820,6 @@
                   &nbsp; | &nbsp; OUT raw scale: <span id="pid-scale-out-${i}">--</span>
                 </div>
 
-                <!-- IMPORTANT: min-height:0 prevents flex overflow -->
                 <div style="flex:1 1 auto;min-height:0;overflow:hidden;">
                   <canvas id="pid-trend-${i}" width="420" height="380"
                           style="width:100%;height:100%;display:block;border-radius:6px;"></canvas>
@@ -920,8 +1098,8 @@
         }
       });
 
+      // Live updates
       connection.on("aiValues", (list) => {
-        if (!Array.isArray(list) && !(list && typeof list === "object")) return;
         const vals = toList(list);
         vals.forEach((mv, i) => {
           const mvNum = Number(mv);
@@ -936,7 +1114,6 @@
       });
 
       connection.on("rtdTemps_x10", (list) => {
-        if (!Array.isArray(list) && !(list && typeof list === "object")) return;
         const vals = toList(list);
         vals.forEach((t10, i) => {
           const span = $("rtd-temp-" + i);
@@ -947,7 +1124,6 @@
       });
 
       connection.on("dacValues", (list) => {
-        if (!Array.isArray(list) && !(list && typeof list === "object")) return;
         const vals = toList(list);
         vals.forEach((v, i) => {
           const val = Number(v) || 0;
@@ -962,7 +1138,6 @@
       });
 
       connection.on("ButtonStateList", (list) => {
-        if (!Array.isArray(list) && !(list && typeof list === "object")) return;
         const vals = toList(list);
         vals.forEach((v, i) => {
           const dot = $("btn-dot-" + i);
@@ -971,7 +1146,6 @@
       });
 
       connection.on("LedStateList", (list) => {
-        if (!Array.isArray(list) && !(list && typeof list === "object")) return;
         const vals = toList(list);
         vals.forEach((v, i) => {
           const dot = $("led-dot-" + i);
@@ -979,6 +1153,7 @@
         });
       });
 
+      // DAC sliders send
       for (let i = 0; i < NUM_DAC; i++) {
         const slider = $("dac-slider-" + i);
         if (!slider) continue;

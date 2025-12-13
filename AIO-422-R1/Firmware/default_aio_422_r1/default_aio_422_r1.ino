@@ -4,14 +4,27 @@
 //    - Modbus 300..303 = SP1..SP4 (from Modbus)
 //    - Manual SP = pidManualSp[0..3] (from Web config only)
 //    - Web "pidState.sp[]" shows ACTIVE setpoint (manual or selected source value)
-// 2) Modbus writes to PID EN/KP/KI/KD/PVSEL/SPSEL/OUTSEL update firmware PID config (mirrored).
+// 2) Modbus writes to PID EN/KP/KI/KD update firmware PID config (mirrored).
 // 3) PID Working Mode Direct/Reverse remains Web-only via "pidMode" and persisted in LittleFS.
 // 4) SP source supports PID outputs: sp_src 5..8 = PID1..PID4 virtual OUT (raw)
 // 5) updatePids() uses 2-pass solve so PID->PID SP is stable within each cycle.
+// 6) NEW: LED sources selectable (Web-only, persisted) -> show PID enabled / PID at 0/100% / AO1-2 at 0/100%
+// 7) NEW: Button actions selectable (Web-only, persisted):
+//    - Manual LED toggle (legacy)
+//    - Toggle PID1..PID4 enable
+//    - Toggle AO1 to 0% or 100% (independent)
+//    - Toggle AO2 to 0% or 100% (independent)
+// 8) FIX: PID writes to AO1/AO2 ONLY when that PID is ENABLED and has valid PV/SP.
+//    - If PID is disabled, it DOES NOT touch AO outputs (AO remains free for Modbus/Web manual control).
+//
+// NEW (your request):
+// 9) Added 4x external PV values received via Modbus:
+//    - HREG 410..413 = MBPV1..MBPV4 (R/W)
+//    - PV selection extended: pvSource 7..10 = MBPV1..MBPV4
 //
 // HW: 4x AI ADS1115 (Wire1 SDA=6 SCL=7), 2x AO MCP4725 (0x60/0x61), 2x RTD MAX31865 softSPI,
 //     4x Buttons GPIO22..25, 4x LEDs GPIO18..21
-// WebSerial + Modbus RTU + LittleFS persistence of Modbus/DAC + PID mode + Manual SP
+// WebSerial + Modbus RTU + LittleFS persistence of Modbus/DAC + PID mode + Manual SP + LED sources + Button actions
 
 #include <Arduino.h>
 #include <Wire.h>
@@ -115,21 +128,24 @@ enum : uint16_t {
 
   HREG_SP_BASE        = 300, // 300..303 = SP1..SP4 (MODBUS)
   HREG_PID_EN_BASE    = 310,
-  HREG_PID_PVSEL_BASE = 320,
-  HREG_PID_SPSEL_BASE = 330,
-  HREG_PID_OUTSEL_BASE= 340,
+  HREG_PID_PVSEL_BASE = 320,  // declared but not used (kept for compatibility with your past maps)
+  HREG_PID_SPSEL_BASE = 330,  // declared but not used
+  HREG_PID_OUTSEL_BASE= 340,  // declared but not used
   HREG_PID_KP_BASE    = 350,
   HREG_PID_KI_BASE    = 360,
   HREG_PID_KD_BASE    = 370,
   HREG_PID_OUT_BASE   = 380,
   HREG_PID_PVVAL_BASE = 390,
-  HREG_PID_ERR_BASE   = 400
+  HREG_PID_ERR_BASE   = 400,
+
+  // ===== NEW: Modbus PV inputs =====
+  HREG_MBPV_BASE      = 410   // 410..413 = MBPV1..MBPV4
 };
 
 // ================== PID state ==================
 struct PIDState {
   bool    enabled;
-  uint8_t pvSource;     // 0 none, 1..4 AI1..4(mV), 5 RTD1, 6 RTD2
+  uint8_t pvSource;     // 0 none, 1..4 AI1..4(mV), 5 RTD1, 6 RTD2, 7..10 MBPV1..MBPV4 (HREG 410..413)
   uint8_t spSource;     // 0 manual (Web), 1..4 SP1..SP4(Modbus), 5..8 PID1..PID4 OUT
   uint8_t outTarget;    // 0 none, 1 AO1, 2 AO2, 3 virtual-only
   uint8_t mode;         // 0 direct, 1 reverse (Web-only persisted)
@@ -157,8 +173,59 @@ PIDState pid[4];
 float pidVirtRaw[4] = {0,0,0,0};
 float pidVirtPct[4] = {0,0,0,0};
 
-// ===== NEW: Manual setpoints (Web only), per PID (NOT Modbus) =====
+// ===== Manual setpoints (Web only), per PID (NOT Modbus) =====
 int16_t pidManualSp[4] = {0,0,0,0};
+
+// ================== LED source selection (Web-only, persisted) ==================
+enum : uint8_t {
+  LEDSRC_MANUAL = 0,     // old behavior: button toggles ledState[i]
+
+  // PID enable states
+  LEDSRC_PID1_EN = 1,
+  LEDSRC_PID2_EN = 2,
+  LEDSRC_PID3_EN = 3,
+  LEDSRC_PID4_EN = 4,
+
+  // PID output at 0% or 100% (based on pidVirtPct)
+  LEDSRC_PID1_AT0   = 5,
+  LEDSRC_PID2_AT0   = 6,
+  LEDSRC_PID3_AT0   = 7,
+  LEDSRC_PID4_AT0   = 8,
+  LEDSRC_PID1_AT100 = 9,
+  LEDSRC_PID2_AT100 = 10,
+  LEDSRC_PID3_AT100 = 11,
+  LEDSRC_PID4_AT100 = 12,
+
+  // AO raw at 0 / 100
+  LEDSRC_AO1_AT0    = 13,
+  LEDSRC_AO2_AT0    = 14,
+  LEDSRC_AO1_AT100  = 15,
+  LEDSRC_AO2_AT100  = 16,
+};
+
+uint8_t ledSrc[4] = { LEDSRC_MANUAL, LEDSRC_MANUAL, LEDSRC_MANUAL, LEDSRC_MANUAL };
+
+// thresholds for "AO at 0/100"
+static const uint16_t AO_ZERO_TH = 5;     // <=5 counts => 0%
+static const uint16_t AO_FULL_TH = 4090;  // >=4090 counts => 100%
+
+// ================== Button actions (Web-only, persisted) ==================
+enum : uint8_t {
+  BTNACT_LED_MANUAL_TOGGLE = 0, // legacy: only toggles LED if ledSrc[i] is MANUAL
+  BTNACT_TOGGLE_PID1       = 1,
+  BTNACT_TOGGLE_PID2       = 2,
+  BTNACT_TOGGLE_PID3       = 3,
+  BTNACT_TOGGLE_PID4       = 4,
+
+  // independent AO toggles
+  BTNACT_TOGGLE_AO1_0      = 5, // toggle AO1 between 0 and 4095 (bias "to 0")
+  BTNACT_TOGGLE_AO2_0      = 6, // toggle AO2 between 0 and 4095 (bias "to 0")
+  BTNACT_TOGGLE_AO1_MAX    = 7, // toggle AO1 between 4095 and 0 (bias "to 4095")
+  BTNACT_TOGGLE_AO2_MAX    = 8  // toggle AO2 between 4095 and 0 (bias "to 4095")
+};
+
+uint8_t btnAction[4] = { BTNACT_LED_MANUAL_TOGGLE, BTNACT_LED_MANUAL_TOGGLE,
+                         BTNACT_LED_MANUAL_TOGGLE, BTNACT_LED_MANUAL_TOGGLE };
 
 // ================== Persistence (LittleFS) ==================
 struct PersistConfig {
@@ -173,11 +240,14 @@ struct PersistConfig {
   uint8_t  pid_mode[4];       // persisted
   int16_t  pid_manual_sp[4];  // persisted (Web only)
 
+  uint8_t  led_src[4];        // persisted (Web only)
+  uint8_t  btn_action[4];     // persisted (Web only)
+
   uint32_t crc32;
 } __attribute__((packed));
 
 static const uint32_t CFG_MAGIC   = 0x314F4941UL;
-static const uint16_t CFG_VERSION = 0x0003;  // bump version (added pid_manual_sp)
+static const uint16_t CFG_VERSION = 0x0006;
 static const char*    CFG_PATH    = "/cfg.bin";
 
 volatile bool  cfgDirty        = false;
@@ -201,6 +271,34 @@ static inline uint8_t clamp_u8(int v, int lo, int hi) {
   return (uint8_t)v;
 }
 
+bool getLedAutoState(uint8_t src) {
+  // PID enable
+  if (src >= LEDSRC_PID1_EN && src <= LEDSRC_PID4_EN) {
+    uint8_t i = src - LEDSRC_PID1_EN;
+    return pid[i].enabled;
+  }
+
+  // PID at 0%
+  if (src >= LEDSRC_PID1_AT0 && src <= LEDSRC_PID4_AT0) {
+    uint8_t i = src - LEDSRC_PID1_AT0;
+    return (pidVirtPct[i] <= 0.01f);
+  }
+
+  // PID at 100%
+  if (src >= LEDSRC_PID1_AT100 && src <= LEDSRC_PID4_AT100) {
+    uint8_t i = src - LEDSRC_PID1_AT100;
+    return (pidVirtPct[i] >= 99.99f);
+  }
+
+  // AO checks
+  if (src == LEDSRC_AO1_AT0)   return (dacRaw[0] <= AO_ZERO_TH);
+  if (src == LEDSRC_AO2_AT0)   return (dacRaw[1] <= AO_ZERO_TH);
+  if (src == LEDSRC_AO1_AT100) return (dacRaw[0] >= AO_FULL_TH);
+  if (src == LEDSRC_AO2_AT100) return (dacRaw[1] >= AO_FULL_TH);
+
+  return false;
+}
+
 // ================== Defaults / persist ==================
 void setDefaults() {
   for (int i=0;i<NUM_LED;i++) { ledState[i] = false; }
@@ -215,6 +313,8 @@ void setDefaults() {
   for (int i=0;i<4;i++) {
     pid[i].mode = 0;
     pidManualSp[i] = 0;
+    ledSrc[i] = LEDSRC_MANUAL;
+    btnAction[i] = BTNACT_LED_MANUAL_TOGGLE; // default legacy
   }
 }
 
@@ -232,6 +332,8 @@ void captureToPersist(PersistConfig &pc) {
   for (int i=0;i<4;i++) {
     pc.pid_mode[i] = pid[i].mode;
     pc.pid_manual_sp[i] = pidManualSp[i];
+    pc.led_src[i] = ledSrc[i];
+    pc.btn_action[i] = btnAction[i];
   }
 
   pc.crc32 = 0;
@@ -239,7 +341,6 @@ void captureToPersist(PersistConfig &pc) {
 }
 
 bool applyFromPersist_v2(const uint8_t* buf, size_t len) {
-  // Backward compat for CFG_VERSION 0x0002 (no manual_sp)
   struct PersistConfigV2 {
     uint32_t magic;
     uint16_t version;
@@ -272,7 +373,136 @@ bool applyFromPersist_v2(const uint8_t* buf, size_t len) {
 
   for (int i=0;i<4;i++) {
     pid[i].mode = clamp_u8((int)pc.pid_mode[i], 0, 1);
-    pidManualSp[i] = 0; // default since v2 didn't have it
+    pidManualSp[i] = 0;
+    ledSrc[i] = LEDSRC_MANUAL;
+    btnAction[i] = BTNACT_LED_MANUAL_TOGGLE;
+  }
+  return true;
+}
+
+bool applyFromPersist_v3(const uint8_t* buf, size_t len) {
+  struct PersistConfigV3 {
+    uint32_t magic;
+    uint16_t version;
+    uint16_t size;
+
+    uint16_t dacRaw[2];
+    uint8_t  mb_address;
+    uint32_t mb_baud;
+
+    uint8_t  pid_mode[4];
+    int16_t  pid_manual_sp[4];
+
+    uint32_t crc32;
+  } __attribute__((packed));
+
+  if (len != sizeof(PersistConfigV3)) return false;
+  PersistConfigV3 pc{};
+  memcpy(&pc, buf, sizeof(pc));
+
+  if (pc.magic != CFG_MAGIC || pc.size != sizeof(PersistConfigV3)) return false;
+  uint32_t crc = pc.crc32;
+  pc.crc32 = 0;
+  if (crc32_update(0, (const uint8_t*)&pc, sizeof(PersistConfigV3)) != crc) return false;
+  if (pc.version != 0x0003) return false;
+
+  dacRaw[0] = pc.dacRaw[0];
+  dacRaw[1] = pc.dacRaw[1];
+
+  g_mb_address = pc.mb_address;
+  g_mb_baud    = pc.mb_baud;
+
+  for (int i=0;i<4;i++) {
+    pid[i].mode = clamp_u8((int)pc.pid_mode[i], 0, 1);
+    pidManualSp[i] = pc.pid_manual_sp[i];
+    ledSrc[i] = LEDSRC_MANUAL;
+    btnAction[i] = BTNACT_LED_MANUAL_TOGGLE;
+  }
+  return true;
+}
+
+bool applyFromPersist_v4(const uint8_t* buf, size_t len) {
+  struct PersistConfigV4 {
+    uint32_t magic;
+    uint16_t version;
+    uint16_t size;
+
+    uint16_t dacRaw[2];
+    uint8_t  mb_address;
+    uint32_t mb_baud;
+
+    uint8_t  pid_mode[4];
+    int16_t  pid_manual_sp[4];
+    uint8_t  led_src[4];
+
+    uint32_t crc32;
+  } __attribute__((packed));
+
+  if (len != sizeof(PersistConfigV4)) return false;
+  PersistConfigV4 pc{};
+  memcpy(&pc, buf, sizeof(pc));
+
+  if (pc.magic != CFG_MAGIC || pc.size != sizeof(PersistConfigV4)) return false;
+  uint32_t crc = pc.crc32;
+  pc.crc32 = 0;
+  if (crc32_update(0, (const uint8_t*)&pc, sizeof(PersistConfigV4)) != crc) return false;
+  if (pc.version != 0x0004) return false;
+
+  dacRaw[0] = pc.dacRaw[0];
+  dacRaw[1] = pc.dacRaw[1];
+
+  g_mb_address = pc.mb_address;
+  g_mb_baud    = pc.mb_baud;
+
+  for (int i=0;i<4;i++) {
+    pid[i].mode = clamp_u8((int)pc.pid_mode[i], 0, 1);
+    pidManualSp[i] = pc.pid_manual_sp[i];
+    ledSrc[i] = clamp_u8((int)pc.led_src[i], 0, 16);
+    btnAction[i] = BTNACT_LED_MANUAL_TOGGLE;
+  }
+  return true;
+}
+
+bool applyFromPersist_v5(const uint8_t* buf, size_t len) {
+  // v5 had btn_action but range 0..6. We clamp it into 0..8 safely.
+  struct PersistConfigV5 {
+    uint32_t magic;
+    uint16_t version;
+    uint16_t size;
+
+    uint16_t dacRaw[2];
+    uint8_t  mb_address;
+    uint32_t mb_baud;
+
+    uint8_t  pid_mode[4];
+    int16_t  pid_manual_sp[4];
+    uint8_t  led_src[4];
+    uint8_t  btn_action[4];
+
+    uint32_t crc32;
+  } __attribute__((packed));
+
+  if (len != sizeof(PersistConfigV5)) return false;
+  PersistConfigV5 pc{};
+  memcpy(&pc, buf, sizeof(pc));
+
+  if (pc.magic != CFG_MAGIC || pc.size != sizeof(PersistConfigV5)) return false;
+  uint32_t crc = pc.crc32;
+  pc.crc32 = 0;
+  if (crc32_update(0, (const uint8_t*)&pc, sizeof(PersistConfigV5)) != crc) return false;
+  if (pc.version != 0x0005) return false;
+
+  dacRaw[0] = pc.dacRaw[0];
+  dacRaw[1] = pc.dacRaw[1];
+
+  g_mb_address = pc.mb_address;
+  g_mb_baud    = pc.mb_baud;
+
+  for (int i=0;i<4;i++) {
+    pid[i].mode = clamp_u8((int)pc.pid_mode[i], 0, 1);
+    pidManualSp[i] = pc.pid_manual_sp[i];
+    ledSrc[i] = clamp_u8((int)pc.led_src[i], 0, 16);
+    btnAction[i] = clamp_u8((int)pc.btn_action[i], 0, 8);
   }
   return true;
 }
@@ -295,6 +525,8 @@ bool applyFromPersist(const PersistConfig &pc) {
   for (int i=0;i<4;i++) {
     pid[i].mode = clamp_u8((int)pc.pid_mode[i], 0, 1);
     pidManualSp[i] = pc.pid_manual_sp[i];
+    ledSrc[i] = clamp_u8((int)pc.led_src[i], 0, 16);
+    btnAction[i] = clamp_u8((int)pc.btn_action[i], 0, 8);
   }
 
   return true;
@@ -343,6 +575,8 @@ bool loadConfigFS() {
   if (!f) { WebSerial.send("message", "load: open failed"); return false; }
 
   size_t sz = (size_t)f.size();
+
+  // Newest (v6)
   if (sz == sizeof(PersistConfig)) {
     PersistConfig pc{};
     size_t n = f.read((uint8_t*)&pc, sizeof(pc));
@@ -352,12 +586,16 @@ bool loadConfigFS() {
     return true;
   }
 
-  // Try older v2
+  // Older formats
   uint8_t buf[256];
   if (sz > sizeof(buf)) { WebSerial.send("message", "load: file too big"); f.close(); return false; }
   size_t n = f.read(buf, sz);
   f.close();
   if (n != sz) { WebSerial.send("message", "load: short read"); return false; }
+
+  if (applyFromPersist_v5(buf, sz)) return true;
+  if (applyFromPersist_v4(buf, sz)) return true;
+  if (applyFromPersist_v3(buf, sz)) return true;
   if (applyFromPersist_v2(buf, sz)) return true;
 
   WebSerial.send("message", String("load: size ")+sz+" unsupported");
@@ -414,6 +652,8 @@ void handleCommand(JSONVar obj);
 void handleDac(JSONVar obj);
 void handlePid(JSONVar obj);
 void handlePidMode(JSONVar obj);
+void handleLedCfg(JSONVar obj);
+void handleBtnCfg(JSONVar obj);
 
 void performReset();
 void sendAllEchoesOnce();
@@ -524,7 +764,6 @@ void handlePid(JSONVar obj) {
   for (int i = 0; i < 4; i++) {
     PIDState &p = pid[i];
 
-    // ===== Manual SP (Web only, per PID) =====
     if (JSON.typeof(sp) == "array" && i < (int)sp.length()) {
       int16_t spv = (int16_t)((int)sp[i]);
       pidManualSp[i] = spv;
@@ -538,7 +777,8 @@ void handlePid(JSONVar obj) {
 
     if (JSON.typeof(pv) == "array" && i < (int)pv.length()) {
       int v = (int)pv[i];
-      p.pvSource = clamp_u8(v, 0, 6);
+      // ===== CHANGED: 0..10 to include MBPV1..4 =====
+      p.pvSource = clamp_u8(v, 0, 10);
     }
 
     if (JSON.typeof(spSrc) == "array" && i < (int)spSrc.length()) {
@@ -592,6 +832,43 @@ void handlePidMode(JSONVar obj) {
   }
 
   WebSerial.send("message", "PID mode updated via WebSerial (pidMode)");
+  cfgDirty = true;
+  lastCfgTouchMs = millis();
+}
+
+void handleLedCfg(JSONVar obj) {
+  JSONVar src = obj["src"];
+  if (JSON.typeof(src) != "array") {
+    WebSerial.send("message", "ledCfg: missing 'src' array");
+    return;
+  }
+
+  for (int i = 0; i < 4; i++) {
+    if (i >= (int)src.length()) break;
+    int v = (int)src[i];
+    ledSrc[i] = clamp_u8(v, 0, 16);
+  }
+
+  WebSerial.send("message", "LED source configuration updated");
+  cfgDirty = true;
+  lastCfgTouchMs = millis();
+}
+
+// Button actions config
+void handleBtnCfg(JSONVar obj) {
+  JSONVar act = obj["action"];
+  if (JSON.typeof(act) != "array") {
+    WebSerial.send("message", "btnCfg: missing 'action' array");
+    return;
+  }
+
+  for (int i = 0; i < 4; i++) {
+    if (i >= (int)act.length()) break;
+    int v = (int)act[i];
+    btnAction[i] = clamp_u8(v, 0, 8);
+  }
+
+  WebSerial.send("message", "Button actions updated");
   cfgDirty = true;
   lastCfgTouchMs = millis();
 }
@@ -655,13 +932,15 @@ float getPidPvValue(uint8_t src, bool &ok) {
     ok = true;
     return (float)rtdTemp_x10[1];
   }
+  // ===== NEW: 7..10 = MBPV1..MBPV4 from Modbus HREG 410..413 =====
+  else if (src >= 7 && src <= 10) {
+    uint8_t idx = src - 7; // 0..3
+    ok = true;
+    return (float)((int32_t)(uint16_t)mb.Hreg(HREG_MBPV_BASE + idx));
+  }
   return 0.0f;
 }
 
-// src:
-// 0      = Manual (Web-only per PID: pidManualSp[])
-// 1..4   = SP1..SP4 (Modbus regs 300..303)
-// 5..8   = PID1..PID4 OUT (pidVirtRaw[])
 float getPidSpValue(uint8_t pidIndex, uint8_t src, bool &ok) {
   ok = false;
 
@@ -694,6 +973,9 @@ void updatePids() {
   float newOutRaw[4] = { pidVirtRaw[0], pidVirtRaw[1], pidVirtRaw[2], pidVirtRaw[3] };
   float newOutPct[4] = { pidVirtPct[0], pidVirtPct[1], pidVirtPct[2], pidVirtPct[3] };
 
+  // IMPORTANT: Track which PIDs are truly "active" this cycle (enabled + valid PV/SP)
+  bool active[4] = { false, false, false, false };
+
   for (int i = 0; i < 4; i++) {
     PIDState &p = pid[i];
 
@@ -705,11 +987,12 @@ void updatePids() {
     if (p.pvMax <= p.pvMin) { p.pvMin = 0.0f; p.pvMax = 10000.0f; }
     if (p.outMax <= p.outMin) { p.outMin = 0.0f; p.outMax = 4095.0f; }
 
-    // Publish PV/SP raw to Modbus (optional visibility)
     mb.Hreg(HREG_PID_PVVAL_BASE + i, (uint16_t)lroundf(pvRaw));
-    float errRaw = spRaw - pvRaw;
 
-    if (!(p.enabled && pvOk && spOk)) {
+    active[i] = (p.enabled && pvOk && spOk);
+
+    if (!active[i]) {
+      // Disabled or invalid -> DO NOT generate an output and DO NOT write to AO later.
       p.integral  = 0.0f;
       p.prevError = 0.0f;
       p.output    = 0.0f;
@@ -733,14 +1016,31 @@ void updatePids() {
     float errorPct = spPct - pvPct;
     if (p.mode == 1) errorPct = -errorPct;
 
-    p.integral += errorPct * dt * p.Ki;
-    p.integral = constrain(p.integral, -100.0f, 100.0f);
-
     float derivPct = (dt > 0.0f) ? ((errorPct - p.prevError) / dt) : 0.0f;
-    float uPct = p.Kp * errorPct + p.integral + p.Kd * derivPct;
+
+    float pd = p.Kp * errorPct + p.Kd * derivPct;
+
+    float uPct_unclamped = pd + p.integral;
+    float uPct_clamped   = constrain(uPct_unclamped, 0.0f, 100.0f);
+
+    bool saturated_low  = (uPct_unclamped <= 0.0f);
+    bool saturated_high = (uPct_unclamped >= 100.0f);
+
+    bool allow_integrate =
+        (!saturated_low && !saturated_high) ||
+        (saturated_low  && (errorPct > 0.0f)) ||
+        (saturated_high && (errorPct < 0.0f));
+
+    if (allow_integrate) {
+      p.integral += errorPct * dt * p.Ki;
+      p.integral = constrain(p.integral, -100.0f, 100.0f);
+      uPct_unclamped = pd + p.integral;
+      uPct_clamped   = constrain(uPct_unclamped, 0.0f, 100.0f);
+    }
+
     p.prevError = errorPct;
 
-    uPct = constrain(uPct, 0.0f, 100.0f);
+    float uPct = uPct_clamped;
 
     float outSpan = (p.outMax - p.outMin);
     if (outSpan < 1.0f) outSpan = 1.0f;
@@ -764,10 +1064,12 @@ void updatePids() {
     pidVirtPct[i] = newOutPct[i];
   }
 
+  // ===== APPLY TO ANALOG OUTPUTS ONLY IF PID IS ACTIVE =====
   for (int i = 0; i < 4; i++) {
+    if (!active[i]) continue;                 // <<< KEY FIX
     PIDState &p = pid[i];
     if (p.outTarget == 1 || p.outTarget == 2) {
-      int ch = p.outTarget - 1;
+      int ch = p.outTarget - 1;               // 0..1
       uint16_t val = (uint16_t)lroundf(pidVirtRaw[i]);
       dacRaw[ch] = val;
       mb.Hreg(HREG_DAC_BASE + ch, dacRaw[ch]);
@@ -786,7 +1088,6 @@ void sendPidSnapshot() {
   JSONVar virtRawArr, virtPctArr;
 
   for (int i = 0; i < 4; i++) {
-    // ===== Show ACTIVE setpoint in UI =====
     int16_t spShow = 0;
     uint8_t src = pid[i].spSource;
     if (src == 0) {
@@ -885,6 +1186,8 @@ void setup() {
     pidVirtPct[i]    = 0.0f;
 
     pidManualSp[i]   = 0;
+    ledSrc[i]        = LEDSRC_MANUAL;
+    btnAction[i]     = BTNACT_LED_MANUAL_TOGGLE;
   }
 
   setDefaults();
@@ -894,6 +1197,8 @@ void setup() {
   WebSerial.on("dac",     handleDac);
   WebSerial.on("pid",     handlePid);
   WebSerial.on("pidMode", handlePidMode);
+  WebSerial.on("ledCfg",  handleLedCfg);
+  WebSerial.on("btnCfg",  handleBtnCfg);
 
   if (!initFilesystemAndConfig()) {
     WebSerial.send("message", "FATAL: Filesystem/config init failed");
@@ -944,22 +1249,23 @@ void setup() {
   for (uint16_t i=0;i<4;i++) mb.addHreg(HREG_AI_MV_BASE + i);
   for (uint16_t i=0;i<2;i++) mb.addHreg(HREG_DAC_BASE   + i, dacRaw[i]);
 
-  // SP1..SP4 (Modbus)
   for (uint16_t i=0;i<4;i++) mb.addHreg(HREG_SP_BASE + i, 0);
 
-  // PID regs (mirror/writable)
+  // ===== NEW: add MBPV1..4 holding registers (410..413) =====
+  for (uint16_t i=0;i<4;i++) mb.addHreg(HREG_MBPV_BASE + i, 0);
+
   for (uint16_t i=0;i<4;i++) {
+    mb.addHreg(HREG_PID_EN_BASE     + i, 0);
     mb.addHreg(HREG_PID_KP_BASE     + i, 0);
     mb.addHreg(HREG_PID_KI_BASE     + i, 0);
     mb.addHreg(HREG_PID_KD_BASE     + i, 0);
-
     mb.addHreg(HREG_PID_OUT_BASE    + i, 0);
     mb.addHreg(HREG_PID_PVVAL_BASE  + i, 0);
     mb.addHreg(HREG_PID_ERR_BASE    + i, 0);
   }
 
   WebSerial.send("message",
-    "Boot OK (AIO-422-R1 RP2350: ADS1115@Wire1, 2xMCP4725@Wire1, 2xMAX31865 softSPI, 4 BTN, 4 LED, 4xPID with separated Manual SP + Modbus SP1..4 + PID->PID SP)");
+    "Boot OK (AIO-422-R1 RP2350: ADS1115@Wire1, 2xMCP4725@Wire1, 2xMAX31865 softSPI, 4 BTN, 4 LED, 4xPID + ManualSP + Modbus SP1..4 + PID->PID SP + LED sources + Button actions AO1/AO2 separate; PID writes AO only when enabled)");
 
   sendAllEchoesOnce();
 }
@@ -975,6 +1281,14 @@ void sendAllEchoesOnce() {
   for (int i=0;i<NUM_LED;i++) ledList[i] = ledState[i];
   WebSerial.send("LedStateList", ledList);
 
+  JSONVar ledSrcList;
+  for (int i=0;i<NUM_LED;i++) ledSrcList[i] = (int)ledSrc[i];
+  WebSerial.send("LedSourceList", ledSrcList);
+
+  JSONVar btnActList;
+  for (int i=0;i<NUM_BTN;i++) btnActList[i] = (int)btnAction[i];
+  WebSerial.send("ButtonActionList", btnActList);
+
   JSONVar btnList;
   for (int i=0;i<NUM_BTN;i++) btnList[i] = buttonState[i];
   WebSerial.send("ButtonStateList", btnList);
@@ -986,6 +1300,69 @@ void sendAllEchoesOnce() {
   sendPidSnapshot();
 }
 
+// ================== Button action executor ==================
+static inline void setAO(int ch, uint16_t v) {
+  dacRaw[ch] = v;
+  mb.Hreg(HREG_DAC_BASE + ch, dacRaw[ch]);
+  writeDac(ch, dacRaw[ch]);
+}
+
+void runButtonAction(uint8_t btnIndex) {
+  uint8_t act = btnAction[btnIndex];
+
+  // 0) Legacy manual LED toggle (only if LED src is manual)
+  if (act == BTNACT_LED_MANUAL_TOGGLE) {
+    if (ledSrc[btnIndex] == LEDSRC_MANUAL) ledState[btnIndex] = !ledState[btnIndex];
+    return;
+  }
+
+  // 1..4) Toggle PID enable
+  if (act >= BTNACT_TOGGLE_PID1 && act <= BTNACT_TOGGLE_PID4) {
+    uint8_t pidIdx = act - BTNACT_TOGGLE_PID1; // 0..3
+    pid[pidIdx].enabled = !pid[pidIdx].enabled;
+    mb.Hreg(HREG_PID_EN_BASE + pidIdx, (uint16_t)(pid[pidIdx].enabled ? 1 : 0));
+    cfgDirty = true;
+    lastCfgTouchMs = millis();
+    return;
+  }
+
+  // 5) AO1 toggle (bias to 0): if not 0 -> 0 else -> 4095
+  if (act == BTNACT_TOGGLE_AO1_0) {
+    uint16_t target = (dacRaw[0] != 0) ? 0 : 4095;
+    setAO(0, target);
+    cfgDirty = true;
+    lastCfgTouchMs = millis();
+    return;
+  }
+
+  // 6) AO2 toggle (bias to 0): if not 0 -> 0 else -> 4095
+  if (act == BTNACT_TOGGLE_AO2_0) {
+    uint16_t target = (dacRaw[1] != 0) ? 0 : 4095;
+    setAO(1, target);
+    cfgDirty = true;
+    lastCfgTouchMs = millis();
+    return;
+  }
+
+  // 7) AO1 toggle (bias to 4095): if not 4095 -> 4095 else -> 0
+  if (act == BTNACT_TOGGLE_AO1_MAX) {
+    uint16_t target = (dacRaw[0] != 4095) ? 4095 : 0;
+    setAO(0, target);
+    cfgDirty = true;
+    lastCfgTouchMs = millis();
+    return;
+  }
+
+  // 8) AO2 toggle (bias to 4095): if not 4095 -> 4095 else -> 0
+  if (act == BTNACT_TOGGLE_AO2_MAX) {
+    uint16_t target = (dacRaw[1] != 4095) ? 4095 : 0;
+    setAO(1, target);
+    cfgDirty = true;
+    lastCfgTouchMs = millis();
+    return;
+  }
+}
+
 // ================== Main loop ==================
 void loop() {
   unsigned long now = millis();
@@ -994,11 +1371,9 @@ void loop() {
 
   // ===== Sync PID config FROM Modbus (so Modbus writes affect firmware) =====
   for (int i = 0; i < 4; i++) {
-    // EN
     bool en = (mb.Hreg(HREG_PID_EN_BASE + i) != 0);
     if (pid[i].enabled != en) { pid[i].enabled = en; cfgDirty = true; lastCfgTouchMs = now; }
 
-    // Gains
     int16_t kpRaw = (int16_t)mb.Hreg(HREG_PID_KP_BASE + i);
     int16_t kiRaw = (int16_t)mb.Hreg(HREG_PID_KI_BASE + i);
     int16_t kdRaw = (int16_t)mb.Hreg(HREG_PID_KD_BASE + i);
@@ -1019,23 +1394,20 @@ void loop() {
     cfgDirty = false;
   }
 
+  // Buttons: execute selected action on rising edge
   for (int i=0;i<NUM_BTN;i++) {
     bool pressed = (digitalRead(BTN_PINS[i]) == HIGH);
     buttonPrev[i]  = buttonState[i];
     buttonState[i] = pressed;
 
     if (!buttonPrev[i] && buttonState[i]) {
-      ledState[i] = !ledState[i];
-      digitalWrite(LED_PINS[i], ledState[i] ? HIGH : LOW);
+      runButtonAction((uint8_t)i);
     }
 
     mb.setIsts(ISTS_BTN_BASE + i, pressed);
   }
 
-  for (int i=0;i<NUM_LED;i++) {
-    mb.setIsts(ISTS_LED_BASE + i, ledState[i]);
-  }
-
+  // DAC from Modbus (manual control stays available; PID only overwrites when enabled+active)
   for (int i=0;i<2;i++) {
     uint16_t regVal = mb.Hreg(HREG_DAC_BASE + i);
     if (regVal != dacRaw[i]) {
@@ -1052,6 +1424,16 @@ void loop() {
   }
 
   updatePids();
+
+  // Apply LED outputs (manual or auto source) + publish ISTS_LED
+  for (int i=0;i<NUM_LED;i++) {
+    bool on = (ledSrc[i] == LEDSRC_MANUAL) ? ledState[i] : getLedAutoState(ledSrc[i]);
+
+    if (ledState[i] != on) ledState[i] = on;
+
+    digitalWrite(LED_PINS[i], on ? HIGH : LOW);
+    mb.setIsts(ISTS_LED_BASE + i, on);
+  }
 
   if (now - lastSend >= sendInterval) {
     lastSend = now;
@@ -1075,6 +1457,14 @@ void loop() {
     JSONVar ledList;
     for (int i=0;i<NUM_LED;i++) ledList[i] = ledState[i];
     WebSerial.send("LedStateList", ledList);
+
+    JSONVar ledSrcList;
+    for (int i=0;i<NUM_LED;i++) ledSrcList[i] = (int)ledSrc[i];
+    WebSerial.send("LedSourceList", ledSrcList);
+
+    JSONVar btnActList;
+    for (int i=0;i<NUM_BTN;i++) btnActList[i] = (int)btnAction[i];
+    WebSerial.send("ButtonActionList", btnActList);
 
     JSONVar btnList;
     for (int i=0;i<NUM_BTN;i++) btnList[i] = buttonState[i];
