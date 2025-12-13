@@ -633,11 +633,9 @@ void updatePids() {
   if (dt <= 0.0f) dt = pidIntervalMs / 1000.0f;
   lastPidUpdateMs = now;
 
-  // Pass 0: start from previous virt outputs (already in pidVirtRaw[])
   float newOutRaw[4] = { pidVirtRaw[0], pidVirtRaw[1], pidVirtRaw[2], pidVirtRaw[3] };
   float newOutPct[4] = { pidVirtPct[0], pidVirtPct[1], pidVirtPct[2], pidVirtPct[3] };
 
-  // Pass 1: compute all outputs into temp arrays (don’t overwrite pidVirtRaw yet)
   for (int i = 0; i < 4; i++) {
     PIDState &p = pid[i];
 
@@ -661,7 +659,7 @@ void updatePids() {
       newOutRaw[i] = 0.0f;
       newOutPct[i] = 0.0f;
 
-      mb.Hreg(HREG_PID_OUT_BASE   + i, 0); 
+      mb.Hreg(HREG_PID_OUT_BASE + i, 0);
       continue;
     }
 
@@ -697,16 +695,14 @@ void updatePids() {
     newOutRaw[i] = outRawF;
     newOutPct[i] = uPct;
 
-    mb.Hreg(HREG_PID_OUT_BASE   + i, (uint16_t)lroundf(outRawF));
+    mb.Hreg(HREG_PID_OUT_BASE + i, (uint16_t)lroundf(outRawF));
   }
 
-  // Pass 2: publish virtual outputs together (so PID->PID SP sees stable values next cycle)
   for (int i=0;i<4;i++) {
     pidVirtRaw[i] = newOutRaw[i];
     pidVirtPct[i] = newOutPct[i];
   }
 
-  // Apply physical outputs (AO) after all PIDs computed
   for (int i = 0; i < 4; i++) {
     PIDState &p = pid[i];
     if (p.outTarget == 1 || p.outTarget == 2) {
@@ -917,6 +913,29 @@ void loop() {
   unsigned long now = millis();
 
   mb.task();
+
+  // ===== NEW: Sync PID config FROM Modbus so Modbus writes affect firmware =====
+  for (int i = 0; i < 4; i++) {
+    bool en = (mb.Hreg(HREG_PID_EN_BASE + i) != 0);
+    if (pid[i].enabled != en) {
+      pid[i].enabled = en;
+      cfgDirty = true;
+      lastCfgTouchMs = now;
+    }
+
+    int16_t kpRaw = (int16_t)mb.Hreg(HREG_PID_KP_BASE + i);
+    int16_t kiRaw = (int16_t)mb.Hreg(HREG_PID_KI_BASE + i);
+    int16_t kdRaw = (int16_t)mb.Hreg(HREG_PID_KD_BASE + i);
+
+    float kp = (float)kpRaw / 100.0f;
+    float ki = (float)kiRaw / 100.0f;
+    float kd = (float)kdRaw / 100.0f;
+
+    if (pid[i].Kp != kp) { pid[i].Kp = kp; cfgDirty = true; lastCfgTouchMs = now; }
+    if (pid[i].Ki != ki) { pid[i].Ki = ki; cfgDirty = true; lastCfgTouchMs = now; }
+    if (pid[i].Kd != kd) { pid[i].Kd = kd; cfgDirty = true; lastCfgTouchMs = now; }
+  }
+  // ===== END NEW =====
 
   if (cfgDirty && (now - lastCfgTouchMs >= CFG_AUTOSAVE_MS)) {
     if (saveConfigFS()) WebSerial.send("message", "Configuration saved");
