@@ -2,7 +2,7 @@ modbus_controller:
   - id: ${aio_id}
     address: ${aio_address}
     modbus_id: modbus_bus
-    update_interval: 2s
+    update_interval: 3s
 
 binary_sensor:
   # ---- Buttons (Discrete Inputs) ----
@@ -171,7 +171,9 @@ number:
     name: "${aio_prefix} PID1 Kp x100"
     address: 350
     register_type: holding
-    value_type: S_WORD
+    value_type: U_WORD
+    min_value: 0
+    max_value: 10000
     step: 1
     mode: box
 
@@ -180,17 +182,20 @@ number:
     name: "${aio_prefix} PID2 Kp x100"
     address: 351
     register_type: holding
-    value_type: S_WORD
+    value_type: U_WORD
+    min_value: 0
+    max_value: 10000
     step: 1
     mode: box
- 
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} PID3 Kp x100"
     address: 352
     register_type: holding
-    value_type: S_WORD
+    value_type: U_WORD
+    min_value: 0
+    max_value: 10000
     step: 1
     mode: box
 
@@ -199,7 +204,9 @@ number:
     name: "${aio_prefix} PID4 Kp x100"
     address: 353
     register_type: holding
-    value_type: S_WORD
+    value_type: U_WORD
+    min_value: 0
+    max_value: 10000
     step: 1
     mode: box
 
@@ -208,7 +215,9 @@ number:
     name: "${aio_prefix} PID1 Ki x100"
     address: 360
     register_type: holding
-    value_type: S_WORD
+    value_type: U_WORD
+    min_value: 0
+    max_value: 10000
     step: 1
     mode: box
 
@@ -217,7 +226,9 @@ number:
     name: "${aio_prefix} PID2 Ki x100"
     address: 361
     register_type: holding
-    value_type: S_WORD
+    value_type: U_WORD
+    min_value: 0
+    max_value: 10000
     step: 1
     mode: box
 
@@ -226,7 +237,9 @@ number:
     name: "${aio_prefix} PID3 Ki x100"
     address: 362
     register_type: holding
-    value_type: S_WORD
+    value_type: U_WORD
+    min_value: 0
+    max_value: 10000
     step: 1
     mode: box
 
@@ -235,7 +248,9 @@ number:
     name: "${aio_prefix} PID4 Ki x100"
     address: 363
     register_type: holding
-    value_type: S_WORD
+    value_type: U_WORD
+    min_value: 0
+    max_value: 10000
     step: 1
     mode: box
 
@@ -244,7 +259,9 @@ number:
     name: "${aio_prefix} PID1 Kd x100"
     address: 370
     register_type: holding
-    value_type: S_WORD
+    value_type: U_WORD
+    min_value: 0
+    max_value: 10000
     step: 1
     mode: box
 
@@ -253,7 +270,9 @@ number:
     name: "${aio_prefix} PID2 Kd x100"
     address: 371
     register_type: holding
-    value_type: S_WORD
+    value_type: U_WORD
+    min_value: 0
+    max_value: 10000
     step: 1
     mode: box
 
@@ -262,7 +281,9 @@ number:
     name: "${aio_prefix} PID3 Kd x100"
     address: 372
     register_type: holding
-    value_type: S_WORD
+    value_type: U_WORD
+    min_value: 0
+    max_value: 10000
     step: 1
     mode: box
 
@@ -271,9 +292,12 @@ number:
     name: "${aio_prefix} PID4 Kd x100"
     address: 373
     register_type: holding
-    value_type: S_WORD
+    value_type: U_WORD
+    min_value: 0
+    max_value: 10000
     step: 1
     mode: box
+
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} MBPV1 Raw"
