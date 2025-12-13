@@ -39,18 +39,14 @@
               style="padding:10px 20px;background:#007bff;color:#fff;border:none;border-radius:4px;">
         Connect
       </button>
-      <button id="reset-button" type="button"
-              style="padding:10px 20px;background:#dc3545;color:#fff;border:none;border-radius:4px;margin-left:0.75rem;"
-              disabled>
-        Reset Device
-      </button>
     </div>
   </form>
 
+  <!-- LOG: newest at bottom + scroll -->
   <div id="log-line"
        style="margin-bottom:1.5rem;padding:1rem;background:#f9f9f9;border:1px solid #ccc;border-radius:6px;font-size:0.9rem;color:#333;font-family:monospace;">
     <strong>Serial Log:</strong>
-    <div id="log-content" style="white-space:pre-wrap;"></div>
+    <div id="log-content" style="white-space:pre-wrap;max-height:180px;overflow:auto;padding-top:.5rem;"></div>
   </div>
 
   <section>
@@ -67,8 +63,10 @@
     <p style="margin-top:-.25rem;color:#555;font-size:.9rem;">
       DAC raw value is 0..4095 (MCP4725). 4095 ≈ 10&nbsp;V at the terminal.
     </p>
+
+    <!-- DAC: force 2 columns and full width -->
     <div id="dac-cards"
-         style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;"></div>
+         style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;width:100%;"></div>
   </section>
 
   <section style="margin-top:2rem;">
@@ -86,8 +84,10 @@
     <p style="margin-top:-.25rem;color:#555;font-size:.9rem;">
       Button states are read directly from the device. Button action is <strong>Web-only</strong> (saved in flash).
     </p>
+
+    <!-- Buttons: one line 4 columns -->
     <div id="buttons-cards"
-         style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;"></div>
+         style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1rem;width:100%;"></div>
   </section>
 
   <section style="margin-top:2rem;">
@@ -95,8 +95,10 @@
     <p style="margin-top:-.25rem;color:#555;font-size:.9rem;">
       Each LED can be <strong>manual</strong> (toggled by the button) or <strong>driven by a source</strong>.
     </p>
+
+    <!-- LEDs: one line 4 columns -->
     <div id="leds-cards"
-         style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem;"></div>
+         style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1rem;width:100%;"></div>
   </section>
 
   <!-- PID Controllers -->
@@ -107,13 +109,6 @@
     </p>
 
     <div id="pid-rows" style="display:flex;flex-direction:column;gap:1rem;margin-bottom:.75rem;"></div>
-
-    <div style="text-align:right;">
-      <button id="pid-apply-all" type="button"
-              style="padding:8px 16px;background:#28a745;color:#fff;border:none;border-radius:4px;">
-        Apply PID Configuration
-      </button>
-    </div>
   </section>
 
   <script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
@@ -148,7 +143,7 @@
       const ledSrc = [0,0,0,0];
       const ledEditing = [false,false,false,false];
 
-      // PID buffers (same as your page)
+      // PID buffers
       const pidSp     = [0, 0, 0, 0];
       const pidEn     = [0, 0, 0, 0];
       const pidPvSrc  = [0, 0, 0, 0];
@@ -207,14 +202,18 @@
         return [];
       };
 
+      // LOG: newest at bottom + auto-scroll
       function appendLog(label, data) {
         const logEl = $("log-content");
         if (!logEl) return;
         const time = new Date().toLocaleTimeString();
         const line = `[${time}] ${label}: ` + (typeof data === "string" ? data : JSON.stringify(data));
-        logBuffer.unshift(line);
-        if (logBuffer.length > LOG_MAX) logBuffer.pop();
+
+        logBuffer.push(line);
+        while (logBuffer.length > LOG_MAX) logBuffer.shift();
+
         logEl.textContent = logBuffer.join("\n");
+        logEl.scrollTop = logEl.scrollHeight;
       }
 
       // Populate Modbus addresses 1..255
@@ -235,30 +234,13 @@
         requestElement: "connect-button"
       });
 
-      function updateResetEnabled() {
-        const btn = $("reset-button");
-        if (!btn) return;
-        let isOpen = false;
-        try {
-          if (typeof connection.isOpen === "function") {
-            isOpen = connection.isOpen();
-          } else if ("port" in connection) {
-            isOpen = !!connection.port;
-          }
-        } catch (e) { isOpen = false; }
-        btn.disabled = !isOpen;
-      }
-
       connection.on("status", (modbus) => {
         $("live-address").textContent = modbus?.address ?? "--";
         $("live-baud").textContent = modbus?.baud ?? "--";
         if (modbus.address) $("modbus-address").value = modbus.address;
         if (modbus.baud) $("modbus-baud").value = modbus.baud;
-        updateResetEnabled();
       });
 
-      connection.on("open", () => { updateResetEnabled(); });
-      connection.on("close", updateResetEnabled);
       connection.on("message", (msg) => appendLog("AIO-422-R1", msg));
 
       $("modbus-address").addEventListener("input", updateModbus);
@@ -270,29 +252,6 @@
           mb_baud: parseInt($("modbus-baud").value, 10)
         });
       }
-
-      async function doReset() {
-        try {
-          await connection.send("command", { action: "reset" });
-          appendLog("System", "Reset command sent");
-          $("reset-button").disabled = true;
-          setTimeout(updateResetEnabled, 3000);
-        } catch (err) {
-          appendLog("Error", err.message || err);
-        }
-      }
-
-      (function setupResetButton() {
-        const resetBtn = $("reset-button");
-        if (!resetBtn) return;
-        resetBtn.addEventListener("click", () => {
-          if (resetBtn.disabled) {
-            appendLog("System", "Connect to the device before resetting.");
-            return;
-          }
-          if (confirm("Are you sure you want to reset the module?")) doReset();
-        });
-      })();
 
       // Build AI cards
       (function buildAICards() {
@@ -432,9 +391,7 @@
           });
 
           const applyBtn = $("rtd-apply-" + i);
-          if (applyBtn) {
-            applyBtn.addEventListener("click", () => sendRtdCfg());
-          }
+          if (applyBtn) applyBtn.addEventListener("click", () => sendRtdCfg());
 
           if (wireEl) wireEl.addEventListener("change", () => { rtdCfg.wires[i] = parseInt(wireEl.value,10)||2; });
           if (senEl)  senEl.addEventListener("change",  () => { rtdCfg.rnominal[i] = parseInt(senEl.value,10)||100; });
@@ -444,19 +401,12 @@
 
       async function sendRtdCfg() {
         try {
-          const payload = {
-            wires: rtdCfg.wires.slice(),
-            rnominal: rtdCfg.rnominal.slice(),
-            rref: rtdCfg.rref.slice()
-          };
+          const payload = { wires: rtdCfg.wires.slice(), rnominal: rtdCfg.rnominal.slice(), rref: rtdCfg.rref.slice() };
           await connection.send("rtdCfg", payload);
           appendLog("UI", "RTD config sent: " + JSON.stringify(payload));
-        } catch (err) {
-          appendLog("Error", err.message || err);
-        }
+        } catch (err) { appendLog("Error", err.message || err); }
       }
 
-      // Firmware sends rtdCfg snapshot
       connection.on("rtdCfg", (cfg) => {
         if (!cfg) return;
         const wires = toList(cfg.wires);
@@ -483,7 +433,6 @@
         }
       });
 
-      // Firmware sends full RTD info
       connection.on("rtdInfo", (info) => {
         if (!info) return;
 
@@ -528,7 +477,6 @@
             ohmEl.textContent = isNaN(ov) ? "--" : ov.toFixed(3);
           }
 
-          // dot: green = ok, red = fault, gray = missing
           if (dot) {
             if (faultVal === 0xFF) dot.style.background = "#999";
             else if (faultVal && faultVal !== 0) dot.style.background = "#dc3545";
@@ -537,16 +485,15 @@
         }
       });
 
-      // Build Button cards (same as your last, but corrected labels for 0..8)
+      // Buttons
       function markBtnEditing(i, editing) { btnEditing[i] = editing; }
       async function sendBtnCfg() {
         try {
           await connection.send("btnCfg", { action: btnAction });
           appendLog("UI", "Button actions sent: " + JSON.stringify(btnAction));
-        } catch (err) {
-          appendLog("Error", err.message || err);
-        }
+        } catch (err) { appendLog("Error", err.message || err); }
       }
+
       connection.on("ButtonActionList", (list) => {
         const vals = toList(list);
         if (!vals.length) return;
@@ -557,6 +504,7 @@
           if (sel && !btnEditing[i]) sel.value = String(btnAction[i]);
         }
       });
+
       (function buildButtonCards() {
         const container = $("buttons-cards");
         if (!container) return;
@@ -568,9 +516,7 @@
           [3, "Toggle PID3 enable"],
           [4, "Toggle PID4 enable"],
           [5, "Toggle AO1 (0↔100%)"],
-          [6, "Toggle AO2 (0↔100%)"],
-          [7, "Toggle AO1 (100↔0)"],
-          [8, "Toggle AO2 (100↔0)"]
+          [6, "Toggle AO2 (0↔100%)"]
         ];
 
         for (let i = 0; i < NUM_BTN; i++) {
@@ -581,14 +527,12 @@
             <div style="border:1px solid #ccc;border-radius:6px;background:#cbdcf7;padding:1rem;">
               <div style="font-weight:600;display:flex;justify-content:space-between;align-items:center;">
                 <span>Button ${i + 1}</span>
-                <span id="btn-dot-${i}"
-                      style="width:12px;height:12px;border-radius:50%;background:#ccc;display:inline-block;"></span>
+                <span id="btn-dot-${i}" style="width:12px;height:12px;border-radius:50%;background:#ccc;display:inline-block;"></span>
               </div>
 
               <div style="margin-top:.7rem;">
                 <label style="font-size:.85rem;">Action</label>
-                <select id="btn-act-${i}"
-                        style="width:100%;padding:6px;border-radius:4px;border:1px solid #ccc;">
+                <select id="btn-act-${i}" style="width:100%;padding:6px;border-radius:4px;border:1px solid #ccc;">
                   ${optHtml}
                 </select>
               </div>
@@ -600,7 +544,7 @@
           if (sel) {
             sel.value = "0";
             sel.addEventListener("focus", () => markBtnEditing(i, true));
-            sel.addEventListener("blur", () => { markBtnEditing(i, false); sendBtnCfg(); });
+            sel.addEventListener("blur",  () => { markBtnEditing(i, false); sendBtnCfg(); });
             sel.addEventListener("change", () => {
               btnAction[i] = parseInt(sel.value, 10) || 0;
               sendBtnCfg();
@@ -609,7 +553,7 @@
         }
       })();
 
-      // LED config (same as your previous)
+      // LEDs
       function markLedEditing(i, editing) { ledEditing[i] = editing; }
       async function sendLedCfg() {
         try {
@@ -617,6 +561,7 @@
           appendLog("UI", "LED sources sent: " + JSON.stringify(ledSrc));
         } catch (err) { appendLog("Error", err.message || err); }
       }
+
       connection.on("LedSourceList", (list) => {
         const arr = toList(list);
         if (!arr.length) return;
@@ -648,14 +593,12 @@
             <div style="border:1px solid #ccc;border-radius:6px;background:#f3f5d0;padding:1rem;">
               <div style="display:flex;justify-content:space-between;align-items:center;font-weight:600;">
                 <span>LED ${i + 1}</span>
-                <span id="led-dot-${i}"
-                      style="width:12px;height:12px;border-radius:50%;background:#ccc;display:inline-block;"></span>
+                <span id="led-dot-${i}" style="width:12px;height:12px;border-radius:50%;background:#ccc;display:inline-block;"></span>
               </div>
 
               <div style="margin-top:.6rem;">
                 <label style="font-size:.85rem;">Source</label>
-                <select id="led-src-${i}"
-                        style="width:100%;padding:6px;border-radius:4px;border:1px solid #ccc;">
+                <select id="led-src-${i}" style="width:100%;padding:6px;border-radius:4px;border:1px solid #ccc;">
                   ${optHtml}
                 </select>
               </div>
@@ -667,7 +610,7 @@
           if (sel) {
             sel.value = "0";
             sel.addEventListener("focus", () => markLedEditing(i, true));
-            sel.addEventListener("blur", () => { markLedEditing(i, false); sendLedCfg(); });
+            sel.addEventListener("blur",  () => { markLedEditing(i, false); sendLedCfg(); });
             sel.addEventListener("change", () => {
               ledSrc[i] = parseInt(sel.value, 10) || 0;
               sendLedCfg();
@@ -676,6 +619,7 @@
         }
       })();
 
+      // PID: keep live display + auto-send on blur, but no "Apply" button
       function markPidEditing(index, editing) { pidEditing[index] = editing; }
 
       function drawTrend(pidIndex, force=false) {
@@ -750,7 +694,6 @@
         ctx.fillStyle = "#ff7f0e"; ctx.fillText("OUT", w-45, 16);
       }
 
-      // --- PID UI (same as your original; kept) ---
       (function buildPidRows() {
         const container = $("pid-rows");
         if (!container) return;
@@ -922,9 +865,6 @@
           });
         }
 
-        const applyBtn = $("pid-apply-all");
-        if (applyBtn) applyBtn.addEventListener("click", () => { sendPidConfig(); sendPidMode(); });
-
         for (let i=0;i<NUM_PID;i++) drawTrend(i, true);
       })();
 
@@ -993,9 +933,7 @@
             pv_min: pvMinArr, pv_max: pvMaxArr, out_min: outMinArr, out_max: outMaxArr
           });
           appendLog("UI", "PID config sent");
-        } catch (err) {
-          appendLog("Error", err.message || err);
-        }
+        } catch (err) { appendLog("Error", err.message || err); }
       }
 
       async function sendPidMode() {
@@ -1007,9 +945,7 @@
             modeArr.push(pidMode[i] ? 1 : 0);
           }
           await connection.send("pidMode", { mode: modeArr });
-        } catch (err) {
-          appendLog("FW?", "pidMode not accepted (PID config still OK)");
-        }
+        } catch (err) { appendLog("FW?", "pidMode not accepted (PID config still OK)"); }
       }
 
       connection.on("pidState", (state) => {
@@ -1034,37 +970,14 @@
         const modeArr   = toList(state.mode || []);
 
         for (let i = 0; i < NUM_PID; i++) {
-          const spVal      = Number(sp[i]       ?? 0);
-          const enVal      = Number(en[i]       ?? 0);
-          const pvVal      = Number(pvSel[i]    ?? 0);
-          const spSrcVal   = Number(spSrc[i]    ?? 0);
-          const outVal     = Number(outSel[i]   ?? 0);
-          const kpVal      = Number(kpArr[i]    ?? 0) / 100;
-          const kiVal      = Number(kiArr[i]    ?? 0) / 100;
-          const kdVal      = Number(kdArr[i]    ?? 0) / 100;
+          const pvPctVal   = Number(pvPctArr[i] ?? NaN);
+          const spPctVal   = Number(spPctArr[i] ?? NaN);
+          const outPctVal  = Number(outPctArr[i]?? NaN);
 
           const pvMinVal   = Number(pvMinArr[i] ?? pidPvMin[i]);
           const pvMaxVal   = Number(pvMaxArr[i] ?? pidPvMax[i]);
           const outMinVal  = Number(outMinArr[i]?? pidOutMin[i]);
           const outMaxVal  = Number(outMaxArr[i]?? pidOutMax[i]);
-
-          const pvPctVal   = Number(pvPctArr[i] ?? NaN);
-          const spPctVal   = Number(spPctArr[i] ?? NaN);
-          const outPctVal  = Number(outPctArr[i]?? NaN);
-
-          pidSp[i]     = spVal;
-          pidEn[i]     = enVal;
-          pidPvSrc[i]  = pvVal;
-          pidSpSrc[i]  = spSrcVal;
-          pidOutSel[i] = outVal;
-          pidKp[i]     = kpVal;
-          pidKi[i]     = kiVal;
-          pidKd[i]     = kdVal;
-
-          pidPvMin[i]  = pvMinVal;
-          pidPvMax[i]  = pvMaxVal;
-          pidOutMin[i] = outMinVal;
-          pidOutMax[i] = outMaxVal;
 
           if (!isNaN(pvPctVal) && !isNaN(spPctVal) && !isNaN(outPctVal)) {
             pushTrend(i, pvPctVal, spPctVal, outPctVal);
@@ -1077,6 +990,29 @@
           if (outScaleEl) outScaleEl.textContent = `${outMinVal} .. ${outMaxVal}`;
 
           if (!pidEditing[i]) {
+            const spVal      = Number(sp[i] ?? 0);
+            const enVal      = Number(en[i] ?? 0);
+            const pvVal      = Number(pvSel[i] ?? 0);
+            const spSrcVal   = Number(spSrc[i] ?? 0);
+            const outVal     = Number(outSel[i] ?? 0);
+            const kpVal      = Number(kpArr[i] ?? 0) / 100;
+            const kiVal      = Number(kiArr[i] ?? 0) / 100;
+            const kdVal      = Number(kdArr[i] ?? 0) / 100;
+
+            pidSp[i]     = spVal;
+            pidEn[i]     = enVal;
+            pidPvSrc[i]  = pvVal;
+            pidSpSrc[i]  = spSrcVal;
+            pidOutSel[i] = outVal;
+            pidKp[i]     = kpVal;
+            pidKi[i]     = kiVal;
+            pidKd[i]     = kdVal;
+
+            pidPvMin[i]  = pvMinVal;
+            pidPvMax[i]  = pvMaxVal;
+            pidOutMin[i] = outMinVal;
+            pidOutMax[i] = outMaxVal;
+
             const enEl      = $("pid-en-" + i);
             const spEl      = $("pid-sp-" + i);
             const pvEl      = $("pid-pv-" + i);
