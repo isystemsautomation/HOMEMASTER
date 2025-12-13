@@ -2,7 +2,7 @@ modbus_controller:
   - id: ${aio_id}
     address: ${aio_address}
     modbus_id: modbus_bus
-    update_interval: 2s
+    update_interval: 3s
 
 binary_sensor:
   # ---- Buttons (Discrete Inputs) ----
@@ -56,8 +56,7 @@ binary_sensor:
     register_type: discrete_input
 
 
-# ================= WRITEABLE Holding Registers (WRITE-ONLY) =================
-# NOTE: skip_updates makes ESPHome NOT poll these, so we don't create duplicate read commands.
+# ================= WRITEABLE Holding Registers =================
 number:
   # ---- DAC outputs ----
   - platform: modbus_controller
@@ -70,7 +69,6 @@ number:
     max_value: 4095
     step: 1
     mode: slider
-    skip_updates: 999999
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -82,9 +80,9 @@ number:
     max_value: 4095
     step: 1
     mode: slider
-    skip_updates: 999999
 
-  # ---- Global Modbus Setpoints: SP1..SP4 @ 300..303 ----
+  # ---- Global Modbus Setpoints: SP1..SP4 (S_WORD) @ 300..303 ----
+  # These are the ONLY Modbus setpoints in the new logic.
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} SP1 (Modbus) Raw"
@@ -93,7 +91,6 @@ number:
     value_type: S_WORD
     step: 1
     mode: box
-    skip_updates: 999999
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -103,7 +100,6 @@ number:
     value_type: S_WORD
     step: 1
     mode: box
-    skip_updates: 999999
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -113,7 +109,6 @@ number:
     value_type: S_WORD
     step: 1
     mode: box
-    skip_updates: 999999
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -123,9 +118,8 @@ number:
     value_type: S_WORD
     step: 1
     mode: box
-    skip_updates: 999999
 
-  # ---- PID Enable 310..313 ----
+  # ---- PID Enable 310..313 (0/1) ----
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} PID1 Enable"
@@ -136,7 +130,6 @@ number:
     max_value: 1
     step: 1
     mode: box
-    skip_updates: 999999
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -148,7 +141,6 @@ number:
     max_value: 1
     step: 1
     mode: box
-    skip_updates: 999999
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -160,7 +152,6 @@ number:
     max_value: 1
     step: 1
     mode: box
-    skip_updates: 999999
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -172,154 +163,117 @@ number:
     max_value: 1
     step: 1
     mode: box
-    skip_updates: 999999
 
-  # ---- PID gains RAW (x100): Kp 350..353, Ki 360..363, Kd 370..373 ----
+
+   # ---- PID gains RAW (x100): Kp 350..353, Ki 360..363, Kd 370..373 ----
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} PID1 Kp x100"
     address: 350
     register_type: holding
-    value_type: U_WORD
-    min_value: 0
-    max_value: 10000
+    value_type: S_WORD
     step: 1
     mode: box
-    skip_updates: 999999
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} PID2 Kp x100"
     address: 351
     register_type: holding
-    value_type: U_WORD
-    min_value: 0
-    max_value: 10000
+    value_type: S_WORD
     step: 1
     mode: box
-    skip_updates: 999999
+ 
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} PID3 Kp x100"
     address: 352
     register_type: holding
-    value_type: U_WORD
-    min_value: 0
-    max_value: 10000
+    value_type: S_WORD
     step: 1
     mode: box
-    skip_updates: 999999
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} PID4 Kp x100"
     address: 353
     register_type: holding
-    value_type: U_WORD
-    min_value: 0
-    max_value: 10000
+    value_type: S_WORD
     step: 1
     mode: box
-    skip_updates: 999999
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} PID1 Ki x100"
     address: 360
     register_type: holding
-    value_type: U_WORD
-    min_value: 0
-    max_value: 10000
+    value_type: S_WORD
     step: 1
     mode: box
-    skip_updates: 999999
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} PID2 Ki x100"
     address: 361
     register_type: holding
-    value_type: U_WORD
-    min_value: 0
-    max_value: 10000
+    value_type: S_WORD
     step: 1
     mode: box
-    skip_updates: 999999
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} PID3 Ki x100"
     address: 362
     register_type: holding
-    value_type: U_WORD
-    min_value: 0
-    max_value: 10000
+    value_type: S_WORD
     step: 1
     mode: box
-    skip_updates: 999999
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} PID4 Ki x100"
     address: 363
     register_type: holding
-    value_type: U_WORD
-    min_value: 0
-    max_value: 10000
+    value_type: S_WORD
     step: 1
     mode: box
-    skip_updates: 999999
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} PID1 Kd x100"
     address: 370
     register_type: holding
-    value_type: U_WORD
-    min_value: 0
-    max_value: 10000
+    value_type: S_WORD
     step: 1
     mode: box
-    skip_updates: 999999
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} PID2 Kd x100"
     address: 371
     register_type: holding
-    value_type: U_WORD
-    min_value: 0
-    max_value: 10000
+    value_type: S_WORD
     step: 1
     mode: box
-    skip_updates: 999999
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} PID3 Kd x100"
     address: 372
     register_type: holding
-    value_type: U_WORD
-    min_value: 0
-    max_value: 10000
+    value_type: S_WORD
     step: 1
     mode: box
-    skip_updates: 999999
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} PID4 Kd x100"
     address: 373
     register_type: holding
-    value_type: U_WORD
-    min_value: 0
-    max_value: 10000
+    value_type: S_WORD
     step: 1
     mode: box
-    skip_updates: 999999
-
-  # ---- Modbus PV inputs 410..413 ----
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} MBPV1 Raw"
@@ -330,7 +284,6 @@ number:
     max_value: 65535
     step: 1
     mode: box
-    skip_updates: 999999
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -342,7 +295,6 @@ number:
     max_value: 65535
     step: 1
     mode: box
-    skip_updates: 999999
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -354,7 +306,6 @@ number:
     max_value: 65535
     step: 1
     mode: box
-    skip_updates: 999999
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -366,10 +317,8 @@ number:
     max_value: 65535
     step: 1
     mode: box
-    skip_updates: 999999
 
-
-# ================= READABLE Holding Registers (POLLING) =================
+# ================= READABLE Holding Registers =================
 sensor:
   # ---- RTD temperatures (°C*10 as S_WORD) ----
   - platform: modbus_controller
@@ -380,7 +329,8 @@ sensor:
     value_type: S_WORD
     unit_of_measurement: "°C"
     accuracy_decimals: 1
-    filters: [ multiply: 0.1 ]
+    filters:
+      - multiply: 0.1
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -390,7 +340,8 @@ sensor:
     value_type: S_WORD
     unit_of_measurement: "°C"
     accuracy_decimals: 1
-    filters: [ multiply: 0.1 ]
+    filters:
+      - multiply: 0.1
 
   # ---- AI field voltage in mV (U_WORD) ----
   - platform: modbus_controller
@@ -458,7 +409,8 @@ sensor:
     register_type: holding
     value_type: U_WORD
 
-  # ---- PV raw used by PID (390..393) ----
+  # ---- NEW in your current firmware: PV raw + ERR raw ----
+  # PVVAL 390..393 = raw PV that PID used (U_WORD in fw write, may contain scaled temp*10 too)
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} PID1 PV Raw"
@@ -487,87 +439,13 @@ sensor:
     register_type: holding
     value_type: S_WORD
 
-  # ---- OPTIONAL: readable views for the writeable regs (so HA shows current values) ----
-  # DAC readback (200..201)
-  - platform: modbus_controller
-    modbus_controller_id: ${aio_id}
-    name: "${aio_prefix} AO0 Raw (Read)"
-    address: 200
-    register_type: holding
-    value_type: U_WORD
-
-  - platform: modbus_controller
-    modbus_controller_id: ${aio_id}
-    name: "${aio_prefix} AO1 Raw (Read)"
-    address: 201
-    register_type: holding
-    value_type: U_WORD
-
-  # SP readback (300..303)
-  - platform: modbus_controller
-    modbus_controller_id: ${aio_id}
-    name: "${aio_prefix} SP1 Raw (Read)"
-    address: 300
-    register_type: holding
-    value_type: S_WORD
-
-  - platform: modbus_controller
-    modbus_controller_id: ${aio_id}
-    name: "${aio_prefix} SP2 Raw (Read)"
-    address: 301
-    register_type: holding
-    value_type: S_WORD
-
-  - platform: modbus_controller
-    modbus_controller_id: ${aio_id}
-    name: "${aio_prefix} SP3 Raw (Read)"
-    address: 302
-    register_type: holding
-    value_type: S_WORD
-
-  - platform: modbus_controller
-    modbus_controller_id: ${aio_id}
-    name: "${aio_prefix} SP4 Raw (Read)"
-    address: 303
-    register_type: holding
-    value_type: S_WORD
-
-  # PID enable readback (310..313)
-  - platform: modbus_controller
-    modbus_controller_id: ${aio_id}
-    name: "${aio_prefix} PID1 Enable (Read)"
-    address: 310
-    register_type: holding
-    value_type: U_WORD
-
-  - platform: modbus_controller
-    modbus_controller_id: ${aio_id}
-    name: "${aio_prefix} PID2 Enable (Read)"
-    address: 311
-    register_type: holding
-    value_type: U_WORD
-
-  - platform: modbus_controller
-    modbus_controller_id: ${aio_id}
-    name: "${aio_prefix} PID3 Enable (Read)"
-    address: 312
-    register_type: holding
-    value_type: U_WORD
-
-  - platform: modbus_controller
-    modbus_controller_id: ${aio_id}
-    name: "${aio_prefix} PID4 Enable (Read)"
-    address: 313
-    register_type: holding
-    value_type: U_WORD
-
-  # Gains readback (RAW + scaled)
+  # ---- PID gains scaled display (same regs) ----
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} PID1 Kp"
     address: 350
     register_type: holding
-    value_type: U_WORD
+    value_type: S_WORD
     accuracy_decimals: 2
     filters: [ multiply: 0.01 ]
 
@@ -576,7 +454,7 @@ sensor:
     name: "${aio_prefix} PID1 Ki"
     address: 360
     register_type: holding
-    value_type: U_WORD
+    value_type: S_WORD
     accuracy_decimals: 2
     filters: [ multiply: 0.01 ]
 
@@ -585,7 +463,7 @@ sensor:
     name: "${aio_prefix} PID1 Kd"
     address: 370
     register_type: holding
-    value_type: U_WORD
+    value_type: S_WORD
     accuracy_decimals: 2
     filters: [ multiply: 0.01 ]
 
@@ -594,7 +472,7 @@ sensor:
     name: "${aio_prefix} PID2 Kp"
     address: 351
     register_type: holding
-    value_type: U_WORD
+    value_type: S_WORD
     accuracy_decimals: 2
     filters: [ multiply: 0.01 ]
 
@@ -603,7 +481,7 @@ sensor:
     name: "${aio_prefix} PID2 Ki"
     address: 361
     register_type: holding
-    value_type: U_WORD
+    value_type: S_WORD
     accuracy_decimals: 2
     filters: [ multiply: 0.01 ]
 
@@ -612,7 +490,7 @@ sensor:
     name: "${aio_prefix} PID2 Kd"
     address: 371
     register_type: holding
-    value_type: U_WORD
+    value_type: S_WORD
     accuracy_decimals: 2
     filters: [ multiply: 0.01 ]
 
@@ -621,7 +499,7 @@ sensor:
     name: "${aio_prefix} PID3 Kp"
     address: 352
     register_type: holding
-    value_type: U_WORD
+    value_type: S_WORD
     accuracy_decimals: 2
     filters: [ multiply: 0.01 ]
 
@@ -630,7 +508,7 @@ sensor:
     name: "${aio_prefix} PID3 Ki"
     address: 362
     register_type: holding
-    value_type: U_WORD
+    value_type: S_WORD
     accuracy_decimals: 2
     filters: [ multiply: 0.01 ]
 
@@ -639,7 +517,7 @@ sensor:
     name: "${aio_prefix} PID3 Kd"
     address: 372
     register_type: holding
-    value_type: U_WORD
+    value_type: S_WORD
     accuracy_decimals: 2
     filters: [ multiply: 0.01 ]
 
@@ -648,7 +526,7 @@ sensor:
     name: "${aio_prefix} PID4 Kp"
     address: 353
     register_type: holding
-    value_type: U_WORD
+    value_type: S_WORD
     accuracy_decimals: 2
     filters: [ multiply: 0.01 ]
 
@@ -657,7 +535,7 @@ sensor:
     name: "${aio_prefix} PID4 Ki"
     address: 363
     register_type: holding
-    value_type: U_WORD
+    value_type: S_WORD
     accuracy_decimals: 2
     filters: [ multiply: 0.01 ]
 
@@ -666,35 +544,6 @@ sensor:
     name: "${aio_prefix} PID4 Kd"
     address: 373
     register_type: holding
-    value_type: U_WORD
+    value_type: S_WORD
     accuracy_decimals: 2
     filters: [ multiply: 0.01 ]
-
-  # MBPV readback (410..413)
-  - platform: modbus_controller
-    modbus_controller_id: ${aio_id}
-    name: "${aio_prefix} MBPV1 Raw (Read)"
-    address: 410
-    register_type: holding
-    value_type: U_WORD
-
-  - platform: modbus_controller
-    modbus_controller_id: ${aio_id}
-    name: "${aio_prefix} MBPV2 Raw (Read)"
-    address: 411
-    register_type: holding
-    value_type: U_WORD
-
-  - platform: modbus_controller
-    modbus_controller_id: ${aio_id}
-    name: "${aio_prefix} MBPV3 Raw (Read)"
-    address: 412
-    register_type: holding
-    value_type: U_WORD
-
-  - platform: modbus_controller
-    modbus_controller_id: ${aio_id}
-    name: "${aio_prefix} MBPV4 Raw (Read)"
-    address: 413
-    register_type: holding
-    value_type: U_WORD
