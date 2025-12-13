@@ -1,40 +1,24 @@
-// ==== AIO-422-R1 (RP2350) SIMPLE FW (ALL ANALOG → HOLDING REGS + 4x PID) ====
-// FIXED/UPDATED (this build):
-// 1) Manual SP is now a SEPARATE per-PID variable (Web only) and NOT the same as Modbus SP1..SP4.
-//    - Modbus 300..303 = SP1..SP4 (from Modbus)
-//    - Manual SP = pidManualSp[0..3] (from Web config only)
-//    - Web "pidState.sp[]" shows ACTIVE setpoint (manual or selected source value)
-// 2) Modbus writes to PID EN/KP/KI/KD update firmware PID config (mirrored).
-// 3) PID Working Mode Direct/Reverse remains Web-only via "pidMode" and persisted in LittleFS.
-// 4) SP source supports PID outputs: sp_src 5..8 = PID1..PID4 virtual OUT (raw)
-// 5) updatePids() uses 2-pass solve so PID->PID SP is stable within each cycle.
-// 6) NEW: LED sources selectable (Web-only, persisted) -> show PID enabled / PID at 0/100% / AO1-2 at 0/100%
-// 7) NEW: Button actions selectable (Web-only, persisted):
-//    - Manual LED toggle (legacy)
-//    - Toggle PID1..PID4 enable
-//    - Toggle AO1 to 0% or 100% (independent)
-//    - Toggle AO2 to 0% or 100% (independent)
-// 8) FIX: PID writes to AO1/AO2 ONLY when that PID is ENABLED and has valid PV/SP.
-//    - If PID is disabled, it DOES NOT touch AO outputs (AO remains free for Modbus/Web manual control).
+// AIO-422-R1 (RP2350) – Golden Firmware (FINAL)
+// ------------------------------------------------------------
+// This is the production “golden build” firmware.
+// Code behavior is frozen; only comments were rewritten.
 //
-// NEW:
-// 9) Added 4x external PV values received via Modbus:
-//    - HREG 410..413 = MBPV1..MBPV4 (R/W)
-//    - PV selection extended: pvSource 7..10 = MBPV1..MBPV4
+// Hardware:
+//  - ADS1115 (4x AI) on Wire1 (SDA=6, SCL=7)
+//  - 2x MCP4725 DAC (AO1=0x60, AO2=0x61) on Wire1
+//  - 2x MAX31865 RTD on soft-SPI (CS=13/14, CLK=10, DO=12, DI=11)
+//  - 4x Buttons on GPIO 22..25
+//  - 4x LEDs on GPIO 18..21
+//  - Modbus RTU on Serial2 (TX=4, RX=5)
 //
-// NEW (your request):
-// 10) MAX31865 RTD full diagnostics + configuration via WebConfig ONLY (WebSerial + LittleFS persistence):
-//    - WebSerial "rtdCfg": wires(2/3/4), rnominal(100/1000), rref(200/400/2000/4000) per RTD
-//    - WebSerial "rtdInfo": temp_x10, temp_c, fault byte, decoded text, raw RTD code, ratio, resistance(ohm)
-//    - No Modbus registers added/changed.
-//
-// FIX (to stop blocking Modbus):
-// A) WebSerial general sendInterval = 1000ms
-// B) rtdInfo sendInterval = 2000ms
-// C) Avoid double RTD SPI per sensor cycle: diagnostics readRTD() only when sending rtdInfo
-//
-// HW: 4x AI ADS1115 (Wire1 SDA=6 SCL=7), 2x AO MCP4725 (0x60/0x61), 2x RTD MAX31865 softSPI,
-//     4x Buttons GPIO22..25, 4x LEDs GPIO18..21
+// Key behaviors:
+//  - Web “manual setpoint” is separate from Modbus SP registers
+//  - PID parameters EN/KP/KI/KD mirror Modbus writes into runtime config
+//  - PID mode (direct/reverse), LED sources, button actions are Web-only + persisted
+//  - Cascade: PID outputs can feed other PID setpoints
+//  - RTD configuration + diagnostics are Web-only (no Modbus map changes)
+//  - Web traffic is throttled so Modbus stays responsive
+// ------------------------------------------------------------
 
 #include <Arduino.h>
 #include <Wire.h>
