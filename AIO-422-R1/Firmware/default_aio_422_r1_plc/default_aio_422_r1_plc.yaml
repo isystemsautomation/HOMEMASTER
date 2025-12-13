@@ -100,6 +100,7 @@ number:
     value_type: S_WORD
     step: 1
     mode: box
+    disabled_by_default: true
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -109,6 +110,7 @@ number:
     value_type: S_WORD
     step: 1
     mode: box
+    disabled_by_default: true
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -118,6 +120,7 @@ number:
     value_type: S_WORD
     step: 1
     mode: box
+    disabled_by_default: true
 
   # ---- PID Enable 310..313 (0/1) ----
   - platform: modbus_controller
@@ -141,6 +144,7 @@ number:
     max_value: 1
     step: 1
     mode: box
+    disabled_by_default: true
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -152,6 +156,7 @@ number:
     max_value: 1
     step: 1
     mode: box
+    disabled_by_default: true
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -163,6 +168,7 @@ number:
     max_value: 1
     step: 1
     mode: box
+    disabled_by_default: true
 
    # ---- PID gains RAW (x100): Kp 350..353, Ki 360..363, Kd 370..373 ----
   - platform: modbus_controller
@@ -182,6 +188,7 @@ number:
     value_type: S_WORD
     step: 1
     mode: box
+    disabled_by_default: true
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -191,6 +198,7 @@ number:
     value_type: S_WORD
     step: 1
     mode: box
+    disabled_by_default: true
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -200,6 +208,7 @@ number:
     value_type: S_WORD
     step: 1
     mode: box
+    disabled_by_default: true
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -218,6 +227,7 @@ number:
     value_type: S_WORD
     step: 1
     mode: box
+    disabled_by_default: true
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -227,6 +237,7 @@ number:
     value_type: S_WORD
     step: 1
     mode: box
+    disabled_by_default: true
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -236,6 +247,7 @@ number:
     value_type: S_WORD
     step: 1
     mode: box
+    disabled_by_default: true
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -254,6 +266,7 @@ number:
     value_type: S_WORD
     step: 1
     mode: box
+    disabled_by_default: true
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -263,6 +276,7 @@ number:
     value_type: S_WORD
     step: 1
     mode: box
+    disabled_by_default: true
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -272,6 +286,7 @@ number:
     value_type: S_WORD
     step: 1
     mode: box
+    disabled_by_default: true
 
 
 # ================= READABLE Holding Registers =================

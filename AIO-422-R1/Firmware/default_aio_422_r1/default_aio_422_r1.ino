@@ -539,19 +539,16 @@ void handlePid(JSONVar obj) {
     if (JSON.typeof(pv) == "array" && i < (int)pv.length()) {
       int v = (int)pv[i];
       p.pvSource = clamp_u8(v, 0, 6);
-      mb.Hreg(HREG_PID_PVSEL_BASE + i, (uint16_t)p.pvSource);
     }
 
     if (JSON.typeof(spSrc) == "array" && i < (int)spSrc.length()) {
       int v = (int)spSrc[i];
       p.spSource = clamp_u8(v, 0, 8);
-      mb.Hreg(HREG_PID_SPSEL_BASE + i, (uint16_t)p.spSource);
     }
 
     if (JSON.typeof(out) == "array" && i < (int)out.length()) {
       int v = (int)out[i];
       p.outTarget = clamp_u8(v, 0, 3);
-      mb.Hreg(HREG_PID_OUTSEL_BASE + i, (uint16_t)p.outTarget);
     }
 
     if (JSON.typeof(kp) == "array" && i < (int)kp.length()) {
@@ -711,7 +708,6 @@ void updatePids() {
     // Publish PV/SP raw to Modbus (optional visibility)
     mb.Hreg(HREG_PID_PVVAL_BASE + i, (uint16_t)lroundf(pvRaw));
     float errRaw = spRaw - pvRaw;
-    mb.Hreg(HREG_PID_ERR_BASE + i, (uint16_t)(int16_t)lroundf(errRaw));
 
     if (!(p.enabled && pvOk && spOk)) {
       p.integral  = 0.0f;
@@ -953,11 +949,6 @@ void setup() {
 
   // PID regs (mirror/writable)
   for (uint16_t i=0;i<4;i++) {
-    mb.addHreg(HREG_PID_EN_BASE     + i, 0);
-    mb.addHreg(HREG_PID_PVSEL_BASE  + i, 0);
-    mb.addHreg(HREG_PID_SPSEL_BASE  + i, 0);
-    mb.addHreg(HREG_PID_OUTSEL_BASE + i, 0);
-
     mb.addHreg(HREG_PID_KP_BASE     + i, 0);
     mb.addHreg(HREG_PID_KI_BASE     + i, 0);
     mb.addHreg(HREG_PID_KD_BASE     + i, 0);
@@ -1006,15 +997,6 @@ void loop() {
     // EN
     bool en = (mb.Hreg(HREG_PID_EN_BASE + i) != 0);
     if (pid[i].enabled != en) { pid[i].enabled = en; cfgDirty = true; lastCfgTouchMs = now; }
-
-    // PV/SP/OUT selectors
-    uint8_t pvsel  = clamp_u8((int)mb.Hreg(HREG_PID_PVSEL_BASE + i), 0, 6);
-    uint8_t spsel  = clamp_u8((int)mb.Hreg(HREG_PID_SPSEL_BASE + i), 0, 8);
-    uint8_t outsel = clamp_u8((int)mb.Hreg(HREG_PID_OUTSEL_BASE + i), 0, 3);
-
-    if (pid[i].pvSource  != pvsel)  { pid[i].pvSource  = pvsel;  cfgDirty = true; lastCfgTouchMs = now; }
-    if (pid[i].spSource  != spsel)  { pid[i].spSource  = spsel;  cfgDirty = true; lastCfgTouchMs = now; }
-    if (pid[i].outTarget != outsel) { pid[i].outTarget = outsel; cfgDirty = true; lastCfgTouchMs = now; }
 
     // Gains
     int16_t kpRaw = (int16_t)mb.Hreg(HREG_PID_KP_BASE + i);
