@@ -1,20 +1,17 @@
 // ==== AIO-422-R1 (RP2350) SIMPLE FW (ALL ANALOG → HOLDING REGS + 4x PID) ====
-// FIXED: PID settings no longer revert. PID config is stored in pid[] (single source of truth),
-// and Modbus regs are mirrored for visibility. updatePids() does NOT overwrite config from Modbus.
+// FIXED/UPDATED (this build):
+// 1) Manual SP is now a SEPARATE per-PID variable (Web only) and NOT the same as Modbus SP1..SP4.
+//    - Modbus 300..303 = SP1..SP4 (from Modbus)
+//    - Manual SP = pidManualSp[0..3] (from Web config only)
+//    - Web "pidState.sp[]" shows ACTIVE setpoint (manual or selected source value)
+// 2) Modbus writes to PID EN/KP/KI/KD/PVSEL/SPSEL/OUTSEL update firmware PID config (mirrored).
+// 3) PID Working Mode Direct/Reverse remains Web-only via "pidMode" and persisted in LittleFS.
+// 4) SP source supports PID outputs: sp_src 5..8 = PID1..PID4 virtual OUT (raw)
+// 5) updatePids() uses 2-pass solve so PID->PID SP is stable within each cycle.
 //
-// ADDED (drop-in, no Modbus map changes):
-// - PID Working Mode: Direct/Reverse (mode 0/1) set ONLY from Web config via WebSerial "pidMode" message
-// - Mode is persisted in LittleFS config (survives reboot / factory / load/save)
-//
-// IMPORTANT (this build):
-// - SP source supports PID outputs: sp_src 5..8 = PID1..PID4 virtual OUT (raw)
-// - updatePids() uses a 2-pass solve so PID->PID SP is stable within each cycle.
-//
-// 4x AI via ADS1115 (ADS1X15.h) on Wire1 (SDA=6, SCL=7)
-// 2x AO via 2x MCP4725 on Wire1 (0x60,0x61)
-// 2x RTD via 2x MAX31865 over SOFTWARE SPI (CS1=13, CS2=14, DI=11, DO=12, CLK=10)
-// 4x Buttons (GPIO22..25), 4x LEDs (GPIO18..21)
-// WebSerial + Modbus RTU + LittleFS persistence of Modbus/DAC + 4x PID
+// HW: 4x AI ADS1115 (Wire1 SDA=6 SCL=7), 2x AO MCP4725 (0x60/0x61), 2x RTD MAX31865 softSPI,
+//     4x Buttons GPIO22..25, 4x LEDs GPIO18..21
+// WebSerial + Modbus RTU + LittleFS persistence of Modbus/DAC + PID mode + Manual SP
 
 #include <Arduino.h>
 #include <Wire.h>
@@ -116,7 +113,7 @@ enum : uint16_t {
   HREG_AI_MV_BASE  = 140,
   HREG_DAC_BASE    = 200,
 
-  HREG_SP_BASE        = 300,
+  HREG_SP_BASE        = 300, // 300..303 = SP1..SP4 (MODBUS)
   HREG_PID_EN_BASE    = 310,
   HREG_PID_PVSEL_BASE = 320,
   HREG_PID_SPSEL_BASE = 330,
@@ -132,10 +129,10 @@ enum : uint16_t {
 // ================== PID state ==================
 struct PIDState {
   bool    enabled;
-  uint8_t pvSource;
-  uint8_t spSource;
-  uint8_t outTarget;   // 0=none,1=AO1,2=AO2,3=virtual-only
-  uint8_t mode;        // 0=direct,1=reverse
+  uint8_t pvSource;     // 0 none, 1..4 AI1..4(mV), 5 RTD1, 6 RTD2
+  uint8_t spSource;     // 0 manual (Web), 1..4 SP1..SP4(Modbus), 5..8 PID1..PID4 OUT
+  uint8_t outTarget;    // 0 none, 1 AO1, 2 AO2, 3 virtual-only
+  uint8_t mode;         // 0 direct, 1 reverse (Web-only persisted)
 
   float   Kp;
   float   Ki;
@@ -143,7 +140,7 @@ struct PIDState {
 
   float   integral;
   float   prevError;
-  float   output;      // RAW output (0..4095)
+  float   output;       // RAW output (0..4095)
 
   float   pvMin;
   float   pvMax;
@@ -160,6 +157,9 @@ PIDState pid[4];
 float pidVirtRaw[4] = {0,0,0,0};
 float pidVirtPct[4] = {0,0,0,0};
 
+// ===== NEW: Manual setpoints (Web only), per PID (NOT Modbus) =====
+int16_t pidManualSp[4] = {0,0,0,0};
+
 // ================== Persistence (LittleFS) ==================
 struct PersistConfig {
   uint32_t magic;
@@ -170,13 +170,14 @@ struct PersistConfig {
   uint8_t  mb_address;
   uint32_t mb_baud;
 
-  uint8_t  pid_mode[4];
+  uint8_t  pid_mode[4];       // persisted
+  int16_t  pid_manual_sp[4];  // persisted (Web only)
 
   uint32_t crc32;
 } __attribute__((packed));
 
 static const uint32_t CFG_MAGIC   = 0x314F4941UL;
-static const uint16_t CFG_VERSION = 0x0002;
+static const uint16_t CFG_VERSION = 0x0003;  // bump version (added pid_manual_sp)
 static const char*    CFG_PATH    = "/cfg.bin";
 
 volatile bool  cfgDirty        = false;
@@ -211,7 +212,10 @@ void setDefaults() {
   g_mb_address = 3;
   g_mb_baud    = 19200;
 
-  for (int i=0;i<4;i++) pid[i].mode = 0;
+  for (int i=0;i<4;i++) {
+    pid[i].mode = 0;
+    pidManualSp[i] = 0;
+  }
 }
 
 void captureToPersist(PersistConfig &pc) {
@@ -225,10 +229,52 @@ void captureToPersist(PersistConfig &pc) {
   pc.mb_address = g_mb_address;
   pc.mb_baud    = g_mb_baud;
 
-  for (int i=0;i<4;i++) pc.pid_mode[i] = pid[i].mode;
+  for (int i=0;i<4;i++) {
+    pc.pid_mode[i] = pid[i].mode;
+    pc.pid_manual_sp[i] = pidManualSp[i];
+  }
 
   pc.crc32 = 0;
   pc.crc32 = crc32_update(0, (const uint8_t*)&pc, sizeof(PersistConfig));
+}
+
+bool applyFromPersist_v2(const uint8_t* buf, size_t len) {
+  // Backward compat for CFG_VERSION 0x0002 (no manual_sp)
+  struct PersistConfigV2 {
+    uint32_t magic;
+    uint16_t version;
+    uint16_t size;
+
+    uint16_t dacRaw[2];
+    uint8_t  mb_address;
+    uint32_t mb_baud;
+
+    uint8_t  pid_mode[4];
+
+    uint32_t crc32;
+  } __attribute__((packed));
+
+  if (len != sizeof(PersistConfigV2)) return false;
+  PersistConfigV2 pc{};
+  memcpy(&pc, buf, sizeof(pc));
+
+  if (pc.magic != CFG_MAGIC || pc.size != sizeof(PersistConfigV2)) return false;
+  uint32_t crc = pc.crc32;
+  pc.crc32 = 0;
+  if (crc32_update(0, (const uint8_t*)&pc, sizeof(PersistConfigV2)) != crc) return false;
+  if (pc.version != 0x0002) return false;
+
+  dacRaw[0] = pc.dacRaw[0];
+  dacRaw[1] = pc.dacRaw[1];
+
+  g_mb_address = pc.mb_address;
+  g_mb_baud    = pc.mb_baud;
+
+  for (int i=0;i<4;i++) {
+    pid[i].mode = clamp_u8((int)pc.pid_mode[i], 0, 1);
+    pidManualSp[i] = 0; // default since v2 didn't have it
+  }
+  return true;
 }
 
 bool applyFromPersist(const PersistConfig &pc) {
@@ -246,7 +292,10 @@ bool applyFromPersist(const PersistConfig &pc) {
   g_mb_address = pc.mb_address;
   g_mb_baud    = pc.mb_baud;
 
-  for (int i=0;i<4;i++) pid[i].mode = clamp_u8((int)pc.pid_mode[i], 0, 1);
+  for (int i=0;i<4;i++) {
+    pid[i].mode = clamp_u8((int)pc.pid_mode[i], 0, 1);
+    pidManualSp[i] = pc.pid_manual_sp[i];
+  }
 
   return true;
 }
@@ -292,17 +341,27 @@ bool saveConfigFS() {
 bool loadConfigFS() {
   File f = LittleFS.open(CFG_PATH, "r");
   if (!f) { WebSerial.send("message", "load: open failed"); return false; }
-  if (f.size() != sizeof(PersistConfig)) {
-    WebSerial.send("message", String("load: size ")+f.size()+" != "+sizeof(PersistConfig));
+
+  size_t sz = (size_t)f.size();
+  if (sz == sizeof(PersistConfig)) {
+    PersistConfig pc{};
+    size_t n = f.read((uint8_t*)&pc, sizeof(pc));
     f.close();
-    return false;
+    if (n != sizeof(pc)) { WebSerial.send("message", "load: short read"); return false; }
+    if (!applyFromPersist(pc)) { WebSerial.send("message", "load: magic/version/crc mismatch"); return false; }
+    return true;
   }
-  PersistConfig pc{};
-  size_t n = f.read((uint8_t*)&pc, sizeof(pc));
+
+  // Try older v2
+  uint8_t buf[256];
+  if (sz > sizeof(buf)) { WebSerial.send("message", "load: file too big"); f.close(); return false; }
+  size_t n = f.read(buf, sz);
   f.close();
-  if (n != sizeof(pc)) { WebSerial.send("message", "load: short read"); return false; }
-  if (!applyFromPersist(pc)) { WebSerial.send("message", "load: magic/version/crc mismatch"); return false; }
-  return true;
+  if (n != sz) { WebSerial.send("message", "load: short read"); return false; }
+  if (applyFromPersist_v2(buf, sz)) return true;
+
+  WebSerial.send("message", String("load: size ")+sz+" unsupported");
+  return false;
 }
 
 bool initFilesystemAndConfig() {
@@ -465,9 +524,10 @@ void handlePid(JSONVar obj) {
   for (int i = 0; i < 4; i++) {
     PIDState &p = pid[i];
 
+    // ===== Manual SP (Web only, per PID) =====
     if (JSON.typeof(sp) == "array" && i < (int)sp.length()) {
       int16_t spv = (int16_t)((int)sp[i]);
-      mb.Hreg(HREG_SP_BASE + i, (uint16_t)spv);
+      pidManualSp[i] = spv;
     }
 
     if (JSON.typeof(en) == "array" && i < (int)en.length()) {
@@ -479,16 +539,19 @@ void handlePid(JSONVar obj) {
     if (JSON.typeof(pv) == "array" && i < (int)pv.length()) {
       int v = (int)pv[i];
       p.pvSource = clamp_u8(v, 0, 6);
+      mb.Hreg(HREG_PID_PVSEL_BASE + i, (uint16_t)p.pvSource);
     }
 
     if (JSON.typeof(spSrc) == "array" && i < (int)spSrc.length()) {
       int v = (int)spSrc[i];
-      p.spSource = clamp_u8(v, 0, 8);   // 0..4 = manual/SP1..4, 5..8 = PID1..4 OUT
+      p.spSource = clamp_u8(v, 0, 8);
+      mb.Hreg(HREG_PID_SPSEL_BASE + i, (uint16_t)p.spSource);
     }
 
     if (JSON.typeof(out) == "array" && i < (int)out.length()) {
       int v = (int)out[i];
       p.outTarget = clamp_u8(v, 0, 3);
+      mb.Hreg(HREG_PID_OUTSEL_BASE + i, (uint16_t)p.outTarget);
     }
 
     if (JSON.typeof(kp) == "array" && i < (int)kp.length()) {
@@ -557,7 +620,6 @@ void readSensors() {
       if (mv > 65535)  mv = 65535;
 
       aiMv[ch] = (uint16_t)mv;
-
       mb.Hreg(HREG_AI_MV_BASE + ch, aiMv[ch]);
     }
   } else {
@@ -600,19 +662,18 @@ float getPidPvValue(uint8_t src, bool &ok) {
 }
 
 // src:
-// 0      = Manual (this PID's own SPn register)
-// 1..4   = SP1..SP4 (global Modbus regs 300..303)
-// 5..8   = PID1..PID4 OUT (pidVirtRaw[0..3])
+// 0      = Manual (Web-only per PID: pidManualSp[])
+// 1..4   = SP1..SP4 (Modbus regs 300..303)
+// 5..8   = PID1..PID4 OUT (pidVirtRaw[])
 float getPidSpValue(uint8_t pidIndex, uint8_t src, bool &ok) {
   ok = false;
 
-  if (src >= 1 && src <= 4) {
+  if (src == 0) {
+    ok = true;
+    return (float)pidManualSp[pidIndex];
+  } else if (src >= 1 && src <= 4) {
     uint8_t idx = src - 1;
     int16_t raw = (int16_t)mb.Hreg(HREG_SP_BASE + idx);
-    ok = true;
-    return (float)raw;
-  } else if (src == 0) {
-    int16_t raw = (int16_t)mb.Hreg(HREG_SP_BASE + pidIndex);
     ok = true;
     return (float)raw;
   } else if (src >= 5 && src <= 8) {
@@ -643,10 +704,14 @@ void updatePids() {
     bool  spOk   = false;
     float pvRaw  = getPidPvValue(p.pvSource, pvOk);
     float spRaw  = getPidSpValue((uint8_t)i, p.spSource, spOk);
-    float errRaw = spRaw - pvRaw;
 
     if (p.pvMax <= p.pvMin) { p.pvMin = 0.0f; p.pvMax = 10000.0f; }
     if (p.outMax <= p.outMin) { p.outMin = 0.0f; p.outMax = 4095.0f; }
+
+    // Publish PV/SP raw to Modbus (optional visibility)
+    mb.Hreg(HREG_PID_PVVAL_BASE + i, (uint16_t)lroundf(pvRaw));
+    float errRaw = spRaw - pvRaw;
+    mb.Hreg(HREG_PID_ERR_BASE + i, (uint16_t)(int16_t)lroundf(errRaw));
 
     if (!(p.enabled && pvOk && spOk)) {
       p.integral  = 0.0f;
@@ -725,7 +790,17 @@ void sendPidSnapshot() {
   JSONVar virtRawArr, virtPctArr;
 
   for (int i = 0; i < 4; i++) {
-    spArr[i]      = (int16_t)mb.Hreg(HREG_SP_BASE + i);
+    // ===== Show ACTIVE setpoint in UI =====
+    int16_t spShow = 0;
+    uint8_t src = pid[i].spSource;
+    if (src == 0) {
+      spShow = pidManualSp[i];
+    } else if (src >= 1 && src <= 4) {
+      spShow = (int16_t)mb.Hreg(HREG_SP_BASE + (src - 1));
+    } else if (src >= 5 && src <= 8) {
+      spShow = (int16_t)lroundf(pidVirtRaw[src - 5]);
+    }
+    spArr[i] = spShow;
 
     enArr[i]      = (int)(pid[i].enabled ? 1 : 0);
     pvArr[i]      = (int)pid[i].pvSource;
@@ -812,6 +887,8 @@ void setup() {
 
     pidVirtRaw[i]    = 0.0f;
     pidVirtPct[i]    = 0.0f;
+
+    pidManualSp[i]   = 0;
   }
 
   setDefaults();
@@ -871,17 +948,27 @@ void setup() {
   for (uint16_t i=0;i<4;i++) mb.addHreg(HREG_AI_MV_BASE + i);
   for (uint16_t i=0;i<2;i++) mb.addHreg(HREG_DAC_BASE   + i, dacRaw[i]);
 
+  // SP1..SP4 (Modbus)
+  for (uint16_t i=0;i<4;i++) mb.addHreg(HREG_SP_BASE + i, 0);
+
+  // PID regs (mirror/writable)
   for (uint16_t i=0;i<4;i++) {
-    mb.addHreg(HREG_SP_BASE        + i, 0);
-    mb.addHreg(HREG_PID_EN_BASE    + i, 0);
-    mb.addHreg(HREG_PID_KP_BASE    + i, 0);
-    mb.addHreg(HREG_PID_KI_BASE    + i, 0);
-    mb.addHreg(HREG_PID_KD_BASE    + i, 0);
-    mb.addHreg(HREG_PID_OUT_BASE   + i, 0);
+    mb.addHreg(HREG_PID_EN_BASE     + i, 0);
+    mb.addHreg(HREG_PID_PVSEL_BASE  + i, 0);
+    mb.addHreg(HREG_PID_SPSEL_BASE  + i, 0);
+    mb.addHreg(HREG_PID_OUTSEL_BASE + i, 0);
+
+    mb.addHreg(HREG_PID_KP_BASE     + i, 0);
+    mb.addHreg(HREG_PID_KI_BASE     + i, 0);
+    mb.addHreg(HREG_PID_KD_BASE     + i, 0);
+
+    mb.addHreg(HREG_PID_OUT_BASE    + i, 0);
+    mb.addHreg(HREG_PID_PVVAL_BASE  + i, 0);
+    mb.addHreg(HREG_PID_ERR_BASE    + i, 0);
   }
 
   WebSerial.send("message",
-    "Boot OK (AIO-422-R1 RP2350: ADS1115@Wire1, 2xMCP4725@Wire1, 2xMAX31865 softSPI, 4 BTN, 4 LED, 4xPID with % scaling + virtual outputs + PID->PID SP)");
+    "Boot OK (AIO-422-R1 RP2350: ADS1115@Wire1, 2xMCP4725@Wire1, 2xMAX31865 softSPI, 4 BTN, 4 LED, 4xPID with separated Manual SP + Modbus SP1..4 + PID->PID SP)");
 
   sendAllEchoesOnce();
 }
@@ -914,15 +1001,22 @@ void loop() {
 
   mb.task();
 
-  // ===== NEW: Sync PID config FROM Modbus so Modbus writes affect firmware =====
+  // ===== Sync PID config FROM Modbus (so Modbus writes affect firmware) =====
   for (int i = 0; i < 4; i++) {
+    // EN
     bool en = (mb.Hreg(HREG_PID_EN_BASE + i) != 0);
-    if (pid[i].enabled != en) {
-      pid[i].enabled = en;
-      cfgDirty = true;
-      lastCfgTouchMs = now;
-    }
+    if (pid[i].enabled != en) { pid[i].enabled = en; cfgDirty = true; lastCfgTouchMs = now; }
 
+    // PV/SP/OUT selectors
+    uint8_t pvsel  = clamp_u8((int)mb.Hreg(HREG_PID_PVSEL_BASE + i), 0, 6);
+    uint8_t spsel  = clamp_u8((int)mb.Hreg(HREG_PID_SPSEL_BASE + i), 0, 8);
+    uint8_t outsel = clamp_u8((int)mb.Hreg(HREG_PID_OUTSEL_BASE + i), 0, 3);
+
+    if (pid[i].pvSource  != pvsel)  { pid[i].pvSource  = pvsel;  cfgDirty = true; lastCfgTouchMs = now; }
+    if (pid[i].spSource  != spsel)  { pid[i].spSource  = spsel;  cfgDirty = true; lastCfgTouchMs = now; }
+    if (pid[i].outTarget != outsel) { pid[i].outTarget = outsel; cfgDirty = true; lastCfgTouchMs = now; }
+
+    // Gains
     int16_t kpRaw = (int16_t)mb.Hreg(HREG_PID_KP_BASE + i);
     int16_t kiRaw = (int16_t)mb.Hreg(HREG_PID_KI_BASE + i);
     int16_t kdRaw = (int16_t)mb.Hreg(HREG_PID_KD_BASE + i);
@@ -935,7 +1029,7 @@ void loop() {
     if (pid[i].Ki != ki) { pid[i].Ki = ki; cfgDirty = true; lastCfgTouchMs = now; }
     if (pid[i].Kd != kd) { pid[i].Kd = kd; cfgDirty = true; lastCfgTouchMs = now; }
   }
-  // ===== END NEW =====
+  // ===== END Sync =====
 
   if (cfgDirty && (now - lastCfgTouchMs >= CFG_AUTOSAVE_MS)) {
     if (saveConfigFS()) WebSerial.send("message", "Configuration saved");
