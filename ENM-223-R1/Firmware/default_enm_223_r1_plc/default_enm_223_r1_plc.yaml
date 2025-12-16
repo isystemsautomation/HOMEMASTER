@@ -593,3 +593,4 @@ sensor:
     value_type: U_DWORD
     unit_of_measurement: "VAh"
     state_class: total_increasing
+    update_interval: 60s

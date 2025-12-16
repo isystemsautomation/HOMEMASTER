@@ -1771,7 +1771,7 @@ void loop() {
   // ===== Meter sampling trigger (starts a CHUNKED job) =====
 if (!meter_job && (now - lastSampleTick >= sample_ms)) {
   // don't start SPI job if Modbus was active in the last 20ms
-  if ((uint32_t)(now - last_mb_activity_ms) > 20) {
+  if ((uint32_t)(now - last_mb_activity_ms) > 40) {
     lastSampleTick = now;
     meter_job_begin();
   }
