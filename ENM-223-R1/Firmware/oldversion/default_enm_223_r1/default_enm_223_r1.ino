@@ -35,6 +35,7 @@ struct MetricsSnapshot;
 
 static inline void breathe();
 static inline void breathe_mb();   // (we will add it below)
+static volatile uint32_t last_mb_activity_ms = 0;
 
 // ================== Shared alarm dimensions (must match Modbus map) ==================
 enum : uint8_t { CH_L1=0, CH_L2, CH_L3, CH_TOT, CH_COUNT };
@@ -69,7 +70,7 @@ constexpr bool     CS_ACTIVE_HIGH = false;
 constexpr uint8_t  ATM_SPI_MODE   = SPI_MODE0;
 
 // 1 MHz is generally safe. If wiring/noise issues: try 500k or 250k.
-constexpr uint32_t SPI_HZ         = 2000000;
+constexpr uint32_t SPI_HZ         = 200000;
 
 // ============================================================================
 // Global WebSerial (declared EARLY so everyone can call WebSerial.check safely)
@@ -580,10 +581,10 @@ void MB_fillStatus(JSONVar *status){
 // GLOBAL breathe (ROBUST): always safe to call anywhere
 // ============================================================================
 static inline void breathe() {
-  // Keep WebSerial alive during chunked SPI work
-  enm223::MB_task(); 
-  WebSerial.check();
-  yield();
+enm223::MB_task();
+last_mb_activity_ms = millis();
+WebSerial.check();
+yield();
 }
 
 static inline void breathe_mb() {
@@ -1768,11 +1769,14 @@ void loop() {
   }
 
   // ===== Meter sampling trigger (starts a CHUNKED job) =====
-  if (!meter_job && (now - lastSampleTick >= sample_ms)) {
+if (!meter_job && (now - lastSampleTick >= sample_ms)) {
+  // don't start SPI job if Modbus was active in the last 20ms
+  if ((uint32_t)(now - last_mb_activity_ms) > 20) {
     lastSampleTick = now;
     meter_job_begin();
   }
-  meter_job_step();
+}
+meter_job_step();
 
   // ===== Energy accumulate (0.01CF read-to-clear) =====
   if (now - lastEnergySample >= ENERGY_SAMPLE_MS) {
