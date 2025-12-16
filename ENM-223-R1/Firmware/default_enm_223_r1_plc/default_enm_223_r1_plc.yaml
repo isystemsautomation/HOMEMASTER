@@ -3,7 +3,7 @@ modbus_controller:
     address: ${enm_address}        # Modbus slave ID
     modbus_id: modbus_bus
     update_interval: 1s
-    command_throttle: 10ms
+    command_throttle: 50ms
     allow_duplicate_commands: false
 
 # ===================== Discrete Inputs (FC02) =====================
