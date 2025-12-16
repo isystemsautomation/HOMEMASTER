@@ -99,15 +99,12 @@ struct M90DiagRegs {
 
 class ATM90E32_Inline {
 public:
-  using HookFn = void(*)(uint16_t reg, uint16_t val);
-
+  
   ATM90E32_Inline(SPIClass& spi, uint8_t pinCS, uint8_t pinPM0, uint8_t pinPM1,
                   uint32_t spiHz = 200000, uint8_t spiMode = SPI_MODE0,
                   bool csActiveHigh = false)
   : spi_(spi), cs_(pinCS), pm0_(pinPM0), pm1_(pinPM1),
     spiHz_(spiHz), spiMode_(spiMode), csActiveHigh_(csActiveHigh) {}
-
-  void setHooks(HookFn onRead, HookFn onWrite) { onRead_ = onRead; onWrite_ = onWrite; }
 
   // ---- Register map (subset) ----
   static constexpr uint16_t MeterEn       = 0x00;
@@ -385,13 +382,11 @@ private:
 
   inline uint16_t read16(uint16_t reg) {
     uint16_t v = xfer(1, reg, 0xFFFF);
-    if (onRead_) onRead_(reg, v);
     return v;
   }
 
   inline void write16(uint16_t reg, uint16_t val) {
     (void)xfer(0, reg, val);
-    if (onWrite_) onWrite_(reg, val);
   }
 
   uint16_t lineHz_ = 50;
@@ -403,9 +398,6 @@ private:
   uint32_t spiHz_;
   uint8_t  spiMode_;
   bool     csActiveHigh_;
-
-  HookFn onRead_  = nullptr;
-  HookFn onWrite_ = nullptr;
 
   uint8_t cfgGateDepth_ = 0;
 };
@@ -728,106 +720,6 @@ static inline uint32_t ticks0p01CF_to_Wh(uint64_t ticks) {
   if (Wh > 4294967295.0) Wh = 4294967295.0;
   return (uint32_t)lround(Wh);
 }
-
-// ============================================================================
-// REAL ATM CHIP CONFIG READBACK (CHUNKED)
-// ============================================================================
-struct RawRow {
-  uint16_t reg;
-  const char* name;
-  uint16_t val;
-};
-
-static const RawRow RAW_READ_TEMPLATE[] = {
-  { enm223::ATM90E32_Inline::UgainA,   "UgainA",   0 },
-  { enm223::ATM90E32_Inline::IgainA,   "IgainA",   0 },
-  { enm223::ATM90E32_Inline::UoffsetA, "UoffsetA", 0 },
-  { enm223::ATM90E32_Inline::IoffsetA, "IoffsetA", 0 },
-
-  { enm223::ATM90E32_Inline::UgainB,   "UgainB",   0 },
-  { enm223::ATM90E32_Inline::IgainB,   "IgainB",   0 },
-  { enm223::ATM90E32_Inline::UoffsetB, "UoffsetB", 0 },
-  { enm223::ATM90E32_Inline::IoffsetB, "IoffsetB", 0 },
-
-  { enm223::ATM90E32_Inline::UgainC,   "UgainC",   0 },
-  { enm223::ATM90E32_Inline::IgainC,   "IgainC",   0 },
-  { enm223::ATM90E32_Inline::UoffsetC, "UoffsetC", 0 },
-  { enm223::ATM90E32_Inline::IoffsetC, "IoffsetC", 0 },
-
-  { enm223::ATM90E32_Inline::MeterEn, "MeterEn", 0 },
-
-  { enm223::ATM90E32_Inline::MMode0,        "MMode0",        0 },
-  { enm223::ATM90E32_Inline::MMode1,        "MMode1",        0 },
-  { enm223::ATM90E32_Inline::PLconstH,      "PLconstH",      0 },
-  { enm223::ATM90E32_Inline::PLconstL,      "PLconstL",      0 },
-  { enm223::ATM90E32_Inline::SagPeakDetCfg, "SagPeakDetCfg", 0 },
-  { enm223::ATM90E32_Inline::SagTh,         "SagTh",         0 },
-  { enm223::ATM90E32_Inline::FreqHiTh,      "FreqHiTh",      0 },
-  { enm223::ATM90E32_Inline::FreqLoTh,      "FreqLoTh",      0 },
-  { enm223::ATM90E32_Inline::ZXConfig,      "ZXConfig",      0 },
-
-  { enm223::ATM90E32_Inline::REG_UrmsA,    "UrmsA(H)", 0 },
-  { enm223::ATM90E32_Inline::REG_UrmsALSB, "UrmsA(L)", 0 },
-  { enm223::ATM90E32_Inline::REG_IrmsA,    "IrmsA(H)", 0 },
-  { enm223::ATM90E32_Inline::REG_IrmsALSB, "IrmsA(L)", 0 },
-
-  { enm223::ATM90E32_Inline::Freq, "Freq(x100)", 0 },
-  { enm223::ATM90E32_Inline::Temp, "Temp", 0 },
-
-  { enm223::ATM90E32_Inline::EMMState0,     "EMMState0",     0 },
-  { enm223::ATM90E32_Inline::EMMState1,     "EMMState1",     0 },
-  { enm223::ATM90E32_Inline::EMMIntState0,  "EMMIntState0",  0 },
-  { enm223::ATM90E32_Inline::EMMIntState1,  "EMMIntState1",  0 },
-  { enm223::ATM90E32_Inline::CRCErrStatus,  "CRCErrStatus",  0 },
-  { enm223::ATM90E32_Inline::LastSPIData,   "LastSPIData",   0 },
-};
-
-static RawRow g_rawReads[sizeof(RAW_READ_TEMPLATE)/sizeof(RAW_READ_TEMPLATE[0])];
-
-static void raw_init_tables() { memcpy(g_rawReads, RAW_READ_TEMPLATE, sizeof(g_rawReads)); }
-
-static inline void raw_set_read(uint16_t reg, uint16_t val) {
-  for (size_t i=0;i<sizeof(g_rawReads)/sizeof(g_rawReads[0]);++i)
-    if (g_rawReads[i].reg == reg) { g_rawReads[i].val = val; return; }
-}
-static void atm_onRead(uint16_t reg, uint16_t val)  { raw_set_read(reg, val); }
-static void atm_onWrite(uint16_t, uint16_t) {}
-
-static JSONVar RawTableJSON(const RawRow* rows, size_t n) {
-  JSONVar arr;
-  for (size_t i=0;i<n;i++) {
-    JSONVar o;
-    char rbuf[8];
-    snprintf(rbuf, sizeof(rbuf), "0x%04X", (unsigned)rows[i].reg);
-    o["reg"]  = String(rbuf);
-    o["name"] = rows[i].name;
-    o["val"]  = (int)rows[i].val;
-    arr[(int)i] = o;
-  }
-  return arr;
-}
-
-// ---- Chunked readback state machine ----
-static bool   rb_active = false;
-static size_t rb_i = 0;
-
-static void atm_readback_begin() {
-  rb_active = true;
-  rb_i = 0;
-  g_atm.cfgAccessBegin();
-}
-static void atm_readback_step(uint8_t readsPerStep = 4) {
-  if (!rb_active) return;
-  for (uint8_t k=0; k<readsPerStep && rb_i < (sizeof(g_rawReads)/sizeof(g_rawReads[0])); ++k, ++rb_i) {
-    (void)g_atm.readReg16(g_rawReads[rb_i].reg);
-  }
-  if (rb_i >= (sizeof(g_rawReads)/sizeof(g_rawReads[0]))) {
-    g_atm.cfgAccessEnd();
-    rb_active = false;
-  }
-  breathe();
-}
-static bool atm_readback_done() { return !rb_active; }
 
 // ============================================================================
 // Persistence (config + energy counters)  [kept from your firmware]
@@ -1446,7 +1338,6 @@ void handleCalibCfg(JSONVar v){
   atm_update_MC_from_PLconst(true);
 
   // Start chunked raw readback; it will finish over next loop passes
-  if (!rb_active) atm_readback_begin();
 }
 
 void handleAlarmsCfg(JSONVar v){
@@ -1768,9 +1659,6 @@ void setup() {
   MCM_SPI.setRX(PIN_SPI_MISO);
   MCM_SPI.begin();
 
-  raw_init_tables();
-  g_atm.setHooks(atm_onRead, atm_onWrite);
-
   meter_begin_from_current_cfg();
   delay(120);
   meter_apply_cal_only();
@@ -1794,9 +1682,6 @@ void setup() {
   WebSerial.send("MeterOptions", MeterOptionsJSON());
   WebSerial.send("CalibCfg", CalibJSON_All());
   alarms_publish_cfg();
-
-  // start initial raw readback and will publish after it completes
-  atm_readback_begin();
 }
 
 void loop() {
@@ -1948,14 +1833,6 @@ uint16_t sT =g_atm.rdSA_T();
     setLedPhys(i, phys);
   }
 
-  // Chunked ATM raw readback (runs in background until done)
-  if (rb_active) {
-    atm_readback_step(4);
-    if (atm_readback_done()) {
-      WebSerial.send("ATM_RawReads", RawTableJSON(g_rawReads, sizeof(g_rawReads)/sizeof(g_rawReads[0])));
-    }
-  }
-
   // ===== 1 Hz UI push =====
   if (now - lastFastSend >= FAST_UI_MS) {
     lastFastSend = now;
@@ -1985,7 +1862,5 @@ uint16_t sT =g_atm.rdSA_T();
     WebSerial.send("CalibCfg", CalibJSON_All());
     alarms_publish_cfg();
 
-    // start new raw readback (non-blocking)
-    if (!rb_active) atm_readback_begin();
   }
 }
