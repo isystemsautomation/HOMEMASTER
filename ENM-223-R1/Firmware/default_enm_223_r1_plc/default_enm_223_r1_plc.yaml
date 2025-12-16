@@ -2,8 +2,7 @@ modbus_controller:
   - id: ${enm_id}
     address: ${enm_address}        # Modbus slave ID
     modbus_id: modbus_bus
-    update_interval: 3s
-    command_throttle: 0ms
+    update_interval: 1s
 
 # ===================== Discrete Inputs (FC02) =====================
 # LEDs: 500..503 | Buttons: 520..523 | Relays: 540..541 | Alarms: 560..574 (ch*3+kind, ch=0..4)

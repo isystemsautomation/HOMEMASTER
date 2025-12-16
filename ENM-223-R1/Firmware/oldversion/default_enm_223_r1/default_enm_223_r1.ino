@@ -69,7 +69,7 @@ constexpr bool     CS_ACTIVE_HIGH = false;
 constexpr uint8_t  ATM_SPI_MODE   = SPI_MODE0;
 
 // 1 MHz is generally safe. If wiring/noise issues: try 500k or 250k.
-constexpr uint32_t SPI_HZ         = 1000000;
+constexpr uint32_t SPI_HZ         = 2000000;
 
 // ============================================================================
 // Global WebSerial (declared EARLY so everyone can call WebSerial.check safely)
@@ -635,7 +635,7 @@ unsigned long lastBlinkToggle = 0;
 constexpr unsigned long blinkPeriodMs  = 500;
 bool blinkPhase = false;
 
-uint16_t sample_ms    = 200;
+uint16_t sample_ms    = 1000;
 
 unsigned long lastSampleTick = 0;
 
