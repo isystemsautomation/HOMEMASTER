@@ -410,6 +410,19 @@ static enm223::ATM90E32_Inline g_atm(MCM_SPI, PIN_ATM_CS, PIN_PM0, PIN_PM1, SPI_
 // ============================================================================
 // Modbus inline
 // ============================================================================
+// ============================================================================
+// Modbus inline (V2 CONTIGUOUS MAP - BULK READ FRIENDLY)
+// ============================================================================
+// MAP SUMMARY (NEW):
+//   FC01 Coils (0..31): 0=R1, 1=R2, 16..(16+CH_COUNT-1)=ACK per channel
+//   FC02 Discrete Inputs (0..127): 0..3 LEDs, 4..7 Buttons, 8..9 Relays, 16..(16+CH_COUNT*AK_COUNT-1)=alarms
+//   FC04 Input Registers (0..159): live measurements (packed, contiguous)
+//   FC03 Holding Registers (0..199): config/status mirror (optional, contiguous)
+//
+// NOTE: This uses ModbusSerial register tables (addIreg/addHreg/addCoil/addIsts),
+//       so a Modbus master can read large ranges in one request.
+// ============================================================================
+
 namespace enm223 {
 
 static ModbusSerial mb(Serial2, SLAVE_ID, TXEN_PIN);
@@ -422,51 +435,90 @@ auto _trySetSlaveId(M& m, uint8_t id, int) -> decltype(m.setSlaveId(id), void())
 template<typename M>
 void _trySetSlaveId(M&, uint8_t, long) {}
 
-static inline void _put_u32(uint16_t reg, uint32_t v){
+// -------------------- V2 MAP CONSTANTS --------------------
+static constexpr uint16_t COIL_RELAY1 = 0;
+static constexpr uint16_t COIL_RELAY2 = 1;
+static constexpr uint16_t COIL_ACK_BASE = 16; // 16..(16+CH_COUNT-1) pulse to ack channel
+
+static constexpr uint16_t DI_LED_BASE    = 0;  // 0..3
+static constexpr uint16_t DI_BTN_BASE    = 4;  // 4..7
+static constexpr uint16_t DI_RELAY_BASE  = 8;  // 8..9
+static constexpr uint16_t DI_ALARM_BASE  = 16; // 16..(16+CH_COUNT*AK_COUNT-1)
+
+// FC04 Input Registers layout (0..159)
+static constexpr uint16_t IR_URMS_BASE   = 0;  // 0..2  (cV = 0.01V)
+static constexpr uint16_t IR_IRMS_BASE   = 3;  // 3..5  (mA)
+static constexpr uint16_t IR_FREQ        = 6;  // x100 Hz
+static constexpr uint16_t IR_TEMP        = 7;  // int16 in uint16
+static constexpr uint16_t IR_PF_BASE     = 8;  // 8..11 (A,B,C,T) raw int16 in uint16
+
+// 32-bit signed blocks (each value = 2 regs, HI then LO like your old _put_s32 did)
+static constexpr uint16_t IR_P_BASE      = 20; // 20..27 (P A,B,C,T) (8 regs)
+static constexpr uint16_t IR_Q_BASE      = 28; // 28..35 (Q A,B,C,T)
+static constexpr uint16_t IR_S_BASE      = 36; // 36..43 (S A,B,C,T)
+
+// Angles int16 (0.1 deg) stored as uint16
+static constexpr uint16_t IR_ANG_BASE    = 44; // 44..46 (A,B,C)
+
+// Energies uint32 (Wh/varh/VAh): each = 2 regs HI/LO
+static constexpr uint16_t IR_E_BASE      = 60; // contiguous energy table
+// order inside IR_E_BASE (each item is 2 regs):
+//   0..7  : AP_Wh A,B,C,T
+//   8..15 : AN_Wh A,B,C,T
+//   16..23: RP_varh A,B,C,T
+//   24..31: RN_varh A,B,C,T
+//   32..39: S_VAh  A,B,C,T
+
+// FC03 Holding Registers layout (0..199) - mirror of core config/status
+static constexpr uint16_t HR_MB_ADDR     = 0;
+static constexpr uint16_t HR_MB_BAUD_L   = 1;  // baud stored as uint32 (HI/LO)
+static constexpr uint16_t HR_MB_BAUD_H   = 2;
+static constexpr uint16_t HR_SAMPLE_MS   = 3;
+static constexpr uint16_t HR_LINE_HZ     = 4;
+static constexpr uint16_t HR_SUMABS      = 5;
+static constexpr uint16_t HR_RELAY_POL   = 6;
+static constexpr uint16_t HR_RELAY_DEF0  = 7;
+static constexpr uint16_t HR_RELAY_DEF1  = 8;
+
+// -------------------- Helpers --------------------
+static inline void _put_u32_ir(uint16_t reg, uint32_t v){
   mb.Ireg(reg+0, (uint16_t)((v>>16)&0xFFFF));
   mb.Ireg(reg+1, (uint16_t)(v & 0xFFFF));
 }
-static inline void _put_s32(uint16_t reg, int32_t v){
+static inline void _put_s32_ir(uint16_t reg, int32_t v){
   mb.Ireg(reg+0, (uint16_t)((v>>16)&0xFFFF));
   mb.Ireg(reg+1, (uint16_t)(v & 0xFFFF));
+}
+static inline void _put_u32_hr(uint16_t reg, uint32_t v){
+  mb.Hreg(reg+0, (uint16_t)((v>>16)&0xFFFF));
+  mb.Hreg(reg+1, (uint16_t)(v & 0xFFFF));
 }
 
-void MB_buildRegisterMap_once(uint16_t sample_ms, uint16_t lineHz, uint8_t sumAbs)
+// -------------------- Build contiguous tables once --------------------
+void MB_buildRegisterMap_once()
 {
-  (void)sample_ms; (void)lineHz; (void)sumAbs;
   static bool built=false;
   if (built) return;
   built = true;
 
-  for (uint16_t i=0;i<3;i++) mb.addIreg(100 + i);
-  for (uint16_t i=0;i<3;i++) mb.addIreg(110 + i);
+  // Coils 0..31
+  for (uint16_t a=0; a<32; ++a) { mb.addCoil(a); mb.Coil(a, 0); }
 
-  for (uint16_t i=0;i<8;i++) mb.addIreg(200 + i);
-  for (uint16_t i=0;i<8;i++) mb.addIreg(210 + i);
-  for (uint16_t i=0;i<8;i++) mb.addIreg(220 + i);
+  // Discrete Inputs 0..127
+  for (uint16_t a=0; a<128; ++a) mb.addIsts(a);
 
-  for (uint16_t i=0;i<3;i++) mb.addIreg(240 + i);
-  mb.addIreg(243);
-  for (uint16_t i=0;i<3;i++) mb.addIreg(244 + i);
+  // Input Registers 0..159
+  for (uint16_t r=0; r<160; ++r) mb.addIreg(r);
 
-  mb.addIreg(250);
-  mb.addIreg(251);
-
-  for (uint16_t r=300; r<=338+1; ++r) mb.addIreg(r);
-
-  for (uint16_t i=0;i<4;i++) mb.addIsts(500 + i);
-  for (uint16_t i=0;i<4;i++) mb.addIsts(520 + i);
-  for (uint16_t i=0;i<2;i++) mb.addIsts(540 + i);
-  for (uint16_t i=0;i<CH_COUNT*AK_COUNT;i++) mb.addIsts(560 + i);
-
-  mb.addCoil(600); mb.Coil(600, 0);
-  mb.addCoil(601); mb.Coil(601, 0);
-  for (uint16_t i=0;i<CH_COUNT;i++){ mb.addCoil(610 + i); mb.Coil(610 + i, 0); }
+  // Holding Registers 0..199
+  for (uint16_t r=0; r<200; ++r) mb.addHreg(r);
 }
 
-void MB_begin(uint8_t slaveId, uint32_t baud, uint16_t sample_ms, uint16_t lineHz, uint8_t sumAbs)
+// -------------------- Public API (used by your firmware) --------------------
+void MB_begin(uint8_t slaveId, uint32_t baud, uint16_t /*sample_ms*/, uint16_t /*lineHz*/, uint8_t /*sumAbs*/)
 {
-  g_addr = slaveId; g_baud = baud;
+  g_addr = slaveId;
+  g_baud = baud;
 
   Serial2.setTX(TX2_PIN);
   Serial2.setRX(RX2_PIN);
@@ -475,7 +527,7 @@ void MB_begin(uint8_t slaveId, uint32_t baud, uint16_t sample_ms, uint16_t lineH
   mb.config(g_baud);
   _trySetSlaveId(mb, g_addr, 0);
 
-  MB_buildRegisterMap_once(sample_ms, lineHz, sumAbs);
+  MB_buildRegisterMap_once();
 }
 
 void MB_applySettings(uint8_t addr, uint32_t baud, JSONVar *status)
@@ -498,45 +550,80 @@ void MB_applySettings(uint8_t addr, uint32_t baud, JSONVar *status)
 
 void MB_task(){ mb.task(); }
 
-void MB_setURMS(const uint16_t urms_cV[3]){ for (int i=0;i<3;i++) mb.Ireg(100+i, urms_cV[i]); }
-void MB_setIRMS(const uint16_t irms_mA[3]){ for (int i=0;i<3;i++) mb.Ireg(110+i, irms_mA[i]); }
+void MB_fillStatus(JSONVar *status){
+  if (!status) return;
+  (*status)["address"] = g_addr;
+  (*status)["baud"]    = g_baud;
+}
 
+// ------- FC04 setters (live values) -------
+void MB_setURMS(const uint16_t urms_cV[3]){
+  for (int i=0;i<3;i++) mb.Ireg(IR_URMS_BASE + i, urms_cV[i]);
+}
+void MB_setIRMS(const uint16_t irms_mA[3]){
+  for (int i=0;i<3;i++) mb.Ireg(IR_IRMS_BASE + i, irms_mA[i]);
+}
 void MB_setPFraw(const int16_t pf_raw[4]){
-  for (int i=0;i<3;i++) mb.Ireg(240+i, (uint16_t)pf_raw[i]);
-  mb.Ireg(243, (uint16_t)pf_raw[3]);
+  for (int i=0;i<4;i++) mb.Ireg(IR_PF_BASE + i, (uint16_t)pf_raw[i]);
 }
-void MB_setAngles(const int16_t ang_raw[3]){ for (int i=0;i<3;i++) mb.Ireg(244+i, (uint16_t)ang_raw[i]); }
-
+void MB_setAngles(const int16_t ang_raw[3]){
+  for (int i=0;i<3;i++) mb.Ireg(IR_ANG_BASE + i, (uint16_t)ang_raw[i]);
+}
 void MB_setFreqTemp(uint16_t f_x100, int16_t tempC){
-  mb.Ireg(250, f_x100);
-  mb.Ireg(251, (uint16_t)tempC);
+  mb.Ireg(IR_FREQ, f_x100);
+  mb.Ireg(IR_TEMP, (uint16_t)tempC);
 }
-
 void MB_setPQS(const int32_t P_W[4], const int32_t Q_var[4], const int32_t S_VA[4]){
-  _put_s32(200+0, P_W[0]); _put_s32(200+2, P_W[1]); _put_s32(200+4, P_W[2]); _put_s32(200+6, P_W[3]);
-  _put_s32(210+0, Q_var[0]); _put_s32(210+2, Q_var[1]); _put_s32(210+4, Q_var[2]); _put_s32(210+6, Q_var[3]);
-  _put_s32(220+0, S_VA[0]); _put_s32(220+2, S_VA[1]); _put_s32(220+4, S_VA[2]); _put_s32(220+6, S_VA[3]);
+  for (int i=0;i<4;i++){
+    _put_s32_ir(IR_P_BASE + i*2, P_W[i]);
+    _put_s32_ir(IR_Q_BASE + i*2, Q_var[i]);
+    _put_s32_ir(IR_S_BASE + i*2, S_VA[i]);
+  }
 }
-
 void MB_setEnergies(
   const uint32_t ap_Wh[4], const uint32_t an_Wh[4],
   const uint32_t rp_varh[4], const uint32_t rn_varh[4],
   const uint32_t s_VAh[4]
 ){
-  _put_u32(300, ap_Wh[0]); _put_u32(302, ap_Wh[1]); _put_u32(304, ap_Wh[2]); _put_u32(306, ap_Wh[3]);
-  _put_u32(308, an_Wh[0]); _put_u32(310, an_Wh[1]); _put_u32(312, an_Wh[2]); _put_u32(314, an_Wh[3]);
-  _put_u32(316, rp_varh[0]); _put_u32(318, rp_varh[1]); _put_u32(320, rp_varh[2]); _put_u32(322, rp_varh[3]);
-  _put_u32(324, rn_varh[0]); _put_u32(326, rn_varh[1]); _put_u32(328, rn_varh[2]); _put_u32(330, rn_varh[3]);
-  _put_u32(332, s_VAh[0]);  _put_u32(334, s_VAh[1]);  _put_u32(336, s_VAh[2]);  _put_u32(338, s_VAh[3]);
+  uint16_t o = IR_E_BASE;
+
+  // AP
+  for (int i=0;i<4;i++){ _put_u32_ir(o + i*2, ap_Wh[i]); }
+  o += 8;
+
+  // AN
+  for (int i=0;i<4;i++){ _put_u32_ir(o + i*2, an_Wh[i]); }
+  o += 8;
+
+  // RP
+  for (int i=0;i<4;i++){ _put_u32_ir(o + i*2, rp_varh[i]); }
+  o += 8;
+
+  // RN
+  for (int i=0;i<4;i++){ _put_u32_ir(o + i*2, rn_varh[i]); }
+  o += 8;
+
+  // S
+  for (int i=0;i<4;i++){ _put_u32_ir(o + i*2, s_VAh[i]); }
 }
 
-void MB_setLedIsts(uint8_t idx, bool on){       if (idx<4) mb.setIsts(500 + idx, on); }
-void MB_setButtonIsts(uint8_t idx, bool on){    if (idx<4) mb.setIsts(520 + idx, on); }
-void MB_setRelayIsts(uint8_t idx, bool on){     if (idx<2) mb.setIsts(540 + idx, on); }
+// ------- FC02 setters (bits) -------
+void MB_setLedIsts(uint8_t idx, bool on){
+  if (idx<4) mb.setIsts(DI_LED_BASE + idx, on);
+}
+void MB_setButtonIsts(uint8_t idx, bool on){
+  if (idx<4) mb.setIsts(DI_BTN_BASE + idx, on);
+}
+void MB_setRelayIsts(uint8_t idx, bool on){
+  if (idx<2) mb.setIsts(DI_RELAY_BASE + idx, on);
+}
 void MB_setAlarmIsts(uint8_t ch, uint8_t kind, bool on){
-  if (ch < CH_COUNT && kind < AK_COUNT) mb.setIsts(560 + (ch*AK_COUNT + kind), on);
+  if (ch < CH_COUNT && kind < AK_COUNT) {
+    mb.setIsts(DI_ALARM_BASE + (ch*AK_COUNT + kind), on);
+  }
 }
 
+// ------- FC01 service (coils) -------
 bool MB_serviceCoils(
   bool canExternalWrite[2],
   bool desiredRelay[2],
@@ -544,22 +631,24 @@ bool MB_serviceCoils(
 ){
   bool wantsChange=false;
 
+  // Relay coils
   if (canExternalWrite[0]) {
-    bool coil = mb.Coil(600);
+    bool coil = mb.Coil(COIL_RELAY1);
     if (coil != desiredRelay[0]) { desiredRelay[0] = coil; wantsChange=true; }
   } else {
-    if (mb.Coil(600) != desiredRelay[0]) mb.Coil(600, desiredRelay[0]);
+    if (mb.Coil(COIL_RELAY1) != desiredRelay[0]) mb.Coil(COIL_RELAY1, desiredRelay[0]);
   }
 
   if (canExternalWrite[1]) {
-    bool coil = mb.Coil(601);
+    bool coil = mb.Coil(COIL_RELAY2);
     if (coil != desiredRelay[1]) { desiredRelay[1] = coil; wantsChange=true; }
   } else {
-    if (mb.Coil(601) != desiredRelay[1]) mb.Coil(601, desiredRelay[1]);
+    if (mb.Coil(COIL_RELAY2) != desiredRelay[1]) mb.Coil(COIL_RELAY2, desiredRelay[1]);
   }
 
+  // Channel ACK coils (pulse style)
   for (uint16_t ch=0; ch<CH_COUNT; ++ch) {
-    uint16_t addr = 610 + ch;
+    uint16_t addr = COIL_ACK_BASE + ch;
     if (mb.Coil(addr)) {
       if (ack_cb) ack_cb((uint8_t)ch);
       mb.Coil(addr, 0);
@@ -569,13 +658,22 @@ bool MB_serviceCoils(
   return wantsChange;
 }
 
-void MB_fillStatus(JSONVar *status){
-  if (!status) return;
-  (*status)["address"] = g_addr;
-  (*status)["baud"]    = g_baud;
+// ------- Optional: mirror your config into Holding Registers (FC03 read bulk) -------
+void MB_syncHolding(uint8_t mb_addr, uint32_t mb_baud, uint16_t sample_ms, uint16_t lineHz, uint8_t sumAbs,
+                    uint8_t relay_active_low, bool def0, bool def1)
+{
+  mb.Hreg(HR_MB_ADDR, mb_addr);
+  _put_u32_hr(HR_MB_BAUD_L, mb_baud);
+  mb.Hreg(HR_SAMPLE_MS, sample_ms);
+  mb.Hreg(HR_LINE_HZ, lineHz);
+  mb.Hreg(HR_SUMABS, sumAbs);
+  mb.Hreg(HR_RELAY_POL, relay_active_low);
+  mb.Hreg(HR_RELAY_DEF0, def0 ? 1 : 0);
+  mb.Hreg(HR_RELAY_DEF1, def1 ? 1 : 0);
 }
 
 } // namespace enm223
+
 
 // ============================================================================
 // GLOBAL breathe (ROBUST): always safe to call anywhere
@@ -1855,12 +1953,15 @@ uint16_t sT =g_atm.rdSA_T();
   }
 
   // ===== SLOW UI =====
-  if ((now - lastSlowSend >= SLOW_UI_MS) || cfgDirty) {
-    lastSlowSend = now;
+if ((now - lastSlowSend >= SLOW_UI_MS) || cfgDirty) {
+  lastSlowSend = now;
 
-    sendStatusEcho();
+  sendStatusEcho();
 
-    WebSerial.send("LedConfigList", LedConfigListFromCfg());
+  enm223::MB_syncHolding(g_mb_address, g_mb_baud, sample_ms, atm_lineFreqHz, atm_sumModeAbs,
+                         relay_active_low, relay_default[0], relay_default[1]);
+
+  WebSerial.send("LedConfigList", LedConfigListFromCfg());
     WebSerial.send("ButtonConfigList", ButtonConfigListFromCfg());
     WebSerial.send("RelaysCfg", RelayConfigFromCfg());
     WebSerial.send("MeterOptions", MeterOptionsJSON());

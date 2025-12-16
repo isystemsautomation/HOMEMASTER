@@ -7,146 +7,149 @@ modbus_controller:
     allow_duplicate_commands: false
 
 # ===================== Discrete Inputs (FC02) =====================
-# LEDs: 500..503 | Buttons: 520..523 | Relays: 540..541 | Alarms: 560..574 (ch*3+kind, ch=0..4)
+# NEW MAP:
+# LEDs: 0..3 | Buttons: 4..7 | Relays: 8..9 | Alarms: 16..27 (addr = 16 + ch*3 + kind, ch=0..3)
 binary_sensor:
   # --- LED physical states ---
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} LED1"
-    address: 500
+    address: 0
     register_type: discrete_input
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} LED2"
-    address: 501
+    address: 1
     register_type: discrete_input
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} LED3"
-    address: 502
+    address: 2
     register_type: discrete_input
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} LED4"
-    address: 503
+    address: 3
     register_type: discrete_input
 
   # --- Buttons pressed ---
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} BTN1"
-    address: 520
+    address: 4
     register_type: discrete_input
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} BTN2"
-    address: 521
+    address: 5
     register_type: discrete_input
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} BTN3"
-    address: 522
+    address: 6
     register_type: discrete_input
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} BTN4"
-    address: 523
+    address: 7
     register_type: discrete_input
 
-  # --- Relay logical state ---
+  # --- Relay physical state ---
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Relay 1 State"
-    address: 540
+    address: 8
     register_type: discrete_input
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Relay 2 State"
-    address: 541
+    address: 9
     register_type: discrete_input
 
-  # --- Alarm active flags (kind: 0=Alarm,1=Warning,2=Event), ch: 0=L1,1=L2,2=L3,3=Total,4=CH_COUNT ---
-  # L1 (560..562)
+  # --- Alarm active flags (kind: 0=Alarm,1=Warning,2=Event), ch: 0=L1,1=L2,2=L3,3=Total ---
+  # L1 (16..18)
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Alarm L1 (Alarm)"
-    address: 560
+    address: 16
     register_type: discrete_input
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Alarm L1 (Warning)"
-    address: 561
+    address: 17
     register_type: discrete_input
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Alarm L1 (Event)"
-    address: 562
+    address: 18
     register_type: discrete_input
 
-  # L2 (563..565)
+  # L2 (19..21)
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Alarm L2 (Alarm)"
-    address: 563
+    address: 19
     register_type: discrete_input
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Alarm L2 (Warning)"
-    address: 564
+    address: 20
     register_type: discrete_input
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Alarm L2 (Event)"
-    address: 565
+    address: 21
     register_type: discrete_input
 
-  # L3 (566..568)
+  # L3 (22..24)
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Alarm L3 (Alarm)"
-    address: 566
+    address: 22
     register_type: discrete_input
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Alarm L3 (Warning)"
-    address: 567
+    address: 23
     register_type: discrete_input
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Alarm L3 (Event)"
-    address: 568
+    address: 24
     register_type: discrete_input
 
-  # Total (569..571)
+  # Total (25..27)
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Alarm Total (Alarm)"
-    address: 569
+    address: 25
     register_type: discrete_input
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Alarm Total (Warning)"
-    address: 570
+    address: 26
     register_type: discrete_input
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Alarm Total (Event)"
-    address: 571
+    address: 27
     register_type: discrete_input
 
 
 # ===================== Coils (FC01/05) =====================
-# Relay coils are maintained (not pulses). Writes honored only if relay is in MODBUS mode and Button Override is OFF.
+# NEW MAP:
+# Relay coils: 0..1
+# Ack coils: 16..19 (write 1 to ACK; device auto-clears to 0)
 switch:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Relay 1"
-    address: 600
+    address: 0
     register_type: coil
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Relay 2"
-    address: 601
+    address: 1
     register_type: coil
 
   # --- Alarm acknowledgements (write 1 to ACK; device auto-clears to 0) ---
@@ -154,7 +157,7 @@ switch:
     id: ${enm_id}_ack_l1
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} ACK L1"
-    address: 610
+    address: 16
     register_type: coil
     on_turn_on:
       - delay: 200ms
@@ -164,7 +167,7 @@ switch:
     id: ${enm_id}_ack_l2
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} ACK L2"
-    address: 611
+    address: 17
     register_type: coil
     on_turn_on:
       - delay: 200ms
@@ -174,7 +177,7 @@ switch:
     id: ${enm_id}_ack_l3
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} ACK L3"
-    address: 612
+    address: 18
     register_type: coil
     on_turn_on:
       - delay: 200ms
@@ -184,7 +187,7 @@ switch:
     id: ${enm_id}_ack_total
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} ACK Total"
-    address: 613
+    address: 19
     register_type: coil
     on_turn_on:
       - delay: 200ms
@@ -192,13 +195,19 @@ switch:
 
 
 # ===================== Sensors (FC04 Input Registers RO) =====================
-# 32-bit values are high-word first in consecutive registers.
+# NEW MAP:
+# Urms: 0..2 (0.01V) | Irms: 3..5 (0.001A)
+# Freq: 6 (0.01Hz) | Temp: 7 (int16°C)
+# PF raw: 8..11 (x0.001)
+# P (s32): 20/22/24/26  | Q (s32): 28/30/32/34 | S (s32): 36/38/40/42
+# Angles: 44..46 (0.1°)
+# Energies (u32): base 60 (see below)
 sensor:
   # --- RMS ---
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Urms L1"
-    address: 100
+    address: 0
     register_type: read
     value_type: U_WORD
     unit_of_measurement: "V"
@@ -207,7 +216,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Urms L2"
-    address: 101
+    address: 1
     register_type: read
     value_type: U_WORD
     unit_of_measurement: "V"
@@ -216,7 +225,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Urms L3"
-    address: 102
+    address: 2
     register_type: read
     value_type: U_WORD
     unit_of_measurement: "V"
@@ -226,7 +235,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Irms L1"
-    address: 110
+    address: 3
     register_type: read
     value_type: U_WORD
     unit_of_measurement: "A"
@@ -235,7 +244,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Irms L2"
-    address: 111
+    address: 4
     register_type: read
     value_type: U_WORD
     unit_of_measurement: "A"
@@ -244,7 +253,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Irms L3"
-    address: 112
+    address: 5
     register_type: read
     value_type: U_WORD
     unit_of_measurement: "A"
@@ -255,7 +264,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} PF L1"
-    address: 240
+    address: 8
     register_type: read
     value_type: S_WORD
     accuracy_decimals: 3
@@ -263,7 +272,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} PF L2"
-    address: 241
+    address: 9
     register_type: read
     value_type: S_WORD
     accuracy_decimals: 3
@@ -271,7 +280,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} PF L3"
-    address: 242
+    address: 10
     register_type: read
     value_type: S_WORD
     accuracy_decimals: 3
@@ -279,7 +288,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} PF Total"
-    address: 243
+    address: 11
     register_type: read
     value_type: S_WORD
     accuracy_decimals: 3
@@ -288,7 +297,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Angle L1"
-    address: 244
+    address: 44
     register_type: read
     value_type: S_WORD
     unit_of_measurement: "°"
@@ -297,7 +306,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Angle L2"
-    address: 245
+    address: 45
     register_type: read
     value_type: S_WORD
     unit_of_measurement: "°"
@@ -306,7 +315,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Angle L3"
-    address: 246
+    address: 46
     register_type: read
     value_type: S_WORD
     unit_of_measurement: "°"
@@ -317,7 +326,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Line Frequency"
-    address: 250
+    address: 6
     register_type: read
     value_type: U_WORD
     unit_of_measurement: "Hz"
@@ -327,7 +336,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Temperature"
-    address: 251
+    address: 7
     register_type: read
     value_type: S_WORD
     unit_of_measurement: "°C"
@@ -336,28 +345,28 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} P L1"
-    address: 200
+    address: 20
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "W"
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} P L2"
-    address: 202
+    address: 22
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "W"
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} P L3"
-    address: 204
+    address: 24
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "W"
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} P Total"
-    address: 206
+    address: 26
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "W"
@@ -365,28 +374,28 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Q L1"
-    address: 210
+    address: 28
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "var"
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Q L2"
-    address: 212
+    address: 30
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "var"
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Q L3"
-    address: 214
+    address: 32
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "var"
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Q Total"
-    address: 216
+    address: 34
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "var"
@@ -394,37 +403,43 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} S L1"
-    address: 220
+    address: 36
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "VA"
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} S L2"
-    address: 222
+    address: 38
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "VA"
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} S L3"
-    address: 224
+    address: 40
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "VA"
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} S Total"
-    address: 226
+    address: 42
     register_type: read
     value_type: S_DWORD
     unit_of_measurement: "VA"
 
   # --- Energies (u32 Wh/varh/VAh) — Total Increasing ---
+  # Energy table base = 60:
+  # AP: 60/62/64/66
+  # AN: 68/70/72/74
+  # RP: 76/78/80/82
+  # RN: 84/86/88/90
+  # S : 92/94/96/98
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} AP L1"
-    address: 300
+    address: 60
     register_type: read
     value_type: U_DWORD
     unit_of_measurement: "Wh"
@@ -434,7 +449,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} AP L2"
-    address: 302
+    address: 62
     register_type: read
     value_type: U_DWORD
     unit_of_measurement: "Wh"
@@ -444,7 +459,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} AP L3"
-    address: 304
+    address: 64
     register_type: read
     value_type: U_DWORD
     unit_of_measurement: "Wh"
@@ -454,17 +469,18 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} AP Total"
-    address: 306
+    address: 66
     register_type: read
     value_type: U_DWORD
     unit_of_measurement: "Wh"
     device_class: energy
     state_class: total_increasing
     skip_updates: 29
+
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} AN L1"
-    address: 308
+    address: 68
     register_type: read
     value_type: U_DWORD
     unit_of_measurement: "Wh"
@@ -474,7 +490,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} AN L2"
-    address: 310
+    address: 70
     register_type: read
     value_type: U_DWORD
     unit_of_measurement: "Wh"
@@ -484,7 +500,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} AN L3"
-    address: 312
+    address: 72
     register_type: read
     value_type: U_DWORD
     unit_of_measurement: "Wh"
@@ -494,17 +510,18 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} AN Total"
-    address: 314
+    address: 74
     register_type: read
     value_type: U_DWORD
     unit_of_measurement: "Wh"
     device_class: energy
     state_class: total_increasing
     skip_updates: 29
+
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} RP L1"
-    address: 316
+    address: 76
     register_type: read
     value_type: U_DWORD
     unit_of_measurement: "varh"
@@ -513,7 +530,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} RP L2"
-    address: 318
+    address: 78
     register_type: read
     value_type: U_DWORD
     unit_of_measurement: "varh"
@@ -522,7 +539,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} RP L3"
-    address: 320
+    address: 80
     register_type: read
     value_type: U_DWORD
     unit_of_measurement: "varh"
@@ -531,16 +548,17 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} RP Total"
-    address: 322
+    address: 82
     register_type: read
     value_type: U_DWORD
     unit_of_measurement: "varh"
     state_class: total_increasing
     skip_updates: 29
+
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} RN L1"
-    address: 324
+    address: 84
     register_type: read
     value_type: U_DWORD
     unit_of_measurement: "varh"
@@ -549,7 +567,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} RN L2"
-    address: 326
+    address: 86
     register_type: read
     value_type: U_DWORD
     unit_of_measurement: "varh"
@@ -558,7 +576,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} RN L3"
-    address: 328
+    address: 88
     register_type: read
     value_type: U_DWORD
     unit_of_measurement: "varh"
@@ -567,17 +585,18 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} RN Total"
-    address: 330
+    address: 90
     register_type: read
     value_type: U_DWORD
     unit_of_measurement: "varh"
     state_class: total_increasing
     skip_updates: 29
+
   # --- Apparent Energy (VAh) ---
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} VAh L1"
-    address: 332
+    address: 92
     register_type: read
     value_type: U_DWORD
     unit_of_measurement: "VAh"
@@ -586,7 +605,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} VAh L2"
-    address: 334
+    address: 94
     register_type: read
     value_type: U_DWORD
     unit_of_measurement: "VAh"
@@ -595,7 +614,7 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} VAh L3"
-    address: 336
+    address: 96
     register_type: read
     value_type: U_DWORD
     unit_of_measurement: "VAh"
@@ -604,10 +623,9 @@ sensor:
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} VAh Total"
-    address: 338
+    address: 98
     register_type: read
     value_type: U_DWORD
     unit_of_measurement: "VAh"
     state_class: total_increasing
     skip_updates: 29
-
