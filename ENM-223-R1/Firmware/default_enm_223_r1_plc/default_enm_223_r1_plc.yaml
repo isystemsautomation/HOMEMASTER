@@ -430,6 +430,7 @@ sensor:
     unit_of_measurement: "Wh"
     device_class: energy
     state_class: total_increasing
+    skip_updates: 29
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} AP L2"
@@ -439,6 +440,7 @@ sensor:
     unit_of_measurement: "Wh"
     device_class: energy
     state_class: total_increasing
+    skip_updates: 29
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} AP L3"
@@ -448,6 +450,7 @@ sensor:
     unit_of_measurement: "Wh"
     device_class: energy
     state_class: total_increasing
+    skip_updates: 29
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} AP Total"
@@ -457,7 +460,7 @@ sensor:
     unit_of_measurement: "Wh"
     device_class: energy
     state_class: total_increasing
-
+    skip_updates: 29
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} AN L1"
@@ -467,6 +470,7 @@ sensor:
     unit_of_measurement: "Wh"
     device_class: energy
     state_class: total_increasing
+    skip_updates: 29
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} AN L2"
@@ -476,6 +480,7 @@ sensor:
     unit_of_measurement: "Wh"
     device_class: energy
     state_class: total_increasing
+    skip_updates: 29
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} AN L3"
@@ -485,6 +490,7 @@ sensor:
     unit_of_measurement: "Wh"
     device_class: energy
     state_class: total_increasing
+    skip_updates: 29
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} AN Total"
@@ -494,7 +500,7 @@ sensor:
     unit_of_measurement: "Wh"
     device_class: energy
     state_class: total_increasing
-
+    skip_updates: 29
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} RP L1"
@@ -503,6 +509,7 @@ sensor:
     value_type: U_DWORD
     unit_of_measurement: "varh"
     state_class: total_increasing
+    skip_updates: 29
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} RP L2"
@@ -511,6 +518,7 @@ sensor:
     value_type: U_DWORD
     unit_of_measurement: "varh"
     state_class: total_increasing
+    skip_updates: 29
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} RP L3"
@@ -519,6 +527,7 @@ sensor:
     value_type: U_DWORD
     unit_of_measurement: "varh"
     state_class: total_increasing
+    skip_updates: 29
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} RP Total"
@@ -527,7 +536,7 @@ sensor:
     value_type: U_DWORD
     unit_of_measurement: "varh"
     state_class: total_increasing
-
+    skip_updates: 29
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} RN L1"
@@ -536,6 +545,7 @@ sensor:
     value_type: U_DWORD
     unit_of_measurement: "varh"
     state_class: total_increasing
+    skip_updates: 29
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} RN L2"
@@ -544,6 +554,7 @@ sensor:
     value_type: U_DWORD
     unit_of_measurement: "varh"
     state_class: total_increasing
+    skip_updates: 29
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} RN L3"
@@ -552,6 +563,7 @@ sensor:
     value_type: U_DWORD
     unit_of_measurement: "varh"
     state_class: total_increasing
+    skip_updates: 29
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} RN Total"
@@ -560,7 +572,7 @@ sensor:
     value_type: U_DWORD
     unit_of_measurement: "varh"
     state_class: total_increasing
-
+    skip_updates: 29
   # --- Apparent Energy (VAh) ---
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
@@ -579,6 +591,7 @@ sensor:
     value_type: U_DWORD
     unit_of_measurement: "VAh"
     state_class: total_increasing
+    skip_updates: 29
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} VAh L3"
@@ -587,6 +600,7 @@ sensor:
     value_type: U_DWORD
     unit_of_measurement: "VAh"
     state_class: total_increasing
+    skip_updates: 29
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} VAh Total"
@@ -595,4 +609,5 @@ sensor:
     value_type: U_DWORD
     unit_of_measurement: "VAh"
     state_class: total_increasing
+    skip_updates: 29
 
