@@ -4,6 +4,7 @@ modbus_controller:
     modbus_id: modbus_bus
     update_interval: 1s
     command_throttle: 10ms
+    allow_duplicate_commands: false
 
 # ===================== Discrete Inputs (FC02) =====================
 # LEDs: 500..503 | Buttons: 520..523 | Relays: 540..541 | Alarms: 560..574 (ch*3+kind, ch=0..4)
