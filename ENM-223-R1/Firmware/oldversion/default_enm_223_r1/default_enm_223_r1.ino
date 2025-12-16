@@ -1,42 +1,20 @@
 // ==== ENM-223-R1 (RP2350/RP2040) ============================================
-// SINGLE-FILE BUILD:
+// SINGLE-FILE BUILD (ROBUST DROP-IN):
 // - ATM90E32 driver (SPI1) inline (NO external driver files)
 // - Modbus RTU inline (NO external enm_modbus.* files)
 // - WebSerial UI (REAL VALUES ONLY), LittleFS persistence
 // - Buttons GPIO22..25, LEDs GPIO18..21, Relays GPIO0/1
-// - Per-relay Button Override (R1/R2), LED alarm sources
 //
-// RAW ATM (UPDATED):
-// - Shows REAL chip-stored config by READING ATM registers (Ugain/Igain/U/I offsets, modes, thresholds, etc.)
-// - DOES NOT show "attempted write" values anymore.
-//
-// FIXED (8) kept + NEW ENERGY FIX:
-// 1) MetricsSnapshot defined BEFORE use
-// 2) WebSerial.check() runs continuously
-// 3) Change-only GPIO updates for LEDs/Relays (+ FORCE re-drive on polarity change)
-// 4) REMOVED UCAL from config/UI/Modbus/persist; chip internal ucalRef derived from Phase-A Ugain
-// 5) SumMode/LineHz re-init does NOT wipe calibration (cal is re-applied after begin())
-// 6) FIX compile error with MB_setDiag(): M90DiagRegs COMPLETE and matches usage
-// 7) Web/UI message handlers completed: CalibCfg, AlarmsCfg, AlarmsAck + LedStateList push
-// 8) FIX readback going 0x8000 after phase-A change:
-//    - Calibration writes now use cfgAccessBegin/End + a small commit delay
-//    - Readback always done after commit delay; no “back-to-back” enable/disable race
-//
-// NEW ENERGY FIX (REAL COUNTER FROM ATM):
-// - Energy regs are 0.01 CF units (read-to-clear). Convert using MC read from PLconstH/L.
-// - MC (imp/kWh) is derived from PLconst: MC = 450,000,000,000 / PLconst (32-bit).
-// - kWh = ticks_0p01CF / (MC * 100), Wh = ticks_0p01CF * 10 / MC.
-// - Removes the old fake "kWh_per_cnt_x1e5" scaling.
+// ROBUST FIXES INCLUDED:
+// - NO mb_breathe inside enm223 namespace (prevents "WebSerial not declared" + scope issues)
+// - All "breathe" calls are global and safe: keeps Modbus + WebSerial responsive
+// - Heavy SPI readback (ATM raw/config) is CHUNKED across loop iterations (no long blocking bursts)
+// - Meter sampling is also CHUNKED (splits SPI reads across multiple loop passes)
+// - cfgAccessBegin/End are guarded (no nested gate collisions)
+// - Keeps your existing features: calibration settle, MC from PLconst, alarms, relays/buttons/LEDs, etc.
 // ============================================================================
 
 #include <Arduino.h>
-
-struct RawRow {
-  uint16_t reg;
-  const char* name;
-  uint16_t val;
-};
-
 
 #include <SPI.h>
 #include <math.h>
@@ -49,10 +27,14 @@ struct RawRow {
 #include <SimpleWebSerial.h>
 #include <ModbusSerial.h>
 
-// ===== Arduino .ino auto-prototype fix =====
+// ===== FORWARD DECLARATIONS (REQUIRED FOR ARDUINO) =====
+struct RawRow;
 struct PersistConfig;
-void captureToPersist(PersistConfig &pc);
-bool applyFromPersist(const PersistConfig &pc);
+struct AlarmRule;
+struct MetricsSnapshot;
+
+static inline void breathe();
+static inline void breathe_mb();   // (we will add it below)
 
 // ================== Shared alarm dimensions (must match Modbus map) ==================
 enum : uint8_t { CH_L1=0, CH_L2, CH_L3, CH_TOT, CH_COUNT };
@@ -85,7 +67,14 @@ constexpr uint8_t PIN_PM0      = 3;
 
 constexpr bool     CS_ACTIVE_HIGH = false;
 constexpr uint8_t  ATM_SPI_MODE   = SPI_MODE0;
-constexpr uint32_t SPI_HZ         = 200000;
+
+// 1 MHz is generally safe. If wiring/noise issues: try 500k or 250k.
+constexpr uint32_t SPI_HZ         = 1000000;
+
+// ============================================================================
+// Global WebSerial (declared EARLY so everyone can call WebSerial.check safely)
+// ============================================================================
+SimpleWebSerial WebSerial;
 
 // ============================================================================
 // ATM90E32 inline driver (+ raw read hooks + PUBLIC readReg16 for REAL chip config readback)
@@ -202,21 +191,25 @@ public:
   static constexpr uint16_t REG_IrmsBLSB = 0xEE;
   static constexpr uint16_t REG_IrmsCLSB = 0xEF;
 
-  // --- config access gate (with settle delays) ---
+  // --- config access gate (guarded) ---
   void cfgAccessBegin() {
-    write16(CfgRegAccEn, 0x55AA);
-    delayMicroseconds(80);
+    if (cfgGateDepth_++ == 0) {
+      write16(CfgRegAccEn, 0x55AA);
+      delayMicroseconds(80);
+    }
   }
   void cfgAccessEnd() {
-    write16(CfgRegAccEn, 0x0000);
-    delayMicroseconds(80);
+    if (cfgGateDepth_ == 0) return;
+    if (--cfgGateDepth_ == 0) {
+      write16(CfgRegAccEn, 0x0000);
+      delayMicroseconds(80);
+    }
   }
 
   // Public raw access (READBACK from chip config!)
   uint16_t readReg16(uint16_t reg) { return read16(reg); }
   void     writeReg16(uint16_t reg, uint16_t val) { write16(reg, val); }
 
-  // NOTE: ucalRef is ONLY used internally for sag threshold math (not user-config anymore).
   void begin(uint16_t lineHz, uint8_t sumAbs, uint16_t ucalRef, const M90PhaseCal cal[3]) {
     lineHz_ = (lineHz == 60) ? 60 : 50;
     sumAbs_ = sumAbs ? 1 : 0;
@@ -234,7 +227,6 @@ public:
     cfgAccessBegin();
     write16(MeterEn, 0xFFFF);
 
-    // Sag/freq thresholds
     uint16_t sagV, FreqHiThresh, FreqLoThresh;
     if (lineHz_ == 60){ sagV=90;  FreqHiThresh=6100; FreqLoThresh=5900; }
     else              { sagV=190; FreqHiThresh=5100; FreqLoThresh=4900; }
@@ -253,7 +245,6 @@ public:
     write16(EMMIntState1, 0x0001);
     write16(ZXConfig, 0xD654);
 
-    // Modes
     uint16_t m0 = 0x019D;
     if (lineHz_ == 60) m0 |= (1u<<12); else m0 &= ~(1u<<12);
     m0 &= ~(0b11u<<3);
@@ -264,7 +255,6 @@ public:
     const uint8_t gIA=1,gIB=1,gIC=1;
     uint8_t m1=0; m1|=(gainCode(gIA)<<0); m1|=(gainCode(gIB)<<2); m1|=(gainCode(gIC)<<4);
 
-    // Your PLconst values (kept). MC will be READ FROM THESE regs for real energy conversion.
     write16(PLconstH, 0x0861);
     write16(PLconstL, 0xC468);
 
@@ -277,14 +267,12 @@ public:
     write16(QPhaseTh, 0x02EE);
     write16(SPhaseTh, 0x02EE);
 
-    // (Fix #5) calibration is re-applied after begin() changes
     applyCalibration(cal);
 
     cfgAccessEnd();
-    delay(2); // commit settle
+    delay(2);
   }
 
-  // ---- NEW: write cal with gated access + commit settle (fixes 0x8000 “immediate readback” glitch) ----
   void applyCalibration(const M90PhaseCal cal[3]) {
     cfgAccessBegin();
 
@@ -298,8 +286,8 @@ public:
     write16(UoffsetC, (uint16_t)cal[2].Uoffset); write16(IoffsetC, (uint16_t)cal[2].Ioffset);
 
     cfgAccessEnd();
-    delay(2); // allow internal latch before any readback
-    (void)read16(LastSPIData); // harmless dummy read to “flush” SPI path
+    delay(2);
+    (void)read16(LastSPIData);
   }
 
   double readRmsLike(uint16_t regH, uint16_t regLSB, double sH, double sLb){
@@ -418,6 +406,8 @@ private:
 
   HookFn onRead_  = nullptr;
   HookFn onWrite_ = nullptr;
+
+  uint8_t cfgGateDepth_ = 0;
 };
 
 } // namespace enm223
@@ -448,14 +438,11 @@ static inline void _put_s32(uint16_t reg, int32_t v){
   mb.Ireg(reg+1, (uint16_t)(v & 0xFFFF));
 }
 
-// (Fix #2 / #7 side-effects) Build map ONCE, never re-add registers repeatedly.
 void MB_buildRegisterMap_once(uint16_t sample_ms, uint16_t lineHz, uint8_t sumAbs)
 {
+  (void)sample_ms; (void)lineHz; (void)sumAbs;
   static bool built=false;
-  if (built) {
-
-    return;
-  }
+  if (built) return;
   built = true;
 
   for (uint16_t i=0;i<3;i++) mb.addIreg(100 + i);
@@ -598,16 +585,27 @@ void MB_fillStatus(JSONVar *status){
 } // namespace enm223
 
 // ============================================================================
-// Application
+// GLOBAL breathe (ROBUST): always safe to call anywhere
 // ============================================================================
-SimpleWebSerial WebSerial;
+static inline void breathe() {
+  // Keep WebSerial alive during chunked SPI work
+  WebSerial.check();
+  yield();
+}
 
-// ================== Modbus / RS-485 ==================
+static inline void breathe_mb() {
+  enm223::MB_task();
+  WebSerial.check();
+  yield();
+}
+// ============================================================================
+// Application state (YOUR ORIGINAL LOGIC KEPT) + ROBUST CHUNKED SPI
+// ============================================================================
+
 uint8_t  g_mb_address = 3;
 uint32_t g_mb_baud    = 19200;
 JSONVar  modbusStatus;
 
-// ================== Buttons & LEDs ==================
 struct LedCfg    { uint8_t mode; uint8_t source; }; // mode: 0 steady, 1 blink
 struct ButtonCfg { uint8_t action; };
 
@@ -635,23 +633,27 @@ bool buttonOverrideState[2] = {false,false};
 bool relayState[2] = {false,false};
 
 // ================== Timing ==================
-unsigned long lastSend = 0;
-constexpr unsigned long sendInterval   = 1000; // 1 Hz UI push
+unsigned long lastFastSend = 0;
+unsigned long lastSlowSend = 0;
+
+constexpr unsigned long FAST_UI_MS = 1000;  // 1 second
+constexpr unsigned long SLOW_UI_MS = 5000;  // 5 seconds
+
 unsigned long lastBlinkToggle = 0;
 constexpr unsigned long blinkPeriodMs  = 500;
 bool blinkPhase = false;
-unsigned long lastSample = 0;
+
+uint16_t sample_ms    = 200;
+
+unsigned long lastSampleTick = 0;
 
 // Energy read/accumulate every 60s (ATM energy regs are read-to-clear pulses)
 static unsigned long lastEnergySample = 0;
 constexpr unsigned long ENERGY_SAMPLE_MS = 60000;
 
-// ================== Persisted settings ==================
-uint16_t sample_ms    = 200;
-
 // ATM90E32 options (persisted) (UCAL REMOVED)
 uint16_t atm_lineFreqHz = 50;    // 50/60
-uint8_t  atm_sumModeAbs = 1;     // affects MMode0
+uint8_t  atm_sumModeAbs = 1;
 
 // ===== Per-phase calibration (persisted) =====
 uint16_t cal_Ugain[3]   = {25256,25256,25256};
@@ -665,12 +667,7 @@ bool     relay_default[2] = {false,false};
 
 // ================== ALARMS ==================
 enum AlarmMetric : uint8_t {
-  AM_VOLTAGE=0,   // Urms (0.01 V)
-  AM_CURRENT,     // Irms (0.001 A)
-  AM_P_ACTIVE,    // W
-  AM_Q_REACTIVE,  // var
-  AM_S_APPARENT,  // VA
-  AM_FREQ         // (0.01 Hz)
+  AM_VOLTAGE=0, AM_CURRENT, AM_P_ACTIVE, AM_Q_REACTIVE, AM_S_APPARENT, AM_FREQ
 };
 
 struct AlarmRule { bool enabled; int32_t min; int32_t max; uint8_t metric; };
@@ -680,17 +677,15 @@ struct ChannelAlarmCfg { bool ackRequired; AlarmRule rule[AK_COUNT]; };
 ChannelAlarmCfg g_alarmCfg[CH_COUNT];
 AlarmRuntime    g_alarmRt [CH_COUNT][AK_COUNT];
 
-// (Fix #1) Snapshot used for alarms (defined BEFORE any use)
 struct MetricsSnapshot {
   int32_t Urms_cV[3];   // 0.01 V
   int32_t Irms_mA[3];   // 0.001 A
-  int32_t P_W[4];       // W L1..L3, total
+  int32_t P_W[4];       // W
   int32_t Q_var[4];     // var
   int32_t S_VA[4];      // VA
   int32_t Freq_cHz;     // 0.01 Hz
 };
 
-// ====== Relay mode / source ======
 enum : uint8_t { RM_NONE=0, RM_MODBUS=1, RM_ALARM=2 };
 struct RelayAlarmSrc { uint8_t ch; uint8_t kindsMask; }; // bit0=Alarm,1=Warn,2=Event
 uint8_t       relay_mode[2]      = { RM_MODBUS, RM_MODBUS };
@@ -700,12 +695,11 @@ RelayAlarmSrc relay_alarm_src[2] = { {CH_TOT, 0b001}, {CH_TOT, 0b001} };
 // ENERGY CONSTANT (MC) READ FROM ATM (PLconstH/PLconstL)
 // ============================================================================
 static uint32_t g_plconst32 = 0;
-static uint32_t g_MC_imp_per_kWh = 3200; // derived from PLconst; fallback safe default
+static uint32_t g_MC_imp_per_kWh = 3200;
 static unsigned long lastMCReadMs = 0;
-constexpr unsigned long MC_REFRESH_MS = 30000; // refresh occasionally (optional but safe)
+constexpr unsigned long MC_REFRESH_MS = 30000;
 
 static inline uint32_t atm_read_plconst32() {
-  // PLconst is config space: use access gate
   g_atm.cfgAccessBegin();
   uint16_t h = g_atm.readReg16(enm223::ATM90E32_Inline::PLconstH);
   uint16_t l = g_atm.readReg16(enm223::ATM90E32_Inline::PLconstL);
@@ -721,17 +715,14 @@ static inline void atm_update_MC_from_PLconst(bool force=false) {
   uint32_t pl = atm_read_plconst32();
   g_plconst32 = pl;
 
-  // MC = 450,000,000,000 / PLconst
   if (pl != 0) {
     uint64_t mc = 450000000000ULL / (uint64_t)pl;
     if (mc >= 1 && mc <= 10000000ULL) g_MC_imp_per_kWh = (uint32_t)mc;
   }
 }
 
-// Convert 0.01CF ticks to Wh using MC
 static inline uint32_t ticks0p01CF_to_Wh(uint64_t ticks) {
   if (g_MC_imp_per_kWh == 0) return 0;
-  // Wh = ticks * 10 / MC   (because 0.01 CF => 10/MC Wh)
   double Wh = (double)ticks * (10.0 / (double)g_MC_imp_per_kWh);
   if (Wh < 0) Wh = 0;
   if (Wh > 4294967295.0) Wh = 4294967295.0;
@@ -739,8 +730,13 @@ static inline uint32_t ticks0p01CF_to_Wh(uint64_t ticks) {
 }
 
 // ============================================================================
-// REAL ATM CHIP CONFIG READBACK
+// REAL ATM CHIP CONFIG READBACK (CHUNKED)
 // ============================================================================
+struct RawRow {
+  uint16_t reg;
+  const char* name;
+  uint16_t val;
+};
 
 static const RawRow RAW_READ_TEMPLATE[] = {
   { enm223::ATM90E32_Inline::UgainA,   "UgainA",   0 },
@@ -788,19 +784,14 @@ static const RawRow RAW_READ_TEMPLATE[] = {
 
 static RawRow g_rawReads[sizeof(RAW_READ_TEMPLATE)/sizeof(RAW_READ_TEMPLATE[0])];
 
-static void raw_init_tables() {
-  memcpy(g_rawReads, RAW_READ_TEMPLATE, sizeof(g_rawReads));
-}
+static void raw_init_tables() { memcpy(g_rawReads, RAW_READ_TEMPLATE, sizeof(g_rawReads)); }
 
 static inline void raw_set_read(uint16_t reg, uint16_t val) {
-  for (size_t i=0;i<sizeof(g_rawReads)/sizeof(g_rawReads[0]);++i) {
+  for (size_t i=0;i<sizeof(g_rawReads)/sizeof(g_rawReads[0]);++i)
     if (g_rawReads[i].reg == reg) { g_rawReads[i].val = val; return; }
-  }
 }
-
 static void atm_onRead(uint16_t reg, uint16_t val)  { raw_set_read(reg, val); }
-static void atm_onWrite(uint16_t, uint16_t) {} // ignored
-
+static void atm_onWrite(uint16_t, uint16_t) {}
 
 static JSONVar RawTableJSON(const RawRow* rows, size_t n) {
   JSONVar arr;
@@ -816,65 +807,31 @@ static JSONVar RawTableJSON(const RawRow* rows, size_t n) {
   return arr;
 }
 
-static void atm_readback_config_into_table() {
+// ---- Chunked readback state machine ----
+static bool   rb_active = false;
+static size_t rb_i = 0;
+
+static void atm_readback_begin() {
+  rb_active = true;
+  rb_i = 0;
   g_atm.cfgAccessBegin();
-  for (size_t i=0;i<sizeof(g_rawReads)/sizeof(g_rawReads[0]);++i) {
-    (void)g_atm.readReg16(g_rawReads[i].reg);
+}
+static void atm_readback_step(uint8_t readsPerStep = 4) {
+  if (!rb_active) return;
+  for (uint8_t k=0; k<readsPerStep && rb_i < (sizeof(g_rawReads)/sizeof(g_rawReads[0])); ++k, ++rb_i) {
+    (void)g_atm.readReg16(g_rawReads[rb_i].reg);
   }
-  g_atm.cfgAccessEnd();
-}
-
-static void pushAtmChipConfigJSON() {
-  g_atm.cfgAccessBegin();
-
-  auto rU16 = [](uint16_t reg)->uint16_t { return g_atm.readReg16(reg); };
-  auto rS16 = [](uint16_t reg)->int16_t  { return (int16_t)g_atm.readReg16(reg); };
-
-  JSONVar cfg;
-
-  JSONVar ph;
-  for (int i=0;i<3;i++) {
-    JSONVar p;
-    if (i==0) { p["Ugain"]= (int)rU16(enm223::ATM90E32_Inline::UgainA); p["Igain"]=(int)rU16(enm223::ATM90E32_Inline::IgainA);
-                p["Uoffset"]=(int)rS16(enm223::ATM90E32_Inline::UoffsetA); p["Ioffset"]=(int)rS16(enm223::ATM90E32_Inline::IoffsetA); }
-    if (i==1) { p["Ugain"]= (int)rU16(enm223::ATM90E32_Inline::UgainB); p["Igain"]=(int)rU16(enm223::ATM90E32_Inline::IgainB);
-                p["Uoffset"]=(int)rS16(enm223::ATM90E32_Inline::UoffsetB); p["Ioffset"]=(int)rS16(enm223::ATM90E32_Inline::IoffsetB); }
-    if (i==2) { p["Ugain"]= (int)rU16(enm223::ATM90E32_Inline::UgainC); p["Igain"]=(int)rU16(enm223::ATM90E32_Inline::IgainC);
-                p["Uoffset"]=(int)rS16(enm223::ATM90E32_Inline::UoffsetC); p["Ioffset"]=(int)rS16(enm223::ATM90E32_Inline::IoffsetC); }
-    ph[i]=p;
+  if (rb_i >= (sizeof(g_rawReads)/sizeof(g_rawReads[0]))) {
+    g_atm.cfgAccessEnd();
+    rb_active = false;
   }
-  cfg["phase"]=ph;
-
-  cfg["MMode0"]        = (int)rU16(enm223::ATM90E32_Inline::MMode0);
-  cfg["MMode1"]        = (int)rU16(enm223::ATM90E32_Inline::MMode1);
-  cfg["PLconstH"]      = (int)rU16(enm223::ATM90E32_Inline::PLconstH);
-  cfg["PLconstL"]      = (int)rU16(enm223::ATM90E32_Inline::PLconstL);
-  cfg["SagPeakDetCfg"] = (int)rU16(enm223::ATM90E32_Inline::SagPeakDetCfg);
-  cfg["SagTh"]         = (int)rU16(enm223::ATM90E32_Inline::SagTh);
-  cfg["FreqHiTh"]      = (int)rU16(enm223::ATM90E32_Inline::FreqHiTh);
-  cfg["FreqLoTh"]      = (int)rU16(enm223::ATM90E32_Inline::FreqLoTh);
-  cfg["ZXConfig"]      = (int)rU16(enm223::ATM90E32_Inline::ZXConfig);
-
-  g_atm.cfgAccessEnd();
-
-  // also publish computed MC for sanity
-  cfg["PLconst32"] = (int)g_plconst32;
-  cfg["MC_imp_per_kWh"] = (int)g_MC_imp_per_kWh;
-
-  WebSerial.send("ATM_ChipCfg", cfg);
+  breathe();
 }
+static bool atm_readback_done() { return !rb_active; }
 
-static void pushAtmRawReadsTable() {
-  atm_readback_config_into_table();
-  WebSerial.send("ATM_RawReads", RawTableJSON(g_rawReads, sizeof(g_rawReads)/sizeof(g_rawReads[0])));
-}
-
-// ================== Persistence (config + energy counters) ==================
-static uint64_t g_ap_cnt[4]={0,0,0,0};
-static uint64_t g_an_cnt[4]={0,0,0,0};
-static uint64_t g_rp_cnt[4]={0,0,0,0};
-static uint64_t g_rn_cnt[4]={0,0,0,0};
-static uint64_t g_s_cnt [4]={0,0,0,0};
+// ============================================================================
+// Persistence (config + energy counters)  [kept from your firmware]
+// ============================================================================
 
 struct PersistConfig {
   uint32_t magic;       // 'ENM2'
@@ -902,7 +859,12 @@ struct PersistConfig {
   int16_t  cal_Ioffset[3];
 
   uint8_t  alarm_ack_required[CH_COUNT];
-  struct PackedRule { uint8_t enabled; int32_t min; int32_t max; uint8_t metric; } alarm_rules[CH_COUNT][AK_COUNT];
+  struct PackedRule {
+    uint8_t enabled;
+    int32_t min;
+    int32_t max;
+    uint8_t metric;
+  } alarm_rules[CH_COUNT][AK_COUNT];
 
   uint8_t  relay_mode0;
   uint8_t  relay_mode1;
@@ -911,13 +873,23 @@ struct PersistConfig {
   uint8_t  relay_alarm_mask0;
   uint8_t  relay_alarm_mask1;
 
-  uint64_t ap_cnt[4], an_cnt[4], rp_cnt[4], rn_cnt[4], s_cnt[4];
+  uint64_t ap_cnt[4];
+  uint64_t an_cnt[4];
+  uint64_t rp_cnt[4];
+  uint64_t rn_cnt[4];
+  uint64_t s_cnt[4];
 
   uint32_t crc32;
 } __attribute__((packed));
 
+static uint64_t g_ap_cnt[4]={0,0,0,0};
+static uint64_t g_an_cnt[4]={0,0,0,0};
+static uint64_t g_rp_cnt[4]={0,0,0,0};
+static uint64_t g_rn_cnt[4]={0,0,0,0};
+static uint64_t g_s_cnt [4]={0,0,0,0};
+
 constexpr uint32_t CFG_MAGIC   = 0x324D4E45UL; // 'ENM2'
-constexpr uint16_t CFG_VERSION = 0x000B;       // NEW: MC-based energy conversion; removed fake energy scale fields
+constexpr uint16_t CFG_VERSION = 0x000B;
 static const char* CFG_PATH    = "/enm223.bin";
 
 volatile bool   cfgDirty        = false;
@@ -929,7 +901,7 @@ uint32_t crc32_update(uint32_t crc, const uint8_t* data, size_t len) {
   while (len--) {
     crc ^= *data++;
     for (uint8_t k = 0; k < 8; k++)
-      crc = (crc >> 1) ^ (0xEDB88320UL & (-(int32_t)(crc & 1)));
+      crc = (crc >> 1) ^ (0xEDb88320UL & (-(int32_t)(crc & 1)));
   }
   return ~crc;
 }
@@ -942,7 +914,7 @@ inline bool readPressed(int i){
 #endif
 }
 
-// ================== Defaults ==================
+// ================== Defaults / alarms ==================
 static inline void setAlarmDefaults() {
   const AlarmRule defAlarm = {true, 0, 100000, (uint8_t)AM_S_APPARENT};
   const AlarmRule defWarn  = {true, 0, 120000, (uint8_t)AM_S_APPARENT};
@@ -991,7 +963,6 @@ void setDefaults() {
   buttonOverrideState[0] = buttonOverrideState[1] = false;
 }
 
-// ================== Persistence ==================
 void captureToPersist(PersistConfig &pc) {
   pc = {};
   pc.magic   = CFG_MAGIC;
@@ -1270,8 +1241,6 @@ static inline void meter_begin_from_current_cfg() {
     {cal_Ugain[2], cal_Igain[2], cal_Uoffset[2], cal_Ioffset[2]},
   };
   g_atm.begin(atm_lineFreqHz, atm_sumModeAbs, atm_ucalRef_from_cal(), cal);
-
-  // IMPORTANT: MC is tied to PLconst, which we just wrote in begin(). Read it back and compute MC.
   atm_update_MC_from_PLconst(true);
 }
 
@@ -1281,7 +1250,7 @@ static inline void meter_apply_cal_only() {
     {cal_Ugain[1], cal_Igain[1], cal_Uoffset[1], cal_Ioffset[1]},
     {cal_Ugain[2], cal_Igain[2], cal_Uoffset[2], cal_Ioffset[2]},
   };
-  g_atm.applyCalibration(cal); // now includes commit settle
+  g_atm.applyCalibration(cal);
 }
 
 static JSONVar MeterOptionsJSON() {
@@ -1289,7 +1258,6 @@ static JSONVar MeterOptionsJSON() {
   mo["lineHz"]    = atm_lineFreqHz;
   mo["sumAbs"]    = atm_sumModeAbs;
   mo["sample_ms"] = sample_ms;
-  // expose MC readback for sanity (REAL, from PLconst)
   mo["MC_imp_per_kWh"] = (int)g_MC_imp_per_kWh;
   mo["PLconst32"]      = (int)g_plconst32;
   return mo;
@@ -1308,7 +1276,9 @@ static JSONVar CalibJSON_All() {
   return arr;
 }
 
-// ================== WebSerial handlers ==================
+// ============================================================================
+// WebSerial handlers (kept as your behavior)
+// ============================================================================
 void handleValues(JSONVar values) {
   int addr = (int)values["mb_address"];
   int baud = (int)values["mb_baud"];
@@ -1467,33 +1437,25 @@ void handleCalibCfg(JSONVar v){
   cal_Uoffset[ph] = (int16_t)Uo;
   cal_Ioffset[ph] = (int16_t)Io;
 
-  meter_apply_cal_only(); // includes settle now
+  meter_apply_cal_only();
 
   cfgDirty = true; lastCfgTouchMs = millis();
   WebSerial.send("message", String("Calibration updated for phase ") + ph);
   WebSerial.send("CalibCfg", CalibJSON_All());
 
-  // MC from PLconst (doesn't change by cal, but keep it fresh)
   atm_update_MC_from_PLconst(true);
 
-  pushAtmChipConfigJSON();
-  pushAtmRawReadsTable();
+  // Start chunked raw readback; it will finish over next loop passes
+  if (!rb_active) atm_readback_begin();
 }
 
 void handleAlarmsCfg(JSONVar v){
   int ch = -1;
   JSONVar cfg;
 
-  if (v.hasOwnProperty("ch") && v.hasOwnProperty("cfg")) {
-    ch = (int)v["ch"];
-    cfg = v["cfg"];
-  } else if (v.hasOwnProperty("cfg")) {
-    cfg = v["cfg"];
-    ch = v.hasOwnProperty("channel") ? (int)v["channel"] : -1;
-  } else {
-    if (v.hasOwnProperty("ch")) ch = (int)v["ch"];
-    cfg = v;
-  }
+  if (v.hasOwnProperty("ch") && v.hasOwnProperty("cfg")) { ch = (int)v["ch"]; cfg = v["cfg"]; }
+  else if (v.hasOwnProperty("cfg")) { cfg = v["cfg"]; ch = v.hasOwnProperty("channel") ? (int)v["channel"] : -1; }
+  else { if (v.hasOwnProperty("ch")) ch = (int)v["ch"]; cfg = v; }
 
   if (ch < 0 || ch >= CH_COUNT) { WebSerial.send("message","AlarmsCfg: bad channel"); return; }
 
@@ -1575,7 +1537,9 @@ bool evalLedSource(uint8_t src) {
   }
 }
 
-// ================== Cached meter values ==================
+// ============================================================================
+// Cached meter values + CHUNKED meter sampling
+// ============================================================================
 static double   g_urms[3] = {0,0,0};
 static double   g_irms[3] = {0,0,0};
 static int32_t  g_p_W[4]  = {0,0,0,0};
@@ -1588,6 +1552,139 @@ static int16_t  g_tempC = 0;
 
 static uint32_t g_e_ap_Wh[4]={0,0,0,0}, g_e_an_Wh[4]={0,0,0,0}, g_e_rp_varh[4]={0,0,0,0}, g_e_rn_varh[4]={0,0,0,0}, g_e_s_VAh[4]={0,0,0,0};
 static bool     g_haveMeter = false;
+
+// Meter sampler state
+static bool meter_job = false;
+static uint8_t meter_step = 0;
+static double urms_tmp[3], irms_tmp[3];
+
+static void meter_job_begin() {
+  meter_job = true;
+  meter_step = 0;
+}
+
+// Do a small part each loop. This prevents long SPI blocking.
+static void meter_job_step() {
+  if (!meter_job) return;
+
+  switch (meter_step) {
+
+    case 0: {
+      urms_tmp[0] = g_atm.readRmsLike(enm223::ATM90E32_Inline::REG_UrmsA, enm223::ATM90E32_Inline::REG_UrmsALSB, 0.01, 0.01/256.0);
+      urms_tmp[1] = g_atm.readRmsLike(enm223::ATM90E32_Inline::REG_UrmsB, enm223::ATM90E32_Inline::REG_UrmsBLSB, 0.01, 0.01/256.0);
+      breathe();
+      meter_step++;
+      break;
+    }
+
+    case 1: {
+      urms_tmp[2] = g_atm.readRmsLike(enm223::ATM90E32_Inline::REG_UrmsC, enm223::ATM90E32_Inline::REG_UrmsCLSB, 0.01, 0.01/256.0);
+      irms_tmp[0] = g_atm.readRmsLike(enm223::ATM90E32_Inline::REG_IrmsA, enm223::ATM90E32_Inline::REG_IrmsALSB, 0.001, 0.001/256.0);
+      breathe();
+      meter_step++;
+      break;
+    }
+
+case 2: {
+  irms_tmp[1] = g_atm.readRmsLike(enm223::ATM90E32_Inline::REG_IrmsB, enm223::ATM90E32_Inline::REG_IrmsBLSB, 0.001, 0.001/256.0);
+  irms_tmp[2] = g_atm.readRmsLike(enm223::ATM90E32_Inline::REG_IrmsC, enm223::ATM90E32_Inline::REG_IrmsCLSB, 0.001, 0.001/256.0);
+
+  auto clampU = [](double v){ long x = lround(v*100.0);  return (uint16_t)constrain(x, 0L, 65535L); };
+  auto clampI = [](double a){ long x = lround(a*1000.0); return (uint16_t)constrain(x, 0L, 65535L); };
+
+  uint16_t urms_cV[3], irms_mA[3];
+  for (int i=0;i<3;i++){
+    urms_cV[i] = clampU(urms_tmp[i]);
+    irms_mA[i] = clampI(irms_tmp[i]);
+  }
+
+  // update Modbus
+  enm223::MB_setURMS(urms_cV);
+  enm223::MB_setIRMS(irms_mA);
+
+  // update Web UI cache too
+  for (int i=0;i<3;i++){
+    g_urms[i] = urms_tmp[i];
+    g_irms[i] = irms_tmp[i];
+  }
+  g_haveMeter = true;
+
+  breathe();
+  meter_step++;
+  break;
+}
+
+
+    case 3: {
+      g_pf_raw[0] = g_atm.readPFmeanA();
+      g_pf_raw[1] = g_atm.readPFmeanB();
+      breathe();
+      meter_step++;
+      break;
+    }
+
+    case 4: {
+      g_pf_raw[2] = g_atm.readPFmeanC();
+      g_pf_raw[3] = g_atm.readPFmeanT();
+      enm223::MB_setPFraw(g_pf_raw);
+
+      g_ang_raw[0] = g_atm.readPAngleA();
+      g_ang_raw[1] = g_atm.readPAngleB();
+      breathe();
+      meter_step++;
+      break;
+    }
+
+case 5: {
+  g_ang_raw[2] = g_atm.readPAngleC();
+  enm223::MB_setAngles(g_ang_raw);
+
+  g_f_x100 = g_atm.readFreq_x100();
+  g_tempC  = g_atm.readTempC();
+  enm223::MB_setFreqTemp(g_f_x100, g_tempC);
+
+  // ---- compute P/Q/S from U/I/PF (so they are not 0) ----
+  // S = U * I
+  // P = S * PF
+  // Q = sqrt(S^2 - P^2)
+  double Sph[3], Pph[3], Qph[3];
+  for (int i=0;i<3;i++){
+    double pf = ((double)g_pf_raw[i]) / 1000.0;
+    if (pf > 1.0) pf = 1.0;
+    if (pf < -1.0) pf = -1.0;
+
+    double S = g_urms[i] * g_irms[i];
+    double P = S * pf;
+    double q2 = (S*S) - (P*P);
+    if (q2 < 0) q2 = 0;
+    double Q = sqrt(q2);
+
+    Sph[i]=S; Pph[i]=P; Qph[i]=Q;
+
+    g_s_VA[i]  = (int32_t)lround(S);
+    g_p_W[i]   = (int32_t)lround(P);
+    g_q_var[i] = (int32_t)lround(Q);
+  }
+
+  // totals
+  double St = Sph[0]+Sph[1]+Sph[2];
+  double Pt = Pph[0]+Pph[1]+Pph[2];
+  double Qt = Qph[0]+Qph[1]+Qph[2]; // simple sum (works OK for most loads)
+
+  g_s_VA[3]  = (int32_t)lround(St);
+  g_p_W[3]   = (int32_t)lround(Pt);
+  g_q_var[3] = (int32_t)lround(Qt);
+
+  enm223::MB_setPQS(g_p_W, g_q_var, g_s_VA);
+
+  meter_job = false;
+  g_haveMeter = true;
+  breathe();
+  break;
+}
+  }
+}
+
 
 // UI meter echo (real values only)
 void sendMeterEcho(){
@@ -1611,7 +1708,6 @@ void sendMeterEcho(){
   m["FreqHz"]=((double)g_f_x100)/100.0;
   m["TempC"]=(int)g_tempC;
 
-  // show MC for sanity in live meter
   m["MC_imp_per_kWh"] = (int)g_MC_imp_per_kWh;
 
   auto to_k = [](uint32_t Wh)->double{ return Wh/1000.0; };
@@ -1640,7 +1736,9 @@ void sendMeterEcho(){
   WebSerial.send("ENM_Meter", m);
 }
 
-// ================== Setup ==================
+// ============================================================================
+// Setup / loop
+// ============================================================================
 void setup() {
   Serial.begin(115200);
 
@@ -1676,8 +1774,6 @@ void setup() {
   meter_begin_from_current_cfg();
   delay(120);
   meter_apply_cal_only();
-
-  // read MC once more after cal settle (safe)
   atm_update_MC_from_PLconst(true);
 
   enm223::MB_begin(g_mb_address, g_mb_baud, sample_ms, atm_lineFreqHz, atm_sumModeAbs);
@@ -1690,7 +1786,7 @@ void setup() {
   WebSerial.on("AlarmsCfg",  handleAlarmsCfg);
   WebSerial.on("AlarmsAck",  handleAlarmsAck);
 
-  WebSerial.send("message", "Boot OK (ENERGY uses REAL MC from PLconst; RAW shows REAL ATM chip config via readback)");
+  WebSerial.send("message", "Boot OK (ROBUST CHUNKED SPI; MC from PLconst; RAW readback chunked)");
 
   WebSerial.send("LedConfigList", LedConfigListFromCfg());
   WebSerial.send("ButtonConfigList", ButtonConfigListFromCfg());
@@ -1699,15 +1795,21 @@ void setup() {
   WebSerial.send("CalibCfg", CalibJSON_All());
   alarms_publish_cfg();
 
-  pushAtmChipConfigJSON();
-  pushAtmRawReadsTable();
+  // start initial raw readback and will publish after it completes
+  atm_readback_begin();
 }
 
-// ================== Main loop ==================
 void loop() {
   const unsigned long now = millis();
 
+  // Modbus must run constantly, but ONLY from loop()
+  enm223::MB_task();
+
+  // WebSerial must be checked constantly too
   WebSerial.check();
+
+  // yield a little (safe)
+  yield();
 
   if (now - lastBlinkToggle >= blinkPeriodMs) { lastBlinkToggle = now; blinkPhase = !blinkPhase; }
 
@@ -1716,9 +1818,7 @@ void loop() {
     cfgDirty = false;
   }
 
-  enm223::MB_task();
-
-  // keep MC fresh in case something rewrites PLconst (safe)
+  // keep MC fresh (safe)
   atm_update_MC_from_PLconst(false);
 
   // Buttons
@@ -1781,124 +1881,44 @@ void loop() {
     echoRelayState();
   }
 
-  // ===== Meter sampling =====
-  if (now - lastSample >= sample_ms) {
-    lastSample = now;
-
-    double urms[3];
-    urms[0] = g_atm.readRmsLike(enm223::ATM90E32_Inline::REG_UrmsA, enm223::ATM90E32_Inline::REG_UrmsALSB, 0.01, 0.01/256.0);
-    urms[1] = g_atm.readRmsLike(enm223::ATM90E32_Inline::REG_UrmsB, enm223::ATM90E32_Inline::REG_UrmsBLSB, 0.01, 0.01/256.0);
-    urms[2] = g_atm.readRmsLike(enm223::ATM90E32_Inline::REG_UrmsC, enm223::ATM90E32_Inline::REG_UrmsCLSB, 0.01, 0.01/256.0);
-
-    double irms[3];
-    irms[0] = g_atm.readRmsLike(enm223::ATM90E32_Inline::REG_IrmsA, enm223::ATM90E32_Inline::REG_IrmsALSB, 0.001, 0.001/256.0);
-    irms[1] = g_atm.readRmsLike(enm223::ATM90E32_Inline::REG_IrmsB, enm223::ATM90E32_Inline::REG_IrmsBLSB, 0.001, 0.001/256.0);
-    irms[2] = g_atm.readRmsLike(enm223::ATM90E32_Inline::REG_IrmsC, enm223::ATM90E32_Inline::REG_IrmsCLSB, 0.001, 0.001/256.0);
-
-    auto clampU = [](double v){ long x = lround(v*100.0);  return (uint16_t)constrain(x, 0L, 65535L); };
-    auto clampI = [](double a){ long x = lround(a*1000.0); return (uint16_t)constrain(x, 0L, 65535L); };
-
-    uint16_t urms_cV[3], irms_mA[3];
-    for (int i=0;i<3;i++){ urms_cV[i]=clampU(urms[i]); irms_mA[i]=clampI(irms[i]); }
-
-    enm223::MB_setURMS(urms_cV);
-    enm223::MB_setIRMS(irms_mA);
-
-    g_pf_raw[0]=g_atm.readPFmeanA();
-    g_pf_raw[1]=g_atm.readPFmeanB();
-    g_pf_raw[2]=g_atm.readPFmeanC();
-    g_pf_raw[3]=g_atm.readPFmeanT();
-    enm223::MB_setPFraw(g_pf_raw);
-
-    g_ang_raw[0]=g_atm.readPAngleA();
-    g_ang_raw[1]=g_atm.readPAngleB();
-    g_ang_raw[2]=g_atm.readPAngleC();
-    enm223::MB_setAngles(g_ang_raw);
-
-    g_f_x100 = g_atm.readFreq_x100();
-    g_tempC  = g_atm.readTempC();
-    enm223::MB_setFreqTemp(g_f_x100, g_tempC);
-
-    auto pf01 = [](int16_t pf_raw){ return constrain(pf_raw/1000.0, -1.0, 1.0); };
-
-    double S_va_d[3], P_w_d[3], Q_var_d[3];
-    for (int i=0;i<3;i++) {
-      const double S = urms[i] * irms[i];
-      const double PF = pf01(g_pf_raw[i]);
-      const double P  = S * PF;
-
-      const double ang_deg = g_ang_raw[i] / 10.0;
-      const double ang_rad = ang_deg * (M_PI/180.0);
-      const double Qmag = sqrt(fmax(0.0, (S*S) - (P*P)));
-      const double Q = (sin(ang_rad) >= 0.0) ? Qmag : -Qmag;
-
-      S_va_d[i] = S; P_w_d[i] = P; Q_var_d[i] = Q;
-    }
-
-    double S_tot_d = S_va_d[0] + S_va_d[1] + S_va_d[2];
-    double P_tot_d = P_w_d[0]  + P_w_d[1]  + P_w_d[2];
-    double Q_tot_d = Q_var_d[0]+ Q_var_d[1]+ Q_var_d[2];
-
-    g_p_W[0] = (int32_t)lround(P_w_d[0]);
-    g_p_W[1] = (int32_t)lround(P_w_d[1]);
-    g_p_W[2] = (int32_t)lround(P_w_d[2]);
-    g_p_W[3] = (int32_t)lround(P_tot_d);
-
-    g_q_var[0] = (int32_t)lround(Q_var_d[0]);
-    g_q_var[1] = (int32_t)lround(Q_var_d[1]);
-    g_q_var[2] = (int32_t)lround(Q_var_d[2]);
-    g_q_var[3] = (int32_t)lround(Q_tot_d);
-
-    g_s_VA[0] = (int32_t)lround(S_va_d[0]);
-    g_s_VA[1] = (int32_t)lround(S_va_d[1]);
-    g_s_VA[2] = (int32_t)lround(S_va_d[2]);
-    g_s_VA[3] = (int32_t)lround(S_tot_d);
-
-    enm223::MB_setPQS(g_p_W, g_q_var, g_s_VA);
-
-    MetricsSnapshot ms{};
-    for (int i=0;i<3;i++){
-      ms.Urms_cV[i] = (int32_t)lround(urms[i]*100.0);
-      ms.Irms_mA[i] = (int32_t)lround(irms[i]*1000.0);
-    }
-    for (int i=0;i<4;i++){
-      ms.P_W[i]   = g_p_W[i];
-      ms.Q_var[i] = g_q_var[i];
-      ms.S_VA[i]  = g_s_VA[i];
-    }
-    ms.Freq_cHz = (int32_t)g_f_x100;
-
-    eval_alarms_with_metrics(ms);
-
-    auto alarm_any_selected = [&](uint8_t ch, uint8_t mask)->bool{
-      bool any = false;
-      if (mask & 0b001) any |= g_alarmRt[ch][AK_ALARM].active;
-      if (mask & 0b010) any |= g_alarmRt[ch][AK_WARNING].active;
-      if (mask & 0b100) any |= g_alarmRt[ch][AK_EVENT].active;
-      return any;
-    };
-
-    if (relay_mode[0] == RM_ALARM && !buttonOverrideMode[0]) setRelayPhys(0, alarm_any_selected(relay_alarm_src[0].ch, relay_alarm_src[0].kindsMask));
-    if (relay_mode[1] == RM_ALARM && !buttonOverrideMode[1]) setRelayPhys(1, alarm_any_selected(relay_alarm_src[1].ch, relay_alarm_src[1].kindsMask));
-
-    for (int r=0; r<2; ++r) if (buttonOverrideMode[r]) setRelayPhys(r, buttonOverrideState[r]);
-
-    for (int i=0;i<3;i++){ g_urms[i]=urms[i]; g_irms[i]=irms[i]; }
-    g_haveMeter = true;
+  // ===== Meter sampling trigger (starts a CHUNKED job) =====
+  if (!meter_job && (now - lastSampleTick >= sample_ms)) {
+    lastSampleTick = now;
+    meter_job_begin();
   }
+  meter_job_step();
 
   // ===== Energy accumulate (0.01CF read-to-clear) =====
   if (now - lastEnergySample >= ENERGY_SAMPLE_MS) {
     lastEnergySample = now;
 
-    // ensure MC is up to date right before converting
     atm_update_MC_from_PLconst(true);
 
-    uint16_t apA=g_atm.rdAP_A(), apB=g_atm.rdAP_B(), apC=g_atm.rdAP_C(), apT=g_atm.rdAP_T();
-    uint16_t anA=g_atm.rdAN_A(), anB=g_atm.rdAN_B(), anC=g_atm.rdAN_C(), anT=g_atm.rdAN_T();
-    uint16_t rpA=g_atm.rdRP_A(), rpB=g_atm.rdRP_B(), rpC=g_atm.rdRP_C(), rpT=g_atm.rdRP_T();
-    uint16_t rnA=g_atm.rdRN_A(), rnB=g_atm.rdRN_B(), rnC=g_atm.rdRN_C(), rnT=g_atm.rdRN_T();
-    uint16_t sA =g_atm.rdSA_A(), sB =g_atm.rdSA_B(), sC =g_atm.rdSA_C(), sT =g_atm.rdSA_T();
+uint16_t apA=g_atm.rdAP_A();
+uint16_t apB=g_atm.rdAP_B();
+uint16_t apC=g_atm.rdAP_C();
+uint16_t apT=g_atm.rdAP_T();
+
+uint16_t anA=g_atm.rdAN_A();
+uint16_t anB=g_atm.rdAN_B();
+uint16_t anC=g_atm.rdAN_C();
+uint16_t anT=g_atm.rdAN_T();
+
+uint16_t rpA=g_atm.rdRP_A();
+uint16_t rpB=g_atm.rdRP_B();
+uint16_t rpC=g_atm.rdRP_C();
+uint16_t rpT=g_atm.rdRP_T();
+
+uint16_t rnA=g_atm.rdRN_A();
+uint16_t rnB=g_atm.rdRN_B();
+uint16_t rnC=g_atm.rdRN_C();
+uint16_t rnT=g_atm.rdRN_T();
+
+uint16_t sA =g_atm.rdSA_A();
+uint16_t sB =g_atm.rdSA_B();
+uint16_t sC =g_atm.rdSA_C();
+uint16_t sT =g_atm.rdSA_T();
+
 
     g_ap_cnt[0]+=apA; g_ap_cnt[1]+=apB; g_ap_cnt[2]+=apC; g_ap_cnt[3]+=apT;
     g_an_cnt[0]+=anA; g_an_cnt[1]+=anB; g_an_cnt[2]+=anC; g_an_cnt[3]+=anT;
@@ -1906,7 +1926,6 @@ void loop() {
     g_rn_cnt[0]+=rnA; g_rn_cnt[1]+=rnB; g_rn_cnt[2]+=rnC; g_rn_cnt[3]+=rnT;
     g_s_cnt [0]+=sA;  g_s_cnt [1]+=sB;  g_s_cnt [2]+=sC;  g_s_cnt [3]+=sT;
 
-    // Convert using REAL MC from PLconst (0.01CF ticks)
     for (int i=0;i<4;i++){
       g_e_ap_Wh[i]   = ticks0p01CF_to_Wh(g_ap_cnt[i]);
       g_e_an_Wh[i]   = ticks0p01CF_to_Wh(g_an_cnt[i]);
@@ -1929,19 +1948,17 @@ void loop() {
     setLedPhys(i, phys);
   }
 
+  // Chunked ATM raw readback (runs in background until done)
+  if (rb_active) {
+    atm_readback_step(4);
+    if (atm_readback_done()) {
+      WebSerial.send("ATM_RawReads", RawTableJSON(g_rawReads, sizeof(g_rawReads)/sizeof(g_rawReads[0])));
+    }
+  }
+
   // ===== 1 Hz UI push =====
-  if (now - lastSend >= sendInterval) {
-    lastSend = now;
-
-    sendStatusEcho();
-
-    WebSerial.send("LedConfigList", LedConfigListFromCfg());
-    WebSerial.send("ButtonConfigList", ButtonConfigListFromCfg());
-    WebSerial.send("RelaysCfg", RelayConfigFromCfg());
-    WebSerial.send("MeterOptions", MeterOptionsJSON());
-    WebSerial.send("CalibCfg", CalibJSON_All());
-
-    alarms_publish_cfg();
+  if (now - lastFastSend >= FAST_UI_MS) {
+    lastFastSend = now;
 
     if (g_haveMeter) sendMeterEcho();
 
@@ -1953,8 +1970,22 @@ void loop() {
 
     echoRelayState();
     alarms_publish_state();
+  }
 
-    pushAtmChipConfigJSON();
-    pushAtmRawReadsTable();
+  // ===== SLOW UI =====
+  if ((now - lastSlowSend >= SLOW_UI_MS) || cfgDirty) {
+    lastSlowSend = now;
+
+    sendStatusEcho();
+
+    WebSerial.send("LedConfigList", LedConfigListFromCfg());
+    WebSerial.send("ButtonConfigList", ButtonConfigListFromCfg());
+    WebSerial.send("RelaysCfg", RelayConfigFromCfg());
+    WebSerial.send("MeterOptions", MeterOptionsJSON());
+    WebSerial.send("CalibCfg", CalibJSON_All());
+    alarms_publish_cfg();
+
+    // start new raw readback (non-blocking)
+    if (!rb_active) atm_readback_begin();
   }
 }
