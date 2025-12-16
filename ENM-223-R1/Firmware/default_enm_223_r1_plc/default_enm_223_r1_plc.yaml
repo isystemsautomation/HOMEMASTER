@@ -3,6 +3,7 @@ modbus_controller:
     address: ${enm_address}        # Modbus slave ID
     modbus_id: modbus_bus
     update_interval: 2s
+    command_throttle: 250ms
     allow_duplicate_commands: false
 
 # ===================== Discrete Inputs (FC02) =====================
@@ -593,4 +594,4 @@ sensor:
     value_type: U_DWORD
     unit_of_measurement: "VAh"
     state_class: total_increasing
-    update_interval: 60s
+
