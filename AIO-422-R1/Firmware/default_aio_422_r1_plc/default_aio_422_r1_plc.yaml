@@ -2,7 +2,7 @@ modbus_controller:
   - id: ${aio_id}
     address: ${aio_address}
     modbus_id: modbus_bus
-    update_interval: 2s
+    update_interval: 3s
     allow_duplicate_commands: true
 
 binary_sensor:
