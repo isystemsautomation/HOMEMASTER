@@ -6,9 +6,9 @@ modbus_controller:
     command_throttle: 0ms
 
 # ===================== Discrete Inputs (FC02) =====================
-# LEDs: 500..503 | Buttons: 520..523 | Relays: 540..541 | Alarms: 560..571 (ch*3+kind)
+# LEDs: 500..503 | Buttons: 520..523 | Relays: 540..541 | Alarms: 560..574 (ch*3+kind, ch=0..4)
 binary_sensor:
-  # --- LED physical states (after blink/logic) ---
+  # --- LED physical states ---
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} LED1"
@@ -52,7 +52,7 @@ binary_sensor:
     address: 523
     register_type: discrete_input
 
-  # --- Relay logical state (mirrors actual output) ---
+  # --- Relay logical state ---
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Relay 1 State"
@@ -64,8 +64,8 @@ binary_sensor:
     address: 541
     register_type: discrete_input
 
-  # --- Alarm active flags (0=Alarm,1=Warning,2=Event) for ch=0..3 (L1,L2,L3,Total) ---
-  # L1
+  # --- Alarm active flags (kind: 0=Alarm,1=Warning,2=Event), ch: 0=L1,1=L2,2=L3,3=Total,4=CH_COUNT ---
+  # L1 (560..562)
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Alarm L1 (Alarm)"
@@ -81,7 +81,8 @@ binary_sensor:
     name: "${enm_prefix} Alarm L1 (Event)"
     address: 562
     register_type: discrete_input
-  # L2
+
+  # L2 (563..565)
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Alarm L2 (Alarm)"
@@ -97,7 +98,8 @@ binary_sensor:
     name: "${enm_prefix} Alarm L2 (Event)"
     address: 565
     register_type: discrete_input
-  # L3
+
+  # L3 (566..568)
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Alarm L3 (Alarm)"
@@ -113,7 +115,8 @@ binary_sensor:
     name: "${enm_prefix} Alarm L3 (Event)"
     address: 568
     register_type: discrete_input
-  # Total
+
+  # Total (569..571)
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Alarm Total (Alarm)"
@@ -129,6 +132,7 @@ binary_sensor:
     name: "${enm_prefix} Alarm Total (Event)"
     address: 571
     register_type: discrete_input
+
 
 # ===================== Coils (FC01/05) =====================
 # Relay coils are maintained (not pulses). Writes honored only if relay is in MODBUS mode and Button Override is OFF.
@@ -185,51 +189,6 @@ switch:
       - delay: 200ms
       - switch.turn_off: ${enm_id}_ack_total
 
-# ===================== Numbers (FC03 Holding R/W) =====================
-number:
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} Sample Period (ms)"
-    address: 400
-    register_type: holding
-    value_type: U_WORD
-    min_value: 10
-    max_value: 5000
-    step: 10
-    mode: box
-
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} Line Freq Hz (50/60)"
-    address: 401
-    register_type: holding
-    value_type: U_WORD
-    min_value: 50
-    max_value: 60
-    step: 10
-    mode: box
-
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} SumModeAbs (0/1)"
-    address: 402
-    register_type: holding
-    value_type: U_WORD
-    min_value: 0
-    max_value: 1
-    step: 1
-    mode: box
-
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} Ucal (1..65535)"
-    address: 403
-    register_type: holding
-    value_type: U_WORD
-    min_value: 1
-    max_value: 65535
-    step: 1
-    mode: box
 
 # ===================== Sensors (FC04 Input Registers RO) =====================
 # 32-bit values are high-word first in consecutive registers.
@@ -316,7 +275,6 @@ sensor:
     value_type: S_WORD
     accuracy_decimals: 3
     filters: [{ multiply: 0.001 }]
-
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} PF Total"
@@ -364,6 +322,7 @@ sensor:
     unit_of_measurement: "Hz"
     accuracy_decimals: 2
     filters: [{ multiply: 0.01 }]
+
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} Temperature"
@@ -372,7 +331,7 @@ sensor:
     value_type: S_WORD
     unit_of_measurement: "°C"
 
-  # --- P/Q/S (s32, whole units) ---
+  # --- P/Q/S (s32) ---
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} P L1"
@@ -601,7 +560,7 @@ sensor:
     unit_of_measurement: "varh"
     state_class: total_increasing
 
-  # --- Apparent Energy (VAh) — renamed to avoid clash with "S" (VA) ---
+  # --- Apparent Energy (VAh) ---
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} VAh L1"
@@ -634,41 +593,3 @@ sensor:
     value_type: U_DWORD
     unit_of_measurement: "VAh"
     state_class: total_increasing
-
-  # --- Diagnostics (optional) ---
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} EMMState0"
-    address: 360
-    register_type: read
-    value_type: U_WORD
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} EMMState1"
-    address: 361
-    register_type: read
-    value_type: U_WORD
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} EMMIntState0"
-    address: 362
-    register_type: read
-    value_type: U_WORD
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} EMMIntState1"
-    address: 363
-    register_type: read
-    value_type: U_WORD
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} CRC Err Cnt"
-    address: 364
-    register_type: read
-    value_type: U_WORD
-  - platform: modbus_controller
-    modbus_controller_id: ${enm_id}
-    name: "${enm_prefix} Last SPI Data"
-    address: 365
-    register_type: read
-    value_type: U_WORD

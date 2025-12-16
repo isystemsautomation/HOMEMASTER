@@ -34,11 +34,41 @@
     .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:1rem}
     .energy-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem}
     .muted{color:#666}
+
+    /* small UX additions */
+    .toast{position:fixed;right:18px;bottom:18px;max-width:420px;background:#111827;color:#fff;
+      padding:10px 12px;border-radius:10px;box-shadow:0 10px 25px rgba(0,0,0,.18);opacity:0;
+      transform:translateY(8px);transition:.2s;z-index:99999;font-size:.9rem}
+    .toast.show{opacity:1;transform:translateY(0)}
+    .badge{display:inline-block;font-size:.75rem;padding:2px 8px;border-radius:999px;background:#eef2ff;color:#3730a3}
+
+    /* RAW tables */
+    .raw-wrap{background:#f7f7f7;padding:1rem 1.5rem;margin-top:1.25rem;border-radius:8px;border-left:4px solid #6c757d;}
+    .raw-box{background:#fff;border:1px solid #e6e6e6;border-radius:8px;overflow:hidden;}
+    .raw-head{padding:.6rem .8rem;border-bottom:1px solid #eee;font-weight:600;display:flex;justify-content:space-between;gap:1rem;align-items:center;flex-wrap:wrap;}
+    .raw-scroll{overflow:auto;max-height:420px;}
+    .raw-table{width:100%;border-collapse:collapse;font-size:.92rem;}
+    .raw-table thead{position:sticky;top:0;background:#fafafa;border-bottom:1px solid #eee;}
+    .raw-table th{ text-align:left;padding:.45rem .6rem; }
+    .raw-table td{ padding:.42rem .6rem; border-bottom:1px solid #f0f0f0; }
+    .mono{font-family:ui-monospace, SFMono-Regular, Menlo, monospace;}
+    .raw-changed{background:#fff3cd;}
+
+    /* ChipCfg */
+    .chipcfg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;margin-top:1rem}
+    .chipcfg-card{border:1px solid #e6e6e6;border-radius:10px;background:#fff;padding:1rem}
+    .chipcfg-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem}
+    .chipcfg-mini{font-size:.85rem;color:#6b7280}
+    .chipcfg-kv{display:grid;grid-template-columns:1fr auto;gap:.35rem .75rem}
   </style>
 
   <div style="text-align:center;margin-bottom:2rem;">
     <h2 style="margin:.5rem 0 0;">ENM-223-R1 Module Configuration</h2>
-    <p style="margin:.25rem 0 0;color:#333;">Live config every 1s from device. Edit a field and press <b>Enter</b> to send. While editing, that field won’t auto-update.</p>
+    <p style="margin:.25rem 0 0;color:#333;">
+      Live config every 1s from device. Edit a field and press <b>Enter</b> to send.
+      While editing, that field won’t auto-update.
+      <span id="conn-pill" class="badge" style="margin-left:.5rem;display:none">connected</span>
+    </p>
   </div>
 
   <div style="background:#f1f1f1;padding:1rem 1.5rem;margin-bottom:1.25rem;border-radius:6px;border-left:4px solid #007bff;">
@@ -55,8 +85,9 @@
         <option>9600</option><option selected="">19200</option><option>38400</option><option>57600</option><option>115200</option>
       </select>
     </div>
-    <div style="grid-column:span 2;display:flex;justify-content:flex-end;">
+    <div style="grid-column:span 2;display:flex;justify-content:flex-end;gap:.5rem;flex-wrap:wrap">
       <button id="connect-button" type="button" style="padding:10px 20px;background:#007bff;color:#fff;border:none;border-radius:4px;">Connect</button>
+      <button id="req-sync" type="button" style="padding:10px 14px;background:#6c757d;color:#fff;border:none;border-radius:6px;">Request Sync</button>
     </div>
   </form>
 
@@ -81,15 +112,13 @@
         </select>
       </div>
       <div>
-        <label><strong>Ucal</strong> <small class="muted">(gain)</small></label>
-        <input id="opt-ucal" type="number" min="1" max="65535" step="1" value="25256" class="enm-input">
-        <small class="lock-badge">editing… press Enter to send</small>
-      </div>
-      <div>
         <label><strong>Sample Interval (ms)</strong></label>
         <input id="opt-samplems" type="number" min="10" max="5000" step="10" value="200" class="enm-input">
         <small class="lock-badge">editing… press Enter to send</small>
       </div>
+    </div>
+    <div class="muted" style="margin-top:.4rem;font-size:.9rem">
+      Note: <b>Ucal removed</b>. Sag reference is derived from Phase-A <b>Ugain</b>.
     </div>
   </section>
 
@@ -97,7 +126,7 @@
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Calibration (Phase A / B / C)</h2>
     <div id="calib-grid" class="cal-grid"></div>
     <div class="muted" style="margin-top:.5rem;font-size:.9rem;">
-      Gains and offsets are 16‑bit (0..65535). Press <b>Enter</b> in a field to send. While editing, live refresh is paused for that field.
+      Gains: 0..65535. Offsets: <b>-32768..32767</b>. Press <b>Enter</b> in a field to send. While editing, live refresh is paused for that field.
     </div>
   </section>
 
@@ -125,7 +154,53 @@
     <div class="muted" style="margin-top:.3rem">Chip-sourced counters. Units: kWh / kvarh / kVAh.</div>
   </section>
 
-  <section style="margin-bottom:1.25rem;">
+  <!-- ================== ATM CHIP CONFIG (REAL READBACK) ================== -->
+  <div class="raw-wrap">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+      <div>
+        <strong>ATM90E32 Chip Config (Readback)</strong><br>
+        <span class="muted" style="font-size:.9rem;">
+          These values come from <b>reading</b> the ATM registers (calibration + key config). This is what is actually stored in the chip.
+        </span>
+      </div>
+      <div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;">
+        <label style="font-size:.9rem;color:#444;">
+          <input id="raw-show-hex" type="checkbox" checked style="transform:translateY(1px);"> show HEX
+        </label>
+        <label style="font-size:.9rem;color:#444;">
+          <input id="raw-freeze" type="checkbox" style="transform:translateY(1px);"> freeze
+        </label>
+        <span style="font-size:.9rem;color:#444;">
+          Updated: <span id="raw-last-ts" style="font-weight:600;">--</span>
+        </span>
+      </div>
+    </div>
+
+    <div id="chipcfg-grid" class="chipcfg-grid"></div>
+
+    <div class="raw-box" style="margin-top:1rem;">
+      <div class="raw-head">
+        <span>ATM_RawReads</span>
+        <span class="pill">reads</span>
+      </div>
+      <div class="raw-scroll">
+        <table class="raw-table">
+          <thead>
+            <tr>
+              <th>Reg</th><th>Name</th><th style="text-align:right;">Value</th>
+            </tr>
+          </thead>
+          <tbody id="raw-reads-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="muted" style="margin-top:.75rem;font-size:.85rem;">
+      Tip: change <b>Calibration</b> or <b>Meter Options</b> and watch the <b>readback</b> values update (chip-stored).
+    </div>
+  </div>
+
+  <section style="margin-bottom:1.25rem;margin-top:1.25rem;">
     <h2 style="font-size:1.2rem;margin-bottom:.75rem;">Buttons (4)</h2>
     <div id="buttons-config" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;"></div>
   </section>
@@ -137,9 +212,13 @@
       Tip: set a LED source to <b>Override R1</b> or <b>Override R2</b> to light when a relay is in button override mode.
     </div>
   </section>
+
+  <div id="toast" class="toast"></div>
 </section>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
+<script src="https://unpkg.com/simple-web-serial@latest/dist/simple-web-serial.min.js"></script>
+
 <script>
 (function(){
   /* ===== Helpers ===== */
@@ -154,14 +233,33 @@
     if(logBuffer.length>LOG_MAX) logBuffer.shift();
     el.textContent=logBuffer.join('\n'); el.scrollTop=el.scrollHeight;
   }
+  function toast(msg, ms=1600){
+    const t=$('toast'); if(!t) return;
+    t.textContent=msg;
+    t.classList.add('show');
+    clearTimeout(toast._tm);
+    toast._tm=setTimeout(()=>t.classList.remove('show'), ms);
+  }
 
   /* ===== Serial connection ===== */
   const connection = SimpleWebSerial.setupSerialConnection({
     requestAccessOnPageLoad:false,
     requestElement:'connect-button'
   });
-  connection.on('open', ()=>appendLog('port','open'));
-  connection.on('close', ()=>appendLog('port','close'));
+
+  connection.on('open', ()=>{
+    appendLog('port','open');
+    const pill=$('conn-pill'); if(pill){ pill.style.display='inline-block'; pill.textContent='connected'; }
+    toast('Connected');
+    appendLog('sync','waiting for 1Hz pushes…');
+  });
+
+  connection.on('close', ()=>{
+    appendLog('port','close');
+    const pill=$('conn-pill'); if(pill){ pill.style.display='none'; }
+    toast('Disconnected');
+  });
+
   connection.on('message', (m)=>appendLog('log', m));
 
   /* ===== Field lock system ===== */
@@ -175,8 +273,8 @@
     input.addEventListener('focus', lock);
     input.addEventListener('input', lock);
     input.addEventListener('keydown', (ev)=>{
-      if(ev.key==='Enter'){ ev.preventDefault(); if(typeof sendFn==='function') sendFn(); unlock(); }
-      else if(ev.key==='Escape'){ ev.preventDefault(); unlock(); }
+      if(ev.key==='Enter'){ ev.preventDefault(); if(typeof sendFn==='function') sendFn(); unlock(); toast('Sent'); }
+      else if(ev.key==='Escape'){ ev.preventDefault(); unlock(); toast('Unlocked'); }
     });
   }
   const canApply = (key)=>!locked.has(key);
@@ -188,7 +286,7 @@
     sel.value='3';
   })();
 
-  /* ===== Build Live Meter cards (Totals has no U/I) ===== */
+  /* ===== Build Live Meter cards ===== */
   (function buildChannelCards(){
     const grid=$('chan-grid'); if(!grid) return; grid.innerHTML='';
     const labels=['L1','L2','L3','Totals'];
@@ -251,6 +349,7 @@
       card.innerHTML =
         `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;">
           <strong>Phase ${PH[ch]}</strong>
+          <span class="chipcfg-mini">Press Enter to write → chip readback updates</span>
         </div>
         <div class="cal-row">
           <div>
@@ -266,13 +365,13 @@
         </div>
         <div class="cal-row" style="margin-top:.5rem">
           <div>
-            <label><strong>Uoffset</strong></label>
-            <input id="cal-uoff-${ch}" class="enm-input" type="number" min="0" max="65535" step="1" placeholder="0..65535">
+            <label><strong>Uoffset</strong> <span class="muted">(signed)</span></label>
+            <input id="cal-uoff-${ch}" class="enm-input" type="number" min="-32768" max="32767" step="1" placeholder="-32768..32767">
             <small class="lock-badge">editing… Enter</small>
           </div>
           <div>
-            <label><strong>Ioffset</strong></label>
-            <input id="cal-ioff-${ch}" class="enm-input" type="number" min="0" max="65535" step="1" placeholder="0..65535">
+            <label><strong>Ioffset</strong> <span class="muted">(signed)</span></label>
+            <input id="cal-ioff-${ch}" class="enm-input" type="number" min="-32768" max="32767" step="1" placeholder="-32768..32767">
             <small class="lock-badge">editing… Enter</small>
           </div>
         </div>`;
@@ -359,7 +458,6 @@
       grid.appendChild(card);
     }
 
-    // Wire behaviors
     for(let ch=0; ch<4; ch++){
       for(let ak=0; ak<3; ak++){
         const s=$('al-met-'+ch+'-'+ak);
@@ -371,7 +469,7 @@
           if(mx) mx.placeholder='max '+unit;
           if(h)  h.textContent='Metric: '+(meta?.l||'')+' — '+(meta?.hint||'')+'.';
         };
-        if(s){ s.addEventListener('change', ()=>{ sendChannelCfg(ch); }); upd(); }
+        if(s){ s.addEventListener('change', ()=>{ sendChannelCfg(ch); upd(); }); upd(); }
 
         const sendFn=()=>sendChannelCfg(ch);
         attachLockHandlers($('al-min-'+ch+'-'+ak), `al-min-${ch}-${ak}`, sendFn);
@@ -380,7 +478,7 @@
         const en=$('al-en-'+ch+'-'+ak); if(en){ en.addEventListener('change', ()=>sendChannelCfg(ch)); }
       }
       const ackReq=$('al-ackreq-'+ch); if(ackReq){ ackReq.addEventListener('change', ()=>sendChannelCfg(ch)); }
-      const ackBtn=$('al-ack-'+ch);   if(ackBtn){ ackBtn.addEventListener('click', ()=>{ connection.send("AlarmsAck",{ch}); appendLog("AlarmsAck",{ch}); }); }
+      const ackBtn=$('al-ack-'+ch);   if(ackBtn){ ackBtn.addEventListener('click', ()=>{ connection.send("AlarmsAck",{ch}); appendLog("AlarmsAck",{ch}); toast('Ack '+CH_LABELS[ch]); }); }
     }
   }
   buildAlarmsUI();
@@ -401,7 +499,7 @@
   function sendChannelCfg(ch){
     const cfg=collectChannelCfg(ch);
     connection.send("AlarmsCfg",{ch, cfg});
-    appendLog("AlarmsCfg[ch]",{ch,cfg});
+    appendLog("AlarmsCfg",{ch,cfg});
   }
   function applyChannelCfg(ch, obj){
     if(typeof obj!=='object') return;
@@ -413,6 +511,7 @@
       if(mn && r.hasOwnProperty('min') && canApply(`al-min-${ch}-${ak}`)) mn.value=r.min;
       if(mx && r.hasOwnProperty('max') && canApply(`al-max-${ch}-${ak}`)) mx.value=r.max;
       if(met && r.hasOwnProperty('metric')) met.value=String(r.metric);
+
       const s=$('al-met-'+ch+'-'+ak);
       if(s){
         const meta=METRICS.find(x=>String(x.v)==String(s.value));
@@ -434,13 +533,14 @@
     }
   }
 
-  /* ===== Relays UI ===== */
+  /* ===== Relays ===== */
   function buildRelays(){
     const container=$('relays-config'); if(!container) return; container.innerHTML='';
     const MODE_OPTS=[{v:0,l:'None'},{v:1,l:'Modbus Controlled'},{v:2,l:'Alarm Controlled'}];
     const CH_OPTS=[{v:0,l:'L1'},{v:1,l:'L2'},{v:2,l:'L3'},{v:3,l:'Totals'}];
     const selectHTML=(opts,val)=>'<select class="enm-input rly-mode">'+opts.map(o=>'<option value="'+o.v+'"'+(String(val)==String(o.v)?' selected':'')+'>'+o.l+'</option>').join('')+'</select>';
     const chanHTML=(val)=>'<select class="enm-input rly-ch">'+CH_OPTS.map(o=>'<option value="'+o.v+'"'+(String(val)==String(o.v)?' selected':'')+'>'+o.l+'</option>').join('')+'</select>';
+
     for(let i=1;i<=2;i++){
       const card=document.createElement('div'); card.className='rly-card';
       card.innerHTML =
@@ -483,19 +583,19 @@
             mode:[modes[0]|0, modes[1]|0],
             alarm:[ {ch:(chsel[0]??3)|0, mask:maskFor(0)}, {ch:(chsel[1]??3)|0, mask:maskFor(1)} ]
           };
-          connection.send("RelaysCfg", cfg); appendLog("RelaysCfg", cfg);
+          connection.send("RelaysCfg", cfg); appendLog("RelaysCfg", cfg); toast('Relays updated');
         };
         modeSel.addEventListener('change', ()=>{ sendCfg(); updateVis(); });
         updateVis();
         ['enable-relay'+idx,'invert-relay'+idx].forEach(id=>{ const el=$(id); if(el) el.addEventListener('change', sendCfg); });
         ['.rly-ch','.rly-kind-al','.rly-kind-wa','.rly-kind-ev'].forEach(sel=>{ const el=root.querySelector(sel); if(el) el.addEventListener('change', sendCfg); });
-        $('toggle-relay'+idx)?.addEventListener('click', ()=>{ connection.send("RelaysSet",{idx:(idx-1),toggle:true}); appendLog("RelaysSet",{idx:(idx-1),toggle:true}); });
+        $('toggle-relay'+idx)?.addEventListener('click', ()=>{ connection.send("RelaysSet",{idx:(idx-1),toggle:true}); appendLog("RelaysSet",{idx:(idx-1),toggle:true}); toast('Relay toggled'); });
       })(i);
     }
   }
   buildRelays();
 
-  /* ===== Buttons UI ===== */
+  /* ===== Buttons ===== */
   function buildButtons(){
     const container=$('buttons-config'); if(!container) return; container.innerHTML='';
     const ACTIONS=[
@@ -521,6 +621,7 @@
       }
       connection.send("Config",{t:"buttons",list});
       appendLog("Config.buttons", list);
+      toast('Buttons updated');
     }
     for(let i=1;i<=4;i++){
       $('action-button'+i)?.addEventListener('change', sendButtons);
@@ -528,7 +629,7 @@
   }
   buildButtons();
 
-  /* ===== LEDs UI ===== */
+  /* ===== LEDs ===== */
   function buildLEDs(){
     const container=$('leds-config'); if(!container) return; container.innerHTML='';
     const LED_MODE=[{value:0,label:'Steady (when active)'},{value:1,label:'Blink (when active)'}];
@@ -559,6 +660,7 @@
       }
       connection.send("Config",{t:"leds",list});
       appendLog("Config.leds", list);
+      toast('LEDs updated');
     };
     for(let i=1;i<=4;i++){
       $('mode-led'+i)?.addEventListener('change', sendLEDs);
@@ -572,9 +674,8 @@
     connection.send("Config",{t:"meter", cfg: partial});
     appendLog("Config.meter", partial);
   }
-  $('opt-lineHz')?.addEventListener('change', ()=>sendMeterCfg({lineHz:+$('opt-lineHz').value}));
-  $('opt-sumAbs')?.addEventListener('change', ()=>sendMeterCfg({sumAbs:+$('opt-sumAbs').value}));
-  attachLockHandlers($('opt-ucal'), 'opt-ucal', ()=>sendMeterCfg({ucal:+$('opt-ucal').value}));
+  $('opt-lineHz')?.addEventListener('change', ()=>{ sendMeterCfg({lineHz:+$('opt-lineHz').value}); toast('Meter option sent'); });
+  $('opt-sumAbs')?.addEventListener('change', ()=>{ sendMeterCfg({sumAbs:+$('opt-sumAbs').value}); toast('Meter option sent'); });
   attachLockHandlers($('opt-samplems'), 'opt-samplems', ()=>sendMeterCfg({sample_ms:+$('opt-samplems').value}));
 
   /* ===== Modbus live push on change ===== */
@@ -582,103 +683,237 @@
     const mb_address=parseInt($('modbus-address')?.value||"3",10);
     const mb_baud   =parseInt($('modbus-baud')?.value||"19200",10);
     connection.send("values",{mb_address,mb_baud}); appendLog("values",{mb_address,mb_baud});
+    toast('Modbus sent');
   }
   $('modbus-address')?.addEventListener('input', pushModbus);
   $('modbus-baud')?.addEventListener('input', pushModbus);
 
-  /* ===== Incoming 1 Hz echoes ===== */
+  /* ===== Request Sync ===== */
+  $('req-sync')?.addEventListener('click', ()=>{
+    appendLog("sync","requested (device pushes every 1s)");
+    toast('Sync: waiting 1s');
+  });
+
+  /* ===== RAW + CHIPCFG RENDERING ===== */
+  const rawPrevReads = new Map();
+
+  function fmtVal(v, showHex){
+    if(!showHex) return String(v);
+    const u=(Number(v)>>>0)&0xFFFF;
+    return "0x"+u.toString(16).toUpperCase().padStart(4,"0")+" ("+u+")";
+  }
+  function setUpdatedTs(){
+    const ts=new Date();
+    const pad2=n=>String(n).padStart(2,"0");
+    $('raw-last-ts').textContent=`${pad2(ts.getHours())}:${pad2(ts.getMinutes())}:${pad2(ts.getSeconds())}`;
+  }
+  function renderRawTable(tbodyId, arr, prevMap){
+    const freeze = $('raw-freeze')?.checked;
+    if(freeze) return;
+    const showHex = $('raw-show-hex')?.checked;
+    const tbody = $(tbodyId);
+    if(!tbody || !Array.isArray(arr)) return;
+
+    let html="";
+    for(const o of arr){
+      const reg=String(o.reg ?? "");
+      const name=String(o.name ?? "");
+      const val=Number(o.val ?? 0);
+      const prev=prevMap.get(reg);
+      const changed=(prev!==undefined && prev!==val);
+      html += `
+        <tr class="${changed?'raw-changed':''}">
+          <td class="mono">${reg}</td>
+          <td>${name}</td>
+          <td class="mono" style="text-align:right;">${fmtVal(val, showHex)}</td>
+        </tr>`;
+      prevMap.set(reg,val);
+    }
+    tbody.innerHTML=html;
+    setUpdatedTs();
+  }
+
+  function ensureChipCfgCards(){
+    const grid=$('chipcfg-grid'); if(!grid) return;
+    if(grid.dataset.built) return;
+    grid.dataset.built="1";
+    const mk=(id,title,subtitle,rowsHtml)=>`
+      <div class="chipcfg-card" id="${id}">
+        <div class="chipcfg-title">
+          <div><strong>${title}</strong><div class="chipcfg-mini">${subtitle||''}</div></div>
+          <span class="pill">readback</span>
+        </div>
+        <div class="chipcfg-kv">${rowsHtml}</div>
+      </div>`;
+    const kv=(k,id)=>`<div>${k}</div><div class="mono" id="${id}" style="text-align:right">--</div>`;
+
+    grid.innerHTML =
+      mk("chipcalA","Phase A","U/I gains + offsets",  kv("Ugain","ccA-Ug")+kv("Igain","ccA-Ig")+kv("Uoffset","ccA-Uo")+kv("Ioffset","ccA-Io")) +
+      mk("chipcalB","Phase B","U/I gains + offsets",  kv("Ugain","ccB-Ug")+kv("Igain","ccB-Ig")+kv("Uoffset","ccB-Uo")+kv("Ioffset","ccB-Io")) +
+      mk("chipcalC","Phase C","U/I gains + offsets",  kv("Ugain","ccC-Ug")+kv("Igain","ccC-Ig")+kv("Uoffset","ccC-Uo")+kv("Ioffset","ccC-Io")) +
+      mk("chipmodes","Modes / Constants","Key config registers",
+        kv("MMode0","cc-M0")+kv("MMode1","cc-M1")+kv("PLconstH","cc-PLH")+kv("PLconstL","cc-PLL")+
+        kv("SagPeakDetCfg","cc-SPD")+kv("SagTh","cc-STH")+kv("FreqHiTh","cc-FHH")+kv("FreqLoTh","cc-FHL")+kv("ZXConfig","cc-ZXC")
+      );
+  }
+
+  function setMono(id, val){
+    const el=$(id); if(!el) return;
+    const showHex=$('raw-show-hex')?.checked;
+    if(typeof val!=='number') { el.textContent='--'; return; }
+    el.textContent = showHex ? fmtVal(val,true) : String(val);
+  }
+
+  /* ===== Incoming firmware pushes ===== */
+
   connection.on('status', function(st){
     $('live-address').textContent=(st&&st.address!==undefined)?st.address:'--';
     $('live-baud').textContent=(st&&st.baud!==undefined)?st.baud:'--';
+    if(st && st.address!==undefined) $('modbus-address').value=String(st.address);
+    if(st && st.baud!==undefined) $('modbus-baud').value=String(st.baud);
   });
 
   connection.on('MeterOptions', function(mo){
     if(!mo) return;
-    if(mo.lineHz!==undefined)     $('opt-lineHz').value=String(mo.lineHz);
-    if(mo.sumAbs!==undefined)     $('opt-sumAbs').value=String(mo.sumAbs);
-    if(mo.ucal!==undefined && canApply('opt-ucal'))           $('opt-ucal').value=String(mo.ucal);
-    if(mo.sample_ms!==undefined && canApply('opt-samplems'))  $('opt-samplems').value=String(mo.sample_ms);
+    if(mo.lineHz!==undefined) $('opt-lineHz').value=String(mo.lineHz);
+    if(mo.sumAbs!==undefined) $('opt-sumAbs').value=String(mo.sumAbs);
+    if(mo.sample_ms!==undefined && canApply('opt-samplems')) $('opt-samplems').value=String(mo.sample_ms);
   });
 
-  /* ===== Calibration echo handler ===== */
+  // CalibCfg (FS config echo)
   connection.on('CalibCfg', function(payload){
     try{
       if(Array.isArray(payload)){
         for(let ch=0; ch<3 && ch<payload.length; ch++) applyCalibCh(ch, payload[ch]||{});
-      } else if(payload && typeof payload==='object'){
-        if(payload.hasOwnProperty('ph') && payload.hasOwnProperty('cfg')){
-          applyCalibCh(+payload.ph, payload.cfg);
-        } else if(payload.hasOwnProperty('ch') && payload.hasOwnProperty('cfg')){
-          applyCalibCh(+payload.ch, payload.cfg);
-        } else {
-          for(const k in payload){
-            const ch=parseInt(k,10);
-            if(!isNaN(ch)) applyCalibCh(ch, payload[k]);
-          }
+      }
+    }catch(e){}
+  });
+
+  // ATM_ChipCfg (REAL CHIP READBACK)
+  connection.on('ATM_ChipCfg', function(cfg){
+    try{
+      ensureChipCfgCards();
+      if(!cfg || typeof cfg!=='object') return;
+
+      const ph = cfg.phase || cfg.ph || cfg.phases;
+      if(ph){
+        const A=ph[0]||ph.A||ph.a, B=ph[1]||ph.B||ph.b, C=ph[2]||ph.C||ph.c;
+        if(A){ setMono("ccA-Ug", +A.Ugain); setMono("ccA-Ig", +A.Igain); setMono("ccA-Uo", +A.Uoffset); setMono("ccA-Io", +A.Ioffset); }
+        if(B){ setMono("ccB-Ug", +B.Ugain); setMono("ccB-Ig", +B.Igain); setMono("ccB-Uo", +B.Uoffset); setMono("ccB-Io", +B.Ioffset); }
+        if(C){ setMono("ccC-Ug", +C.Ugain); setMono("ccC-Ig", +C.Igain); setMono("ccC-Uo", +C.Uoffset); setMono("ccC-Io", +C.Ioffset); }
+      }
+
+      const keys=[
+        ["MMode0","cc-M0"],["MMode1","cc-M1"],["PLconstH","cc-PLH"],["PLconstL","cc-PLL"],
+        ["SagPeakDetCfg","cc-SPD"],["SagTh","cc-STH"],["FreqHiTh","cc-FHH"],["FreqLoTh","cc-FHL"],["ZXConfig","cc-ZXC"]
+      ];
+      for(const [k,id] of keys){
+        if(cfg[k]!==undefined) setMono(id, +cfg[k]);
+      }
+      setUpdatedTs();
+    }catch(e){}
+  });
+
+  connection.on('LedConfigList', (list)=>{
+    try{
+      if(!Array.isArray(list)) return;
+      for(let i=0;i<list.length&&i<4;i++){
+        const o=list[i]||{};
+        const mEl=$('mode-led'+(i+1)), sEl=$('source-led'+(i+1));
+        if(mEl && o.mode!==undefined)   mEl.value=String(o.mode);
+        if(sEl && o.source!==undefined) sEl.value=String(o.source);
+      }
+    }catch(e){}
+  });
+
+  connection.on('ButtonConfigList',(list)=>{
+    try{
+      if(!list || typeof list.length==='undefined') return;
+      for(let j=0;j<4 && j<list.length;j++){
+        const v = list[j];
+        const el=$('action-button'+(j+1)); if(el && v!==undefined) el.value=String(v||0);
+      }
+    }catch(e){}
+  });
+
+  connection.on('RelaysCfg', (rc)=>{
+    try{
+      if(!rc||typeof rc!=='object') return;
+      if(rc.active_low!==undefined){ $('invert-relay1').checked=!!rc.active_low; $('invert-relay2').checked=!!rc.active_low; }
+      if(rc.def0!==undefined) $('enable-relay1').checked=!!rc.def0;
+      if(rc.def1!==undefined) $('enable-relay2').checked=!!rc.def1;
+      if(rc.mode && rc.mode.length>=2){
+        const modes=document.querySelectorAll('.rly-mode');
+        if(modes[0]) modes[0].value=String(rc.mode[0]);
+        if(modes[1]) modes[1].value=String(rc.mode[1]);
+        for(let k=1;k<=2;k++){ const ab=$('alarm-box-'+k); if(ab) ab.style.display=(String(rc.mode[k-1])==='2')?'block':'none'; }
+      }
+      if(rc.alarm && rc.alarm.length>=2){
+        const chs=document.querySelectorAll('.rly-ch');
+        if(chs[0]) chs[0].value=String(rc.alarm[0].ch);
+        if(chs[1]) chs[1].value=String(rc.alarm[1].ch);
+        const setMask=(idx,mask)=>{
+          const al=document.querySelectorAll('.rly-kind-al')[idx],
+                wa=document.querySelectorAll('.rly-kind-wa')[idx],
+                ev=document.querySelectorAll('.rly-kind-ev')[idx];
+          if(al)al.checked=!!(mask&1);
+          if(wa)wa.checked=!!(mask&2);
+          if(ev)ev.checked=!!(mask&4);
+        };
+        setMask(0, (rc.alarm[0].mask|0));
+        setMask(1, (rc.alarm[1].mask|0));
+      }
+    }catch(e){}
+  });
+
+  connection.on('AlarmsCfg', function(payload){
+    try{
+      if(payload && typeof payload==='object' && !Array.isArray(payload)){
+        for(const k of Object.keys(payload)){
+          const ch=parseInt(k,10);
+          if(!isNaN(ch) && ch>=0 && ch<4) applyChannelCfg(ch, payload[k]||{});
         }
       }
     }catch(e){}
   });
 
-  /* ===== Config echoes ===== */
-  function applyLedCfg(list){
-    if(!Array.isArray(list)) return;
-    for(let i=0;i<list.length&&i<4;i++){
-      const o=list[i]||{};
-      const mEl=$('mode-led'+(i+1)), sEl=$('source-led'+(i+1));
-      if(mEl && o.mode!==undefined)   mEl.value=String(o.mode);
-      if(sEl && o.source!==undefined) sEl.value=String(o.source);
-    }
-  }
-  function applyButtonCfg(list){
-    if(!list) return;
-    for(let j=0;j<4 && j<list.length;j++){
-      const v=(typeof list[j]==='object'&&list[j]!==null&&'action' in list[j])?list[j].action:list[j];
-      const el=$('action-button'+(j+1)); if(el && v!==undefined) el.value=String(v||0);
-    }
-  }
-  function applyRelaysCfg(rc){
-    if(!rc||typeof rc!=='object') return;
-    if(rc.active_low!==undefined){ $('invert-relay1').checked=!!rc.active_low; $('invert-relay2').checked=!!rc.active_low; }
-    if(rc.def0!==undefined) $('enable-relay1').checked=!!rc.def0;
-    if(rc.def1!==undefined) $('enable-relay2').checked=!!rc.def1;
-    if(rc.mode && rc.mode.length>=2){
-      const modes=document.querySelectorAll('.rly-mode');
-      if(modes[0]) modes[0].value=String(rc.mode[0]);
-      if(modes[1]) modes[1].value=String(rc.mode[1]);
-      for(let k=1;k<=2;k++){ const ab=$('alarm-box-'+k); if(ab) ab.style.display=(String(rc.mode[k-1])==='2')?'block':'none'; }
-    }
-    if(rc.alarm && rc.alarm.length>=2){
-      const chs=document.querySelectorAll('.rly-ch');
-      if(chs[0]) chs[0].value=String(rc.alarm[0].ch);
-      if(chs[1]) chs[1].value=String(rc.alarm[1].ch);
-      const setMask=(idx,mask)=>{ const al=document.querySelectorAll('.rly-kind-al')[idx],wa=document.querySelectorAll('.rly-kind-wa')[idx],ev=document.querySelectorAll('.rly-kind-ev')[idx]; if(al)al.checked=!!(mask&1); if(wa)wa.checked=!!(mask&2); if(ev)ev.checked=!!(mask&4); };
-      const m0 = (rc.alarm[0].kindsMask!==undefined)?rc.alarm[0].kindsMask:(rc.alarm[0].mask|0);
-      const m1 = (rc.alarm[1].kindsMask!==undefined)?rc.alarm[1].kindsMask:(rc.alarm[1].mask|0);
-      setMask(0, m0); setMask(1, m1);
-    }
-    if(rc.relayState){
-      const arr=Array.isArray(rc.relayState)?rc.relayState:[rc.relayState[0],rc.relayState[1]];
-      for(let r=0;r<2;r++){ const el=$('state-relay'+(r+1)); if(el&&arr[r]!==undefined) el.checked=!!arr[r]; }
-    }
-  }
-  connection.on('LedConfigList',   (list)=>{ try{ applyLedCfg(list); }catch(e){} });
-  connection.on('ButtonConfigList',(list)=>{ try{ applyButtonCfg(list); }catch(e){} });
-  connection.on('RelaysCfg',       (obj)=>{  try{ applyRelaysCfg(obj); }catch(e){} });
-
-  connection.on('AlarmsCfg', function(payload){
-    try{
-      if(Array.isArray(payload)){ for(let ch=0; ch<payload.length && ch<4; ch++) applyChannelCfg(ch, payload[ch]||{}); }
-      else if(payload && typeof payload==='object'){
-        if(payload.hasOwnProperty('ch') && payload.hasOwnProperty('cfg')) applyChannelCfg(+payload.ch, payload.cfg);
-        else { for (const k in payload){ const ch=parseInt(k,10); if(!isNaN(ch)) applyChannelCfg(ch, payload[k]); } }
-      }
-    }catch(e){}
-  });
   connection.on('AlarmsState', (state)=>{ try{ updateAlarmsState(state); }catch(e){} });
-  $('ack-all')?.addEventListener('click', ()=>{ connection.send("AlarmsAck",{list:[true,true,true,true]}); appendLog("AlarmsAck","all"); });
 
-  /* ===== Live Meter handler (REAL VALUES) ===== */
+  $('ack-all')?.addEventListener('click', ()=>{
+    connection.send("AlarmsAck",{list:[true,true,true,true]});
+    appendLog("AlarmsAck","all");
+    toast('Ack all');
+  });
+
+  connection.on('RelayState', function(arr){
+    const a = Array.isArray(arr) ? arr : [arr?.[0], arr?.[1]];
+    for(let i=0;i<2;i++){
+      const el=$('state-relay'+(i+1));
+      if(el && a && a[i]!==undefined) el.checked=!!a[i];
+    }
+  });
+
+  connection.on('ButtonStateList', function(list){
+    if(!list||typeof list.length==='undefined') return;
+    for(let i=0;i<list.length&&i<4;i++){
+      const dot=$('state-button'+(i+1));
+      if(dot) dot.style.background=list[i]?'#4caf50':'#ccc';
+    }
+  });
+
+  connection.on('LedStateList', function(list){
+    if(!list||typeof list.length==='undefined') return;
+    for(let i=0;i<list.length&&i<4;i++){
+      const d=$('state-led'+(i+1));
+      if(d) d.style.background=list[i]?'#ffb300':'#ccc';
+    }
+  });
+
+  /* =========================
+     ENM_Meter (FIXED ENERGIES)
+     - Supports NEW format: E_phase (array[3]) + E_tot (object)
+     - Still supports OLD format: E[0],E[1],E[2],E.tot
+     ========================= */
   connection.on('ENM_Meter', function(m){
     try{
       const Urms=(m&&m.Urms)||[], Irms=(m&&m.Irms)||[];
@@ -686,7 +921,6 @@
       const PF=(m&&m.PF)||[], Ang=(m&&m.Angle_deg)||[];
       const FreqHz = m?.FreqHz, TempC = m?.TempC;
 
-      // Per-phase
       for(let i=0;i<3;i++){
         $('u'+i) && ( $('u'+i).textContent = (typeof Urms[i]==='number') ? Urms[i].toFixed(2) : '--' );
         $('i'+i) && ( $('i'+i).textContent = (typeof Irms[i]==='number') ? Irms[i].toFixed(3) : '--' );
@@ -697,7 +931,6 @@
         $('ang'+i) && ( $('ang'+i).textContent = (typeof Ang[i]==='number') ? Ang[i].toFixed(1) : '--' );
       }
 
-      // Totals (no U/I)
       $('p3') && ( $('p3').textContent = (PW[3]!==undefined) ? PW[3] : '--' );
       $('q3') && ( $('q3').textContent = (QV[3]!==undefined) ? QV[3] : '--' );
       $('s3') && ( $('s3').textContent = (SV[3]!==undefined) ? SV[3] : '--' );
@@ -705,39 +938,40 @@
       $('f') && ( $('f').textContent = (typeof FreqHz==='number') ? FreqHz.toFixed(2) : '--' );
       $('t') && ( $('t').textContent = (TempC!==undefined) ? TempC : '--' );
 
-      // Energies (k-units)
-      const E = m?.E || {};
-      const phases = [0,1,2,'tot'];
-      const ids = [0,1,2,3];
-      for(let k=0;k<phases.length;k++){
-        const src = E[ phases[k] ];
-        const idx = ids[k];
-        if(!src) continue;
-        const set = (id,val,dec=3)=>{ const el=$(id); if(el) el.textContent = (typeof val==='number') ? val.toFixed(dec) : '--'; };
-        set(`e-ap-${idx}`, src.AP_kWh, 3);
-        set(`e-an-${idx}`, src.AN_kWh, 3);
-        set(`e-rp-${idx}`, src.RP_kvarh, 3);
-        set(`e-rn-${idx}`, src.RN_kvarh, 3);
-        set(`e-s-${idx}`,  src.S_kVAh, 3);
+      // -------- Energies (NEW + OLD compatible) --------
+      const setE = (idx, src)=>{
+        const set = (id,val,dec=3)=>{ const el=$(id); if(el) el.textContent = (typeof val==='number' && isFinite(val)) ? val.toFixed(dec) : '--'; };
+        if(!src || typeof src!=='object') {
+          set(`e-ap-${idx}`, NaN); set(`e-an-${idx}`, NaN); set(`e-rp-${idx}`, NaN); set(`e-rn-${idx}`, NaN); set(`e-s-${idx}`, NaN);
+          return;
+        }
+        set(`e-ap-${idx}`, Number(src.AP_kWh), 3);
+        set(`e-an-${idx}`, Number(src.AN_kWh), 3);
+        set(`e-rp-${idx}`, Number(src.RP_kvarh), 3);
+        set(`e-rn-${idx}`, Number(src.RN_kvarh), 3);
+        set(`e-s-${idx}`,  Number(src.S_kVAh), 3);
+      };
+
+      if (Array.isArray(m?.E_phase) || (m?.E_tot && typeof m.E_tot === 'object')) {
+        // NEW firmware format
+        const Ep = Array.isArray(m.E_phase) ? m.E_phase : [];
+        const Et = (m.E_tot && typeof m.E_tot === 'object') ? m.E_tot : null;
+        for(let i=0;i<3;i++) setE(i, Ep[i]);
+        setE(3, Et);
+      } else {
+        // OLD format fallback: m.E[0..2] + m.E.tot
+        const E = m?.E || {};
+        setE(0, E[0]);
+        setE(1, E[1]);
+        setE(2, E[2]);
+        setE(3, E.tot);
       }
 
-      if(m&&m.AlarmsState) updateAlarmsState(m.AlarmsState);
     }catch(e){}
   });
 
-  /* ===== Button/LED/Relay states ===== */
-  connection.on('ButtonStateList', function(list){
-    if(!list||typeof list.length==='undefined') return;
-    for(let i=0;i<list.length&&i<4;i++){ const dot=$('state-button'+(i+1)); if(dot) dot.style.background=list[i]?'#4caf50':'#ccc'; }
-  });
-  connection.on('LedStateList', function(list){
-    if(!list||typeof list.length==='undefined') return;
-    for(let i=0;i<list.length&&i<4;i++){ const d=$('state-led'+(i+1)); if(d) d.style.background=list[i]?'#ffb300':'#ccc'; }
-  });
-  connection.on('RelayState', function(obj){
-    const arr=(Array.isArray(obj)?obj:[obj[0],obj[1]]);
-    for(let i=0;i<2;i++){ const el=$('state-relay'+(i+1)); if(el&&arr&&arr[i]!==undefined) el.checked=!!arr[i]; }
-  });
+  // ATM_RawReads (single table now)
+  connection.on('ATM_RawReads',  (arr)=>{ try{ renderRawTable('raw-reads-body',  arr, rawPrevReads ); }catch(e){} });
 
 })();
 </script>

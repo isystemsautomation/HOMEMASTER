@@ -1,29 +1,13 @@
-// ================================================
-// File: src/atm90e32.cpp
-// ================================================
 #include "atm90e32.h"
 #include <math.h>
 
-namespace enm223 {
-
-// ---- Chip register map (subset – internal to driver) ----
-static constexpr uint8_t  WRITE = 0, READ = 1;
+// ---- Register map (subset) ----
 static constexpr uint16_t MeterEn       = 0x00;
 static constexpr uint16_t SagPeakDetCfg = 0x05;
 static constexpr uint16_t ZXConfig      = 0x07;
 static constexpr uint16_t SagTh         = 0x08;
 static constexpr uint16_t FreqLoTh      = 0x0C;
 static constexpr uint16_t FreqHiTh      = 0x0D;
-static constexpr uint16_t SoftReset     = 0x70;
-static constexpr uint16_t EMMState0     = 0x71;
-static constexpr uint16_t EMMState1     = 0x72;
-static constexpr uint16_t EMMIntState0  = 0x73;
-static constexpr uint16_t EMMIntState1  = 0x74;
-static constexpr uint16_t EMMIntEn0     = 0x75;
-static constexpr uint16_t EMMIntEn1     = 0x76;
-static constexpr uint16_t LastSPIData   = 0x78;
-static constexpr uint16_t CRCErrStatus  = 0x79;
-static constexpr uint16_t CfgRegAccEn   = 0x7F;
 static constexpr uint16_t PLconstH      = 0x31;
 static constexpr uint16_t PLconstL      = 0x32;
 static constexpr uint16_t MMode0        = 0x33;
@@ -34,6 +18,16 @@ static constexpr uint16_t SStartTh      = 0x37;
 static constexpr uint16_t PPhaseTh      = 0x38;
 static constexpr uint16_t QPhaseTh      = 0x39;
 static constexpr uint16_t SPhaseTh      = 0x3A;
+static constexpr uint16_t SoftReset     = 0x70;
+static constexpr uint16_t EMMState0     = 0x71;
+static constexpr uint16_t EMMState1     = 0x72;
+static constexpr uint16_t EMMIntState0  = 0x73;
+static constexpr uint16_t EMMIntState1  = 0x74;
+static constexpr uint16_t EMMIntEn0     = 0x75;
+static constexpr uint16_t EMMIntEn1     = 0x76;
+static constexpr uint16_t LastSPIData   = 0x78;
+static constexpr uint16_t CRCErrStatus  = 0x79;
+static constexpr uint16_t CfgRegAccEn   = 0x7F;
 
 // Cal registers
 static constexpr uint16_t UgainA   = 0x61, IgainA   = 0x62, UoffsetA = 0x63, IoffsetA = 0x64;
@@ -73,7 +67,7 @@ static constexpr uint16_t PAngleC  = 0xFB;
 static constexpr uint16_t Freq     = 0xF8;
 static constexpr uint16_t Temp     = 0xFC;
 
-// RMS (used by app via readRmsLike)
+// RMS
 static constexpr uint16_t UrmsA     = 0xD9, UrmsB     = 0xDA, UrmsC     = 0xDB;
 static constexpr uint16_t IrmsA     = 0xDD, IrmsB     = 0xDE, IrmsC     = 0xDF;
 static constexpr uint16_t UrmsALSB  = 0xE9, UrmsBLSB  = 0xEA, UrmsCLSB  = 0xEB;
@@ -115,20 +109,32 @@ uint16_t ATM90E32::xfer(uint8_t rw, uint16_t reg, uint16_t val) {
   return out;
 }
 
+double ATM90E32::readRmsLike(uint16_t regH, uint16_t regLSB, double sH, double sLb){
+  const uint16_t h = read16(regH);
+  const uint16_t l = read16(regLSB);
+  return (h * sH) + (((l >> 8) & 0xFF) * sLb);
+}
+
 // ---- Public API ----
 void ATM90E32::begin(uint16_t lineHz, uint8_t sumAbs, uint16_t ucal, const M90PhaseCal cal[3]) {
   lineHz_ = (lineHz == 60) ? 60 : 50;
   sumAbs_ = sumAbs ? 1 : 0;
   ucal_   = ucal;
 
+  // PM pins are MCU->ATM control pins in your schematic
   pinMode(pm0_, OUTPUT);
   pinMode(pm1_, OUTPUT);
   digitalWrite(pm0_, HIGH);
   digitalWrite(pm1_, HIGH);
   delay(5);
 
+  pinMode(cs_, OUTPUT);
+  csRelease();
+  delay(5);
+
   write16(SoftReset, 0x789A);
   delay(5);
+
   write16(CfgRegAccEn, 0x55AA);
   write16(MeterEn, 0x0001);
 
@@ -136,6 +142,7 @@ void ATM90E32::begin(uint16_t lineHz, uint8_t sumAbs, uint16_t ucal, const M90Ph
   uint16_t sagV, FreqHiThresh, FreqLoThresh;
   if (lineHz_ == 60){ sagV=90;  FreqHiThresh=6100; FreqLoThresh=5900; }
   else              { sagV=190; FreqHiThresh=5100; FreqLoThresh=4900; }
+
   const double ucalRatio = ucal_ / 32768.0;
   const uint16_t vSagTh = (uint16_t)((sagV * 100.0 * sqrt(2.0)) / (2.0 * ucalRatio));
 
@@ -143,10 +150,12 @@ void ATM90E32::begin(uint16_t lineHz, uint8_t sumAbs, uint16_t ucal, const M90Ph
   write16(SagTh,        vSagTh);
   write16(FreqHiTh,     FreqHiThresh);
   write16(FreqLoTh,     FreqLoThresh);
+
   write16(EMMIntEn0, 0xB76F);
   write16(EMMIntEn1, 0xDDFD);
   write16(EMMIntState0, 0x0001);
   write16(EMMIntState1, 0x0001);
+
   write16(ZXConfig, 0xD654);
 
   // Modes
@@ -162,8 +171,10 @@ void ATM90E32::begin(uint16_t lineHz, uint8_t sumAbs, uint16_t ucal, const M90Ph
 
   write16(PLconstH, 0x0861);
   write16(PLconstL, 0xC468);
+
   write16(MMode0, m0);
   write16(MMode1, m1);
+
   write16(PStartTh, 0x1D4C);
   write16(QStartTh, 0x1D4C);
   write16(SStartTh, 0x1D4C);
@@ -178,20 +189,27 @@ void ATM90E32::begin(uint16_t lineHz, uint8_t sumAbs, uint16_t ucal, const M90Ph
 
 void ATM90E32::applyCalibration(const M90PhaseCal cal[3]) {
   write16(CfgRegAccEn, 0x55AA);
+
   write16(UgainA,   cal[0].Ugain);   write16(IgainA,   cal[0].Igain);
   write16(UoffsetA, (uint16_t)cal[0].Uoffset); write16(IoffsetA, (uint16_t)cal[0].Ioffset);
+
   write16(UgainB,   cal[1].Ugain);   write16(IgainB,   cal[1].Igain);
   write16(UoffsetB, (uint16_t)cal[1].Uoffset); write16(IoffsetB, (uint16_t)cal[1].Ioffset);
+
   write16(UgainC,   cal[2].Ugain);   write16(IgainC,   cal[2].Igain);
   write16(UoffsetC, (uint16_t)cal[2].Uoffset); write16(IoffsetC, (uint16_t)cal[2].Ioffset);
+
   write16(CfgRegAccEn, 0x0000);
 }
 
-double ATM90E32::readRmsLike(uint16_t regH, uint16_t regLSB, double sH, double sLb){
-  const uint16_t h = read16(regH);
-  const uint16_t l = read16(regLSB);
-  return (h * sH) + (((l >> 8) & 0xFF) * sLb);
-}
+// RMS helpers
+double ATM90E32::readUrmsA_V(){ return readRmsLike(UrmsA, UrmsALSB, 0.01, 0.01/256.0); }
+double ATM90E32::readUrmsB_V(){ return readRmsLike(UrmsB, UrmsBLSB, 0.01, 0.01/256.0); }
+double ATM90E32::readUrmsC_V(){ return readRmsLike(UrmsC, UrmsCLSB, 0.01, 0.01/256.0); }
+
+double ATM90E32::readIrmsA_A(){ return readRmsLike(IrmsA, IrmsALSB, 0.001, 0.001/256.0); }
+double ATM90E32::readIrmsB_A(){ return readRmsLike(IrmsB, IrmsBLSB, 0.001, 0.001/256.0); }
+double ATM90E32::readIrmsC_A(){ return readRmsLike(IrmsC, IrmsCLSB, 0.001, 0.001/256.0); }
 
 // PF / Angles / Freq / Temp
 int16_t  ATM90E32::readPFmeanA(){ return (int16_t)read16(PFmeanA); }
@@ -204,7 +222,7 @@ int16_t  ATM90E32::readPAngleC(){ return (int16_t)read16(PAngleC); }
 uint16_t ATM90E32::readFreq_x100(){ return read16(Freq); }
 int16_t  ATM90E32::readTempC(){ return (int16_t)read16(Temp); }
 
-// Energies (raw chip counts)
+// Energies
 uint16_t ATM90E32::rdAP_A(){ return read16(APenergyA); }
 uint16_t ATM90E32::rdAP_B(){ return read16(APenergyB); }
 uint16_t ATM90E32::rdAP_C(){ return read16(APenergyC); }
@@ -240,5 +258,3 @@ M90DiagRegs ATM90E32::readDiag() {
   d.LastSPIData  = read16(LastSPIData);
   return d;
 }
-
-} // namespace enm223
