@@ -3,7 +3,7 @@ modbus_controller:
     address: ${aio_address}
     modbus_id: modbus_bus
     update_interval: 1s
-    command_throttle: 10ms
+    allow_duplicate_commands: true
 
 binary_sensor:
   # ---- Buttons (Discrete Inputs) ----

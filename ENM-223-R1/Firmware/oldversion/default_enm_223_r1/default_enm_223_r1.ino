@@ -581,6 +581,7 @@ void MB_fillStatus(JSONVar *status){
 // ============================================================================
 static inline void breathe() {
   // Keep WebSerial alive during chunked SPI work
+  enm223::MB_task(); 
   WebSerial.check();
   yield();
 }
