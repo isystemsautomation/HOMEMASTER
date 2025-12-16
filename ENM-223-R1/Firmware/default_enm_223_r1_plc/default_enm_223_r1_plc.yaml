@@ -570,6 +570,7 @@ sensor:
     value_type: U_DWORD
     unit_of_measurement: "VAh"
     state_class: total_increasing
+    skip_updates: 29
   - platform: modbus_controller
     modbus_controller_id: ${enm_id}
     name: "${enm_prefix} VAh L2"
