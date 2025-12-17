@@ -83,7 +83,6 @@ number:
     mode: slider
 
   # ---- Global Modbus Setpoints: SP1..SP4 (S_WORD) @ 300..303 ----
-  # These are the ONLY Modbus setpoints in the new logic.
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} SP1 (Modbus) Raw"
@@ -110,6 +109,7 @@ number:
     value_type: S_WORD
     step: 1
     mode: box
+    disabled_by_default: true
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -119,6 +119,7 @@ number:
     value_type: S_WORD
     step: 1
     mode: box
+    disabled_by_default: true
 
   # ---- PID Enable 310..313 (0/1) ----
   - platform: modbus_controller
@@ -153,6 +154,7 @@ number:
     max_value: 1
     step: 1
     mode: box
+    disabled_by_default: true
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -164,9 +166,9 @@ number:
     max_value: 1
     step: 1
     mode: box
+    disabled_by_default: true
 
-
-   # ---- PID gains RAW (x100): Kp 350..353, Ki 360..363, Kd 370..373 ----
+  # ---- PID gains RAW (x100): Kp 350..353, Ki 360..363, Kd 370..373 ----
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} PID1 Kp x100"
@@ -184,7 +186,6 @@ number:
     value_type: S_WORD
     step: 1
     mode: box
- 
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -194,6 +195,7 @@ number:
     value_type: S_WORD
     step: 1
     mode: box
+    disabled_by_default: true
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -203,6 +205,7 @@ number:
     value_type: S_WORD
     step: 1
     mode: box
+    disabled_by_default: true
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -230,6 +233,7 @@ number:
     value_type: S_WORD
     step: 1
     mode: box
+    disabled_by_default: true
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -239,6 +243,7 @@ number:
     value_type: S_WORD
     step: 1
     mode: box
+    disabled_by_default: true
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -266,6 +271,7 @@ number:
     value_type: S_WORD
     step: 1
     mode: box
+    disabled_by_default: true
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -275,6 +281,8 @@ number:
     value_type: S_WORD
     step: 1
     mode: box
+    disabled_by_default: true
+
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} MBPV1 Raw"
@@ -307,6 +315,7 @@ number:
     max_value: 65535
     step: 1
     mode: box
+    disabled_by_default: true
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -318,6 +327,7 @@ number:
     max_value: 65535
     step: 1
     mode: box
+    disabled_by_default: true
 
 # ================= READABLE Holding Registers =================
 sensor:
@@ -402,6 +412,7 @@ sensor:
     address: 382
     register_type: holding
     value_type: U_WORD
+    disabled_by_default: true
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -409,9 +420,9 @@ sensor:
     address: 383
     register_type: holding
     value_type: U_WORD
+    disabled_by_default: true
 
-  # ---- NEW in your current firmware: PV raw + ERR raw ----
-  # PVVAL 390..393 = raw PV that PID used (U_WORD in fw write, may contain scaled temp*10 too)
+  # ---- PV raw ----
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} PID1 PV Raw"
@@ -432,6 +443,7 @@ sensor:
     address: 392
     register_type: holding
     value_type: S_WORD
+    disabled_by_default: true
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -439,6 +451,7 @@ sensor:
     address: 393
     register_type: holding
     value_type: S_WORD
+    disabled_by_default: true
 
   # ---- PID gains scaled display (same regs) ----
   - platform: modbus_controller
@@ -503,6 +516,7 @@ sensor:
     value_type: S_WORD
     accuracy_decimals: 2
     filters: [ multiply: 0.01 ]
+    disabled_by_default: true
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -512,6 +526,7 @@ sensor:
     value_type: S_WORD
     accuracy_decimals: 2
     filters: [ multiply: 0.01 ]
+    disabled_by_default: true
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -521,6 +536,7 @@ sensor:
     value_type: S_WORD
     accuracy_decimals: 2
     filters: [ multiply: 0.01 ]
+    disabled_by_default: true
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -530,6 +546,7 @@ sensor:
     value_type: S_WORD
     accuracy_decimals: 2
     filters: [ multiply: 0.01 ]
+    disabled_by_default: true
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -539,6 +556,7 @@ sensor:
     value_type: S_WORD
     accuracy_decimals: 2
     filters: [ multiply: 0.01 ]
+    disabled_by_default: true
 
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
@@ -548,3 +566,4 @@ sensor:
     value_type: S_WORD
     accuracy_decimals: 2
     filters: [ multiply: 0.01 ]
+    disabled_by_default: true
