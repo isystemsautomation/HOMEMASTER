@@ -86,6 +86,7 @@ number:
   - platform: modbus_controller
     modbus_controller_id: ${aio_id}
     name: "${aio_prefix} SP1 (Modbus) Raw"
+    id: aio_1_sp1_modbus_raw
     address: 300
     register_type: holding
     value_type: S_WORD
