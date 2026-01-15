@@ -82,7 +82,7 @@
   <div style="text-align:center;margin-bottom:1.5rem;">
     <img src="https://www.home-master.eu/web/image/product.image/20/image_1024/photo3.webp?unique=3f4c8dd" alt="WLD-521-R1" style="max-width:260px;border-radius:12px;" loading="lazy">
     <h2 style="margin:.5rem 0 0;">WLD-521-R1 Module Configuration</h2>
-    <p style="margin:.25rem 0 0;color:#333;">Modbus, Inputs (5), Relays (2), 1-Wire — Flow, Heat Energy &amp; Irrigation.</p>
+    <p style="margin:.25rem 0 0;color:#333;">Modbus, Inputs (5), Relays (2), 1-Wire — Flow &amp; Heat Energy.</p>
   </div>
 
   <div style="background:#f1f5f9;padding:1rem 1.25rem;margin-bottom:1rem;border-radius:10px;border-left:4px solid #007bff;">
@@ -179,7 +179,7 @@
         <div style="font-weight:600;margin-bottom:.35rem;">LEDs (4)</div>
         <div class="led-row"><strong>LED</strong><strong>Mode</strong><strong>Source</strong><strong>State</strong></div>
         <div id="leds-config"></div>
-        <small class="muted">Mode: Solid or Blink when source is active. Sources: R1/R2, DI1..DI5, IRR1/IRR2, and <strong>R1/R2 Override</strong>.</small>
+        <small class="muted">Mode: Solid or Blink when source is active. Sources: R1/R2, DI1..DI5, and <strong>R1/R2 Override</strong>.</small>
       </div>
 
       <!-- Buttons -->
@@ -187,255 +187,7 @@
         <div style="font-weight:600;margin-bottom:.35rem;">Buttons (4)</div>
         <div class="btn-row"><strong>BTN</strong><strong>Action</strong><strong>Pressed</strong></div>
         <div id="buttons-config"></div>
-        <small class="muted">Actions: Toggle/Pulse relays, Irrigation start/stop, <strong>Override toggle</strong> (use as short or long-press per firmware logic).</small>
-      </div>
-    </div>
-  </section>
-
-  <!-- ===== Irrigation ===== -->
-  <section style="margin-bottom:1.25rem;">
-    <h2 class="section-title">Irrigation</h2>
-
-    <div id="irrig-zones" class="card hi" style="margin-bottom:1rem;">
-      <div style="font-weight:600;margin-bottom:.5rem;">Zones (2)</div>
-
-      <div class="grid-2" style="gap:1rem;">
-        <!-- Zone 1 -->
-        <div class="card" id="zone1-card">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.35rem;">
-            <div style="font-weight:600;">Zone 1</div>
-            <div class="row">
-              <button type="button" class="btn btn-green" data-irrig-start="1">Start</button>
-              <button type="button" class="btn btn-amber" data-irrig-stop="1">Stop</button>
-              <button type="button" class="btn" data-irrig-reset="1">Reset</button>
-            </div>
-          </div>
-
-          <label><input type="checkbox" id="ir1-enabled"> Enabled</label>
-
-          <div class="grid-2" style="margin-top:.35rem;">
-            <label>Valve relay
-              <select class="hm-input" id="ir1-relay">
-                <option value="0">(none)</option><option value="1">Relay 1</option><option value="2">Relay 2</option>
-              </select>
-            </label>
-            <label>Flow DI (1..5)
-              <select class="hm-input" id="ir1-di">
-                <option value="0">(none)</option><option value="1">DI1</option><option value="2">DI2</option><option value="3">DI3</option><option value="4">DI4</option><option value="5">DI5</option>
-              </select>
-            </label>
-          </div>
-
-          <label style="margin-top:.35rem;"><input type="checkbox" id="ir1-useflow" checked> Use flow supervision</label>
-
-          <div class="grid-2" style="margin-top:.35rem;">
-            <label>Min rate (L/min)
-              <input class="hm-input" id="ir1-minrate" type="number" min="0" step="0.01" placeholder="0.2">
-            </label>
-            <label>Grace (s)
-              <input class="hm-input" id="ir1-grace" type="number" min="1" step="1" placeholder="8">
-            </label>
-          </div>
-
-          <div class="grid-2" style="margin-top:.35rem;">
-            <label>Timeout (s)
-              <input class="hm-input" id="ir1-timeout" type="number" min="1" step="1" placeholder="3600">
-            </label>
-            <label>Target liters (0 = none)
-              <input class="hm-input" id="ir1-targetL" type="number" min="0" step="0.001" placeholder="0">
-            </label>
-          </div>
-
-          <hr style="border:none;border-top:1px dashed #e5e7eb;margin:.6rem 0">
-          <div style="font-weight:600;margin-bottom:.25rem;">Sensors &amp; Pump</div>
-          <div class="grid-2">
-            <label>DI_moist (needs water when OFF)
-              <select id="ir1-moist" class="hm-input">
-                <option value="-1">(disabled)</option><option value="1">DI1</option><option value="2">DI2</option><option value="3">DI3</option><option value="4">DI4</option><option value="5">DI5</option>
-              </select>
-            </label>
-            <label>DI_rain (block when ON)
-              <select id="ir1-rain" class="hm-input">
-                <option value="-1">(disabled)</option><option value="1">DI1</option><option value="2">DI2</option><option value="3">DI3</option><option value="4">DI4</option><option value="5">DI5</option>
-              </select>
-            </label>
-            <label>DI_tank (OK when ON)
-              <select id="ir1-tank" class="hm-input">
-                <option value="-1">(disabled)</option><option value="1">DI1</option><option value="2">DI2</option><option value="3">DI3</option><option value="4">DI4</option><option value="5">DI5</option>
-              </select>
-            </label>
-            <label>R_pump
-              <select id="ir1-pump" class="hm-input">
-                <option value="-1">(none)</option><option value="1">Relay 1</option><option value="2">Relay 2</option>
-              </select>
-            </label>
-          </div>
-
-          <hr style="border:none;border-top:1px dashed #e5e7eb;margin:.6rem 0">
-          <div style="font-weight:600;margin-bottom:.25rem;">Irrigation Window (Local HH:MM)</div>
-          <div class="row switch" style="margin-bottom:.35rem;">
-            <label class="switch"><input id="ir1-win-en" type="checkbox"><span class="tag">Enforce window</span></label>
-            <label class="switch"><input id="ir1-auto" type="checkbox"><span class="tag">Auto-start at window open</span></label>
-          </div>
-          <div class="grid-2">
-            <label>Start
-              <input id="ir1-win-start" type="time" class="hm-input" value="06:00">
-            </label>
-            <label>End
-              <input id="ir1-win-end" type="time" class="hm-input" value="09:00">
-            </label>
-          </div>
-
-          <div class="row" style="margin-top:.5rem;justify-content:flex-end;">
-            <button type="button" class="btn btn-blue" data-irrig-save="1">Save Zone 1</button>
-          </div>
-        </div>
-
-        <!-- Zone 2 -->
-        <div class="card" id="zone2-card">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.35rem;">
-            <div style="font-weight:600;">Zone 2</div>
-            <div class="row">
-              <button type="button" class="btn btn-green" data-irrig-start="2">Start</button>
-              <button type="button" class="btn btn-amber" data-irrig-stop="2">Stop</button>
-              <button type="button" class="btn" data-irrig-reset="2">Reset</button>
-            </div>
-          </div>
-
-          <label><input type="checkbox" id="ir2-enabled"> Enabled</label>
-
-          <div class="grid-2" style="margin-top:.35rem;">
-            <label>Valve relay
-              <select class="hm-input" id="ir2-relay">
-                <option value="0">(none)</option><option value="1">Relay 1</option><option value="2">Relay 2</option>
-              </select>
-            </label>
-            <label>Flow DI (1..5)
-              <select class="hm-input" id="ir2-di">
-                <option value="0">(none)</option><option value="1">DI1</option><option value="2">DI2</option><option value="3">DI3</option><option value="4">DI4</option><option value="5">DI5</option>
-              </select>
-            </label>
-          </div>
-
-          <label style="margin-top:.35rem;"><input type="checkbox" id="ir2-useflow" checked> Use flow supervision</label>
-
-          <div class="grid-2" style="margin-top:.35rem;">
-            <label>Min rate (L/min)
-              <input class="hm-input" id="ir2-minrate" type="number" min="0" step="0.01" placeholder="0.2">
-            </label>
-            <label>Grace (s)
-              <input class="hm-input" id="ir2-grace" type="number" min="1" step="1" placeholder="8">
-            </label>
-          </div>
-
-          <div class="grid-2" style="margin-top:.35rem;">
-            <label>Timeout (s)
-              <input class="hm-input" id="ir2-timeout" type="number" min="1" step="1" placeholder="3600">
-            </label>
-            <label>Target liters (0 = none)
-              <input class="hm-input" id="ir2-targetL" type="number" min="0" step="0.001" placeholder="0">
-            </label>
-          </div>
-
-          <hr style="border:none;border-top:1px dashed #e5e7eb;margin:.6rem 0">
-          <div style="font-weight:600;margin-bottom:.25rem;">Sensors &amp; Pump</div>
-          <div class="grid-2">
-            <label>DI_moist (needs water when OFF)
-              <select id="ir2-moist" class="hm-input">
-                <option value="-1">(disabled)</option><option value="1">DI1</option><option value="2">DI2</option><option value="3">DI3</option><option value="4">DI4</option><option value="5">DI5</option>
-              </select>
-            </label>
-            <label>DI_rain (block when ON)
-              <select id="ir2-rain" class="hm-input">
-                <option value="-1">(disabled)</option><option value="1">DI1</option><option value="2">DI2</option><option value="3">DI3</option><option value="4">DI4</option><option value="5">DI5</option>
-              </select>
-            </label>
-            <label>DI_tank (OK when ON)
-              <select id="ir2-tank" class="hm-input">
-                <option value="-1">(disabled)</option><option value="1">DI1</option><option value="2">DI2</option><option value="3">DI3</option><option value="4">DI4</option><option value="5">DI5</option>
-              </select>
-            </label>
-            <label>R_pump
-              <select id="ir2-pump" class="hm-input">
-                <option value="-1">(none)</option><option value="1">Relay 1</option><option value="2">Relay 2</option>
-              </select>
-            </label>
-          </div>
-
-          <hr style="border:none;border-top:1px dashed #e5e7eb;margin:.6rem 0">
-          <div style="font-weight:600;margin-bottom:.25rem;">Irrigation Window (Local HH:MM)</div>
-          <div class="row switch" style="margin-bottom:.35rem;">
-            <label class="switch"><input id="ir2-win-en" type="checkbox"><span class="tag">Enforce window</span></label>
-            <label class="switch"><input id="ir2-auto" type="checkbox"><span class="tag">Auto-start at window open</span></label>
-          </div>
-          <div class="grid-2">
-            <label>Start
-              <input id="ir2-win-start" type="time" class="hm-input" value="06:00">
-            </label>
-            <label>End
-              <input id="ir2-win-end" type="time" class="hm-input" value="09:00">
-            </label>
-          </div>
-
-          <div class="row" style="margin-top:.5rem;justify-content:flex-end;">
-            <button type="button" class="btn btn-blue" data-irrig-save="2">Save Zone 2</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="muted" style="margin-top:.5rem;">
-        Each zone drives one relay. Flow supervision uses the selected DI’s live rate and accumulated liters from firmware.
-      </div>
-    </div>
-
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;">
-        <div style="font-weight:600;">Live Status</div>
-        <small class="muted">Auto-refreshes from <code class="mono">irrigStatus</code> and <code class="mono">timeStatus</code>.</small>
-      </div>
-      <div id="irrig-status" class="grid-2"></div>
-    </div>
-  </section>
-
-  <!-- ===== Module Time & Modbus Sync ===== -->
-  <section style="margin-bottom:1.25rem;">
-    <h2 class="section-title">Module Time &amp; Modbus Sync</h2>
-
-    <div class="grid-2" style="gap:1rem;">
-      <div class="card">
-        <div style="font-weight:600;margin-bottom:.5rem;">Module Clock (firmware minute-of-day)</div>
-        <div class="grid-3" style="margin-bottom:.5rem;">
-          <div>Minute of day: <span id="tm-min" class="kpi">--</span></div>
-          <div>Local HH:MM: <span id="tm-hhmm" class="kpi">--</span></div>
-          <div>Day index: <span id="tm-day" class="kpi">--</span></div>
-        </div>
-        <div class="grid-3" style="margin-bottom:.5rem;">
-          <label>Set minute (0..1439)
-            <input id="tm-min-input" type="number" min="0" max="1439" class="hm-input" placeholder="e.g. 360">
-          </label>
-          <label>Or set by HH:MM
-            <input id="tm-hhmm-input" type="time" class="hm-input">
-          </label>
-          <div style="display:flex;align-items:flex-end;gap:.5rem;">
-            <button id="btn-set-minute" type="button" class="btn btn-green">Set minute</button>
-            <button id="btn-set-now" type="button" class="btn btn-slate">Set from browser time</button>
-          </div>
-        </div>
-        <small class="muted">This uses <code class="mono">{ action:"set_time", minuteOfDay }</code> in firmware.</small>
-      </div>
-
-      <div class="card">
-        <div style="font-weight:600;margin-bottom:.5rem;">Home Assistant → Modbus time sync (00:00)</div>
-        <div class="grid-2" style="margin-bottom:.35rem;">
-          <div>HREG_TIME_MINUTE: <code class="mono">1100</code></div>
-          <div>HREG_DAY_INDEX: <code class="mono">1101</code></div>
-        </div>
-        <div style="margin-bottom:.5rem;">Coil pulse at midnight (set TRUE then immediately FALSE):</div>
-        <div><code class="mono">CMD_TIME_MIDNIGHT = 360</code></div>
-        <p class="muted" style="margin-top:.5rem;">
-          In HA, schedule a service at 00:00 that writes coil <code class="mono">360</code> = TRUE, then FALSE.
-          Firmware will zero minute-of-day and increment day-index.
-        </p>
+        <small class="muted">Actions: Toggle/Pulse relays, <strong>Override toggle</strong> (use as short or long-press per firmware logic).</small>
       </div>
     </div>
   </section>
@@ -486,7 +238,7 @@
     /* ============================================== */
 
     if(conn.on){
-      conn.on('open', ()=>{ log('port','open'); updateButtons(); conn.send('onewire',{action:'list'}).catch(()=>{}); requestIrrigGet(); });
+      conn.on('open', ()=>{ log('port','open'); updateButtons(); conn.send('onewire',{action:'list'}).catch(()=>{}); });
       conn.on('close',()=>{ log('port','close'); updateButtons(); });
       conn.on('message', m=>log('log', m));
       conn.on('status',  st=>{
@@ -721,9 +473,8 @@
       conn.on('relayStateList',  list=>toArray(list).forEach((v,i)=>{ const el=$('state-relay'+(i+1)); if(el) el.checked=!!v; }));
       conn.on('relayEnableList', list=>toArray(list).forEach((v,i)=>{ const el=$('enable-relay'+(i+1)); if(el) el.checked=!!v; }));
       conn.on('relayInvertList', list=>toArray(list).forEach((v,i)=>{ const el=$('invert-relay'+(i+1)); if(el) el.checked=!!v; }));
-      conn.on('relayCtrlSourceList',  list=>toArray(list).forEach((v,i)=>{ const el=$('ctrlsrc-relay'+(i+1)); if(el && el!==document.activeElement) el.value=String(v??0); }));
-      conn.on('relayOverrideLatchList',list=>toArray(list).forEach((v,i)=>{ const el=$('ovlatch-relay'+(i+1)); if(el) el.checked=!!v; }));
-      conn.on('relayOverrideStateList',list=>toArray(list).forEach((v,i)=>{ const el=$('ovstate-relay'+(i+1)); if(el) el.className='state-dot '+(v?'dot-on':'dot-off'); }));
+      conn.on('relayCtrlMode',  list=>toArray(list).forEach((v,i)=>{ const el=$('ctrlsrc-relay'+(i+1)); if(el && el!==document.activeElement) el.value=String(v??0); }));
+      conn.on('overrideActive', list=>toArray(list).forEach((v,i)=>{ const el=$('ovstate-relay'+(i+1)); if(el) el.className='state-dot '+(v?'dot-on':'dot-off'); }));
 
       const heatSnapshot = { addrA: [], addrB: [], TA: [], TB: [] };
 
@@ -780,9 +531,6 @@
       conn.on('heatEnergyJList',   list=>toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('heat-ej-'+(i+1));   if(el) el.textContent=v.toFixed(0); }}));
       conn.on('heatEnergyKWhList', list=>toArray(list).forEach((v,i)=>{ if(typeof v==='number'){ const el=$('heat-ekwh-'+(i+1)); if(el) el.textContent=v.toFixed(5); }}));
 
-      conn.on('irrigConfig', arr=>applyIrrigConfigFromArray(toArray(arr)));
-      conn.on('irrigStatus', payload=>renderIrrigStatus(payload));
-      conn.on('timeStatus', obj=>applyTimeStatus(obj));
 
       conn.on('led', arr=>{
         const a = toArray(arr);
@@ -934,7 +682,7 @@
     (function buildRelays(){
       const c=$('relays-config'); if(!c) return;
       const ctrlSrcOpts = [
-        {v:0,l:'(none)'}, {v:1,l:'Modbus'}, {v:2,l:'Buttons'}, {v:3,l:'Irrigation Z1'}, {v:4,l:'Irrigation Z2'}
+        {v:0,l:'Local'}, {v:1,l:'Modbus'}
       ].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
       for(let i=1;i<=2;i++){
         const d=document.createElement('div');
@@ -950,12 +698,11 @@
               <label><input type="checkbox" id="enable-relay${i}"> Enabled</label>
               <label><input type="checkbox" id="invert-relay${i}"> Inverted</label>
             </div>
-            <label style="display:block;margin-top:.5rem;">Control source
+            <label style="display:block;margin-top:.5rem;">Control mode
               <select id="ctrlsrc-relay${i}" class="hm-input">${ctrlSrcOpts}</select>
             </label>
-            <div class="grid-2" style="margin-top:.5rem;">
-              <label><input type="checkbox" id="ovlatch-relay${i}"> Override latch</label>
-              <div>Override state: <span id="ovstate-relay${i}" class="state-dot dot-off" title="override active"></span></div>
+            <div style="margin-top:.5rem;">
+              <div>Override state: <span id="ovstate-relay${i}" class="state-dot dot-off" title="override active (button-controlled)"></span></div>
             </div>
           </div>`;
         c.appendChild(d);
@@ -971,8 +718,7 @@
       const ledSrcOpts = [
         {v:0,l:'(none)'},{v:1,l:'Relay 1'},{v:2,l:'Relay 2'},
         {v:3,l:'DI1'},{v:4,l:'DI2'},{v:5,l:'DI3'},{v:6,l:'DI4'},{v:7,l:'DI5'},
-        {v:8,l:'Irrig 1'},{v:9,l:'Irrig 2'},
-        {v:10,l:'R1 Override'},{v:11,l:'R2 Override'}
+        {v:8,l:'R1 Override'},{v:9,l:'R2 Override'}
       ].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
 
       for(let i=1;i<=4;i++){
@@ -990,9 +736,7 @@
         {v:0,l:'(none)'},
         {v:1,l:'Toggle R1'},{v:2,l:'Toggle R2'},
         {v:3,l:'Pulse R1'},{v:4,l:'Pulse R2'},
-        {v:5,l:'Irrig1 Start'},{v:6,l:'Irrig1 Stop'},
-        {v:7,l:'Irrig2 Start'},{v:8,l:'Irrig2 Stop'},
-        {v:9,l:'R1 Override Toggle'},{v:10,l:'R2 Override Toggle'}
+        {v:5,l:'R1 Override Toggle'},{v:6,l:'R2 Override Toggle'}
       ].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
 
       for(let i=1;i<=4;i++){
@@ -1037,20 +781,27 @@
       for(let i=1;i<=2;i++){
         l.push({
           enabled:$('enable-relay'+i).checked,
-          inverted:$('invert-relay'+i).checked,
-          ctrlSource: parseInt(($('ctrlsrc-relay'+i)?.value||'0'),10) || 0,
-          overrideLatch: !!$('ovlatch-relay'+i).checked
+          inverted:$('invert-relay'+i).checked
         });
       }
       const packet={t:'relays',list:l};
       logTx('Config',packet);
       conn.send('Config',packet);
     }
+    function sendRelayCtrlMode(){
+      const list=[];
+      for(let i=1;i<=2;i++){
+        const v = parseInt(($('ctrlsrc-relay'+i)?.value||'0'),10) || 0;
+        list.push(v);
+      }
+      const packet={t:'relayCtrlMode',list};
+      logTx('Config',packet);
+      conn.send('Config',packet).catch(err=>log('Error','relayCtrlMode failed: '+(err?.message||err)));
+    }
     for(let i=1;i<=2;i++){
       $('enable-relay'+i)?.addEventListener('change', sendRelayCfg);
       $('invert-relay'+i)?.addEventListener('change', sendRelayCfg);
-      $('ctrlsrc-relay'+i)?.addEventListener('change', sendRelayCfg);
-      $('ovlatch-relay'+i)?.addEventListener('change', sendRelayCfg);
+      $('ctrlsrc-relay'+i)?.addEventListener('change', sendRelayCtrlMode);
     }
 
     function sendFlowPPL(){
@@ -1084,144 +835,7 @@
         .catch(err=>log('Error','flow_calculate failed: '+(err?.message||err)));
     }
 
-    function hhmmToMin(hhmm){
-      const [h,m] = String(hhmm||'').split(':').map(Number);
-      if(!Number.isFinite(h) || !Number.isFinite(m)) return 0;
-      return (Math.max(0,Math.min(23,h))*60) + Math.max(0,Math.min(59,m));
-    }
-    function minToHHMM(mins){
-      mins = Math.max(0, Math.min(1439, Number(mins)||0));
-      const h = Math.floor(mins/60), m = mins%60;
-      return pad2(h)+':'+pad2(m);
-    }
 
-    function readZone(n){
-      return {
-        enabled:   !!$(`ir${n}-enabled`)?.checked,
-        relay:     parseInt($(`ir${n}-relay`)?.value||'0',10)||0,
-        di:        parseInt($(`ir${n}-di`)?.value||'0',10)||0,
-        useFlow:   !!$(`ir${n}-useflow`)?.checked,
-        minRate:   parseFloat($(`ir${n}-minrate`)?.value||'0')||0,
-        grace:     parseInt($(`ir${n}-grace`)?.value||'0',10)||0,
-        timeout:   parseInt($(`ir${n}-timeout`)?.value||'0',10)||0,
-        targetL:   parseFloat($(`ir${n}-targetL`)?.value||'0')||0,
-
-        DI_moist:  parseInt($(`ir${n}-moist`)?.value||'-1',10),
-        DI_rain:   parseInt($(`ir${n}-rain`) ?.value||'-1',10),
-        DI_tank:   parseInt($(`ir${n}-tank`) ?.value||'-1',10),
-        R_pump:    parseInt($(`ir${n}-pump`) ?.value||'-1',10),
-
-        windowEnable: !!$(`ir${n}-win-en`)?.checked,
-        winStartMin:  hhmmToMin($(`ir${n}-win-start`)?.value || '00:00'),
-        winEndMin:    hhmmToMin($(`ir${n}-win-end`)?.value   || '01:00'),
-        autoStart:    !!$(`ir${n}-auto`)?.checked,
-      };
-    }
-    function applyZone(n, z){
-      const set = (id,val)=>{ const el=$(id); if(!el) return; if(el===document.activeElement) return; if(el.type==='checkbox') el.checked=!!val; else el.value=String(val??''); };
-      set(`ir${n}-enabled`, z?.enabled);
-      set(`ir${n}-relay`,   z?.relay);
-      set(`ir${n}-di`,      z?.di);
-      set(`ir${n}-useflow`, z?.useFlow);
-      set(`ir${n}-minrate`, z?.minRate);
-      set(`ir${n}-grace`,   z?.grace);
-      set(`ir${n}-timeout`, z?.timeout);
-      set(`ir${n}-targetL`, z?.targetL);
-
-      set(`ir${n}-moist`,   z?.DI_moist ?? -1);
-      set(`ir${n}-rain`,    z?.DI_rain ?? -1);
-      set(`ir${n}-tank`,    z?.DI_tank ?? -1);
-      set(`ir${n}-pump`,    z?.R_pump ?? -1);
-
-      set(`ir${n}-win-en`,  z?.windowEnable);
-      set(`ir${n}-auto`,    z?.autoStart);
-      const s = (z?.winStartMin!=null)? minToHHMM(z.winStartMin) : '00:00';
-      const e = (z?.winEndMin  !=null)? minToHHMM(z.winEndMin)   : '01:00';
-      set(`ir${n}-win-start`, s);
-      set(`ir${n}-win-end`,   e);
-    }
-
-    function sendIrrigConfig(zoneIdx){
-      if(!isOpen()){ log('System','Connect first.'); return; }
-      const z1 = readZone(1);
-      const z2 = readZone(2);
-      const packet={ t:'irrigConfig', changedZone: (zoneIdx===1||zoneIdx===2)?zoneIdx:0, list: [z1, z2] };
-      logTx('Config', packet);
-      conn.send('Config', packet)
-        .then(()=>log('irrig','config saved'))
-        .catch(err=>log('Error','irrigConfig failed: '+(err?.message||err)));
-    }
-
-    function applyIrrigConfigFromArray(arr){
-      applyZone(1, arr[0]||{});
-      applyZone(2, arr[1]||{});
-      log('irrig','config applied');
-    }
-    function requestIrrigGet(){
-      if(!isOpen()) return;
-      const packet = { t:'irrigGet' };
-      logTx('Config', packet);
-      conn.send('Config', packet).catch(()=>{});
-    }
-    function irrigStart(zone){ const packet = { action:'irrig_start', zone }; logTx('command', packet); conn.send('command', packet).catch(err=>log('Error','start failed: '+(err?.message||err))); }
-    function irrigStop(zone){  const packet = { action:'irrig_stop',  zone }; logTx('command', packet); conn.send('command', packet).catch(err=>log('Error','stop failed: '+(err?.message||err))); }
-    function irrigReset(zone){ const packet = { action:'irrig_reset', zone }; logTx('command', packet); conn.send('command', packet).catch(err=>log('Error','reset failed: '+(err?.message||err))); }
-
-    document.querySelectorAll('[data-irrig-save]').forEach(b=>b.addEventListener('click', ()=>sendIrrigConfig(parseInt(b.getAttribute('data-irrig-save'),10))));
-    document.querySelectorAll('[data-irrig-start]').forEach(b=>b.addEventListener('click', ()=>irrigStart(parseInt(b.getAttribute('data-irrig-start'),10))));
-    document.querySelectorAll('[data-irrig-stop]').forEach(b=>b.addEventListener('click',  ()=>irrigStop(parseInt(b.getAttribute('data-irrig-stop'),10))));
-    document.querySelectorAll('[data-irrig-reset]').forEach(b=>b.addEventListener('click', ()=>irrigReset(parseInt(b.getAttribute('data-irrig-reset'),10))));
-
-    function renderIrrigStatus(list){
-      const box=$('irrig-status'); if(!box) return;
-      const arr = toArray(list);
-      const card = (idx, s) => {
-        const z = idx+1;
-        const running = !!s.running;
-        const st = esc(String(s.state||'idle'));
-        const rate = (typeof s.rate==='number') ? s.rate.toFixed(3) : '--';
-        const liters = (typeof s.liters==='number') ? s.liters.toFixed(3) : '--';
-        const elapsed = (typeof s.elapsed==='number') ? s.elapsed.toFixed(0) : '--';
-        const tgt = (typeof s.targetL==='number' && s.targetL>0) ? s.targetL.toFixed(3) : '—';
-        const timeout = (typeof s.timeout==='number' && s.timeout>0) ? s.timeout : '—';
-        const sensorsOK = (s.sensorsOK===true) ? 'OK' : 'BLOCK';
-        const windowOpen = (s.windowOpen===true) ? 'OPEN' : 'CLOSED';
-        const minOfDay = (typeof s.minuteOfDay==='number') ? s.minuteOfDay : null;
-        const hhmm = (minOfDay!=null) ? (pad2(Math.floor(minOfDay/60))+':'+pad2(minOfDay%60)) : '--:--';
-        return `
-          <div class="card">
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-              <div><strong>Zone ${z}</strong>
-                <span class="state-dot ${running?'dot-on':'dot-off'}" title="running"></span>
-                <span class="pill" style="margin-left:.35rem;">${st}</span>
-              </div>
-              <div class="row">
-                <button class="btn btn-green" onclick="return false" data-irrig-start="${z}">Start</button>
-                <button class="btn btn-amber" onclick="return false" data-irrig-stop="${z}">Stop</button>
-                <button class="btn" onclick="return false" data-irrig-reset="${z}">Reset</button>
-              </div>
-            </div>
-            <div class="grid-3" style="margin-top:.4rem;">
-              <div>Rate: <span class="kpi">${rate}</span> <span class="muted">L/min</span></div>
-              <div>Elapsed: <span class="kpi">${elapsed}</span> <span class="muted">s</span></div>
-              <div>Accum: <span class="kpi">${liters}</span> <span class="muted">L</span></div>
-            </div>
-            <div class="grid-3" style="margin-top:.2rem;">
-              <div>Target: <span class="kpi">${tgt}</span> <span class="muted">L</span></div>
-              <div>Timeout: <span class="kpi">${timeout}</span> <span class="muted">s</span></div>
-              <div>Time now: <span class="kpi">${hhmm}</span></div>
-            </div>
-            <div class="grid-2" style="margin-top:.2rem;">
-              <div>Window: <span class="kpi">${windowOpen}</span></div>
-              <div>Sensors: <span class="kpi">${sensorsOK}</span></div>
-            </div>
-          </div>`;
-      };
-      box.innerHTML = [0,1].map(i=>card(i, arr[i]||{})).join('');
-      box.querySelectorAll('[data-irrig-start]').forEach(b=>b.addEventListener('click',()=>irrigStart(parseInt(b.getAttribute('data-irrig-start'),10))));
-      box.querySelectorAll('[data-irrig-stop]').forEach(b=>b.addEventListener('click',()=>irrigStop(parseInt(b.getAttribute('data-irrig-stop'),10))));
-      box.querySelectorAll('[data-irrig-reset]').forEach(b=>b.addEventListener('click',()=>irrigReset(parseInt(b.getAttribute('data-irrig-reset'),10))));
-    }
 
     function readHeatCfgFor(di){
       const enabled = !!$('heat-enable-'+di)?.checked;
@@ -1294,35 +908,6 @@
     }
     for(let i=1;i<=4;i++){ $('btn-act-'+i)?.addEventListener('change', sendBtnCfg); }
 
-    function applyTimeStatus(o){
-      const min = (o && typeof o.minuteOfDay==='number') ? Math.max(0,Math.min(1439, Math.floor(o.minuteOfDay))) : null;
-      const day = (o && typeof o.dayIndex==='number') ? Math.max(0, Math.floor(o.dayIndex)) : null;
-      if (min!=null){ $('tm-min').textContent = String(min); $('tm-hhmm').textContent = pad2(Math.floor(min/60))+':'+pad2(min%60); }
-      if (day!=null){ $('tm-day').textContent = String(day); }
-    }
-    function setMinute(minute){
-      if(!isOpen()){ log('System','Connect first.'); return; }
-      minute = Math.max(0, Math.min(1439, Math.floor(minute||0)));
-      const packet = { action:'set_time', minuteOfDay: minute };
-      logTx('command', packet);
-      conn.send('command', packet)
-        .then(()=>log('time', 'minuteOfDay set to '+minute))
-        .catch(err=>log('Error','set_time failed: '+(err?.message||err)));
-    }
-    $('btn-set-minute')?.addEventListener('click', ()=>{
-      const raw = $('tm-min-input')?.value;
-      const hhmm = $('tm-hhmm-input')?.value;
-      let minute = null;
-      if (hhmm && hhmm.includes(':')) minute = hhmmToMin(hhmm);
-      else if (raw !== '' && raw != null) minute = parseInt(raw,10);
-      else minute = null;
-      if (minute==null || !Number.isFinite(minute)){ alert('Enter minute (0..1439) or HH:MM'); return; }
-      setMinute(minute);
-    });
-    $('btn-set-now')?.addEventListener('click', ()=>{
-      const d = new Date();
-      setMinute(d.getHours()*60 + d.getMinutes());
-    });
 
     showTypeBoxes(); updateButtons();
   })();

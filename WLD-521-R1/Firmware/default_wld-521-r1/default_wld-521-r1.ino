@@ -1,9 +1,9 @@
-// ================== WLD-521-R1 — Flow + Heat + Irrigation (+ LEDs + Buttons like DIM) ==================
+// ================== WLD-521-R1 — Flow + Heat (+ LEDs + Buttons like DIM) ==================
 // NOTE: This variant mirrors the LED + Button system used on the DIM-420-R1 module.
 //       - 4 LEDs (pins 18..21) with per-LED {mode, source}
 //       - 4 Buttons (pins 22..25) with per-button {action}
-//       - Blink engine identical (500 ms phase), LED sources adapted to WLD (Relays/DI/Irrigation + Override)
-//       - Button actions mapped to WLD (toggle/pulse relays, start/stop irrigation zones, long-press override)
+//       - Blink engine identical (500 ms phase), LED sources adapted to WLD (Relays/DI + Override)
+//       - Button actions mapped to WLD (toggle/pulse relays, long-press override)
 
 #include <Arduino.h>
 #include <ModbusSerial.h>
@@ -54,7 +54,7 @@ const uint32_t CNT_DEBOUNCE_MS = 20;
 enum RlyCtrl : uint8_t { RCTRL_LOCAL=0, RCTRL_MODBUS=1 };
 RlyCtrl rlyCtrlMode[NUM_RLY] = {RCTRL_LOCAL, RCTRL_LOCAL};
 
-bool localDesiredRelay[NUM_RLY]  = {false,false};  // driven by UI/buttons/local logic/irrig/pump
+bool localDesiredRelay[NUM_RLY]  = {false,false};  // driven by UI/buttons/local logic
 bool modbusDesiredRelay[NUM_RLY] = {false,false};  // driven only by Modbus coils
 bool overrideLatch[NUM_RLY]      = {false,false};  // operator override latched by long-press
 bool overrideDesiredRelay[NUM_RLY]={false,false};  // desired when override latch is active
@@ -92,10 +92,6 @@ JSONVar modbusStatus;
 unsigned long lastSend = 0;
 const unsigned long sendInterval = 250;
 
-// ==== module time (minute-of-day + day index)
-uint16_t g_minuteOfDay = 0;      // 0..1439
-uint32_t g_secondsAcc  = 0;      // accum 1s ticks -> minutes
-uint16_t g_dayIndex    = 0;      // increments on midnight pulse or wrap
 
 // ================== Modbus persisted ==================
 uint8_t  g_mb_address = 3;
@@ -113,11 +109,9 @@ enum LedSource : uint8_t {
   LEDSRC_DI3    = 5,
   LEDSRC_DI4    = 6,
   LEDSRC_DI5    = 7,
-  LEDSRC_IRR1   = 8,
-  LEDSRC_IRR2   = 9,
   // NEW: override indicators (ON only if override active AND relay ON)
-  LEDSRC_R1_OVR = 10,
-  LEDSRC_R2_OVR = 11
+  LEDSRC_R1_OVR = 8,
+  LEDSRC_R2_OVR = 9
 };
 struct LedCfg { uint8_t mode; uint8_t source; };
 
@@ -128,13 +122,9 @@ enum BtnAction : uint8_t {
   BTN_TOGGLE_R2 = 2,
   BTN_PULSE_R1  = 3,
   BTN_PULSE_R2  = 4,
-  BTN_IRR1_START = 5,
-  BTN_IRR1_STOP  = 6,
-  BTN_IRR2_START = 7,
-  BTN_IRR2_STOP  = 8,
   // NEW: long-press override latch/toggle
-  BTN_OVERRIDE_R1 = 9,
-  BTN_OVERRIDE_R2 = 10
+  BTN_OVERRIDE_R1 = 5,
+  BTN_OVERRIDE_R2 = 6
 };
 struct BtnCfg { uint8_t action; };
 
@@ -438,10 +428,6 @@ void setDefaults() {
   nextRateTickMs = millis() + 1000;
   g_mb_address=3; g_mb_baud=19200;
 
-  // time defaults
-  g_minuteOfDay = 0;
-  g_secondsAcc  = 0;
-  g_dayIndex    = 0;
 }
 
 void captureToPersist(PersistConfig &pc){
@@ -655,15 +641,12 @@ enum : uint16_t { ISTS_LED_BASE=90, ISTS_BTN_BASE=100 };
 
 // NOTE: HREG_DI_COUNT_BASE removed from map (no longer exported over Modbus)
 
-// time exposure + midnight pulse
-enum : uint16_t { HREG_TIME_MINUTE=1100, HREG_DAY_INDEX=1101 };
 enum : uint16_t {
   CMD_RLY_ON_BASE=200, CMD_RLY_OFF_BASE=210,
-  CMD_DI_EN_BASE=300,  CMD_DI_DIS_BASE=320, CMD_CNT_RST_BASE=340,
-  CMD_TIME_MIDNIGHT=360   // pulse at 00:00 from HA
+  CMD_DI_EN_BASE=300,  CMD_DI_DIS_BASE=320, CMD_CNT_RST_BASE=340
 };
 
-// Flow/Heat/Irrigation/1-Wire (Holding Registers)
+// Flow/Heat/1-Wire (Holding Registers)
 enum : uint16_t {
   HREG_FLOW_RATE_BASE   = 1120, // 5×(U32)  L/min ×1000  (2 regs each)
   HREG_FLOW_ACCUM_BASE  = 1140, // 5×(U32)  L ×1000      (2 regs each)
@@ -671,21 +654,7 @@ enum : uint16_t {
   HREG_HEAT_EN_WH_BASE  = 1220, // 5×(U32)  Wh ×1000     (2 regs each)
   HREG_HEAT_DT_BASE     = 1240, // 5×(S32)  °C ×1000     (2 regs each)
 
-  HREG_IRR_STATE_BASE   = 1300, // 2×U16 (state enum)
-  HREG_IRR_LITERS_BASE  = 1310, // 2×U32 L ×1000 (2 regs each)
-  HREG_IRR_ELAPSED_BASE = 1320, // 2×U32 seconds (2 regs each)
-  HREG_IRR_RATE_BASE    = 1330, // 2×U32 L/min ×1000 (2 regs each)
-  HREG_IRR_WINDOW_BASE  = 1340, // 2×U16 windowOpen flags
-  HREG_IRR_SENSOK_BASE  = 1342, // 2×U16 sensorsOK flags
-
   HREG_OW_TEMP_BASE     = 1500  // first 10 sensors, 10×(S32) °C ×1000 (2 regs each)
-};
-
-// Irrigation command coils (pulse)
-enum : uint16_t {
-  CMD_IRR_START_BASE = 370, // coils z1,z2
-  CMD_IRR_STOP_BASE  = 380,
-  CMD_IRR_RESET_BASE = 390
 };
 
 // ================== 1-Wire DB helpers ==================
@@ -764,346 +733,6 @@ void owdbSendList(){
   WebSerial.send("onewireIndex", owdbBuildIndexMap());
 }
 
-// ================== Irrigation (stored separately) ==================
-static const char* IRRIG_PATH = "/irrig.json";
-
-enum : uint8_t { IRR_STATE_IDLE=0, IRR_STATE_RUN=1, IRR_STATE_PAUSE=2, IRR_STATE_DONE=3, IRR_STATE_FAULT=4 };
-
-struct IrrigZone {
-  bool     enabled;
-  uint8_t  relay;        // 1..2 (0=none)
-  uint8_t  di;           // 1..5 for flow reference (0=none)
-  bool     useFlow;
-  float    minRateLmin;
-  uint32_t graceSec;
-  uint32_t timeoutSec;
-  double   targetLiters;
-
-  // extra sensors and pump + window/schedule
-  int8_t   di_moist;     // -1 disabled, else 1..5
-  int8_t   di_rain;      // -1 disabled, else 1..5
-  int8_t   di_tank;      // -1 disabled, else 1..5
-  int8_t   rpump;        // -1 disabled, else 1..2
-
-  bool     windowEnable; // enforce window
-  uint16_t winStartMin;  // 0..1439
-  uint16_t winEndMin;    // 0..1439
-  bool     autoStart;    // auto-start at window open (once/day)
-  uint16_t lastAutoDay;  // runtime: last dayIndex when auto-started
-
-  // runtime
-  uint8_t  state;
-  uint32_t startMs;
-  uint32_t lastRunMs;
-  uint32_t pulsesBase;
-  double   litersDone;
-  uint32_t secondsInState;
-};
-
-IrrigZone g_irrig[NUM_RLY];  // 2 zones
-bool      irrigDemand[NUM_RLY] = {false,false}; // OR'ed with localDesiredRelay when in Local mode
-// pump reference counting per relay index
-uint16_t  pumpRefCount[NUM_RLY] = {0,0};
-
-static inline bool isValidDI(int8_t d) { return d>=1 && d<= (int8_t)NUM_DI; }
-static inline bool isValidR(int8_t r)  { return r>=1 && r<= (int8_t)NUM_RLY; }
-
-// ---- prototypes
-static bool zoneWindowOpen(const IrrigZone& Z);
-static bool zoneSensorsOK(const IrrigZone& Z);
-
-JSONVar irrigBuildConfigJson(){
-  JSONVar arr;
-  for (int i=0;i<NUM_RLY;i++){
-    JSONVar o;
-    o["enabled"] = g_irrig[i].enabled;
-    o["relay"]   = (double)g_irrig[i].relay;
-    o["di"]      = (double)g_irrig[i].di;
-    o["useFlow"] = g_irrig[i].useFlow;
-    o["minRate"] = (double)g_irrig[i].minRateLmin;
-    o["grace"]   = (double)g_irrig[i].graceSec;
-    o["timeout"] = (double)g_irrig[i].timeoutSec;
-    o["targetL"] = (double)g_irrig[i].targetLiters;
-
-    // extra fields
-    o["DI_moist"] = (double)g_irrig[i].di_moist;
-    o["DI_rain"]  = (double)g_irrig[i].di_rain;
-    o["DI_tank"]  = (double)g_irrig[i].di_tank;
-    o["R_pump"]   = (double)g_irrig[i].rpump;
-
-    o["windowEnable"] = g_irrig[i].windowEnable;
-    o["winStartMin"]  = (double)g_irrig[i].winStartMin;
-    o["winEndMin"]    = (double)g_irrig[i].winEndMin;
-    o["autoStart"]    = g_irrig[i].autoStart;
-
-    arr[i] = o;
-  }
-  return arr;
-}
-void irrigDefault(){
-  for (int i=0;i<NUM_RLY;i++){
-    g_irrig[i].enabled      = false;
-    g_irrig[i].relay        = i+1;
-    g_irrig[i].di           = 0;
-    g_irrig[i].useFlow      = true;
-    g_irrig[i].minRateLmin  = 0.2f;
-    g_irrig[i].graceSec     = 8;
-    g_irrig[i].timeoutSec   = 3600;
-    g_irrig[i].targetLiters = 0.0;
-
-    g_irrig[i].di_moist = -1;
-    g_irrig[i].di_rain  = -1;
-    g_irrig[i].di_tank  = -1;
-    g_irrig[i].rpump    = -1;
-
-    g_irrig[i].windowEnable = false;
-    g_irrig[i].winStartMin  = 0;      // midnight
-    g_irrig[i].winEndMin    = 60;     // 00:00..01:00
-    g_irrig[i].autoStart    = false;
-    g_irrig[i].lastAutoDay  = 0;
-
-    g_irrig[i].state        = IRR_STATE_IDLE;
-    g_irrig[i].startMs      = 0;
-    g_irrig[i].lastRunMs    = 0;
-    g_irrig[i].pulsesBase   = 0;
-    g_irrig[i].litersDone   = 0.0;
-    g_irrig[i].secondsInState=0;
-  }
-  pumpRefCount[0]=pumpRefCount[1]=0;
-}
-bool irrigSave(){
-  String s = JSON.stringify(irrigBuildConfigJson());
-  File f = LittleFS.open(IRRIG_PATH,"w");
-  if(!f){ WebSerial.send("message","irrig: save open failed"); return false; }
-  size_t n=f.print(s); f.flush(); f.close();
-  if (n!=s.length()){ WebSerial.send("message","irrig: short write"); return false; }
-  return true;
-}
-bool irrigLoad(){
-  File f = LittleFS.open(IRRIG_PATH,"r");
-  if(!f) return false;
-  String s; while (f.available()) s += (char)f.read(); f.close();
-  JSONVar arr = JSON.parse(s);
-  if (JSON.typeof(arr)!="array"){ WebSerial.send("message","irrig: invalid JSON"); return false; }
-  for (int i=0;i<NUM_RLY && i<arr.length(); i++){
-    JSONVar o=arr[i];
-    if (JSON.typeof(o)!="object") continue;
-    g_irrig[i].enabled      = (bool)o["enabled"];
-    g_irrig[i].relay        = (uint8_t)(int)o["relay"];
-    g_irrig[i].di           = (uint8_t)(int)o["di"];
-    g_irrig[i].useFlow      = (bool)o["useFlow"];
-    g_irrig[i].minRateLmin  = (double)o["minRate"];
-    g_irrig[i].graceSec     = (uint32_t)(int)o["grace"];
-    g_irrig[i].timeoutSec   = (uint32_t)(int)o["timeout"];
-    g_irrig[i].targetLiters = (double)o["targetL"];
-
-    // NEW fields (accept -1)
-    g_irrig[i].di_moist     = (int8_t)(int)o["DI_moist"];
-    g_irrig[i].di_rain      = (int8_t)(int)o["DI_rain"];
-    g_irrig[i].di_tank      = (int8_t)(int)o["DI_tank"];
-    g_irrig[i].rpump        = (int8_t)(int)o["R_pump"];
-
-    g_irrig[i].windowEnable = (bool)o["windowEnable"];
-    g_irrig[i].winStartMin  = (uint16_t)(int)o["winStartMin"];
-    g_irrig[i].winEndMin    = (uint16_t)(int)o["winEndMin"];
-    g_irrig[i].autoStart    = (bool)o["autoStart"];
-  }
-  return true;
-}
-const char* irrigStateName(uint8_t s){
-  switch(s){
-    case IRR_STATE_IDLE: return "idle";
-    case IRR_STATE_RUN:  return "run";
-    case IRR_STATE_PAUSE:return "pause";
-    case IRR_STATE_DONE: return "done";
-    case IRR_STATE_FAULT:return "fault";
-  }
-  return "?";
-}
-
-// --- helper bodies AFTER struct IrrigZone so the type is complete
-static bool zoneWindowOpen(const IrrigZone& Z){
-  if (!Z.windowEnable) return true;
-  uint16_t start = (uint16_t)(Z.winStartMin % 1440);
-  uint16_t end   = (uint16_t)(Z.winEndMin   % 1440);
-  uint16_t now   = (uint16_t)(g_minuteOfDay % 1440);
-  if (start == end) return false;          // degenerate -> closed
-  if (start < end)  return (now >= start) && (now < end);
-  // wrapped across midnight
-  return (now >= start) || (now < end);
-}
-static bool zoneSensorsOK(const IrrigZone& Z){
-  auto diActive = [&](int8_t diIdx)->bool{
-    if (diIdx < 1 || diIdx > (int8_t)NUM_DI) return false;
-    int i = diIdx - 1;
-    if (!diCfg[i].enabled) return false;
-    return diState[i]; // logical state (inversion already applied)
-  };
-
-  // Moisture: HIGH means soil wet -> block irrigation
-  if (Z.di_moist >= 1 && Z.di_moist <= (int8_t)NUM_DI && diActive(Z.di_moist)) return false;
-
-  // Rain: HIGH means raining -> block irrigation
-  if (Z.di_rain  >= 1 && Z.di_rain  <= (int8_t)NUM_DI && diActive(Z.di_rain))  return false;
-
-  // Tank: require HIGH == OK (LOW blocks)
-  if (Z.di_tank >= 1 && Z.di_tank <= (int8_t)NUM_DI){
-    int i = Z.di_tank - 1;
-    if (diCfg[i].enabled && !diState[i]) return false;
-  }
-  return true;
-}
-
-void irrigSendStatus(){
-  JSONVar arr;
-  for (int i=0;i<NUM_RLY;i++){
-    JSONVar o;
-    o["enabled"]  = g_irrig[i].enabled;
-    o["relay"]    = (double)g_irrig[i].relay;
-    o["di"]       = (double)g_irrig[i].di;
-    o["state"]    = irrigStateName(g_irrig[i].state);
-    o["running"]  = (g_irrig[i].state==IRR_STATE_RUN);
-    o["liters"]   = (double)g_irrig[i].litersDone;
-    o["rate"]     = (double)((g_irrig[i].di>=1 && g_irrig[i].di<=NUM_DI)?flowRateLmin[g_irrig[i].di-1]:0.0);
-    o["elapsed"]  = (double)g_irrig[i].secondsInState;
-    o["targetL"]  = (double)g_irrig[i].targetLiters;
-    o["timeout"]  = (double)g_irrig[i].timeoutSec;
-
-    // diagnostics
-    o["minuteOfDay"] = (double)g_minuteOfDay;
-    o["windowEnable"]= g_irrig[i].windowEnable;
-    o["winStartMin"] = (double)g_irrig[i].winStartMin;
-    o["winEndMin"]   = (double)g_irrig[i].winEndMin;
-    o["autoStart"]   = g_irrig[i].autoStart;
-    o["DI_moist"]    = (double)g_irrig[i].di_moist;
-    o["DI_rain"]     = (double)g_irrig[i].di_rain;
-    o["DI_tank"]     = (double)g_irrig[i].di_tank;
-    o["R_pump"]      = (double)g_irrig[i].rpump;
-    o["sensorsOK"]   = zoneSensorsOK(g_irrig[i]);
-    o["windowOpen"]  = zoneWindowOpen(g_irrig[i]);
-
-    arr[i] = o;
-  }
-  WebSerial.send("irrigStatus", arr);
-}
-void irrigSendConfig(){ WebSerial.send("irrigConfig", irrigBuildConfigJson()); }
-
-void irrigStopZone(int z, const char* why){
-  if (z<0 || z>=NUM_RLY) return;
-  IrrigZone &Z = g_irrig[z];
-  // clear valve demand
-  if (Z.relay>=1 && Z.relay<=NUM_RLY) irrigDemand[Z.relay-1] = false;
-  // pump ref--
-  if (isValidR(Z.rpump) && pumpRefCount[Z.rpump-1]>0) pumpRefCount[Z.rpump-1]--;
-
-  if (why && *why) WebSerial.send("message", String("irrig: stop z")+String(z+1)+" ("+why+")");
-  Z.state = (Z.state==IRR_STATE_FAULT)?IRR_STATE_FAULT:IRR_STATE_IDLE;
-  Z.secondsInState = 0;
-}
-void irrigStartZone(int z, double litersOverride){
-  if (z<0 || z>=NUM_RLY) return;
-  IrrigZone &Z = g_irrig[z];
-  if (!Z.enabled || Z.relay<1 || Z.relay>NUM_RLY){ WebSerial.send("message", String("irrig: zone ")+String(z+1)+" not configured"); return; }
-
-  // Gate on sensors + window
-  if (!zoneSensorsOK(Z)){ WebSerial.send("message", String("irrig: z")+String(z+1)+" blocked by sensors"); return; }
-  if (!zoneWindowOpen(Z)){ WebSerial.send("message", String("irrig: z")+String(z+1)+" blocked by window"); return; }
-
-  Z.targetLiters = (litersOverride>0.0)?litersOverride:Z.targetLiters;
-  Z.state     = IRR_STATE_RUN;
-  Z.startMs   = millis();
-  Z.lastRunMs = Z.startMs;
-  Z.secondsInState = 0;
-  Z.litersDone = 0.0;
-
-  if (Z.di>=1 && Z.di<=NUM_DI) {
-    int di = Z.di-1;
-    Z.pulsesBase = diCounter[di];
-  } else {
-    Z.pulsesBase = 0;
-  }
-  irrigDemand[Z.relay-1] = true;
-  if (isValidR(Z.rpump)) pumpRefCount[Z.rpump-1]++;
-
-  WebSerial.send("message", String("irrig: start z")+String(z+1)+" targetL="+String(Z.targetLiters,3));
-}
-// Called each second in the 1s tick
-void irrigTick1s(){
-  // Auto-start pass
-  for (int i=0;i<NUM_RLY;i++){
-    IrrigZone &Z = g_irrig[i];
-    if (!Z.enabled || !Z.autoStart) continue;
-    if (!zoneWindowOpen(Z)) continue;
-    if (Z.lastAutoDay == g_dayIndex) continue;
-    if ((g_minuteOfDay % 1440) == (Z.winStartMin % 1440)) {
-      if (zoneSensorsOK(Z)) {
-        irrigStartZone(i, 0.0);
-        Z.lastAutoDay = g_dayIndex;
-      }
-    }
-  }
-
-  // Runtime/guarding pass
-  for (int i=0;i<NUM_RLY;i++){
-    IrrigZone &Z = g_irrig[i];
-    Z.secondsInState++;
-
-    if (Z.state==IRR_STATE_RUN){
-      if (Z.windowEnable && !zoneWindowOpen(Z)){
-        Z.state=IRR_STATE_DONE;
-        irrigStopZone(i,"window");
-        continue;
-      }
-      if (!zoneSensorsOK(Z)){
-        Z.state=IRR_STATE_FAULT;
-        irrigStopZone(i,"sensor");
-        continue;
-      }
-      if (Z.timeoutSec>0 && Z.secondsInState>=Z.timeoutSec){
-        Z.state=IRR_STATE_FAULT;
-        irrigStopZone(i,"timeout");
-        continue;
-      }
-
-      // Flow / liters
-      double rate = 0.0;
-      if (Z.di>=1 && Z.di<=NUM_DI){
-        int di = Z.di-1;
-        rate = flowRateLmin[di]; // L/min
-        uint32_t ppl = flowPulsesPerL[di] ? flowPulsesPerL[di] : 1;
-        uint32_t pulses_since = (diCounter[di] >= Z.pulsesBase)?(diCounter[di]-Z.pulsesBase):0;
-        double accumL = ((double)pulses_since / (double)ppl) * (double)flowCalibAccum[di];
-        Z.litersDone = accumL;
-      }
-
-      // Flow supervision
-      if (Z.useFlow && Z.minRateLmin>0.0){
-        static uint16_t belowCnt[NUM_RLY] = {0,0};
-        if (rate < Z.minRateLmin) {
-          belowCnt[i]++;
-          if (belowCnt[i] >= (Z.graceSec ? Z.graceSec : 1)){
-            Z.state=IRR_STATE_FAULT;
-            irrigStopZone(i,"low flow");
-            belowCnt[i]=0;
-            continue;
-          }
-        } else {
-          belowCnt[i]=0;
-        }
-      }
-
-      // Target liters reached?
-      if (Z.targetLiters>0.0 && Z.litersDone >= Z.targetLiters){
-        Z.state = IRR_STATE_DONE;
-        irrigStopZone(i,"target");
-        continue;
-      }
-
-      // keep valve demand (only matters in Local mode)
-      if (Z.relay>=1 && Z.relay<=NUM_RLY) irrigDemand[Z.relay-1]=true;
-    }
-  }
-}
 
 // ================== Decls ==================
 void applyModbusSettings(uint8_t addr, uint32_t baud);
@@ -1207,12 +836,6 @@ void setup(){
   if(owdbLoad()) WebSerial.send("message","1-Wire DB loaded from flash");
   else           WebSerial.send("message","1-Wire DB missing/invalid (will create on first save)");
 
-  // Irrigation
-  irrigDefault();
-  if (irrigLoad()) WebSerial.send("message","Irrigation config loaded");
-  else             WebSerial.send("message","Irrigation config defaulted");
-  irrigSendConfig();
-  irrigSendStatus();
 
   publishOneWireTemps();
 
@@ -1233,12 +856,8 @@ void setup(){
   for(uint16_t i=0;i<NUM_DI;i++){  mb.addCoil(CMD_DI_DIS_BASE+i);  mb.setCoil(CMD_DI_DIS_BASE+i,false); }
   for(uint16_t i=0;i<NUM_DI;i++){  mb.addCoil(CMD_CNT_RST_BASE+i); mb.setCoil(CMD_CNT_RST_BASE+i,false); }
 
-  // time regs + midnight pulse coil
-  mb.addHreg(HREG_TIME_MINUTE, g_minuteOfDay);
-  mb.addHreg(HREG_DAY_INDEX,   g_dayIndex);
-  mb.addCoil(CMD_TIME_MIDNIGHT); mb.setCoil(CMD_TIME_MIDNIGHT,false);
 
-  // ===== Holding Registers for Flow/Heat/Irrigation/1-Wire =====
+  // ===== Holding Registers for Flow/Heat/1-Wire =====
   for (uint8_t i=0;i<NUM_DI;i++){
     uint16_t b1 = HREG_FLOW_RATE_BASE  + (i*2);
     uint16_t b2 = HREG_FLOW_ACCUM_BASE + (i*2);
@@ -1252,26 +871,6 @@ void setup(){
     mb.addHreg(p+0,0); mb.addHreg(p+1,0);
     mb.addHreg(e+0,0); mb.addHreg(e+1,0);
     mb.addHreg(d+0,0); mb.addHreg(d+1,0);
-  }
-  for (uint8_t z=0; z<NUM_RLY; z++){
-    mb.addHreg(HREG_IRR_STATE_BASE + z, 0);
-    uint16_t l = HREG_IRR_LITERS_BASE  + (z*2);
-    uint16_t s = HREG_IRR_ELAPSED_BASE + (z*2);
-    uint16_t r = HREG_IRR_RATE_BASE    + (z*2);
-    mb.addHreg(l+0,0); mb.addHreg(l+1,0);
-    mb.addHreg(s+0,0); mb.addHreg(s+1,0);
-    mb.addHreg(r+0,0); mb.addHreg(r+1,0);
-  }
-  mb.addHreg(HREG_IRR_WINDOW_BASE + 0, 0);
-  mb.addHreg(HREG_IRR_WINDOW_BASE + 1, 0);
-  mb.addHreg(HREG_IRR_SENSOK_BASE + 0, 0);
-  mb.addHreg(HREG_IRR_SENSOK_BASE + 1, 0);
-
-  // Irrigation command coils
-  for (uint8_t z=0; z<NUM_RLY; z++){
-    mb.addCoil(CMD_IRR_START_BASE+z); mb.setCoil(CMD_IRR_START_BASE+z,false);
-    mb.addCoil(CMD_IRR_STOP_BASE +z); mb.setCoil(CMD_IRR_STOP_BASE +z,false);
-    mb.addCoil(CMD_IRR_RESET_BASE+z); mb.setCoil(CMD_IRR_RESET_BASE+z,false);
   }
 
   // 1-Wire quick telemetry (first 10 sensors)
@@ -1287,7 +886,7 @@ void setup(){
   WebSerial.on("command", handleCommand);
   WebSerial.on("onewire", handleOneWire);
 
-  WebSerial.send("message","Boot OK (Flow + Heat + Irrigation + LEDs+Buttons + Windows+Sensors+Pump + Local/Modbus relay control + Override).");
+  WebSerial.send("message","Boot OK (Flow + Heat + LEDs+Buttons + Local/Modbus relay control + Override).");
   sendAllEchoesOnce();
 }
 
@@ -1511,43 +1110,6 @@ void handleUnifiedConfig(JSONVar obj){
     WebSerial.send("message", line);
     changed = true;
   }
-  // -------- IRRIGATION CONFIG --------
-  else if (type=="irrigConfig"){
-    for (int i=0;i<NUM_RLY && i<list.length(); i++){
-      JSONVar o = list[i];
-      if (JSON.typeof(o)!="object") continue;
-      g_irrig[i].enabled      = (bool)o["enabled"];
-      g_irrig[i].relay        = (uint8_t)max(0, (int)o["relay"]);
-      g_irrig[i].di           = (uint8_t)max(0, (int)o["di"]);
-      g_irrig[i].useFlow      = (bool)o["useFlow"];
-      if (o.hasOwnProperty("minRate"))  g_irrig[i].minRateLmin  = (double)o["minRate"];
-      if (o.hasOwnProperty("grace"))    g_irrig[i].graceSec     = (uint32_t)(int)o["grace"];
-      if (o.hasOwnProperty("timeout"))  g_irrig[i].timeoutSec   = (uint32_t)(int)o["timeout"];
-      if (o.hasOwnProperty("targetL"))  g_irrig[i].targetLiters = (double)o["targetL"];
-
-      // extra fields (accept -1)
-      if (o.hasOwnProperty("DI_moist")) g_irrig[i].di_moist = (int8_t)(int)o["DI_moist"];
-      if (o.hasOwnProperty("DI_rain"))  g_irrig[i].di_rain  = (int8_t)(int)o["DI_rain"];
-      if (o.hasOwnProperty("DI_tank"))  g_irrig[i].di_tank  = (int8_t)(int)o["DI_tank"];
-      if (o.hasOwnProperty("R_pump"))   g_irrig[i].rpump    = (int8_t)(int)o["R_pump"];
-
-      if (o.hasOwnProperty("windowEnable")) g_irrig[i].windowEnable = (bool)o["windowEnable"];
-      if (o.hasOwnProperty("winStartMin"))  g_irrig[i].winStartMin  = (uint16_t)(int)o["winStartMin"];
-      if (o.hasOwnProperty("winEndMin"))    g_irrig[i].winEndMin    = (uint16_t)(int)o["winEndMin"];
-      if (o.hasOwnProperty("autoStart"))    g_irrig[i].autoStart    = (bool)o["autoStart"];
-
-      // sanitize
-      if (g_irrig[i].relay>NUM_RLY) g_irrig[i].relay=0;
-      if (g_irrig[i].di>NUM_DI)     g_irrig[i].di=0;
-      if (!isValidR(g_irrig[i].rpump)) g_irrig[i].rpump = -1;
-      if (g_irrig[i].di_moist<-1 || g_irrig[i].di_moist>NUM_DI) g_irrig[i].di_moist=-1;
-      if (g_irrig[i].di_rain <-1 || g_irrig[i].di_rain >NUM_DI) g_irrig[i].di_rain =-1;
-      if (g_irrig[i].di_tank <-1 || g_irrig[i].di_tank >NUM_DI) g_irrig[i].di_tank =-1;
-    }
-    irrigSave();
-    irrigSendConfig();
-    WebSerial.send("message","Irrigation config updated");
-  }
   // -------- LED/Buttons CONFIG --------
   else if (type=="led"){
     for(int i=0;i<NUM_LED && i<list.length(); i++){
@@ -1564,10 +1126,6 @@ void handleUnifiedConfig(JSONVar obj){
       btnCfg[i].action = (uint8_t)constrain(act,0,(int)BTN_OVERRIDE_R2);
     }
     WebSerial.send("message","Buttons config updated"); changed=true;
-  }
-  else if (type=="irrigGet"){
-    irrigSendConfig();
-    irrigSendStatus();
   }
   else {
     WebSerial.send("message","Unknown Config type");
@@ -1586,35 +1144,19 @@ void handleCommand(JSONVar obj){
   if (act=="reset"||act=="reboot"){
     bool ok=saveConfigFS();
     WebSerial.send("message", ok ? "Saved. Rebooting…" : "WARNING: Save verify FAILED. Rebooting anyway…");
-    irrigSave();
     delay(400); performReset(); return;
   }
-  if (act=="save"){ if (saveConfigFS()) WebSerial.send("message","Configuration saved"); else WebSerial.send("message","ERROR: Save failed"); irrigSave(); return; }
+  if (act=="save"){ if (saveConfigFS()) WebSerial.send("message","Configuration saved"); else WebSerial.send("message","ERROR: Save failed"); return; }
   if (act=="load"){ if (loadConfigFS()){ WebSerial.send("message","Configuration loaded"); sendAllEchoesOnce(); applyModbusSettings(g_mb_address,g_mb_baud); }
                     else WebSerial.send("message","ERROR: Load failed/invalid"); return; }
   if (act=="factory"){
     setDefaults(); saveConfigFS();
-    irrigDefault(); irrigSave();
     WebSerial.send("message","Factory defaults restored & saved");
     sendAllEchoesOnce(); applyModbusSettings(g_mb_address,g_mb_baud);
     return;
   }
   if (act=="scan"||act=="scan1wire"||act=="scan_1wire"||act=="scan1w"){ doOneWireScan(); return; }
 
-  // set current time (minute-of-day)
-  if (act=="set_time"){
-    int mod = -1;
-    if (obj.hasOwnProperty("minuteOfDay")) mod = (int)obj["minuteOfDay"];
-    if (mod>=0 && mod<1440){
-      g_minuteOfDay = (uint16_t)mod;
-      g_secondsAcc  = 0;
-      mb.setHreg(HREG_TIME_MINUTE, g_minuteOfDay);
-      WebSerial.send("message", String("time: minuteOfDay set to ")+String(mod));
-    } else {
-      WebSerial.send("message","time: missing/invalid 'minuteOfDay' (0..1439)");
-    }
-    return;
-  }
 
   // flow/heat helpers kept
   if (act=="flow_calculate"){
@@ -1670,36 +1212,6 @@ void handleCommand(JSONVar obj){
     return;
   }
 
-  // IRRIGATION COMMANDS
-  if (act=="irrig_start"){
-    int z = -1; if (obj.hasOwnProperty("zone")) z=(int)obj["zone"];
-    if (z>=1 && z<=NUM_RLY) z-=1;
-    if (z<0 || z>=NUM_RLY){ WebSerial.send("message","irrig_start: invalid zone"); return; }
-    double litersOverride=0.0; jsonGetDouble(obj,"liters", litersOverride);
-    irrigStartZone(z, litersOverride);
-    irrigSendStatus();
-    return;
-  }
-  if (act=="irrig_stop"){
-    int z = -1; if (obj.hasOwnProperty("zone")) z=(int)obj["zone"];
-    if (z>=1 && z<=NUM_RLY) z-=1;
-    if (z<0 || z>=NUM_RLY){ WebSerial.send("message","irrig_stop: invalid zone"); return; }
-    irrigStopZone(z,"user");
-    irrigSendStatus();
-    return;
-  }
-  if (act=="irrig_reset"){
-    int z = -1; if (obj.hasOwnProperty("zone")) z=(int)obj["zone"];
-    if (z>=1 && z<=NUM_RLY) z-=1;
-    if (z<0 || z>=NUM_RLY){ WebSerial.send("message","irrig_reset: invalid zone"); return; }
-    g_irrig[z].state=IRR_STATE_IDLE;
-    g_irrig[z].secondsInState=0;
-    g_irrig[z].litersDone=0.0;
-    if (isValidR(g_irrig[z].rpump) && pumpRefCount[g_irrig[z].rpump-1]>0) pumpRefCount[g_irrig[z].rpump-1]--;
-    irrigDemand[(g_irrig[z].relay>=1 && g_irrig[z].relay<=NUM_RLY)?(g_irrig[z].relay-1):0]=false;
-    irrigSendStatus();
-    return;
-  }
 
   WebSerial.send("message", String("Unknown command: ")+actC);
 }
@@ -1761,38 +1273,7 @@ void processModbusCommandPulses(){
       diCounter[i]=0; diLastEdgeMs[i]=millis(); lastPulseSnapshot[i]=0; flowCounterBase[i]=0;
     }
   }
-  // Midnight pulse from HA
-  if (mb.Coil(CMD_TIME_MIDNIGHT)){
-    mb.setCoil(CMD_TIME_MIDNIGHT,false);
-    g_minuteOfDay = 0;
-    g_secondsAcc  = 0;
-    g_dayIndex++;
-    mb.setHreg(HREG_TIME_MINUTE, g_minuteOfDay);
-    mb.setHreg(HREG_DAY_INDEX,   g_dayIndex);
-    WebSerial.send("message","time: midnight pulse");
-  }
 
-  // Irrigation coils
-  for (int z=0; z<NUM_RLY; z++){
-    if (mb.Coil(CMD_IRR_START_BASE+z)){
-      mb.setCoil(CMD_IRR_START_BASE+z,false);
-      irrigStartZone(z, 0.0);
-      irrigSendStatus();
-    }
-    if (mb.Coil(CMD_IRR_STOP_BASE+z)){
-      mb.setCoil(CMD_IRR_STOP_BASE+z,false);
-      irrigStopZone(z,"mb");
-      irrigSendStatus();
-    }
-    if (mb.Coil(CMD_IRR_RESET_BASE+z)){
-      mb.setCoil(CMD_IRR_RESET_BASE+z,false);
-      g_irrig[z].state=IRR_STATE_IDLE;
-      g_irrig[z].secondsInState=0;
-      g_irrig[z].litersDone=0.0;
-      irrigDemand[(g_irrig[z].relay>=1 && g_irrig[z].relay<=NUM_RLY)?(g_irrig[z].relay-1):0]=false;
-      irrigSendStatus();
-    }
-  }
 }
 
 // Apply local action to target (buttons/DI)
@@ -1867,10 +1348,6 @@ void loop(){
         case BTN_TOGGLE_R2: localDesiredRelay[1] = !localDesiredRelay[1]; rlyPulseUntil[1]=0; cfgDirty=true; lastCfgTouchMs=now; WebSerial.send("message","button: toggle R2"); break;
         case BTN_PULSE_R1:  localDesiredRelay[0] = true; rlyPulseUntil[0]= now + PULSE_MS; cfgDirty=true; lastCfgTouchMs=now; WebSerial.send("message","button: pulse R1"); break;
         case BTN_PULSE_R2:  localDesiredRelay[1] = true; rlyPulseUntil[1]= now + PULSE_MS; cfgDirty=true; lastCfgTouchMs=now; WebSerial.send("message","button: pulse R2"); break;
-        case BTN_IRR1_START: irrigStartZone(0,0.0); WebSerial.send("message","button: irrig z1 start"); break;
-        case BTN_IRR1_STOP:  irrigStopZone(0,"button"); WebSerial.send("message","button: irrig z1 stop"); break;
-        case BTN_IRR2_START: irrigStartZone(1,0.0); WebSerial.send("message","button: irrig z2 start"); break;
-        case BTN_IRR2_STOP:  irrigStopZone(1,"button"); WebSerial.send("message","button: irrig z2 stop"); break;
         default: break;
       }
     }
@@ -1901,7 +1378,6 @@ void loop(){
   JSONVar relayStateList;
   // compute relay state with precedence: Override > Selected source (Modbus or Local)
   for (int i=0;i<NUM_RLY;i++){
-    bool pumpDemand = (pumpRefCount[i] > 0);
     bool selectedCmd = false;
 
     if (overrideLatch[i]) {
@@ -1909,7 +1385,7 @@ void loop(){
     } else if (rlyCtrlMode[i] == RCTRL_MODBUS) {
       selectedCmd = modbusDesiredRelay[i];
     } else {
-      selectedCmd = localDesiredRelay[i] || irrigDemand[i] || pumpDemand;
+      selectedCmd = localDesiredRelay[i];
     }
 
     bool outVal=selectedCmd; if(!rlyCfg[i].enabled) outVal=false; if(rlyCfg[i].inverted) outVal=!outVal;
@@ -1933,8 +1409,6 @@ void loop(){
       case LEDSRC_DI3:    return diState[2];
       case LEDSRC_DI4:    return diState[3];
       case LEDSRC_DI5:    return diState[4];
-      case LEDSRC_IRR1:   return (g_irrig[0].state==IRR_STATE_RUN);
-      case LEDSRC_IRR2:   return (g_irrig[1].state==IRR_STATE_RUN);
       case LEDSRC_R1_OVR: return (overrideLatch[0] && physRelayState[0]);
       case LEDSRC_R2_OVR: return (overrideLatch[1] && physRelayState[1]);
       default: return false;
@@ -1955,15 +1429,6 @@ void loop(){
   if (timeAfter32(now, nextRateTickMs)) {
     uint32_t dt_ms = 1000;
     nextRateTickMs = now + 1000;
-
-    // Time progression
-    g_secondsAcc += 1;
-    if (g_secondsAcc >= 60){
-      g_secondsAcc -= 60;
-      if (++g_minuteOfDay >= 1440){ g_minuteOfDay = 0; g_dayIndex++; }
-      mb.setHreg(HREG_TIME_MINUTE, g_minuteOfDay);
-      mb.setHreg(HREG_DAY_INDEX,   g_dayIndex);
-    }
 
     // OneWire convert / read / cache
     if (!oneWireBusy) {
@@ -2016,8 +1481,6 @@ void loop(){
       heatDT[i]=dT; heatPowerW[i]=P;
     }
 
-    // Irrigation tick (after flow rates updated)
-    irrigTick1s();
   }
 
   // ===== Update Modbus Holding Registers =====
@@ -2043,24 +1506,6 @@ void loop(){
     setHreg32s(HREG_HEAT_DT_BASE + (i*2), dt_milli);
   }
 
-  // Irrigation per zone
-  for (int z=0; z<NUM_RLY; z++){
-    IrrigZone &Z = g_irrig[z];
-    mb.setHreg(HREG_IRR_STATE_BASE + z, (uint16_t)Z.state);
-
-    uint32_t l_milli = (Z.litersDone <= 0.0) ? 0u : (uint32_t)llround(Z.litersDone*1000.0);
-    setHreg32(HREG_IRR_LITERS_BASE + (z*2), l_milli);
-
-    setHreg32(HREG_IRR_ELAPSED_BASE + (z*2), (uint32_t)Z.secondsInState);
-
-    double zr = 0.0;
-    if (Z.di>=1 && Z.di<=NUM_DI) zr = flowRateLmin[Z.di-1];
-    uint32_t zr_milli = (zr <= 0.0) ? 0u : (uint32_t)llround(zr*1000.0);
-    setHreg32(HREG_IRR_RATE_BASE + (z*2), zr_milli);
-
-    mb.setHreg(HREG_IRR_WINDOW_BASE + z, (uint16_t)(zoneWindowOpen(Z) ? 1 : 0));
-    mb.setHreg(HREG_IRR_SENSOK_BASE + z, (uint16_t)(zoneSensorsOK(Z) ? 1 : 0));
-  }
 
   // 1-Wire quick telemetry (first 10 sensors)
   for (int i=0;i<10;i++){
@@ -2171,12 +1616,7 @@ void loop(){
     WebSerial.send("ledStateList", ledStates);
     WebSerial.send("buttonStateList", btnStates);
 
-    // irrigation live
-    irrigSendStatus();
 
-    // time
-    JSONVar timeObj; timeObj["minuteOfDay"]=(double)g_minuteOfDay; timeObj["dayIndex"]=(double)g_dayIndex;
-    WebSerial.send("timeStatus", timeObj);
 
     // NEW: relay control & override status
     JSONVar rcList, ovList;
@@ -2270,12 +1710,7 @@ void sendAllEchoesOnce(){
   WebSerial.send("heatEnergyJList", heatEnergyJList);
   WebSerial.send("heatEnergyKWhList", heatEnergyKWhList);
 
-  irrigSendConfig();
-  irrigSendStatus();
 
-  // time once
-  JSONVar timeObj; timeObj["minuteOfDay"]=(double)g_minuteOfDay; timeObj["dayIndex"]=(double)g_dayIndex;
-  WebSerial.send("timeStatus", timeObj);
 
   // LEDs + Buttons echo once
   JSONVar ledArr;
