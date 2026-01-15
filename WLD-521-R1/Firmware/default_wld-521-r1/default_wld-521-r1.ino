@@ -635,26 +635,33 @@ inline auto setSlaveIdIfAvailable(M& m, uint8_t id)
 inline void setSlaveIdIfAvailable(...){}
 
 // ================== Modbus maps ==================
+// ISTS (Input Status) - kept for backward compatibility (FC02)
 enum : uint16_t { ISTS_DI_BASE=1, ISTS_RLY_BASE=60 };
-// mirrors (read-only ISTS) for LEDs & Buttons
 enum : uint16_t { ISTS_LED_BASE=90, ISTS_BTN_BASE=100 };
 
-// NOTE: HREG_DI_COUNT_BASE removed from map (no longer exported over Modbus)
-
+// Command Coils (FC05/FC01)
 enum : uint16_t {
   CMD_RLY_ON_BASE=200, CMD_RLY_OFF_BASE=210,
   CMD_DI_EN_BASE=300,  CMD_DI_DIS_BASE=320, CMD_CNT_RST_BASE=340
 };
 
-// Flow/Heat/1-Wire (Holding Registers)
+// ===== Unified Holding Register Map (FC03) - Single Address Space =====
+// All data accessible via FC03 Read Holding Registers
 enum : uint16_t {
-  HREG_FLOW_RATE_BASE   = 1120, // 5×(U32)  L/min ×1000  (2 regs each)
-  HREG_FLOW_ACCUM_BASE  = 1140, // 5×(U32)  L ×1000      (2 regs each)
-  HREG_HEAT_POWER_BASE  = 1200, // 5×(S32)  W            (2 regs each)
-  HREG_HEAT_EN_WH_BASE  = 1220, // 5×(U32)  Wh ×1000     (2 regs each)
-  HREG_HEAT_DT_BASE     = 1240, // 5×(S32)  °C ×1000     (2 regs each)
-
-  HREG_OW_TEMP_BASE     = 1500  // first 10 sensors, 10×(S32) °C ×1000 (2 regs each)
+  // ISTS mirrors (as UINT16: 0 or 1)
+  HREG_DI_BASE    = 1,   // 5 regs: DI1-DI5 states
+  HREG_RLY_BASE   = 60,  // 2 regs: RLY1-RLY2 states
+  HREG_LED_BASE   = 90,  // 4 regs: LED1-LED4 states
+  HREG_BTN_BASE   = 100, // 4 regs: BTN1-BTN4 states
+  
+  // Flow/Heat/1-Wire (continuous from 104)
+  HREG_FLOW_RATE_BASE   = 104, // 5×(U32)  L/min ×1000  (2 regs each) = 10 regs
+  HREG_FLOW_ACCUM_BASE  = 114, // 5×(U32)  L ×1000      (2 regs each) = 10 regs
+  HREG_HEAT_POWER_BASE  = 124, // 5×(S32)  W            (2 regs each) = 10 regs
+  HREG_HEAT_EN_WH_BASE  = 134, // 5×(U32)  Wh ×1000     (2 regs each) = 10 regs
+  HREG_HEAT_DT_BASE     = 144, // 5×(S32)  °C ×1000     (2 regs each) = 10 regs
+  HREG_OW_TEMP_BASE     = 154  // 10×(S32) °C ×1000     (2 regs each) = 20 regs
+  // Total: 1-173 (continuous)
 };
 
 // ================== 1-Wire DB helpers ==================
@@ -843,21 +850,27 @@ void setup(){
   Serial2.begin(g_mb_baud); mb.config(g_mb_baud); setSlaveIdIfAvailable(mb, g_mb_address);
   mb.setAdditionalServerData("WLD-521-R1");
 
+  // ISTS (Input Status) - kept for backward compatibility (FC02)
   for(uint16_t i=0;i<NUM_DI;i++)  mb.addIsts(ISTS_DI_BASE + i);
   for(uint16_t i=0;i<NUM_RLY;i++) mb.addIsts(ISTS_RLY_BASE + i);
   for(uint16_t i=0;i<NUM_LED;i++) mb.addIsts(ISTS_LED_BASE + i);
   for(uint16_t i=0;i<NUM_BTN;i++) mb.addIsts(ISTS_BTN_BASE + i);
 
-  // NOTE: DI counters NOT exported to Modbus anymore (removed addHreg 1000…1009)
-
+  // Command Coils (FC05/FC01)
   for(uint16_t i=0;i<NUM_RLY;i++){ mb.addCoil(CMD_RLY_ON_BASE+i);  mb.setCoil(CMD_RLY_ON_BASE+i,false); }
   for (uint16_t i=0; i<NUM_RLY; i++) { mb.addCoil(CMD_RLY_OFF_BASE+i); mb.setCoil(CMD_RLY_OFF_BASE+i,false); }
   for(uint16_t i=0;i<NUM_DI;i++){  mb.addCoil(CMD_DI_EN_BASE+i);   mb.setCoil(CMD_DI_EN_BASE+i,false); }
   for(uint16_t i=0;i<NUM_DI;i++){  mb.addCoil(CMD_DI_DIS_BASE+i);  mb.setCoil(CMD_DI_DIS_BASE+i,false); }
   for(uint16_t i=0;i<NUM_DI;i++){  mb.addCoil(CMD_CNT_RST_BASE+i); mb.setCoil(CMD_CNT_RST_BASE+i,false); }
 
+  // ===== Unified Holding Register Map (FC03) - Single Continuous Address Space =====
+  // ISTS mirrors (as UINT16: 0 or 1)
+  for(uint16_t i=0;i<NUM_DI;i++)  mb.addHreg(HREG_DI_BASE + i, 0);
+  for(uint16_t i=0;i<NUM_RLY;i++) mb.addHreg(HREG_RLY_BASE + i, 0);
+  for(uint16_t i=0;i<NUM_LED;i++) mb.addHreg(HREG_LED_BASE + i, 0);
+  for(uint16_t i=0;i<NUM_BTN;i++) mb.addHreg(HREG_BTN_BASE + i, 0);
 
-  // ===== Holding Registers for Flow/Heat/1-Wire =====
+  // Flow/Heat/1-Wire (continuous from 104)
   for (uint8_t i=0;i<NUM_DI;i++){
     uint16_t b1 = HREG_FLOW_RATE_BASE  + (i*2);
     uint16_t b2 = HREG_FLOW_ACCUM_BASE + (i*2);
@@ -1314,7 +1327,9 @@ void loop(){
     }
 
     bool prev=diState[i]; diPrev[i]=prev; diState[i]=val;
-    inputs[i]=val; mb.setIsts(ISTS_DI_BASE+i, val);
+    inputs[i]=val; 
+    mb.setIsts(ISTS_DI_BASE+i, val);
+    mb.setHreg(HREG_DI_BASE + i, val ? 1 : 0); // Mirror to HREG
 
     bool rising=(!prev && val);
 
@@ -1373,6 +1388,7 @@ void loop(){
 
     if(buttonPrev[i] && !buttonState[i]){ btnRt[i].pressed=false; }
     mb.setIsts(ISTS_BTN_BASE + i, pressed);
+    mb.setHreg(HREG_BTN_BASE + i, pressed ? 1 : 0); // Mirror to HREG
   }
 
   JSONVar relayStateList;
@@ -1392,7 +1408,9 @@ void loop(){
     digitalWrite(RELAY_PINS[i], outVal?HIGH:LOW);
     physRelayState[i]=outVal;
 
-    relayStateList[i]=outVal; mb.setIsts(ISTS_RLY_BASE+i,outVal);
+    relayStateList[i]=outVal; 
+    mb.setIsts(ISTS_RLY_BASE+i,outVal);
+    mb.setHreg(HREG_RLY_BASE + i, outVal ? 1 : 0); // Mirror to HREG
 
     // expire local pulse
     if (rlyPulseUntil[i] && timeAfter32(now, rlyPulseUntil[i])){ localDesiredRelay[i]=false; rlyPulseUntil[i]=0; cfgDirty=true; lastCfgTouchMs=now; }
@@ -1419,6 +1437,7 @@ void loop(){
     bool phys = (ledCfg[i].mode==0) ? srcActive : (srcActive && blinkPhase);
     digitalWrite(LED_PINS[i], phys ? HIGH : LOW);
     mb.setIsts(ISTS_LED_BASE + i, phys);
+    mb.setHreg(HREG_LED_BASE + i, phys ? 1 : 0); // Mirror to HREG
     ledStates[i]=phys;
 
     JSONVar L; L["mode"]=(double)ledCfg[i].mode; L["source"]=(double)ledCfg[i].source; L["state"]=phys;
