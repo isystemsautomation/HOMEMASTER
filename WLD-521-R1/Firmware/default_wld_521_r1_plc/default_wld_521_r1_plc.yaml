@@ -7,7 +7,7 @@ substitutions:
   wld_prefix: "WLD#1"
   wld_address: "3"     # firmware default Modbus ID
 
-# If UART/MODBUS aren’t defined globally, uncomment & set pins:
+# If UART/MODBUS aren't defined globally, uncomment & set pins:
 # uart:
 #   id: rs485_uart
 #   tx_pin: GPIO4
@@ -26,103 +26,123 @@ modbus_controller:
     update_interval: 1s
     command_throttle: 0ms
 
-# ===================== Discrete Inputs (FC02) =====================
-binary_sensor:
-  # DI states (1..5)
-  - platform: modbus_controller
-    modbus_controller_id: ${wld_id}
-    name: "${wld_prefix} DI1"
-    address: 1
-    register_type: discrete_input
-  - platform: modbus_controller
-    modbus_controller_id: ${wld_id}
-    name: "${wld_prefix} DI2"
-    address: 2
-    register_type: discrete_input
-  - platform: modbus_controller
-    modbus_controller_id: ${wld_id}
-    name: "${wld_prefix} DI3"
-    address: 3
-    register_type: discrete_input
-  - platform: modbus_controller
-    modbus_controller_id: ${wld_id}
-    name: "${wld_prefix} DI4"
-    address: 4
-    register_type: discrete_input
-  - platform: modbus_controller
-    modbus_controller_id: ${wld_id}
-    name: "${wld_prefix} DI5"
-    address: 5
-    register_type: discrete_input
-
-  # Relay feedback (60..61)
-  - platform: modbus_controller
-    id: ${wld_id}_r1_state
-    modbus_controller_id: ${wld_id}
-    name: "${wld_prefix} R1 state"
-    address: 60
-    register_type: discrete_input
-  - platform: modbus_controller
-    id: ${wld_id}_r2_state
-    modbus_controller_id: ${wld_id}
-    name: "${wld_prefix} R2 state"
-    address: 61
-    register_type: discrete_input
-
-  # LED mirrors (internal)
-  - platform: modbus_controller
-    modbus_controller_id: ${wld_id}
-    name: "${wld_prefix} LED1 (ro)"
-    address: 90
-    register_type: discrete_input
-    internal: true
-  - platform: modbus_controller
-    modbus_controller_id: ${wld_id}
-    name: "${wld_prefix} LED2 (ro)"
-    address: 91
-    register_type: discrete_input
-    internal: true
-  - platform: modbus_controller
-    modbus_controller_id: ${wld_id}
-    name: "${wld_prefix} LED3 (ro)"
-    address: 92
-    register_type: discrete_input
-    internal: true
-  - platform: modbus_controller
-    modbus_controller_id: ${wld_id}
-    name: "${wld_prefix} LED4 (ro)"
-    address: 93
-    register_type: discrete_input
-    internal: true
-
-  # Button mirrors (internal)
-  - platform: modbus_controller
-    modbus_controller_id: ${wld_id}
-    name: "${wld_prefix} BTN1 (ro)"
-    address: 100
-    register_type: discrete_input
-    internal: true
-  - platform: modbus_controller
-    modbus_controller_id: ${wld_id}
-    name: "${wld_prefix} BTN2 (ro)"
-    address: 101
-    register_type: discrete_input
-    internal: true
-  - platform: modbus_controller
-    modbus_controller_id: ${wld_id}
-    name: "${wld_prefix} BTN3 (ro)"
-    address: 102
-    register_type: discrete_input
-    internal: true
-  - platform: modbus_controller
-    modbus_controller_id: ${wld_id}
-    name: "${wld_prefix} BTN4 (ro)"
-    address: 103
-    register_type: discrete_input
-    internal: true
-
 # ===================== Holding (FC03) =====================
 sensor:
+  # ---------- DI/Relay/LED/Button states from HREG (mirrored from ISTS) ----------
+  # DI states (HREG 1-5, UINT16: 0 or 1)
+  - platform: modbus_controller
+    id: ${wld_id}_di1_hreg
+    modbus_controller_id: ${wld_id}
+    address: 1
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_di2_hreg
+    modbus_controller_id: ${wld_id}
+    address: 2
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_di3_hreg
+    modbus_controller_id: ${wld_id}
+    address: 3
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_di4_hreg
+    modbus_controller_id: ${wld_id}
+    address: 4
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_di5_hreg
+    modbus_controller_id: ${wld_id}
+    address: 5
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+
+  # Relay states (HREG 60-61, UINT16: 0 or 1)
+  - platform: modbus_controller
+    id: ${wld_id}_r1_state_hreg
+    modbus_controller_id: ${wld_id}
+    address: 60
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_r2_state_hreg
+    modbus_controller_id: ${wld_id}
+    address: 61
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+
+  # LED states (HREG 90-93, UINT16: 0 or 1) - internal
+  - platform: modbus_controller
+    id: ${wld_id}_led1_hreg
+    modbus_controller_id: ${wld_id}
+    address: 90
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_led2_hreg
+    modbus_controller_id: ${wld_id}
+    address: 91
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_led3_hreg
+    modbus_controller_id: ${wld_id}
+    address: 92
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_led4_hreg
+    modbus_controller_id: ${wld_id}
+    address: 93
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+
+  # Button states (HREG 100-103, UINT16: 0 or 1) - internal
+  - platform: modbus_controller
+    id: ${wld_id}_btn1_hreg
+    modbus_controller_id: ${wld_id}
+    address: 100
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_btn2_hreg
+    modbus_controller_id: ${wld_id}
+    address: 101
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_btn3_hreg
+    modbus_controller_id: ${wld_id}
+    address: 102
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+  - platform: modbus_controller
+    id: ${wld_id}_btn4_hreg
+    modbus_controller_id: ${wld_id}
+    address: 103
+    register_type: holding
+    value_type: U_WORD
+    internal: true
+
+  # ---------- Flow (U32 ×1000) ----------
   # ---------- Flow (U32 ×1000) ----------
   # DI1
   - platform: modbus_controller
@@ -1000,6 +1020,86 @@ sensor:
       int32_t hi = (int16_t)id(${wld_id}_ow10_hi).state;
       int32_t v = (hi << 16) | lo;
       return v / 1000.0;
+
+# ===================== Binary Sensors (from HREG) =====================
+binary_sensor:
+  # DI states (from HREG 1-5)
+  - platform: template
+    name: "${wld_prefix} DI1"
+    lambda: |-
+      return id(${wld_id}_di1_hreg).state != 0;
+  - platform: template
+    name: "${wld_prefix} DI2"
+    lambda: |-
+      return id(${wld_id}_di2_hreg).state != 0;
+  - platform: template
+    name: "${wld_prefix} DI3"
+    lambda: |-
+      return id(${wld_id}_di3_hreg).state != 0;
+  - platform: template
+    name: "${wld_prefix} DI4"
+    lambda: |-
+      return id(${wld_id}_di4_hreg).state != 0;
+  - platform: template
+    name: "${wld_prefix} DI5"
+    lambda: |-
+      return id(${wld_id}_di5_hreg).state != 0;
+
+  # Relay states (from HREG 60-61)
+  - platform: template
+    id: ${wld_id}_r1_state
+    name: "${wld_prefix} R1 state"
+    lambda: |-
+      return id(${wld_id}_r1_state_hreg).state != 0;
+  - platform: template
+    id: ${wld_id}_r2_state
+    name: "${wld_prefix} R2 state"
+    lambda: |-
+      return id(${wld_id}_r2_state_hreg).state != 0;
+
+  # LED states (from HREG 90-93) - internal
+  - platform: template
+    name: "${wld_prefix} LED1 (ro)"
+    internal: true
+    lambda: |-
+      return id(${wld_id}_led1_hreg).state != 0;
+  - platform: template
+    name: "${wld_prefix} LED2 (ro)"
+    internal: true
+    lambda: |-
+      return id(${wld_id}_led2_hreg).state != 0;
+  - platform: template
+    name: "${wld_prefix} LED3 (ro)"
+    internal: true
+    lambda: |-
+      return id(${wld_id}_led3_hreg).state != 0;
+  - platform: template
+    name: "${wld_prefix} LED4 (ro)"
+    internal: true
+    lambda: |-
+      return id(${wld_id}_led4_hreg).state != 0;
+
+  # Button states (from HREG 100-103) - internal
+  - platform: template
+    name: "${wld_prefix} BTN1 (ro)"
+    internal: true
+    lambda: |-
+      return id(${wld_id}_btn1_hreg).state != 0;
+  - platform: template
+    name: "${wld_prefix} BTN2 (ro)"
+    internal: true
+    lambda: |-
+      return id(${wld_id}_btn2_hreg).state != 0;
+  - platform: template
+    name: "${wld_prefix} BTN3 (ro)"
+    internal: true
+    lambda: |-
+      return id(${wld_id}_btn3_hreg).state != 0;
+  - platform: template
+    name: "${wld_prefix} BTN4 (ro)"
+    internal: true
+    lambda: |-
+      return id(${wld_id}_btn4_hreg).state != 0;
 
 # ===================== Command Coils (FC05/FC01) =====================
 switch:
