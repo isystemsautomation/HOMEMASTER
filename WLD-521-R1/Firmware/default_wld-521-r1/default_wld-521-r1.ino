@@ -393,7 +393,7 @@ void setDefaults() {
 
   for (int i=0;i<NUM_RLY;i++){
     localDesiredRelay[i]=false; modbusDesiredRelay[i]=false; overrideLatch[i]=false; rlyPulseUntil[i]=0;
-    rlyCtrlMode[i]=RCTRL_LOCAL;
+    rlyCtrlMode[i]=RCTRL_MODBUS; // Default to Modbus control for ESPHome integration
   }
 
   for (int i=0;i<NUM_DI;i++){
@@ -1430,6 +1430,9 @@ void loop(){
     relayStateList[i]=outVal; 
     mb.setIsts(ISTS_RLY_BASE+i,outVal);
     mb.setHreg(HREG_RLY_BASE + i, outVal ? 1 : 0); // Mirror to HREG
+    
+    // Update Modbus coil to reflect actual relay state (for ESPHome switch state reading)
+    mb.setCoil(CMD_RLY_STATE_BASE + i, outVal);
 
     // expire local pulse
     if (rlyPulseUntil[i] && timeAfter32(now, rlyPulseUntil[i])){ localDesiredRelay[i]=false; rlyPulseUntil[i]=0; cfgDirty=true; lastCfgTouchMs=now; }

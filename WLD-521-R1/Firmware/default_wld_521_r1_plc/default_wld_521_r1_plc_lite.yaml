@@ -23,8 +23,9 @@ modbus_controller:
   - id: ${wld_id}
     address: ${wld_address}
     modbus_id: modbus_bus
-    update_interval: 1s
-    command_throttle: 0ms
+    update_interval: 3s
+    command_throttle: 50ms
+    allow_duplicate_commands: false
 
 # ===================== Discrete Inputs (FC02) =====================
 binary_sensor:

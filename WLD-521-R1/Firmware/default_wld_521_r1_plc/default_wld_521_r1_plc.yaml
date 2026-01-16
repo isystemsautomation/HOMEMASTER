@@ -23,8 +23,9 @@ modbus_controller:
   - id: ${wld_id}
     address: ${wld_address}
     modbus_id: modbus_bus
-    update_interval: 1s
-    command_throttle: 0ms
+    update_interval: 3s
+    command_throttle: 50ms
+    allow_duplicate_commands: false
 
 # ===================== Holding (FC03) =====================
 sensor:
@@ -175,6 +176,7 @@ sensor:
     register_type: holding
     value_type: U_WORD
     internal: true
+    skip_updates: 9
   - platform: modbus_controller
     id: ${wld_id}_flow1_acc_hi
     modbus_controller_id: ${wld_id}
@@ -182,13 +184,13 @@ sensor:
     register_type: holding
     value_type: U_WORD
     internal: true
+    skip_updates: 9
   - platform: template
     name: "${wld_prefix} Flow1 Total"
     unit_of_measurement: "L"
     device_class: water
     state_class: total_increasing
     accuracy_decimals: 3
-    update_interval: 1s
     lambda: |-
       uint32_t v = (uint32_t(id(${wld_id}_flow1_acc_lo).state) | (uint32_t(id(${wld_id}_flow1_acc_hi).state) << 16));
       return v / 1000.0;
@@ -224,6 +226,7 @@ sensor:
     register_type: holding
     value_type: U_WORD
     internal: true
+    skip_updates: 9
   - platform: modbus_controller
     id: ${wld_id}_flow2_acc_hi
     modbus_controller_id: ${wld_id}
@@ -231,13 +234,13 @@ sensor:
     register_type: holding
     value_type: U_WORD
     internal: true
+    skip_updates: 9
   - platform: template
     name: "${wld_prefix} Flow2 Total"
     unit_of_measurement: "L"
     device_class: water
     state_class: total_increasing
     accuracy_decimals: 3
-    update_interval: 1s
     lambda: |-
       uint32_t v = (uint32_t(id(${wld_id}_flow2_acc_lo).state) | (uint32_t(id(${wld_id}_flow2_acc_hi).state) << 16));
       return v / 1000.0;
@@ -273,6 +276,7 @@ sensor:
     register_type: holding
     value_type: U_WORD
     internal: true
+    skip_updates: 9
   - platform: modbus_controller
     id: ${wld_id}_flow3_acc_hi
     modbus_controller_id: ${wld_id}
@@ -280,13 +284,13 @@ sensor:
     register_type: holding
     value_type: U_WORD
     internal: true
+    skip_updates: 9
   - platform: template
     name: "${wld_prefix} Flow3 Total"
     unit_of_measurement: "L"
     device_class: water
     state_class: total_increasing
     accuracy_decimals: 3
-    update_interval: 1s
     lambda: |-
       uint32_t v = (uint32_t(id(${wld_id}_flow3_acc_lo).state) | (uint32_t(id(${wld_id}_flow3_acc_hi).state) << 16));
       return v / 1000.0;
@@ -322,6 +326,7 @@ sensor:
     register_type: holding
     value_type: U_WORD
     internal: true
+    skip_updates: 9
   - platform: modbus_controller
     id: ${wld_id}_flow4_acc_hi
     modbus_controller_id: ${wld_id}
@@ -329,13 +334,13 @@ sensor:
     register_type: holding
     value_type: U_WORD
     internal: true
+    skip_updates: 9
   - platform: template
     name: "${wld_prefix} Flow4 Total"
     unit_of_measurement: "L"
     device_class: water
     state_class: total_increasing
     accuracy_decimals: 3
-    update_interval: 1s
     lambda: |-
       uint32_t v = (uint32_t(id(${wld_id}_flow4_acc_lo).state) | (uint32_t(id(${wld_id}_flow4_acc_hi).state) << 16));
       return v / 1000.0;
@@ -371,6 +376,7 @@ sensor:
     register_type: holding
     value_type: U_WORD
     internal: true
+    skip_updates: 9
   - platform: modbus_controller
     id: ${wld_id}_flow5_acc_hi
     modbus_controller_id: ${wld_id}
@@ -378,13 +384,13 @@ sensor:
     register_type: holding
     value_type: U_WORD
     internal: true
+    skip_updates: 9
   - platform: template
     name: "${wld_prefix} Flow5 Total"
     unit_of_measurement: "L"
     device_class: water
     state_class: total_increasing
     accuracy_decimals: 3
-    update_interval: 1s
     lambda: |-
       uint32_t v = (uint32_t(id(${wld_id}_flow5_acc_lo).state) | (uint32_t(id(${wld_id}_flow5_acc_hi).state) << 16));
       return v / 1000.0;
@@ -423,6 +429,7 @@ sensor:
     register_type: holding
     value_type: U_WORD
     internal: true
+    skip_updates: 9
   - platform: modbus_controller
     id: ${wld_id}_heat1_e_hi
     modbus_controller_id: ${wld_id}
@@ -430,13 +437,13 @@ sensor:
     register_type: holding
     value_type: U_WORD
     internal: true
+    skip_updates: 9
   - platform: template
     name: "${wld_prefix} Heat1 Energy"
     unit_of_measurement: "kWh"
     device_class: energy
     state_class: total_increasing
     accuracy_decimals: 3
-    update_interval: 1s
     lambda: |-
       uint32_t v = (uint32_t(id(${wld_id}_heat1_e_lo).state) | (uint32_t(id(${wld_id}_heat1_e_hi).state) << 16));
       return v / 1000000.0;
@@ -499,6 +506,7 @@ sensor:
     register_type: holding
     value_type: U_WORD
     internal: true
+    skip_updates: 9
   - platform: modbus_controller
     id: ${wld_id}_heat2_e_hi
     modbus_controller_id: ${wld_id}
@@ -506,13 +514,13 @@ sensor:
     register_type: holding
     value_type: U_WORD
     internal: true
+    skip_updates: 9
   - platform: template
     name: "${wld_prefix} Heat2 Energy"
     unit_of_measurement: "kWh"
     accuracy_decimals: 3
     device_class: energy
     state_class: total_increasing
-    update_interval: 1s
     lambda: |-
       uint32_t v = (uint32_t(id(${wld_id}_heat2_e_lo).state) | (uint32_t(id(${wld_id}_heat2_e_hi).state) << 16));
       return v / 1000000.0;
@@ -575,6 +583,7 @@ sensor:
     register_type: holding
     value_type: U_WORD
     internal: true
+    skip_updates: 9
   - platform: modbus_controller
     id: ${wld_id}_heat3_e_hi
     modbus_controller_id: ${wld_id}
@@ -582,13 +591,13 @@ sensor:
     register_type: holding
     value_type: U_WORD
     internal: true
+    skip_updates: 9
   - platform: template
     name: "${wld_prefix} Heat3 Energy"
     unit_of_measurement: "kWh"
     device_class: energy
     state_class: total_increasing
     accuracy_decimals: 3
-    update_interval: 1s
     lambda: |-
       uint32_t v = (uint32_t(id(${wld_id}_heat3_e_lo).state) | (uint32_t(id(${wld_id}_heat3_e_hi).state) << 16));
       return v / 1000000.0;
@@ -651,6 +660,7 @@ sensor:
     register_type: holding
     value_type: U_WORD
     internal: true
+    skip_updates: 9
   - platform: modbus_controller
     id: ${wld_id}_heat4_e_hi
     modbus_controller_id: ${wld_id}
@@ -658,13 +668,13 @@ sensor:
     register_type: holding
     value_type: U_WORD
     internal: true
+    skip_updates: 9
   - platform: template
     name: "${wld_prefix} Heat4 Energy"
     unit_of_measurement: "kWh"
     device_class: energy
     state_class: total_increasing
     accuracy_decimals: 3
-    update_interval: 1s
     lambda: |-
       uint32_t v = (uint32_t(id(${wld_id}_heat4_e_lo).state) | (uint32_t(id(${wld_id}_heat4_e_hi).state) << 16));
       return v / 1000000.0;
@@ -727,6 +737,7 @@ sensor:
     register_type: holding
     value_type: U_WORD
     internal: true
+    skip_updates: 9
   - platform: modbus_controller
     id: ${wld_id}_heat5_e_hi
     modbus_controller_id: ${wld_id}
@@ -734,13 +745,13 @@ sensor:
     register_type: holding
     value_type: U_WORD
     internal: true
+    skip_updates: 9
   - platform: template
     name: "${wld_prefix} Heat5 Energy"
     unit_of_measurement: "kWh"
     device_class: energy
     state_class: total_increasing
     accuracy_decimals: 3
-    update_interval: 1s
     lambda: |-
       uint32_t v = (uint32_t(id(${wld_id}_heat5_e_lo).state) | (uint32_t(id(${wld_id}_heat5_e_hi).state) << 16));
       return v / 1000000.0;
