@@ -1,0 +1,755 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DIO-430-R1 Module Configuration</title>
+  <style>
+    :root{
+      --bg: #0b1220;
+      --panel: rgba(255,255,255,.06);
+      --panel2: rgba(255,255,255,.08);
+      --border: rgba(255,255,255,.10);
+      --text: rgba(255,255,255,.92);
+      --muted: rgba(255,255,255,.65);
+      --muted2: rgba(255,255,255,.45);
+
+      --brand: #4f8cff;
+      --brand2: #6ee7ff;
+
+      --ok: #2dd4bf;
+      --warn: #fbbf24;
+      --bad: #fb7185;
+
+      --shadow: 0 18px 50px rgba(0,0,0,.45);
+      --radius: 16px;
+      --radius2: 12px;
+
+      --gap: 16px;
+      --gap2: 12px;
+
+      --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body{
+      margin: 0;
+      font-family: var(--font);
+      color: var(--text);
+      background:
+        radial-gradient(900px 450px at 20% -10%, rgba(79,140,255,.35), transparent 55%),
+        radial-gradient(700px 400px at 90% 10%, rgba(110,231,255,.20), transparent 60%),
+        radial-gradient(800px 500px at 50% 120%, rgba(45,212,191,.18), transparent 55%),
+        linear-gradient(180deg, #070b14 0%, #0b1220 55%, #070b14 100%);
+    }
+
+    .container{
+      max-width: 1160px;
+      margin: 28px auto;
+      padding: 0 18px 28px;
+    }
+
+    /* Top app header */
+    .appbar{
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 18px 18px;
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.04));
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+
+    .title{
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      min-width: 260px;
+    }
+
+    .logo{
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background:
+        radial-gradient(18px 18px at 30% 30%, rgba(255,255,255,.20), transparent 60%),
+        linear-gradient(135deg, rgba(79,140,255,.55), rgba(110,231,255,.35));
+      border: 1px solid rgba(255,255,255,.18);
+      box-shadow: 0 10px 28px rgba(79,140,255,.18);
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      letter-spacing: .5px;
+    }
+
+    .title h1{
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.2;
+      letter-spacing: .2px;
+    }
+    .title p{
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .statusbar{
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: flex-end;
+      flex: 1;
+    }
+
+    .pillrow{
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .pill{
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.06);
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .dot{
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: var(--muted2);
+      box-shadow: 0 0 0 3px rgba(255,255,255,.06);
+    }
+    .dot.ok{ background: var(--ok); box-shadow: 0 0 0 3px rgba(45,212,191,.18); }
+    .dot.warn{ background: var(--warn); box-shadow: 0 0 0 3px rgba(251,191,36,.18); }
+    .dot.bad{ background: var(--bad); box-shadow: 0 0 0 3px rgba(251,113,133,.18); }
+
+    /* Layout sections */
+    .grid{
+      display: grid;
+      gap: var(--gap);
+      margin-top: 16px;
+    }
+
+    .grid.two{
+      grid-template-columns: 1.2fr .8fr;
+    }
+
+    @media (max-width: 980px){
+      .grid.two{ grid-template-columns: 1fr; }
+      .statusbar{ align-items: flex-start; }
+      .pillrow{ justify-content: flex-start; }
+    }
+
+    .card{
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      box-shadow: 0 14px 40px rgba(0,0,0,.35);
+      backdrop-filter: blur(10px);
+      overflow: hidden;
+    }
+
+    .cardheader{
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: rgba(255,255,255,.03);
+    }
+
+    .cardheader h2{
+      margin: 0;
+      font-size: 14px;
+      letter-spacing: .3px;
+      font-weight: 700;
+    }
+    .sub{
+      color: var(--muted);
+      font-size: 12px;
+      margin: 6px 0 0;
+    }
+    .cardbody{ padding: 16px; }
+
+    /* Form controls */
+    .row{
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--gap);
+    }
+    @media (max-width: 640px){ .row{ grid-template-columns: 1fr; } }
+
+    label{
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .field{
+      display: grid;
+      gap: 8px;
+    }
+
+    input[type="text"], select, textarea{
+      width: 100%;
+      padding: 11px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(10,14,24,.55);
+      color: var(--text);
+      outline: none;
+      transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    textarea{ min-height: 120px; resize: vertical; }
+    input:focus, select:focus, textarea:focus{
+      border-color: rgba(79,140,255,.55);
+      box-shadow: 0 0 0 4px rgba(79,140,255,.18);
+    }
+
+    /* Buttons */
+    .actions{
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .btn{
+      border: 1px solid rgba(255,255,255,.16);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 650;
+      font-size: 13px;
+      letter-spacing: .2px;
+      transition: transform .06s ease, background .15s ease, border-color .15s ease;
+      user-select: none;
+    }
+    .btn:hover{ background: rgba(255,255,255,.10); border-color: rgba(255,255,255,.22); }
+    .btn:active{ transform: translateY(1px); }
+    .btn.primary{
+      border-color: rgba(79,140,255,.55);
+      background: linear-gradient(135deg, rgba(79,140,255,.75), rgba(110,231,255,.30));
+      box-shadow: 0 16px 36px rgba(79,140,255,.18);
+    }
+    .btn.danger{
+      border-color: rgba(251,113,133,.55);
+      background: linear-gradient(135deg, rgba(251,113,133,.55), rgba(251,113,133,.15));
+    }
+
+    /* Section titles */
+    .sectiontitle{
+      margin: 18px 0 10px;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .sectiontitle h3{
+      margin: 0;
+      font-size: 13px;
+      letter-spacing: .35px;
+      color: rgba(255,255,255,.86);
+    }
+    .sectiontitle .hint{
+      margin: 0;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* I/O grids */
+    .iogroup{
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--gap);
+    }
+    @media (max-width: 1100px){ .iogroup{ grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 640px){ .iogroup{ grid-template-columns: 1fr; } }
+
+    .iocard{
+      border-radius: var(--radius2);
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.04);
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+      min-height: 168px;
+    }
+
+    .iotop{
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .ioid{
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      letter-spacing: .3px;
+    }
+    .tag{
+      font-size: 11px;
+      color: var(--muted);
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.05);
+      padding: 4px 8px;
+      border-radius: 999px;
+    }
+
+    .toggles{
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      align-items: center;
+    }
+    .check{
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--muted);
+      user-select: none;
+    }
+    .check input{ accent-color: var(--brand); }
+
+    .split{
+      display: grid;
+      gap: 10px;
+    }
+
+    .mini{
+      font-size: 11px;
+      color: var(--muted2);
+      margin-top: -4px;
+    }
+
+    /* Footer spacing */
+    .footnote{
+      margin-top: 14px;
+      color: var(--muted2);
+      font-size: 12px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+
+    <!-- Header -->
+    <header class="appbar">
+      <div class="title">
+        <div class="logo">DIO</div>
+        <div>
+          <h1>DIO-430-R1 Module Configuration</h1>
+          <p>Configure Modbus address, serial parameters, I/O actions, and indicators.</p>
+        </div>
+      </div>
+
+      <div class="statusbar">
+        <div class="pillrow">
+          <!-- set dot class ok/warn/bad based on your connection state -->
+          <div class="pill"><span class="dot warn"></span> Connection: <b style="color:var(--text)">Disconnected</b></div>
+          <div class="pill"><span class="dot"></span> Modbus ID: <b style="color:var(--text)">—</b></div>
+          <div class="pill"><span class="dot"></span> Baud: <b style="color:var(--text)">—</b></div>
+        </div>
+        <div class="actions">
+          <button class="btn primary" id="btnConnect">Connect</button>
+          <button class="btn danger" id="btnReset">Reset Device</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Top: Device Setup + Serial Log -->
+    <div class="grid two">
+      <section class="card">
+        <div class="cardheader">
+          <div>
+            <h2>Device Setup</h2>
+            <div class="sub">Serial connection and Modbus addressing.</div>
+          </div>
+          <span class="tag">Step 1</span>
+        </div>
+        <div class="cardbody">
+          <div class="row">
+            <div class="field">
+              <label for="modbusAddress">Modbus Address</label>
+              <select id="modbusAddress">
+                <option>1</option>
+                <option>2</option>
+                <option>3</option>
+              </select>
+              <div class="mini">Valid range depends on your network plan.</div>
+            </div>
+
+            <div class="field">
+              <label for="baudRate">Baud Rate</label>
+              <select id="baudRate">
+                <option>9600</option>
+                <option>19200</option>
+                <option>38400</option>
+                <option>57600</option>
+                <option>115200</option>
+              </select>
+              <div class="mini">Match the host controller settings.</div>
+            </div>
+          </div>
+
+          <div class="footnote">Tip: Connect first, then configure I/O mappings and outputs.</div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="cardheader">
+          <div>
+            <h2>Serial Log</h2>
+            <div class="sub">Connection messages and device responses.</div>
+          </div>
+          <span class="tag">Live</span>
+        </div>
+        <div class="cardbody">
+          <textarea id="serialLog" placeholder="Log output will appear here..." readonly></textarea>
+        </div>
+      </section>
+    </div>
+
+    <!-- Digital Inputs -->
+    <div class="sectiontitle">
+      <h3>Digital Inputs (4)</h3>
+      <p class="hint">Enable, invert logic, and choose action + target.</p>
+    </div>
+
+    <section class="card">
+      <div class="cardbody">
+        <div class="iogroup">
+          <!-- IN1 -->
+          <div class="iocard">
+            <div class="iotop">
+              <div class="ioid">IN1 <span class="tag">Input</span></div>
+              <span class="dot" title="state indicator"></span>
+            </div>
+            <div class="toggles">
+              <label class="check"><input type="checkbox" id="in1Enabled"> Enabled</label>
+              <label class="check"><input type="checkbox" id="in1Inverted"> Inverted</label>
+            </div>
+            <div class="split">
+              <div class="field">
+                <label for="in1Action">Action</label>
+                <select id="in1Action">
+                  <option>None</option>
+                  <option>Toggle Relay</option>
+                  <option>Pulse Relay</option>
+                  <option>Set LED</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="in1Target">Control Target</label>
+                <select id="in1Target">
+                  <option>None</option>
+                  <option>Relay 1</option>
+                  <option>Relay 2</option>
+                  <option>Relay 3</option>
+                  <option>User LED 1</option>
+                  <option>User LED 2</option>
+                  <option>User LED 3</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- IN2 -->
+          <div class="iocard">
+            <div class="iotop">
+              <div class="ioid">IN2 <span class="tag">Input</span></div>
+              <span class="dot"></span>
+            </div>
+            <div class="toggles">
+              <label class="check"><input type="checkbox" id="in2Enabled"> Enabled</label>
+              <label class="check"><input type="checkbox" id="in2Inverted"> Inverted</label>
+            </div>
+            <div class="split">
+              <div class="field">
+                <label for="in2Action">Action</label>
+                <select id="in2Action">
+                  <option>None</option>
+                  <option>Toggle Relay</option>
+                  <option>Pulse Relay</option>
+                  <option>Set LED</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="in2Target">Control Target</label>
+                <select id="in2Target">
+                  <option>None</option>
+                  <option>Relay 1</option>
+                  <option>Relay 2</option>
+                  <option>Relay 3</option>
+                  <option>User LED 1</option>
+                  <option>User LED 2</option>
+                  <option>User LED 3</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- IN3 -->
+          <div class="iocard">
+            <div class="iotop">
+              <div class="ioid">IN3 <span class="tag">Input</span></div>
+              <span class="dot"></span>
+            </div>
+            <div class="toggles">
+              <label class="check"><input type="checkbox" id="in3Enabled"> Enabled</label>
+              <label class="check"><input type="checkbox" id="in3Inverted"> Inverted</label>
+            </div>
+            <div class="split">
+              <div class="field">
+                <label for="in3Action">Action</label>
+                <select id="in3Action">
+                  <option>None</option>
+                  <option>Toggle Relay</option>
+                  <option>Pulse Relay</option>
+                  <option>Set LED</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="in3Target">Control Target</label>
+                <select id="in3Target">
+                  <option>None</option>
+                  <option>Relay 1</option>
+                  <option>Relay 2</option>
+                  <option>Relay 3</option>
+                  <option>User LED 1</option>
+                  <option>User LED 2</option>
+                  <option>User LED 3</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- IN4 -->
+          <div class="iocard">
+            <div class="iotop">
+              <div class="ioid">IN4 <span class="tag">Input</span></div>
+              <span class="dot"></span>
+            </div>
+            <div class="toggles">
+              <label class="check"><input type="checkbox" id="in4Enabled"> Enabled</label>
+              <label class="check"><input type="checkbox" id="in4Inverted"> Inverted</label>
+            </div>
+            <div class="split">
+              <div class="field">
+                <label for="in4Action">Action</label>
+                <select id="in4Action">
+                  <option>None</option>
+                  <option>Toggle Relay</option>
+                  <option>Pulse Relay</option>
+                  <option>Set LED</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="in4Target">Control Target</label>
+                <select id="in4Target">
+                  <option>None</option>
+                  <option>Relay 1</option>
+                  <option>Relay 2</option>
+                  <option>Relay 3</option>
+                  <option>User LED 1</option>
+                  <option>User LED 2</option>
+                  <option>User LED 3</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- Relays -->
+    <div class="sectiontitle">
+      <h3>Relays (3)</h3>
+      <p class="hint">Enable relay channels and set logic inversion if required.</p>
+    </div>
+
+    <section class="card">
+      <div class="cardbody">
+        <div class="iogroup" style="grid-template-columns: repeat(3, 1fr);">
+          <div class="iocard">
+            <div class="iotop">
+              <div class="ioid">Relay 1 <span class="tag">Output</span></div>
+              <span class="dot"></span>
+            </div>
+            <div class="toggles">
+              <label class="check"><input type="checkbox" id="r1Enabled"> Enabled</label>
+              <label class="check"><input type="checkbox" id="r1Inverted"> Inverted</label>
+            </div>
+          </div>
+
+          <div class="iocard">
+            <div class="iotop">
+              <div class="ioid">Relay 2 <span class="tag">Output</span></div>
+              <span class="dot"></span>
+            </div>
+            <div class="toggles">
+              <label class="check"><input type="checkbox" id="r2Enabled"> Enabled</label>
+              <label class="check"><input type="checkbox" id="r2Inverted"> Inverted</label>
+            </div>
+          </div>
+
+          <div class="iocard">
+            <div class="iotop">
+              <div class="ioid">Relay 3 <span class="tag">Output</span></div>
+              <span class="dot"></span>
+            </div>
+            <div class="toggles">
+              <label class="check"><input type="checkbox" id="r3Enabled"> Enabled</label>
+              <label class="check"><input type="checkbox" id="r3Inverted"> Inverted</label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Buttons -->
+    <div class="sectiontitle">
+      <h3>Buttons (3)</h3>
+      <p class="hint">Map physical buttons to actions.</p>
+    </div>
+
+    <section class="card">
+      <div class="cardbody">
+        <div class="iogroup" style="grid-template-columns: repeat(3, 1fr);">
+          <div class="iocard">
+            <div class="iotop">
+              <div class="ioid">Button 1 <span class="tag">Control</span></div>
+              <span class="dot"></span>
+            </div>
+            <div class="field">
+              <label for="b1Action">Action</label>
+              <select id="b1Action">
+                <option>None</option>
+                <option>Toggle Relay</option>
+                <option>Pulse Relay</option>
+                <option>Toggle LED</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="iocard">
+            <div class="iotop">
+              <div class="ioid">Button 2 <span class="tag">Control</span></div>
+              <span class="dot"></span>
+            </div>
+            <div class="field">
+              <label for="b2Action">Action</label>
+              <select id="b2Action">
+                <option>None</option>
+                <option>Toggle Relay</option>
+                <option>Pulse Relay</option>
+                <option>Toggle LED</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="iocard">
+            <div class="iotop">
+              <div class="ioid">Button 3 <span class="tag">Control</span></div>
+              <span class="dot"></span>
+            </div>
+            <div class="field">
+              <label for="b3Action">Action</label>
+              <select id="b3Action">
+                <option>None</option>
+                <option>Toggle Relay</option>
+                <option>Pulse Relay</option>
+                <option>Toggle LED</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- User LEDs -->
+    <div class="sectiontitle">
+      <h3>User LEDs (3)</h3>
+      <p class="hint">Set indicator behavior (steady, blink, follow relay, etc.).</p>
+    </div>
+
+    <section class="card">
+      <div class="cardbody">
+        <div class="iogroup" style="grid-template-columns: repeat(3, 1fr);">
+          <div class="iocard">
+            <div class="iotop">
+              <div class="ioid">User LED 1 <span class="tag">Indicator</span></div>
+              <span class="dot"></span>
+            </div>
+            <div class="field">
+              <label for="led1Mode">Mode</label>
+              <select id="led1Mode">
+                <option>Steady (when relay is ON)</option>
+                <option>Steady (when relay is OFF)</option>
+                <option>Blink (1Hz)</option>
+                <option>Blink (2Hz)</option>
+                <option>Follow Input</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="iocard">
+            <div class="iotop">
+              <div class="ioid">User LED 2 <span class="tag">Indicator</span></div>
+              <span class="dot"></span>
+            </div>
+            <div class="field">
+              <label for="led2Mode">Mode</label>
+              <select id="led2Mode">
+                <option>Steady (when relay is ON)</option>
+                <option>Steady (when relay is OFF)</option>
+                <option>Blink (1Hz)</option>
+                <option>Blink (2Hz)</option>
+                <option>Follow Input</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="iocard">
+            <div class="iotop">
+              <div class="ioid">User LED 3 <span class="tag">Indicator</span></div>
+              <span class="dot"></span>
+            </div>
+            <div class="field">
+              <label for="led3Mode">Mode</label>
+              <select id="led3Mode">
+                <option>Steady (when relay is ON)</option>
+                <option>Steady (when relay is OFF)</option>
+                <option>Blink (1Hz)</option>
+                <option>Blink (2Hz)</option>
+                <option>Follow Input</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

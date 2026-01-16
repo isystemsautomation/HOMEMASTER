@@ -639,10 +639,11 @@ inline void setSlaveIdIfAvailable(...){}
 enum : uint16_t { ISTS_DI_BASE=1, ISTS_RLY_BASE=60 };
 enum : uint16_t { ISTS_LED_BASE=90, ISTS_BTN_BASE=100 };
 
-// Command Coils (FC05/FC01)
+// Command Coils (FC05/FC01) - Maintained (switched) coils from ESPHome
 enum : uint16_t {
-  CMD_RLY_ON_BASE=200, CMD_RLY_OFF_BASE=210,
-  CMD_DI_EN_BASE=300,  CMD_DI_DIS_BASE=320, CMD_CNT_RST_BASE=340
+  CMD_RLY_STATE_BASE=200,    // 2 coils: RLY1, RLY2 state (maintained, not pulses)
+  CMD_DI_ENABLE_BASE=220,    // 5 coils: DI1..DI5 enable state (maintained, not pulses)
+  CMD_CNT_RST_BASE=340       // 5 coils: Counter reset (pulse, cleared after use)
 };
 
 // ===== Unified Holding Register Map (FC03) - Single Address Space =====
@@ -749,7 +750,7 @@ void handleCommand(JSONVar obj);
 void handleOneWire(JSONVar obj);
 void performReset();
 void sendAllEchoesOnce();
-void processModbusCommandPulses();
+void processModbusCommands();
 void applyActionToTarget(uint8_t target, uint8_t action, uint32_t now);
 void doOneWireScan();
 bool applyHeatCfgObjectToIndex(int idx, JSONVar o);
@@ -856,12 +857,22 @@ void setup(){
   for(uint16_t i=0;i<NUM_LED;i++) mb.addIsts(ISTS_LED_BASE + i);
   for(uint16_t i=0;i<NUM_BTN;i++) mb.addIsts(ISTS_BTN_BASE + i);
 
-  // Command Coils (FC05/FC01)
-  for(uint16_t i=0;i<NUM_RLY;i++){ mb.addCoil(CMD_RLY_ON_BASE+i);  mb.setCoil(CMD_RLY_ON_BASE+i,false); }
-  for (uint16_t i=0; i<NUM_RLY; i++) { mb.addCoil(CMD_RLY_OFF_BASE+i); mb.setCoil(CMD_RLY_OFF_BASE+i,false); }
-  for(uint16_t i=0;i<NUM_DI;i++){  mb.addCoil(CMD_DI_EN_BASE+i);   mb.setCoil(CMD_DI_EN_BASE+i,false); }
-  for(uint16_t i=0;i<NUM_DI;i++){  mb.addCoil(CMD_DI_DIS_BASE+i);  mb.setCoil(CMD_DI_DIS_BASE+i,false); }
-  for(uint16_t i=0;i<NUM_DI;i++){  mb.addCoil(CMD_CNT_RST_BASE+i); mb.setCoil(CMD_CNT_RST_BASE+i,false); }
+  // Command Coils (FC05/FC01) - Maintained (switched) coils from ESPHome
+  // Relay state coils (maintained - ESPHome can set ON/OFF directly)
+  for(uint16_t i=0;i<NUM_RLY;i++){
+    mb.addCoil(CMD_RLY_STATE_BASE + i);
+    mb.setCoil(CMD_RLY_STATE_BASE + i, false); // Initialize to OFF
+  }
+  // DI enable coils (maintained - ESPHome can enable/disable inputs directly)
+  for(uint16_t i=0;i<NUM_DI;i++){
+    mb.addCoil(CMD_DI_ENABLE_BASE + i);
+    mb.setCoil(CMD_DI_ENABLE_BASE + i, true); // Initialize to enabled (default)
+  }
+  // Counter reset coils (pulse - cleared after use)
+  for(uint16_t i=0;i<NUM_DI;i++){
+    mb.addCoil(CMD_CNT_RST_BASE + i);
+    mb.setCoil(CMD_CNT_RST_BASE + i, false);
+  }
 
   // ===== Unified Holding Register Map (FC03) - Single Continuous Address Space =====
   // ISTS mirrors (as UINT16: 0 or 1)
@@ -1268,25 +1279,33 @@ inline void setHreg32s(uint16_t base, int32_t v){
   setHreg32(base, (uint32_t)v);
 }
 
-// ================== Modbus pulses / time pulse ==================
-void processModbusCommandPulses(){
-  // Relay controls (affect ONLY modbusDesiredRelay[])
+// ================== Modbus maintained coils (switched from ESPHome) ==================
+void processModbusCommands(){
+  // Relay controls - read maintained coil states (affect ONLY modbusDesiredRelay[])
   for(int r=0;r<NUM_RLY;r++){
-    if (mb.Coil(CMD_RLY_ON_BASE+r))  { mb.setCoil(CMD_RLY_ON_BASE+r,false); modbusDesiredRelay[r]=true; }
-    if (mb.Coil(CMD_RLY_OFF_BASE+r)) { mb.setCoil(CMD_RLY_OFF_BASE+r,false); modbusDesiredRelay[r]=false; }
+    modbusDesiredRelay[r] = mb.Coil(CMD_RLY_STATE_BASE + r);
   }
-  // DI enables/disables
+  
+  // DI enables/disables - read maintained coil states
   for(int i=0;i<NUM_DI;i++){
-    if (mb.Coil(CMD_DI_EN_BASE+i))  { mb.setCoil(CMD_DI_EN_BASE+i,false); if(!diCfg[i].enabled){ diCfg[i].enabled=true; cfgDirty=true; lastCfgTouchMs=millis(); } }
-    if (mb.Coil(CMD_DI_DIS_BASE+i)) { mb.setCoil(CMD_DI_DIS_BASE+i,false); if( diCfg[i].enabled){ diCfg[i].enabled=false; cfgDirty=true; lastCfgTouchMs=millis(); } }
-  }
-  // Counter resets (internal only)
-  for(int i=0;i<NUM_DI;i++){
-    if (mb.Coil(CMD_CNT_RST_BASE+i)) { mb.setCoil(CMD_CNT_RST_BASE+i,false);
-      diCounter[i]=0; diLastEdgeMs[i]=millis(); lastPulseSnapshot[i]=0; flowCounterBase[i]=0;
+    bool newEnabled = mb.Coil(CMD_DI_ENABLE_BASE + i);
+    if (diCfg[i].enabled != newEnabled) {
+      diCfg[i].enabled = newEnabled;
+      cfgDirty = true;
+      lastCfgTouchMs = millis();
     }
   }
-
+  
+  // Counter resets (pulse - cleared after use)
+  for(int i=0;i<NUM_DI;i++){
+    if (mb.Coil(CMD_CNT_RST_BASE+i)) {
+      mb.setCoil(CMD_CNT_RST_BASE+i, false);
+      diCounter[i]=0;
+      diLastEdgeMs[i]=millis();
+      lastPulseSnapshot[i]=0;
+      flowCounterBase[i]=0;
+    }
+  }
 }
 
 // Apply local action to target (buttons/DI)
@@ -1305,7 +1324,7 @@ void applyActionToTarget(uint8_t tgt, uint8_t action, uint32_t now){
 // ================== Loop ==================
 void loop(){
   unsigned long now=millis();
-  mb.task(); processModbusCommandPulses();
+  mb.task(); processModbusCommands();
 
   // blink phase
   if(now-lastBlinkToggle>=blinkPeriodMs){ lastBlinkToggle=now; blinkPhase=!blinkPhase; }

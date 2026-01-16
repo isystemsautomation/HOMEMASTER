@@ -45,35 +45,47 @@ binary_sensor:
     register_type: discrete_input
 
 # ===================== Command Coils (FC05/FC01) =====================
+# Relay coils are maintained (not pulses). ESPHome can set ON/OFF directly.
 switch:
-  # Relay pulse helpers (internal; pulse & auto-off)
   - platform: modbus_controller
-    id: ${wld_id}_r1_on_pulse
     modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} Relay 1"
     address: 200
     register_type: coil
-    internal: true
-    on_turn_on:
-      - delay: 50ms
-      - switch.turn_off: ${wld_id}_r1_on_pulse
 
   - platform: modbus_controller
-    id: ${wld_id}_r1_off_pulse
     modbus_controller_id: ${wld_id}
-    address: 210
+    name: "${wld_prefix} Relay 2"
+    address: 201
     register_type: coil
-    internal: true
-    on_turn_on:
-      - delay: 50ms
-      - switch.turn_off: ${wld_id}_r1_off_pulse
 
-# ===================== Convenience Buttons =====================
-button:
-  - platform: template
-    name: "${wld_prefix} R1 ON"
-    on_press:
-      - switch.turn_on: ${wld_id}_r1_on_pulse
-  - platform: template
-    name: "${wld_prefix} R1 OFF"
-    on_press:
-      - switch.turn_on: ${wld_id}_r1_off_pulse
+  # DI enable coils (maintained - ESPHome can enable/disable inputs directly)
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} DI1 Enable"
+    address: 220
+    register_type: coil
+
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} DI2 Enable"
+    address: 221
+    register_type: coil
+
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} DI3 Enable"
+    address: 222
+    register_type: coil
+
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} DI4 Enable"
+    address: 223
+    register_type: coil
+
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} DI5 Enable"
+    address: 224
+    register_type: coil

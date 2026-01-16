@@ -1102,141 +1102,50 @@ binary_sensor:
       return id(${wld_id}_btn4_hreg).state != 0;
 
 # ===================== Command Coils (FC05/FC01) =====================
+# Relay coils are maintained (not pulses). ESPHome can set ON/OFF directly.
 switch:
-  # Relay pulse helpers (internal; pulse & auto-off)
   - platform: modbus_controller
-    id: ${wld_id}_r1_on_pulse
     modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} Relay 1"
     address: 200
     register_type: coil
-    internal: true
-    on_turn_on:
-      - delay: 50ms
-      - switch.turn_off: ${wld_id}_r1_on_pulse
 
   - platform: modbus_controller
-    id: ${wld_id}_r1_off_pulse
     modbus_controller_id: ${wld_id}
-    address: 210
-    register_type: coil
-    internal: true
-    on_turn_on:
-      - delay: 50ms
-      - switch.turn_off: ${wld_id}_r1_off_pulse
-
-  - platform: modbus_controller
-    id: ${wld_id}_r2_on_pulse
-    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} Relay 2"
     address: 201
     register_type: coil
-    internal: true
-    on_turn_on:
-      - delay: 50ms
-      - switch.turn_off: ${wld_id}_r2_on_pulse
+
+  # DI enable coils (maintained - ESPHome can enable/disable inputs directly)
+  - platform: modbus_controller
+    modbus_controller_id: ${wld_id}
+    name: "${wld_prefix} DI1 Enable"
+    address: 220
+    register_type: coil
 
   - platform: modbus_controller
-    id: ${wld_id}_r2_off_pulse
     modbus_controller_id: ${wld_id}
-    address: 211
+    name: "${wld_prefix} DI2 Enable"
+    address: 221
     register_type: coil
-    internal: true
-    on_turn_on:
-      - delay: 50ms
-      - switch.turn_off: ${wld_id}_r2_off_pulse
 
-  # DI enable (300..304)
   - platform: modbus_controller
-    id: ${wld_id}_di1_enable_coil
     modbus_controller_id: ${wld_id}
-    address: 300
+    name: "${wld_prefix} DI3 Enable"
+    address: 222
     register_type: coil
-    internal: true
-    on_turn_on:
-      - delay: 50ms
-      - switch.turn_off: ${wld_id}_di1_enable_coil
-  - platform: modbus_controller
-    id: ${wld_id}_di2_enable_coil
-    modbus_controller_id: ${wld_id}
-    address: 301
-    register_type: coil
-    internal: true
-    on_turn_on:
-      - delay: 50ms
-      - switch.turn_off: ${wld_id}_di2_enable_coil
-  - platform: modbus_controller
-    id: ${wld_id}_di3_enable_coil
-    modbus_controller_id: ${wld_id}
-    address: 302
-    register_type: coil
-    internal: true
-    on_turn_on:
-      - delay: 50ms
-      - switch.turn_off: ${wld_id}_di3_enable_coil
-  - platform: modbus_controller
-    id: ${wld_id}_di4_enable_coil
-    modbus_controller_id: ${wld_id}
-    address: 303
-    register_type: coil
-    internal: true
-    on_turn_on:
-      - delay: 50ms
-      - switch.turn_off: ${wld_id}_di4_enable_coil
-  - platform: modbus_controller
-    id: ${wld_id}_di5_enable_coil
-    modbus_controller_id: ${wld_id}
-    address: 304
-    register_type: coil
-    internal: true
-    on_turn_on:
-      - delay: 50ms
-      - switch.turn_off: ${wld_id}_di5_enable_coil
 
-  # DI disable (320..324)
   - platform: modbus_controller
-    id: ${wld_id}_di1_disable_coil
     modbus_controller_id: ${wld_id}
-    address: 320
+    name: "${wld_prefix} DI4 Enable"
+    address: 223
     register_type: coil
-    internal: true
-    on_turn_on:
-      - delay: 50ms
-      - switch.turn_off: ${wld_id}_di1_disable_coil
+
   - platform: modbus_controller
-    id: ${wld_id}_di2_disable_coil
     modbus_controller_id: ${wld_id}
-    address: 321
+    name: "${wld_prefix} DI5 Enable"
+    address: 224
     register_type: coil
-    internal: true
-    on_turn_on:
-      - delay: 50ms
-      - switch.turn_off: ${wld_id}_di2_disable_coil
-  - platform: modbus_controller
-    id: ${wld_id}_di3_disable_coil
-    modbus_controller_id: ${wld_id}
-    address: 322
-    register_type: coil
-    internal: true
-    on_turn_on:
-      - delay: 50ms
-      - switch.turn_off: ${wld_id}_di3_disable_coil
-  - platform: modbus_controller
-    id: ${wld_id}_di4_disable_coil
-    modbus_controller_id: ${wld_id}
-    address: 323
-    register_type: coil
-    internal: true
-    on_turn_on:
-      - delay: 50ms
-      - switch.turn_off: ${wld_id}_di4_disable_coil
-  - platform: modbus_controller
-    id: ${wld_id}_di5_disable_coil
-    modbus_controller_id: ${wld_id}
-    address: 324
-    register_type: coil
-    internal: true
-    on_turn_on:
-      - delay: 50ms
-      - switch.turn_off: ${wld_id}_di5_disable_coil
 
   # DI counter reset (340..344)
   - platform: modbus_controller
@@ -1286,65 +1195,9 @@ switch:
       - switch.turn_off: ${wld_id}_di5_reset_coil
 
 # ===================== Convenience Buttons =====================
-button:
-  - platform: template
-    name: "${wld_prefix} R1 ON"
-    on_press:
-      - switch.turn_on: ${wld_id}_r1_on_pulse
-  - platform: template
-    name: "${wld_prefix} R1 OFF"
-    on_press:
-      - switch.turn_on: ${wld_id}_r1_off_pulse
-  - platform: template
-    name: "${wld_prefix} R2 ON"
-    on_press:
-      - switch.turn_on: ${wld_id}_r2_on_pulse
-  - platform: template
-    name: "${wld_prefix} R2 OFF"
-    on_press:
-      - switch.turn_on: ${wld_id}_r2_off_pulse
-
-  - platform: template
-    name: "${wld_prefix} DI1 Enable"
-    on_press:
-      - switch.turn_on: ${wld_id}_di1_enable_coil
-  - platform: template
-    name: "${wld_prefix} DI2 Enable"
-    on_press:
-      - switch.turn_on: ${wld_id}_di2_enable_coil
-  - platform: template
-    name: "${wld_prefix} DI3 Enable"
-    on_press:
-      - switch.turn_on: ${wld_id}_di3_enable_coil
-  - platform: template
-    name: "${wld_prefix} DI4 Enable"
-    on_press:
-      - switch.turn_on: ${wld_id}_di4_enable_coil
-  - platform: template
-    name: "${wld_prefix} DI5 Enable"
-    on_press:
-      - switch.turn_on: ${wld_id}_di5_enable_coil
-
-  - platform: template
-    name: "${wld_prefix} DI1 Disable"
-    on_press:
-      - switch.turn_on: ${wld_id}_di1_disable_coil
-  - platform: template
-    name: "${wld_prefix} DI2 Disable"
-    on_press:
-      - switch.turn_on: ${wld_id}_di2_disable_coil
-  - platform: template
-    name: "${wld_prefix} DI3 Disable"
-    on_press:
-      - switch.turn_on: ${wld_id}_di3_disable_coil
-  - platform: template
-    name: "${wld_prefix} DI4 Disable"
-    on_press:
-      - switch.turn_on: ${wld_id}_di4_disable_coil
-  - platform: template
-    name: "${wld_prefix} DI5 Disable"
-    on_press:
-      - switch.turn_on: ${wld_id}_di5_disable_coil
+# Note: Relay and DI enable switches are now maintained, so use them directly.
+# These buttons are optional - you can use the switches directly in Home Assistant.
+# Counter reset buttons remain (these use pulse coils).
 
   - platform: template
     name: "${wld_prefix} DI1 Counter Reset"
