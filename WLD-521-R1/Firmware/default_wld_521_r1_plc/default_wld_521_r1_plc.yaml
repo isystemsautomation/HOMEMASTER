@@ -1195,10 +1195,7 @@ switch:
       - switch.turn_off: ${wld_id}_di5_reset_coil
 
 # ===================== Convenience Buttons =====================
-# Note: Relay and DI enable switches are now maintained, so use them directly.
-# These buttons are optional - you can use the switches directly in Home Assistant.
-# Counter reset buttons remain (these use pulse coils).
-
+button:
   - platform: template
     name: "${wld_prefix} DI1 Counter Reset"
     on_press:
