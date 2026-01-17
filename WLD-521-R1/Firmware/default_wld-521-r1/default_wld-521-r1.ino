@@ -748,7 +748,6 @@ void handleValues(JSONVar values);
 void handleUnifiedConfig(JSONVar obj);
 void handleCommand(JSONVar obj);
 void handleOneWire(JSONVar obj);
-void performReset();
 void sendAllEchoesOnce();
 void processModbusCommands();
 void applyActionToTarget(uint8_t target, uint8_t action, uint32_t now);
@@ -915,7 +914,6 @@ void setup(){
 }
 
 // ================== Command handlers ==================
-void performReset(){ if(Serial) Serial.flush(); delay(50); watchdog_reboot(0,0,0); while(true){ __asm__("wfi"); } }
 void applyModbusSettings(uint8_t addr, uint32_t baud){
   if ((uint32_t)modbusStatus["baud"]!=baud){ Serial2.end(); Serial2.begin(baud); mb.config(baud); }
   setSlaveIdIfAvailable(mb, addr); g_mb_address=addr; g_mb_baud=baud;
@@ -1165,11 +1163,6 @@ void handleCommand(JSONVar obj){
   const char* actC=(const char*)obj["action"]; if(!actC){ WebSerial.send("message","command: missing 'action'"); return; }
   String act=String(actC); act.toLowerCase();
 
-  if (act=="reset"||act=="reboot"){
-    bool ok=saveConfigFS();
-    WebSerial.send("message", ok ? "Saved. Rebooting…" : "WARNING: Save verify FAILED. Rebooting anyway…");
-    delay(400); performReset(); return;
-  }
   if (act=="save"){ if (saveConfigFS()) WebSerial.send("message","Configuration saved"); else WebSerial.send("message","ERROR: Save failed"); return; }
   if (act=="load"){ if (loadConfigFS()){ WebSerial.send("message","Configuration loaded"); sendAllEchoesOnce(); applyModbusSettings(g_mb_address,g_mb_baud); }
                     else WebSerial.send("message","ERROR: Load failed/invalid"); return; }
@@ -1282,8 +1275,15 @@ inline void setHreg32s(uint16_t base, int32_t v){
 // ================== Modbus maintained coils (switched from ESPHome) ==================
 void processModbusCommands(){
   // Relay controls - read maintained coil states (affect ONLY modbusDesiredRelay[])
+  // Disabled relays ignore all commands and force Modbus coil to false
   for(int r=0;r<NUM_RLY;r++){
-    modbusDesiredRelay[r] = mb.Coil(CMD_RLY_STATE_BASE + r);
+    if(rlyCfg[r].enabled) {
+      modbusDesiredRelay[r] = mb.Coil(CMD_RLY_STATE_BASE + r);
+    } else {
+      // Relay is disabled - clear Modbus desired state and force coil to false
+      modbusDesiredRelay[r] = false;
+      mb.setCoil(CMD_RLY_STATE_BASE + r, false);
+    }
   }
   
   // DI enables/disables - read maintained coil states
@@ -1312,6 +1312,8 @@ void processModbusCommands(){
 void applyActionToTarget(uint8_t tgt, uint8_t action, uint32_t now){
   auto doRelay = [&](int rIdx){
     if(rIdx<0||rIdx>=NUM_RLY) return;
+    // Skip processing if relay is disabled (disabled relays ignore all commands)
+    if(!rlyCfg[rIdx].enabled) return;
     if(action==1){ localDesiredRelay[rIdx]=!localDesiredRelay[rIdx]; rlyPulseUntil[rIdx]=0; }
     else if(action==2){ localDesiredRelay[rIdx]=true; rlyPulseUntil[rIdx]=now+PULSE_MS; }
   };
@@ -1378,31 +1380,36 @@ void loop(){
     if(!buttonPrev[i] && buttonState[i]){
       btnRt[i].pressed=true; btnRt[i].pressStart=now; btnRt[i].handledLong=false;
       switch(btnCfg[i].action){
-        case BTN_TOGGLE_R1: localDesiredRelay[0] = !localDesiredRelay[0]; rlyPulseUntil[0]=0; cfgDirty=true; lastCfgTouchMs=now; WebSerial.send("message","button: toggle R1"); break;
-        case BTN_TOGGLE_R2: localDesiredRelay[1] = !localDesiredRelay[1]; rlyPulseUntil[1]=0; cfgDirty=true; lastCfgTouchMs=now; WebSerial.send("message","button: toggle R2"); break;
-        case BTN_PULSE_R1:  localDesiredRelay[0] = true; rlyPulseUntil[0]= now + PULSE_MS; cfgDirty=true; lastCfgTouchMs=now; WebSerial.send("message","button: pulse R1"); break;
-        case BTN_PULSE_R2:  localDesiredRelay[1] = true; rlyPulseUntil[1]= now + PULSE_MS; cfgDirty=true; lastCfgTouchMs=now; WebSerial.send("message","button: pulse R2"); break;
+        case BTN_TOGGLE_R1: if(rlyCfg[0].enabled) { localDesiredRelay[0] = !localDesiredRelay[0]; rlyPulseUntil[0]=0; cfgDirty=true; lastCfgTouchMs=now; WebSerial.send("message","button: toggle R1"); } break;
+        case BTN_TOGGLE_R2: if(rlyCfg[1].enabled) { localDesiredRelay[1] = !localDesiredRelay[1]; rlyPulseUntil[1]=0; cfgDirty=true; lastCfgTouchMs=now; WebSerial.send("message","button: toggle R2"); } break;
+        case BTN_PULSE_R1:  if(rlyCfg[0].enabled) { localDesiredRelay[0] = true; rlyPulseUntil[0]= now + PULSE_MS; cfgDirty=true; lastCfgTouchMs=now; WebSerial.send("message","button: pulse R1"); } break;
+        case BTN_PULSE_R2:  if(rlyCfg[1].enabled) { localDesiredRelay[1] = true; rlyPulseUntil[1]= now + PULSE_MS; cfgDirty=true; lastCfgTouchMs=now; WebSerial.send("message","button: pulse R2"); } break;
         default: break;
       }
     }
 
-    // long-press override handling (3s)
+    // long-press override handling (3s) - skip if relay is disabled
     uint8_t act = btnCfg[i].action;
     bool isOverrideBtn = (act==BTN_OVERRIDE_R1 || act==BTN_OVERRIDE_R2);
     if (isOverrideBtn && buttonState[i] && !btnRt[i].handledLong &&
         timeAfter32(now, btnRt[i].pressStart + LONG_OVERRIDE_MS)) {
       int r = (act==BTN_OVERRIDE_R1)?0:1;
-      if (!overrideLatch[r]) {
-        // enter override and toggle immediately
-        overrideLatch[r] = true;
-        overrideDesiredRelay[r] = !physRelayState[r]; // toggle from current physical
-        WebSerial.send("message", String("override: R")+String(r+1)+" entered, toggled");
+      // Skip override if relay is disabled (disabled relays ignore all commands)
+      if(!rlyCfg[r].enabled) {
+        btnRt[i].handledLong = true;
       } else {
-        // exit override
-        overrideLatch[r] = false;
-        WebSerial.send("message", String("override: R")+String(r+1)+" exited");
+        if (!overrideLatch[r]) {
+          // enter override and toggle immediately
+          overrideLatch[r] = true;
+          overrideDesiredRelay[r] = !physRelayState[r]; // toggle from current physical
+          WebSerial.send("message", String("override: R")+String(r+1)+" entered, toggled");
+        } else {
+          // exit override
+          overrideLatch[r] = false;
+          WebSerial.send("message", String("override: R")+String(r+1)+" exited");
+        }
+        btnRt[i].handledLong = true;
       }
-      btnRt[i].handledLong = true;
     }
 
     if(buttonPrev[i] && !buttonState[i]){ btnRt[i].pressed=false; }
