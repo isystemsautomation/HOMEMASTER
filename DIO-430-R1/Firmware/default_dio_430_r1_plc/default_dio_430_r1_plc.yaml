@@ -52,20 +52,23 @@ binary_sensor:
     name: "${dio_prefix} DI4"
     register_type: discrete_input
     address: 4
-  # Relay logical state R1..R3 (60..62)
+  # Relay logical state R1..R3 (60..62) - used for switch state feedback
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
     name: "${dio_prefix} RLY1 State"
+    id: ${dio_id}_rly1_state
     register_type: discrete_input
     address: 60
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
     name: "${dio_prefix} RLY2 State"
+    id: ${dio_id}_rly2_state
     register_type: discrete_input
     address: 61
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
     name: "${dio_prefix} RLY3 State"
+    id: ${dio_id}_rly3_state
     register_type: discrete_input
     address: 62
   # LED logical state LED1..LED3 (90..92)
@@ -86,11 +89,10 @@ binary_sensor:
     address: 92
 
 # ─────────────────────────────────────────────────────────────────────────────
-# COMMANDS (WRITE-ONLY): pulse coils
+# COMMANDS: pulse coils (outputs for internal use)
 # ─────────────────────────────────────────────────────────────────────────────
-# Use `output.turn_on: <id>` to issue a pulse. Firmware auto-clears coils after use.
 output:
-  # Relay ON pulses (200..202)
+  # Relay ON pulses (200..202) - used by switches below
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
     register_type: coil
@@ -106,7 +108,7 @@ output:
     register_type: coil
     id: dio_rly3_on
     address: 202
-  # Relay OFF pulses (210..212)
+  # Relay OFF pulses (210..212) - used by switches below
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
     register_type: coil
@@ -164,3 +166,46 @@ output:
     register_type: coil
     id: dio_di4_disable
     address: 323
+
+# ─────────────────────────────────────────────────────────────────────────────
+# RELAY SWITCHES: User-friendly switches (pulse ON/OFF coils, read state)
+# ─────────────────────────────────────────────────────────────────────────────
+switch:
+  # Relay 1: ON pulse at 200, OFF pulse at 210, state from discrete_input 60
+  - platform: template
+    name: "${dio_prefix} Relay 1"
+    lambda: |-
+      auto state = id(${dio_id}_rly1_state).state;
+      return state ? true : false;
+    turn_on_action:
+      - output.turn_on: dio_rly1_on
+    turn_off_action:
+      - output.turn_on: dio_rly1_off
+    optimistic: false
+    assumed_state: false
+
+  # Relay 2: ON pulse at 201, OFF pulse at 211, state from discrete_input 61
+  - platform: template
+    name: "${dio_prefix} Relay 2"
+    lambda: |-
+      auto state = id(${dio_id}_rly2_state).state;
+      return state ? true : false;
+    turn_on_action:
+      - output.turn_on: dio_rly2_on
+    turn_off_action:
+      - output.turn_on: dio_rly2_off
+    optimistic: false
+    assumed_state: false
+
+  # Relay 3: ON pulse at 202, OFF pulse at 212, state from discrete_input 62
+  - platform: template
+    name: "${dio_prefix} Relay 3"
+    lambda: |-
+      auto state = id(${dio_id}_rly3_state).state;
+      return state ? true : false;
+    turn_on_action:
+      - output.turn_on: dio_rly3_on
+    turn_off_action:
+      - output.turn_on: dio_rly3_off
+    optimistic: false
+    assumed_state: false
