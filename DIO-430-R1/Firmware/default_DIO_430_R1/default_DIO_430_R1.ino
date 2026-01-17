@@ -223,7 +223,6 @@ void applyModbusSettings(uint8_t addr, uint32_t baud);
 void handleValues(JSONVar values);
 void handleUnifiedConfig(JSONVar obj);
 void handleCommand(JSONVar obj);
-void performReset();
 JSONVar LedConfigListFromCfg();
 void sendAllEchoesOnce();
 void processModbusCommands();
@@ -275,17 +274,13 @@ void setup() {
   sendAllEchoesOnce();
 }
 
-// ================== Command handler / reset ==================
+// ================== Command handler ==================
 void handleCommand(JSONVar obj) {
   const char* actC = (const char*)obj["action"];
   if (!actC) { WebSerial.send("message", "command: missing 'action'"); return; }
   String act = String(actC); act.toLowerCase();
 
-  if (act == "reset" || act == "reboot") {
-    bool ok = saveConfigFS();
-    WebSerial.send("message", ok ? "Saved. Rebooting…" : "WARNING: Save verify FAILED. Rebooting anyway…");
-    delay(400); performReset();
-  } else if (act == "save") {
+  if (act == "save") {
     if (saveConfigFS()) WebSerial.send("message", "Configuration saved"); else WebSerial.send("message", "ERROR: Save failed");
   } else if (act == "load") {
     if (loadConfigFS()) { WebSerial.send("message", "Configuration loaded"); sendAllEchoesOnce(); applyModbusSettings(g_mb_address, g_mb_baud); }
@@ -296,12 +291,6 @@ void handleCommand(JSONVar obj) {
   } else {
     WebSerial.send("message", String("Unknown command: ") + actC);
   }
-}
-
-void performReset() {
-  if (Serial) Serial.flush(); delay(50);
-  watchdog_reboot(0, 0, 0);
-  while (true) { __asm__("wfi"); }
 }
 
 void applyModbusSettings(uint8_t addr, uint32_t baud) {

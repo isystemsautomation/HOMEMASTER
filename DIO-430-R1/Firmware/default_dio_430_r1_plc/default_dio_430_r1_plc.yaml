@@ -143,17 +143,20 @@ switch:
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
     name: "${dio_prefix} Relay 1"
+    id: ${dio_id}_relay1
     address: 200
     register_type: coil
 
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
     name: "${dio_prefix} Relay 2"
+    id: ${dio_id}_relay2
     address: 201
     register_type: coil
 
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
     name: "${dio_prefix} Relay 3"
+    id: ${dio_id}_relay3
     address: 202
     register_type: coil
