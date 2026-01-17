@@ -2,8 +2,8 @@
 // NOTE: This variant mirrors the LED + Button system used on the DIM-420-R1 module.
 //       - 4 LEDs (pins 18..21) with per-LED {mode, source}
 //       - 4 Buttons (pins 22..25) with per-button {action}
-//       - Blink engine identical (500 ms phase), LED sources adapted to WLD (Relays/DI + Override)
-//       - Button actions mapped to WLD (toggle/pulse relays, long-press override)
+//       - Blink engine identical (500 ms phase), LED sources adapted to WLD (Relays/DI)
+//       - Button actions mapped to WLD (toggle/pulse relays)
 
 #include <Arduino.h>
 #include <ModbusSerial.h>
@@ -56,8 +56,6 @@ RlyCtrl rlyCtrlMode[NUM_RLY] = {RCTRL_LOCAL, RCTRL_LOCAL};
 
 bool localDesiredRelay[NUM_RLY]  = {false,false};  // driven by UI/buttons/local logic
 bool modbusDesiredRelay[NUM_RLY] = {false,false};  // driven only by Modbus coils
-bool overrideLatch[NUM_RLY]      = {false,false};  // operator override latched by long-press
-bool overrideDesiredRelay[NUM_RLY]={false,false};  // desired when override latch is active
 bool physRelayState[NUM_RLY]     = {false,false};  // last physical output (post invert/enable)
 
 uint32_t rlyPulseUntil[NUM_RLY] = {0,0};           // local pulse timing only
@@ -108,10 +106,7 @@ enum LedSource : uint8_t {
   LEDSRC_DI2    = 4,
   LEDSRC_DI3    = 5,
   LEDSRC_DI4    = 6,
-  LEDSRC_DI5    = 7,
-  // NEW: override indicators (ON only if override active AND relay ON)
-  LEDSRC_R1_OVR = 8,
-  LEDSRC_R2_OVR = 9
+  LEDSRC_DI5    = 7
 };
 struct LedCfg { uint8_t mode; uint8_t source; };
 
@@ -121,10 +116,7 @@ enum BtnAction : uint8_t {
   BTN_TOGGLE_R1 = 1,
   BTN_TOGGLE_R2 = 2,
   BTN_PULSE_R1  = 3,
-  BTN_PULSE_R2  = 4,
-  // NEW: long-press override latch/toggle
-  BTN_OVERRIDE_R1 = 5,
-  BTN_OVERRIDE_R2 = 6
+  BTN_PULSE_R2  = 4
 };
 struct BtnCfg { uint8_t action; };
 
@@ -133,11 +125,6 @@ BtnCfg btnCfg[NUM_BTN];
 
 bool  buttonState[NUM_BTN] = {false,false,false,false};
 bool  buttonPrev[NUM_BTN]  = {false,false,false,false};
-struct BtnRuntime { bool pressed=false; uint32_t pressStart=0; bool handledLong=false; };
-BtnRuntime btnRt[NUM_BTN];
-const uint32_t SHORT_MAX_MS=350;
-const uint32_t LONG_MIN_MS=700;
-const uint32_t LONG_OVERRIDE_MS=3000; // 3s as requested
 
 // Blink engine
 bool blinkPhase=false;
@@ -392,7 +379,7 @@ void setDefaults() {
   for (int i=0;i<NUM_RLY;i++) rlyCfg[i] = (RlyCfg){ true, false };
 
   for (int i=0;i<NUM_RLY;i++){
-    localDesiredRelay[i]=false; modbusDesiredRelay[i]=false; overrideLatch[i]=false; rlyPulseUntil[i]=0;
+    localDesiredRelay[i]=false; modbusDesiredRelay[i]=false; rlyPulseUntil[i]=0;
     rlyCtrlMode[i]=RCTRL_MODBUS; // Default to Modbus control for ESPHome integration
   }
 
@@ -909,7 +896,7 @@ void setup(){
   WebSerial.on("command", handleCommand);
   WebSerial.on("onewire", handleOneWire);
 
-  WebSerial.send("message","Boot OK (Flow + Heat + LEDs+Buttons + Local/Modbus relay control + Override).");
+  WebSerial.send("message","Boot OK (Flow + Heat + LEDs+Buttons + Local/Modbus relay control).");
   sendAllEchoesOnce();
 }
 
@@ -1138,14 +1125,14 @@ void handleUnifiedConfig(JSONVar obj){
       JSONVar o = list[i];
       if (JSON.typeof(o)!="object") continue;
       if (o.hasOwnProperty("mode"))   ledCfg[i].mode   = (uint8_t)constrain((int)o["mode"],0,1);
-      if (o.hasOwnProperty("source")) ledCfg[i].source = (uint8_t)constrain((int)o["source"],0,(int)LEDSRC_R2_OVR);
+      if (o.hasOwnProperty("source")) ledCfg[i].source = (uint8_t)constrain((int)o["source"],0,(int)LEDSRC_DI5);
     }
     WebSerial.send("message","LED config updated"); changed=true;
   }
   else if (type=="buttons"){
     for(int i=0;i<NUM_BTN && i<list.length(); i++){
       int act=(int)list[i];
-      btnCfg[i].action = (uint8_t)constrain(act,0,(int)BTN_OVERRIDE_R2);
+      btnCfg[i].action = (uint8_t)constrain(act,0,(int)BTN_PULSE_R2);
     }
     WebSerial.send("message","Buttons config updated"); changed=true;
   }
@@ -1368,7 +1355,7 @@ void loop(){
     counters[i]=(double)diCounter[i];
   }
 
-  // Buttons (rising-edge actions + long-press override handling)
+  // Buttons (rising-edge actions)
   JSONVar btnStates;
   for(int i=0;i<NUM_BTN;i++){
     bool pressed=(digitalRead(BTN_PINS[i])==HIGH);
@@ -1376,9 +1363,8 @@ void loop(){
     buttonState[i]=pressed;
     btnStates[i]=pressed;
 
-    // rising edge => immediate short action types
+    // rising edge => immediate action types
     if(!buttonPrev[i] && buttonState[i]){
-      btnRt[i].pressed=true; btnRt[i].pressStart=now; btnRt[i].handledLong=false;
       switch(btnCfg[i].action){
         case BTN_TOGGLE_R1: if(rlyCfg[0].enabled) { localDesiredRelay[0] = !localDesiredRelay[0]; rlyPulseUntil[0]=0; cfgDirty=true; lastCfgTouchMs=now; WebSerial.send("message","button: toggle R1"); } break;
         case BTN_TOGGLE_R2: if(rlyCfg[1].enabled) { localDesiredRelay[1] = !localDesiredRelay[1]; rlyPulseUntil[1]=0; cfgDirty=true; lastCfgTouchMs=now; WebSerial.send("message","button: toggle R2"); } break;
@@ -1388,43 +1374,17 @@ void loop(){
       }
     }
 
-    // long-press override handling (3s) - skip if relay is disabled
-    uint8_t act = btnCfg[i].action;
-    bool isOverrideBtn = (act==BTN_OVERRIDE_R1 || act==BTN_OVERRIDE_R2);
-    if (isOverrideBtn && buttonState[i] && !btnRt[i].handledLong &&
-        timeAfter32(now, btnRt[i].pressStart + LONG_OVERRIDE_MS)) {
-      int r = (act==BTN_OVERRIDE_R1)?0:1;
-      // Skip override if relay is disabled (disabled relays ignore all commands)
-      if(!rlyCfg[r].enabled) {
-        btnRt[i].handledLong = true;
-      } else {
-        if (!overrideLatch[r]) {
-          // enter override and toggle immediately
-          overrideLatch[r] = true;
-          overrideDesiredRelay[r] = !physRelayState[r]; // toggle from current physical
-          WebSerial.send("message", String("override: R")+String(r+1)+" entered, toggled");
-        } else {
-          // exit override
-          overrideLatch[r] = false;
-          WebSerial.send("message", String("override: R")+String(r+1)+" exited");
-        }
-        btnRt[i].handledLong = true;
-      }
-    }
 
-    if(buttonPrev[i] && !buttonState[i]){ btnRt[i].pressed=false; }
     mb.setIsts(ISTS_BTN_BASE + i, pressed);
     mb.setHreg(HREG_BTN_BASE + i, pressed ? 1 : 0); // Mirror to HREG
   }
 
   JSONVar relayStateList;
-  // compute relay state with precedence: Override > Selected source (Modbus or Local)
+  // compute relay state from selected source (Modbus or Local)
   for (int i=0;i<NUM_RLY;i++){
     bool selectedCmd = false;
 
-    if (overrideLatch[i]) {
-      selectedCmd = overrideDesiredRelay[i];
-    } else if (rlyCtrlMode[i] == RCTRL_MODBUS) {
+    if (rlyCtrlMode[i] == RCTRL_MODBUS) {
       selectedCmd = modbusDesiredRelay[i];
     } else {
       selectedCmd = localDesiredRelay[i];
@@ -1456,8 +1416,6 @@ void loop(){
       case LEDSRC_DI3:    return diState[2];
       case LEDSRC_DI4:    return diState[3];
       case LEDSRC_DI5:    return diState[4];
-      case LEDSRC_R1_OVR: return (overrideLatch[0] && physRelayState[0]);
-      case LEDSRC_R2_OVR: return (overrideLatch[1] && physRelayState[1]);
       default: return false;
     }
   };
@@ -1666,11 +1624,10 @@ void loop(){
 
 
 
-    // NEW: relay control & override status
-    JSONVar rcList, ovList;
-    for (int i=0;i<NUM_RLY;i++){ rcList[i]=(double)((rlyCtrlMode[i]==RCTRL_MODBUS)?1:0); ovList[i]=overrideLatch[i]; }
+    // Relay control mode status
+    JSONVar rcList;
+    for (int i=0;i<NUM_RLY;i++){ rcList[i]=(double)((rlyCtrlMode[i]==RCTRL_MODBUS)?1:0); }
     WebSerial.send("relayCtrlMode", rcList);
-    WebSerial.send("overrideActive", ovList);
 
     owdbSendList();
   }
@@ -1768,11 +1725,10 @@ void sendAllEchoesOnce(){
   for(int i=0;i<NUM_BTN;i++){ btnArr[i]=(double)btnCfg[i].action; }
   WebSerial.send("buttons", btnArr);
 
-  // relay control + override once
-  JSONVar rcList, ovList;
-  for (int i=0;i<NUM_RLY;i++){ rcList[i]=(double)((rlyCtrlMode[i]==RCTRL_MODBUS)?1:0); ovList[i]=overrideLatch[i]; }
+  // relay control mode once
+  JSONVar rcList;
+  for (int i=0;i<NUM_RLY;i++){ rcList[i]=(double)((rlyCtrlMode[i]==RCTRL_MODBUS)?1:0); }
   WebSerial.send("relayCtrlMode", rcList);
-  WebSerial.send("overrideActive", ovList);
 
   {
     JSONVar owTemps, owErrs;

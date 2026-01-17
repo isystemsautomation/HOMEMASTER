@@ -244,15 +244,22 @@
         }
       })();
 
-      // LEDs (3) — Mode only
+      // LEDs (3) — Mode and Source
       (function buildLEDs() {
         const container = $('leds-config'); if (!container) return;
         const LED_MODE = [
           {value:0,label:'Steady (when relay is ON)'},
           {value:1,label:'Blink (when relay is ON)'},
         ];
+        const LED_SOURCE = [
+          {value:0,label:'None'},
+          {value:5,label:'Overridden Relay 1'},
+          {value:6,label:'Overridden Relay 2'},
+          {value:7,label:'Overridden Relay 3'},
+        ];
         for (let i = 1; i <= NUM_LED; i++) {
           const modeOpts = LED_MODE.map(a => `<option value="${a.value}">${a.label}</option>`).join('');
+          const sourceOpts = LED_SOURCE.map(a => `<option value="${a.value}">${a.label}</option>`).join('');
           const card = document.createElement('div');
           card.innerHTML = `
             <div style="border:1px solid #ccc;border-radius:6px;background:#f3f5d0;padding:1rem;">
@@ -262,6 +269,9 @@
               </div>
               <label>Mode:
                 <select id="mode-led${i}" style="width:100%;padding:6px;border-radius:4px;">${modeOpts}</select>
+              </label><br>
+              <label>Source:
+                <select id="source-led${i}" style="width:100%;padding:6px;border-radius:4px;">${sourceOpts}</select>
               </label>
             </div>`;
           container.appendChild(card);
@@ -313,7 +323,9 @@
       // LEDs
       connection.on('LedConfigList', (list) => (list || []).forEach((obj, i) => {
         const modeEl = $('mode-led' + (i + 1));
+        const sourceEl = $('source-led' + (i + 1));
         if (modeEl && obj && typeof obj.mode !== 'undefined') modeEl.value = String(obj.mode);
+        if (sourceEl && obj && typeof obj.source !== 'undefined') sourceEl.value = String(obj.source);
       }));
       connection.on('LedStateList', (list) => (list || []).forEach((v, i) => {
         const dot = $('state-led' + (i + 1));
@@ -372,10 +384,15 @@
       // LEDs
       for (let i = 1; i <= NUM_LED; i++) {
         $('mode-led' + i).addEventListener('change', sendLedConfig);
+        $('source-led' + i).addEventListener('change', sendLedConfig);
       }
       async function sendLedConfig() {
         const list = [];
-        for (let i = 1; i <= NUM_LED; i++) list.push({ mode: parseInt($('mode-led' + i).value || "0", 10) });
+        for (let i = 1; i <= NUM_LED; i++) {
+          const mode = parseInt($('mode-led' + i).value || "0", 10);
+          const source = parseInt($('source-led' + i).value || "0", 10);
+          list.push({ mode: mode, source: source });
+        }
         await connection.send("Config", { t: "leds", list });
       }
     })();

@@ -640,8 +640,6 @@
       conn.on('onewireTempsList', rows=>{ markDataReceived(); renderOwTempsTable(toArray(rows)); });
       conn.on('onewireErrs', obj=>{ markDataReceived(); }); // Mark data received, ignore errors for now
       conn.on('onewireIndex', obj=>{ markDataReceived(); }); // Mark data received, ignore index for now
-      conn.on('onewireErrs', obj=>{ markDataReceived(); }); // Mark data received, ignore errors for now
-      conn.on('onewireIndex', obj=>{ markDataReceived(); }); // Mark data received, ignore index for now
 
       conn.on('inputs',          list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ const d=$('state-in'+(i+1)); if(d) d.className = 'state-dot '+(v?'dot-on':'dot-off'); }); });
       conn.on('enableList',      list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ const el=$('enable-in'+(i+1)); if(el) el.checked=!!v; }); });
@@ -693,7 +691,6 @@
       conn.on('relayEnableList', list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ const el=$('enable-relay'+(i+1)); if(el) el.checked=!!v; }); });
       conn.on('relayInvertList', list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ const el=$('invert-relay'+(i+1)); if(el) el.checked=!!v; }); });
       conn.on('relayCtrlMode',  list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ const el=$('ctrlsrc-relay'+(i+1)); if(el && el!==document.activeElement) el.value=String(v??0); }); });
-      conn.on('overrideActive', list=>{ markDataReceived(); toArray(list).forEach((v,i)=>{ const el=$('ovstate-relay'+(i+1)); if(el) el.className='state-dot '+(v?'dot-on':'dot-off'); }); });
 
       const heatSnapshot = { addrA: [], addrB: [], TA: [], TB: [] };
 
@@ -940,10 +937,7 @@
             <label for="ctrlsrc-relay${i}">Control mode</label>
             <select id="ctrlsrc-relay${i}">${ctrlSrcOpts}</select>
           </div>
-          <div style="margin-top:10px;display:flex;align-items:center;gap:8px;">
-            <span style="font-size:12px;color:var(--muted);">Override:</span>
-            <span id="ovstate-relay${i}" class="state-dot dot-off" title="override active (button-controlled)"></span>
-          </div>`;
+`;
         c.appendChild(d);
       }
     })();
@@ -956,8 +950,7 @@
 
       const ledSrcOpts = [
         {v:0,l:'(none)'},{v:1,l:'Relay 1'},{v:2,l:'Relay 2'},
-        {v:3,l:'DI1'},{v:4,l:'DI2'},{v:5,l:'DI3'},{v:6,l:'DI4'},{v:7,l:'DI5'},
-        {v:8,l:'R1 Override'},{v:9,l:'R2 Override'}
+        {v:3,l:'DI1'},{v:4,l:'DI2'},{v:5,l:'DI3'},{v:6,l:'DI4'},{v:7,l:'DI5'}
       ].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
 
       for(let i=1;i<=4;i++){
@@ -986,8 +979,7 @@
       const btnActOpts = [
         {v:0,l:'(none)'},
         {v:1,l:'Toggle R1'},{v:2,l:'Toggle R2'},
-        {v:3,l:'Pulse R1'},{v:4,l:'Pulse R2'},
-        {v:5,l:'R1 Override Toggle'},{v:6,l:'R2 Override Toggle'}
+        {v:3,l:'Pulse R1'},{v:4,l:'Pulse R2'}
       ].map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
 
       for(let i=1;i<=4;i++){
