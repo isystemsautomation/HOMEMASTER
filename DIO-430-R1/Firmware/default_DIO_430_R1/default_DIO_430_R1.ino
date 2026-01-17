@@ -211,12 +211,11 @@ enum : uint16_t {
   ISTS_LED_BASE  = 90   // 90..92 : LED1..3 logical state
 };
 
-// ================== Modbus command coils (FC=05/15; pulse) ==================
+// ================== Modbus command coils (FC=05/15) ==================
 enum : uint16_t {
-  CMD_RLY_ON_BASE   = 200,  // 200..202 : pulse turn Relay1..3 ON
-  CMD_RLY_OFF_BASE  = 210,  // 210..212 : pulse turn Relay1..3 OFF
-  CMD_DI_EN_BASE    = 300,  // 300..303 : pulse ENABLE  IN1..IN4
-  CMD_DI_DIS_BASE   = 320   // 320..323 : pulse DISABLE IN1..IN4
+  CMD_RLY_STATE_BASE = 200,  // 200..202 : Relay1..3 state (maintained, not pulses)
+  CMD_DI_EN_BASE     = 300,  // 300..303 : pulse ENABLE  IN1..IN4
+  CMD_DI_DIS_BASE    = 320   // 320..323 : pulse DISABLE IN1..IN4
 };
 
 // ================== Fw decls ==================
@@ -227,7 +226,7 @@ void handleCommand(JSONVar obj);
 void performReset();
 JSONVar LedConfigListFromCfg();
 void sendAllEchoesOnce();
-void processModbusCommandPulses();
+void processModbusCommands();
 void applyActionToTarget(uint8_t target, uint8_t action, uint32_t now);
 
 // ================== Setup ==================
@@ -258,8 +257,8 @@ void setup() {
   for (uint16_t i=0;i<NUM_LED;i++) mb.addIsts(ISTS_LED_BASE + i);
 
   // ==== Modbus command pulses (coils) ====
-  for (uint16_t i=0;i<NUM_RLY;i++){ mb.addCoil(CMD_RLY_ON_BASE  + i);  mb.setCoil(CMD_RLY_ON_BASE  + i, false); }
-  for (uint16_t i=0;i<NUM_RLY;i++){ mb.addCoil(CMD_RLY_OFF_BASE + i);  mb.setCoil(CMD_RLY_OFF_BASE + i, false); }
+  // Relay state coils (maintained - ESPHome can set ON/OFF directly)
+  for (uint16_t i=0;i<NUM_RLY;i++){ mb.addCoil(CMD_RLY_STATE_BASE + i);  mb.setCoil(CMD_RLY_STATE_BASE + i, false); }
   for (uint16_t i=0;i<NUM_DI;i++)  { mb.addCoil(CMD_DI_EN_BASE   + i);  mb.setCoil(CMD_DI_EN_BASE   + i, false); }
   for (uint16_t i=0;i<NUM_DI;i++)  { mb.addCoil(CMD_DI_DIS_BASE  + i);  mb.setCoil(CMD_DI_DIS_BASE  + i, false); }
 
@@ -378,14 +377,21 @@ void handleUnifiedConfig(JSONVar obj) {
   if (changed) { cfgDirty = true; lastCfgTouchMs = millis(); }
 }
 
-// ================== Modbus command pulses ==================
-void processModbusCommandPulses() {
-  // Relay ON/OFF
+// ================== Modbus commands ==================
+void processModbusCommands() {
+  // Relay controls - read maintained coil states (affect desiredRelay[])
+  // Disabled relays ignore Modbus commands and force coil to false
   for (int r=0; r<NUM_RLY; r++) {
-    if (mb.Coil(CMD_RLY_ON_BASE + r))  { mb.setCoil(CMD_RLY_ON_BASE + r,  false); desiredRelay[r] = true;  rlyPulseUntil[r] = 0; cfgDirty = true; lastCfgTouchMs = millis(); }
-    if (mb.Coil(CMD_RLY_OFF_BASE + r)) { mb.setCoil(CMD_RLY_OFF_BASE + r, false); desiredRelay[r] = false; rlyPulseUntil[r] = 0; cfgDirty = true; lastCfgTouchMs = millis(); }
+    if (rlyCfg[r].enabled) {
+      desiredRelay[r] = mb.Coil(CMD_RLY_STATE_BASE + r);
+      rlyPulseUntil[r] = 0; // Clear any pending pulse when Modbus takes control
+    } else {
+      // Relay is disabled - clear Modbus desired state and force coil to false
+      desiredRelay[r] = false;
+      mb.setCoil(CMD_RLY_STATE_BASE + r, false);
+    }
   }
-  // DI enable/disable
+  // DI enable/disable (remain as pulses)
   for (int i=0; i<NUM_DI; i++) {
     if (mb.Coil(CMD_DI_EN_BASE + i))  { mb.setCoil(CMD_DI_EN_BASE + i,  false); if (!diCfg[i].enabled)  { diCfg[i].enabled  = true;  cfgDirty = true; lastCfgTouchMs = millis(); } }
     if (mb.Coil(CMD_DI_DIS_BASE + i)) { mb.setCoil(CMD_DI_DIS_BASE + i, false); if ( diCfg[i].enabled)  { diCfg[i].enabled  = false; cfgDirty = true; lastCfgTouchMs = millis(); } }
@@ -421,7 +427,7 @@ void loop() {
   unsigned long now = millis();
 
   mb.task();                     // Modbus polling
-  processModbusCommandPulses();  // consume pulses
+  processModbusCommands();  // read maintained coils, process pulse coils
 
   // Blink phase (for LED blink mode)
   if (now - lastBlinkToggle >= blinkPeriodMs) { lastBlinkToggle = now; blinkPhase = !blinkPhase; }
@@ -497,6 +503,8 @@ for (int i = 0; i < NUM_DI; i++) {
 
     relayStateList[i] = outVal;
     mb.setIsts(ISTS_RLY_BASE + i, outVal);
+    // Write actual relay state back to Modbus coil (so ESPHome reads correct status)
+    mb.setCoil(CMD_RLY_STATE_BASE + i, outVal);
   }
 
   // -------- LEDs: follow selected source; blink if mode=1 ----------

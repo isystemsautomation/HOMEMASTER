@@ -6,9 +6,9 @@
 #   • DI1..DI4 at 1..4
 #   • Relay logical state R1..R3 at 60..62
 #   • LED logical state LED1..LED3 at 90..92
-# - Commands are *pulse* coils (FC=05/15): write TRUE momentarily; firmware auto-clears
-#   • Relay ON  (R1..R3)  at 200..202
-#   • Relay OFF (R1..R3)  at 210..212
+# - Relay coils are *maintained* (FC=05/15): write ON/OFF directly (like WLD module)
+#   • Relay state (R1..R3) at 200..202
+# - DI enable/disable are *pulse* coils: write TRUE momentarily; firmware auto-clears
 #   • DI ENABLE (IN1..IN4) at 300..303
 #   • DI DISABLE (IN1..IN4) at 320..323
 # - Tweak substitutions in your main YAML as needed.
@@ -89,41 +89,9 @@ binary_sensor:
     address: 92
 
 # ─────────────────────────────────────────────────────────────────────────────
-# COMMANDS: pulse coils (outputs for internal use)
+# COMMANDS: pulse coils (for DI enable/disable)
 # ─────────────────────────────────────────────────────────────────────────────
 output:
-  # Relay ON pulses (200..202) - used by switches below
-  - platform: modbus_controller
-    modbus_controller_id: ${dio_id}
-    register_type: coil
-    id: dio_rly1_on
-    address: 200
-  - platform: modbus_controller
-    modbus_controller_id: ${dio_id}
-    register_type: coil
-    id: dio_rly2_on
-    address: 201
-  - platform: modbus_controller
-    modbus_controller_id: ${dio_id}
-    register_type: coil
-    id: dio_rly3_on
-    address: 202
-  # Relay OFF pulses (210..212) - used by switches below
-  - platform: modbus_controller
-    modbus_controller_id: ${dio_id}
-    register_type: coil
-    id: dio_rly1_off
-    address: 210
-  - platform: modbus_controller
-    modbus_controller_id: ${dio_id}
-    register_type: coil
-    id: dio_rly2_off
-    address: 211
-  - platform: modbus_controller
-    modbus_controller_id: ${dio_id}
-    register_type: coil
-    id: dio_rly3_off
-    address: 212
   # DI ENABLE pulses (300..303)
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
@@ -168,44 +136,24 @@ output:
     address: 323
 
 # ─────────────────────────────────────────────────────────────────────────────
-# RELAY SWITCHES: User-friendly switches (pulse ON/OFF coils, read state)
+# RELAY SWITCHES: Maintained coils (like WLD module)
 # ─────────────────────────────────────────────────────────────────────────────
 switch:
-  # Relay 1: ON pulse at 200, OFF pulse at 210, state from discrete_input 60
-  - platform: template
+  # Relay coils are maintained (not pulses). ESPHome can set ON/OFF directly.
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
     name: "${dio_prefix} Relay 1"
-    lambda: |-
-      auto state = id(${dio_id}_rly1_state).state;
-      return state ? true : false;
-    turn_on_action:
-      - output.turn_on: dio_rly1_on
-    turn_off_action:
-      - output.turn_on: dio_rly1_off
-    optimistic: false
-    assumed_state: false
+    address: 200
+    register_type: coil
 
-  # Relay 2: ON pulse at 201, OFF pulse at 211, state from discrete_input 61
-  - platform: template
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
     name: "${dio_prefix} Relay 2"
-    lambda: |-
-      auto state = id(${dio_id}_rly2_state).state;
-      return state ? true : false;
-    turn_on_action:
-      - output.turn_on: dio_rly2_on
-    turn_off_action:
-      - output.turn_on: dio_rly2_off
-    optimistic: false
-    assumed_state: false
+    address: 201
+    register_type: coil
 
-  # Relay 3: ON pulse at 202, OFF pulse at 212, state from discrete_input 62
-  - platform: template
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
     name: "${dio_prefix} Relay 3"
-    lambda: |-
-      auto state = id(${dio_id}_rly3_state).state;
-      return state ? true : false;
-    turn_on_action:
-      - output.turn_on: dio_rly3_on
-    turn_off_action:
-      - output.turn_on: dio_rly3_off
-    optimistic: false
-    assumed_state: false
+    address: 202
+    register_type: coil
