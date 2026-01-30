@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>HomeMaster MiniPLC (ESP32)</title>
-  <link rel="stylesheet" href="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/productpage/styles.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER@main/productpage/styles.css">
 </head>
 <body>
 <!-- FIXED: corrected nesting, removed stray text, added ESPHome mention in HERO, and consolidated cable/shield guidance into one bottom section -->
@@ -38,7 +38,7 @@
         <div class="plc-rail">
           <div class="plc-img plc-heroimg">
             <img
-              src="/web/image/2603-10f4cd8c/description4.png?access_token=c944a202-78c6-40aa-a2e3-1422acf391bc"
+              src="https://www.home-master.eu/web/image/2603-10f4cd8c/description4.png?access_token=c944a202-78c6-40aa-a2e3-1422acf391bc"
               alt="HomeMaster MiniPLC DIN-rail ESP32 industrial controller"
               loading="lazy"
             >
@@ -56,7 +56,7 @@
       <div class="plc-grid plc-hero-grid">
         <!-- LEFT: Quick Overview -->
         <div class="plc-copy">
-          <h4><strong>Quick Overview</strong></h4>
+          <h3 id="quick-overview"><strong>Quick Overview</strong></h3>
           <ul class="plc-list plc-list--tight">
             <li>Pre-installed <strong>ESPHome</strong> for native Home Assistant integration</li>
             <li>Industrial <strong>DIN-rail form factor</strong> with 24 V DC supply</li>
@@ -67,7 +67,7 @@
 
         <!-- RIGHT: Typical Applications -->
         <div class="plc-copy">
-          <h4><strong>Typical Applications</strong></h4>
+          <h3 id="typical-applications"><strong>Typical Applications</strong></h3>
           <ul class="plc-list plc-list--tight">
             <li>Smart home central controller</li>
             <li>HVAC automation and plant control</li>
@@ -85,7 +85,7 @@
 
     <!-- ===================== TECH SPECS ===================== -->
     <div class="plc-section">
-      <h4><strong>Tech Specs</strong></h4>
+      <h2 id="tech-specs"><strong>Tech Specs</strong></h2>
 
       <div class="plc-tablewrap">
         <table class="table table-bordered o_table">
@@ -113,7 +113,7 @@
 
     <!-- ===================== HOME ASSISTANT / ESPHOME ===================== -->
     <div class="plc-section">
-      <h4><strong>Home Assistant &amp; ESPHome Integration</strong></h4>
+      <h2 id="home-assistant-esphome-integration"><strong>Home Assistant &amp; ESPHome Integration</strong></h2>
 
       <div class="plc-grid">
         <!-- Left: text -->
@@ -123,7 +123,7 @@
             Home Assistant without flashing custom firmware.
           </p>
 
-          <h6><strong>Quick Setup Process (Improv Wi-Fi)</strong></h6>
+          <h3 id="quick-setup-process"><strong>Quick Setup Process (Improv Wi-Fi)</strong></h3>
           <ol class="plc-steps">
             <li><strong>Mount &amp; Power</strong> – Install on a 35mm DIN rail and connect 24V DC power.</li>
             <li><strong>Open Improv</strong> – Go to <a href="https://improv-wifi.com" target="_blank" rel="noopener">improv-wifi.com</a> (Chrome/Edge).</li>
@@ -132,18 +132,18 @@
             <li><strong>Auto-Discovery</strong> – Device appears in Home Assistant &amp; ESPHome Dashboard.</li>
           </ol>
 
-          <h6><strong>One-Click Import (ESPHome Dashboard)</strong></h6>
+          <h3 id="one-click-import"><strong>One-Click Import (ESPHome Dashboard)</strong></h3>
           <p>
             Once connected to Wi-Fi, the MiniPLC is automatically discovered in the ESPHome Dashboard.
             Click <strong>“Take Control”</strong> to import the official configuration directly from GitHub.
           </p>
 
-          <h6><strong>USB Type-C Manual Flashing (Optional)</strong></h6>
+          <h3 id="usb-type-c-manual-flashing"><strong>USB Type-C Manual Flashing (Optional)</strong></h3>
           <ol class="plc-steps">
             <li>Connect the MiniPLC to your computer using USB Type-C.</li>
             <li>
               Download the official YAML configuration:
-              <a href="https://github.com/isystemsautomation/HOMEMASTER/blob/main/MiniPLC/Firmware/miniplc.yaml" target="_blank" rel="noopener">
+              <a href="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER@main/MiniPLC/Firmware/miniplc.yaml" target="_blank" rel="noopener">
                 miniplc.yaml
               </a>
             </li>
@@ -165,7 +165,7 @@
         <!-- Right: image -->
         <div class="plc-img">
           <img
-            src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/MiniPLC/Images/improv.png"
+            src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER@main/MiniPLC/Images/improv.png"
             alt="ESPHome Improv WiFi setup flow"
             loading="lazy"
           >
@@ -175,7 +175,7 @@
 
     <!-- ===================== DOCUMENTATION ===================== -->
     <div class="plc-section plc-docs">
-      <h4><strong>Documentation</strong></h4>
+      <h2 id="documentation"><strong>Documentation</strong></h2>
       <p class="plc-docs-intro">
         The MiniPLC is open-source hardware. You can build your own board using the files below.
       </p>
@@ -183,7 +183,7 @@
       <!-- Card: Hardware -->
       <div class="plc-docs-card">
         <div class="plc-docs-cardhead">
-          <h5 class="plc-docs-title">Hardware Design Files</h5>
+          <h3 class="plc-docs-title" id="hardware-design-files">Hardware Design Files</h3>
         </div>
 
         <div class="plc-tablewrap">
@@ -200,7 +200,7 @@
                 <td><strong>Schematic (MCU Board)</strong></td>
                 <td>Main controller board schematic</td>
                 <td class="plc-docs-linkcol">
-                  <a class="plc-docs-link plc-docs-link--pdf" href="https://github.com/isystemsautomation/HOMEMASTER/tree/main/MiniPLC/Schematic/MCU_Board.pdf" target="_blank" rel="noopener">
+                  <a class="plc-docs-link plc-docs-link--pdf" href="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER@main/MiniPLC/Schematic/MCU_Board.pdf" target="_blank" rel="noopener">
                     MCU_Board.pdf
                   </a>
                 </td>
@@ -209,7 +209,7 @@
                 <td><strong>Schematic (Relay Board)</strong></td>
                 <td>Relay and power section schematic</td>
                 <td class="plc-docs-linkcol">
-                  <a class="plc-docs-link plc-docs-link--pdf" href="https://github.com/isystemsautomation/HOMEMASTER/tree/main/MiniPLC/Schematic/Relay_Board.pdf" target="_blank" rel="noopener">
+                  <a class="plc-docs-link plc-docs-link--pdf" href="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER@main/MiniPLC/Schematic/Relay_Board.pdf" target="_blank" rel="noopener">
                     Relay_Board.pdf
                   </a>
                 </td>
@@ -218,7 +218,7 @@
                 <td><strong>Schematic (USB Board)</strong></td>
                 <td>USB-C interface and power management</td>
                 <td class="plc-docs-linkcol">
-                  <a class="plc-docs-link plc-docs-link--pdf" href="https://github.com/isystemsautomation/HOMEMASTER/tree/main/MiniPLC/Schematic/USB_Board.pdf" target="_blank" rel="noopener">
+                  <a class="plc-docs-link plc-docs-link--pdf" href="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER@main/MiniPLC/Schematic/USB_Board.pdf" target="_blank" rel="noopener">
                     USB_Board.pdf
                   </a>
                 </td>
@@ -231,7 +231,7 @@
       <!-- Card: Firmware -->
       <div class="plc-docs-card">
         <div class="plc-docs-cardhead">
-          <h5 class="plc-docs-title">Firmware &amp; Software</h5>
+          <h3 class="plc-docs-title" id="firmware-software">Firmware &amp; Software</h3>
         </div>
 
         <div class="plc-tablewrap">
@@ -248,7 +248,7 @@
                 <td><strong>Default ESPHome Config</strong></td>
                 <td>Pre-configured YAML for Home Assistant</td>
                 <td class="plc-docs-linkcol">
-                  <a class="plc-docs-link plc-docs-link--yml" href="https://github.com/isystemsautomation/HOMEMASTER/tree/main/MiniPLC/Firmware/miniplc.yaml" target="_blank" rel="noopener">
+                  <a class="plc-docs-link plc-docs-link--yml" href="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER@main/MiniPLC/Firmware/miniplc.yaml" target="_blank" rel="noopener">
                     miniplc.yaml
                   </a>
                 </td>
@@ -279,7 +279,7 @@
       <!-- Card: Manuals -->
       <div class="plc-docs-card">
         <div class="plc-docs-cardhead">
-          <h5 class="plc-docs-title">Manuals &amp; Datasheets</h5>
+          <h3 class="plc-docs-title" id="manuals-datasheets">Manuals &amp; Datasheets</h3>
         </div>
 
         <div class="plc-tablewrap">
@@ -296,7 +296,7 @@
                 <td><strong>Datasheet</strong></td>
                 <td>Technical specifications and ratings</td>
                 <td class="plc-docs-linkcol">
-                  <a class="plc-docs-link plc-docs-link--pdf" href="https://github.com/isystemsautomation/HOMEMASTER/tree/main/MiniPLC/Manuals/Datasheet.pdf" target="_blank" rel="noopener">
+                  <a class="plc-docs-link plc-docs-link--pdf" href="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER@main/MiniPLC/Manuals/Datasheet.pdf" target="_blank" rel="noopener">
                     Datasheet.pdf
                   </a>
                 </td>
@@ -305,7 +305,7 @@
                 <td><strong>User Manual</strong></td>
                 <td>Installation and configuration guide</td>
                 <td class="plc-docs-linkcol">
-                  <a class="plc-docs-link plc-docs-link--pdf" href="https://github.com/isystemsautomation/HOMEMASTER/tree/main/MiniPLC/Manuals/User_Manual.pdf" target="_blank" rel="noopener">
+                  <a class="plc-docs-link plc-docs-link--pdf" href="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER@main/MiniPLC/Manuals/User_Manual.pdf" target="_blank" rel="noopener">
                     User_Manual.pdf
                   </a>
                 </td>
@@ -325,7 +325,7 @@
 
     <!-- ===================== POWER SUPPLY ===================== -->
     <div class="plc-section">
-      <h4><strong>Power Supply</strong></h4>
+      <h2 id="power-supply"><strong>Power Supply</strong></h2>
 
       <p>
         MiniPLC supports <strong>one</strong> power input method at a time:
@@ -339,7 +339,7 @@
         protected by an external fuse or circuit breaker per local electrical code.
       </p>
 
-      <h6><strong>Power Input Specifications</strong></h6>
+      <h3 id="power-input-specifications"><strong>Power Input Specifications</strong></h3>
       <div class="plc-tablewrap">
         <table class="table table-bordered o_table">
           <thead>
@@ -376,7 +376,7 @@
       <hr class="plc-hr">
 
       <!-- ===================== 24V DC SECTION ===================== -->
-      <h6><strong>24&nbsp;V DC Input (V+ / 0V)</strong></h6>
+      <h3 id="24v-dc-input"><strong>24&nbsp;V DC Input (V+ / 0V)</strong></h3>
 
       <ul class="plc-list">
         <li><strong>Power draw:</strong> up to <strong>150&nbsp;mA @ 24&nbsp;V</strong> (≈ <strong>3.6&nbsp;W</strong>)</li>
@@ -387,43 +387,39 @@
           so the external device clears before the internal service fuse</li>
       </ul>
 
-      <table class="plc-wiring-table" width="100%" cellspacing="0" cellpadding="0" role="presentation">
-        <tbody>
-          <tr>
-            <td class="plc-wirecell" width="50%" valign="top">
-              <div class="plc-wirecard">
-                <img
-                  src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/MiniPLC/Images/wiring_ps_dc.png"
-                  alt="Wiring example: 24 V DC connected to V+ and 0V"
-                  loading="lazy"
-                >
-                <div class="plc-caption">
-                  Connect <strong>+</strong> to <strong>V+</strong> and <strong>−</strong> to <strong>0V</strong>.
-                </div>
-              </div>
-            </td>
+      <div class="plc-grid">
+        <div class="plc-col">
+          <div class="plc-wirecard">
+            <img
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER@main/MiniPLC/Images/wiring_ps_dc.png"
+              alt="Wiring example: 24 V DC connected to V+ and 0V"
+              loading="lazy"
+            >
+            <div class="plc-caption">
+              Connect <strong>+</strong> to <strong>V+</strong> and <strong>−</strong> to <strong>0V</strong>.
+            </div>
+          </div>
+        </div>
 
-            <td class="plc-wirecell" width="50%" valign="top">
-              <div class="plc-wirecard">
-                <div class="plc-caption" style="margin-top:0;">
-                  <strong>Installation checklist</strong>
-                </div>
-                <ul class="plc-list" style="margin-top:8px;">
-                  <li>Use a regulated <strong>24&nbsp;V DC</strong> supply</li>
-                  <li>Install <strong>0.5&nbsp;A</strong> fuse/breaker upstream of <strong>V+</strong></li>
-                  <li>Observe polarity: <strong>V+ / 0V</strong></li>
-                  <li>Route power wiring away from low-level analog signal wiring</li>
-                </ul>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+        <div class="plc-col">
+          <div class="plc-wirecard">
+            <div class="plc-caption" style="margin-top:0;">
+              <strong>Installation checklist</strong>
+            </div>
+            <ul class="plc-list" style="margin-top:8px;">
+              <li>Use a regulated <strong>24&nbsp;V DC</strong> supply</li>
+              <li>Install <strong>0.5&nbsp;A</strong> fuse/breaker upstream of <strong>V+</strong></li>
+              <li>Observe polarity: <strong>V+ / 0V</strong></li>
+              <li>Route power wiring away from low-level analog signal wiring</li>
+            </ul>
+          </div>
+        </div>
+      </div>
 
       <hr class="plc-hr">
 
       <!-- ===================== MAINS / HVDC SECTION ===================== -->
-      <h6><strong>Mains AC / High-Voltage DC Input (L / N)</strong></h6>
+      <h3 id="mains-ac-high-voltage-dc-input"><strong>Mains AC / High-Voltage DC Input (L / N)</strong></h3>
 
       <p class="plc-caption" style="margin-top:8px;">
         The onboard isolated power module generates the internal <strong>24&nbsp;V</strong> rail from
@@ -436,53 +432,49 @@
         Increase rating only if required by local code or to prevent nuisance trips due to inrush.
       </p>
 
-      <table class="plc-wiring-table" width="100%" cellspacing="0" cellpadding="0" role="presentation">
-        <tbody>
-          <tr>
-            <td class="plc-wirecell" width="50%" valign="top">
-              <div class="plc-wirecard">
-                <div class="plc-caption" style="margin-top:0;">
-                  <strong>85–265&nbsp;V AC (L / N)</strong>
-                </div>
+      <div class="plc-grid">
+        <div class="plc-col">
+          <div class="plc-wirecard">
+            <div class="plc-caption" style="margin-top:0;">
+              <strong>85–265&nbsp;V AC (L / N)</strong>
+            </div>
 
-                <img
-                  src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/MiniPLC/Images/wiring_ps_ac1.png"
-                  alt="Wiring example: 85–265 V AC to L and N with external fuse/breaker"
-                  loading="lazy"
-                  style="margin-top:8px;"
-                >
+            <img
+              src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/MiniPLC/Images/wiring_ps_ac1.png"
+              alt="Wiring example: 85–265 V AC to L and N with external fuse/breaker"
+              loading="lazy"
+              style="margin-top:8px;"
+            >
 
-                <ul class="plc-list" style="margin-top:10px;">
-                  <li><strong>Input:</strong> 85–265&nbsp;V AC, 47–63&nbsp;Hz</li>
-                  <li><strong>Qualified personnel only</strong></li>
-                  <li><strong>External fuse/breaker required</strong></li>
-                </ul>
-              </div>
-            </td>
+            <ul class="plc-list" style="margin-top:10px;">
+              <li><strong>Input:</strong> 85–265&nbsp;V AC, 47–63&nbsp;Hz</li>
+              <li><strong>Qualified personnel only</strong></li>
+              <li><strong>External fuse/breaker required</strong></li>
+            </ul>
+          </div>
+        </div>
 
-            <td class="plc-wirecell" width="50%" valign="top">
-              <div class="plc-wirecard">
-                <div class="plc-caption" style="margin-top:0;">
-                  <strong>120–370&nbsp;V DC (L / N + / −)</strong>
-                </div>
+        <div class="plc-col">
+          <div class="plc-wirecard">
+            <div class="plc-caption" style="margin-top:0;">
+              <strong>120–370&nbsp;V DC (L / N + / −)</strong>
+            </div>
 
-                <img
-                  src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/MiniPLC/Images/wiring_ps_ac2.png"
-                  alt="Wiring example: 120–370 V DC on L/N terminals with polarity as marked and external fuse/breaker"
-                  loading="lazy"
-                  style="margin-top:8px;"
-                >
+            <img
+              src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/MiniPLC/Images/wiring_ps_ac2.png"
+              alt="Wiring example: 120–370 V DC on L/N terminals with polarity as marked and external fuse/breaker"
+              loading="lazy"
+              style="margin-top:8px;"
+            >
 
-                <ul class="plc-list" style="margin-top:10px;">
-                  <li><strong>Input:</strong> 120–370&nbsp;V DC</li>
-                  <li>Observe polarity where marked on <strong>L / N</strong></li>
-                  <li><strong>External fuse/breaker required</strong></li>
-                </ul>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+            <ul class="plc-list" style="margin-top:10px;">
+              <li><strong>Input:</strong> 120–370&nbsp;V DC</li>
+              <li>Observe polarity where marked on <strong>L / N</strong></li>
+              <li><strong>External fuse/breaker required</strong></li>
+            </ul>
+          </div>
+        </div>
+      </div>
 
       <div class="plc-tablewrap" style="margin-top:14px;">
         <table class="table table-bordered o_table">
@@ -520,10 +512,10 @@
 
     <!-- ===================== INPUTS & OUTPUTS ===================== -->
     <div class="plc-section">
-      <h4><strong>Inputs &amp; Outputs</strong></h4>
+      <h2 id="inputs-outputs"><strong>Inputs &amp; Outputs</strong></h2>
 
       <!-- -------- DI -------- -->
-      <h6><strong>Digital Inputs (4 channels)</strong></h6>
+      <h3 id="digital-inputs"><strong>Digital Inputs (4 channels)</strong></h3>
       <div class="plc-tablewrap">
         <table class="table table-bordered o_table">
           <thead>
@@ -580,38 +572,34 @@
         <li>Status monitoring via Home Assistant binary sensors</li>
       </ul>
 
-      <table class="plc-wiring-table" width="100%" cellspacing="0" cellpadding="0" role="presentation">
-        <tbody>
-          <tr>
-            <td class="plc-wirecell" width="50%" valign="top">
-              <div class="plc-wirecard">
-                <img
-                  src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/MiniPLC/Images/wiring_DI_2.png"
-                  alt="Wiring example: dry contact wiring to DI inputs"
-                  loading="lazy"
-                >
-                <div class="plc-caption">Wiring example: dry contact wiring to DI inputs.</div>
-              </div>
-            </td>
-            <td class="plc-wirecell" width="50%" valign="top">
-              <div class="plc-wirecard">
-                <img
-                  src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/MiniPLC/Images/wiring_DI_3.png"
-                  alt="Wiring example: shared common wiring approach"
-                  loading="lazy"
-                >
-                <div class="plc-caption">Wiring example: shared common wiring approach.</div>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <div class="plc-grid">
+        <div class="plc-col">
+          <div class="plc-wirecard">
+            <img
+              src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/MiniPLC/Images/wiring_DI_2.png"
+              alt="Wiring example: dry contact wiring to DI inputs"
+              loading="lazy"
+            >
+            <div class="plc-caption">Wiring example: dry contact wiring to DI inputs.</div>
+          </div>
+        </div>
+        <div class="plc-col">
+          <div class="plc-wirecard">
+            <img
+              src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/MiniPLC/Images/wiring_DI_3.png"
+              alt="Wiring example: shared common wiring approach"
+              loading="lazy"
+            >
+            <div class="plc-caption">Wiring example: shared common wiring approach.</div>
+          </div>
+        </div>
+      </div>
 
       <hr class="plc-hr">
 
       <!-- ===================== RELAY OUTPUTS ===================== -->
       <div class="plc-section">
-        <h4><strong>Relay Outputs</strong></h4>
+        <h3 id="relay-outputs"><strong>Relay Outputs</strong></h3>
 
         <p>
           The MiniPLC provides <strong>6 SPDT mechanical relays (HF115F/005-1ZS3)</strong> for switching AC or DC loads.
@@ -629,7 +617,7 @@
           External overcurrent protection (fuse or circuit breaker) is mandatory for safe operation.
         </p>
 
-        <h6><strong>Relay Specifications</strong></h6>
+        <h4><strong>Relay Specifications</strong></h4>
         <div class="plc-tablewrap">
           <table class="table table-bordered o_table">
             <thead>
@@ -688,77 +676,73 @@
           </table>
         </div>
 
-        <h6><strong>Relay Wiring Examples</strong></h6>
-        <table class="plc-wiring-table" role="presentation">
-          <tbody>
-            <tr>
-              <td class="plc-wirecell">
-                <div class="plc-wirecard">
-                  <img
-                    src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/MiniPLC/Images/wiring_relays1.png"
-                    alt="Relay wiring example NO and NC contacts"
-                    loading="lazy"
-                  >
-                  <div class="plc-caption">
-                    Example wiring using <strong>Normally Open (NO)</strong> and
-                    <strong>Normally Closed (NC)</strong> relay contacts.
-                  </div>
-                </div>
-              </td>
+        <h4><strong>Relay Wiring Examples</strong></h4>
+        <div class="plc-grid">
+          <div class="plc-col">
+            <div class="plc-wirecard">
+              <img
+                src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/MiniPLC/Images/wiring_relays1.png"
+                alt="Relay wiring example NO and NC contacts"
+                loading="lazy"
+              >
+              <div class="plc-caption">
+                Example wiring using <strong>Normally Open (NO)</strong> and
+                <strong>Normally Closed (NC)</strong> relay contacts.
+              </div>
+            </div>
+          </div>
 
-              <td class="plc-wirecell">
-                <div class="plc-wirecard">
-                  <ul class="plc-list">
-                    <li>Each relay has <strong>COM / NO / NC</strong> terminals</li>
-                    <li>Use <strong>NO</strong> for default OFF loads</li>
-                    <li>Use <strong>NC</strong> for default ON loads</li>
-                    <li>⚡ Loads may carry hazardous voltage</li>
-                    <li>Supports AC and DC switching (DC and inductive loads require derating)</li>
-                  </ul>
+          <div class="plc-col">
+            <div class="plc-wirecard">
+              <ul class="plc-list">
+                <li>Each relay has <strong>COM / NO / NC</strong> terminals</li>
+                <li>Use <strong>NO</strong> for default OFF loads</li>
+                <li>Use <strong>NC</strong> for default ON loads</li>
+                <li>⚡ Loads may carry hazardous voltage</li>
+                <li>Supports AC and DC switching (DC and inductive loads require derating)</li>
+              </ul>
 
-                  <p class="plc-caption" style="margin-top:10px;">
-                    <strong>⚠️ External protection rule:</strong>
-                    Each relay output shall be protected by an external fuse or circuit breaker.
-                    The rated current of the protective device shall not exceed
-                    <strong>3A per relay output</strong>.
-                  </p>
+              <p class="plc-caption" style="margin-top:10px;">
+                <strong>⚠️ External protection rule:</strong>
+                Each relay output shall be protected by an external fuse or circuit breaker.
+                The rated current of the protective device shall not exceed
+                <strong>3A per relay output</strong>.
+              </p>
 
-                  <p class="plc-caption" style="margin-top:6px;">
-                    <strong>⚠️ Common protection warning:</strong>
-                    If a <strong>single common fuse or circuit breaker</strong> is used to protect
-                    multiple relay outputs (as shown in the wiring example),
-                    the protective device <strong>shall NOT be sized by summing relay outputs</strong>.
-                    The rating of the common protective device shall not exceed
-                    <strong>the maximum permissible current of a single relay output</strong>.
-                  </p>
+              <p class="plc-caption" style="margin-top:6px;">
+                <strong>⚠️ Common protection warning:</strong>
+                If a <strong>single common fuse or circuit breaker</strong> is used to protect
+                multiple relay outputs (as shown in the wiring example),
+                the protective device <strong>shall NOT be sized by summing relay outputs</strong>.
+                The rating of the common protective device shall not exceed
+                <strong>the maximum permissible current of a single relay output</strong>.
+              </p>
 
-                  <p class="plc-caption" style="margin-top:6px;">
-                    For inductive or DC loads (contactors, solenoids, motors),
-                    use appropriate suppression (RC snubbers, MOVs, or flyback diodes).
-                    Loads exceeding the recommended PCB current limit shall be switched
-                    using external contactors or wiring methods that bypass PCB copper paths.
-                  </p>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+              <p class="plc-caption" style="margin-top:6px;">
+                For inductive or DC loads (contactors, solenoids, motors),
+                use appropriate suppression (RC snubbers, MOVs, or flyback diodes).
+                Loads exceeding the recommended PCB current limit shall be switched
+                using external contactors or wiring methods that bypass PCB copper paths.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
       <hr class="plc-hr">
 
       <!-- ===================== ANALOG I/O ===================== -->
       <div class="plc-section">
-        <h4><strong>Analog I/O (0–10V)</strong></h4>
+        <h3 id="analog-io"><strong>Analog I/O (0–10V)</strong></h3>
 
         <p>
           MiniPLC provides <strong>4 analog inputs</strong> and <strong>1 analog output</strong> with a standard <strong>0–10V</strong> signal range.
           Use these channels for common sensors, transmitters, and control devices that accept/produce 0–10V signals.
         </p>
 
-        <h5><strong>Analog Inputs (AI) — 4 Channels</strong></h5>
+        <h4><strong>Analog Inputs (AI) — 4 Channels</strong></h4>
 
-        <h6><strong>Analog Input Specifications</strong></h6>
+        <h4><strong>Analog Input Specifications</strong></h4>
         <div class="plc-tablewrap">
           <table class="table table-bordered o_table">
             <thead>
@@ -778,44 +762,40 @@
           </table>
         </div>
 
-        <h6><strong>Analog Input Wiring</strong></h6>
-        <table class="plc-wiring-table" role="presentation">
-          <tbody>
-            <tr>
-              <td class="plc-wirecell" width="50%" valign="top">
-                <div class="plc-wirecard">
-                  <img
-                    src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/MiniPLC/Images/wiring_ai1.png"
-                    alt="Analog input wiring example (0–10V sensors with common power supply)"
-                    loading="lazy"
-                  >
-                  <div class="plc-caption">
-                    Example: multiple 0–10V sensors powered from a shared supply (PS) with common 0V/GND.
-                  </div>
-                </div>
-              </td>
+        <h4><strong>Analog Input Wiring</strong></h4>
+        <div class="plc-grid">
+          <div class="plc-col">
+            <div class="plc-wirecard">
+              <img
+                src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/MiniPLC/Images/wiring_ai1.png"
+                alt="Analog input wiring example (0–10V sensors with common power supply)"
+                loading="lazy"
+              >
+              <div class="plc-caption">
+                Example: multiple 0–10V sensors powered from a shared supply (PS) with common 0V/GND.
+              </div>
+            </div>
+          </div>
 
-              <td class="plc-wirecell" width="50%" valign="top">
-                <div class="plc-wirecard">
-                  <h6><strong>Wiring Checklist (AI)</strong></h6>
-                  <ul class="plc-list" style="margin-top:8px;">
-                    <li><strong>Signal:</strong> 0–10V</li>
-                    <li><strong>Reference:</strong> connect sensor <strong>0V</strong> to <strong>AI GND</strong></li>
-                    <li>Use a <strong>shared 0V/common ground</strong> between sensors and MiniPLC</li>
-                    <li>For long runs, use a <strong>twisted pair</strong> (Signal + GND)</li>
-                    <li>Keep analog wiring away from relay outputs and mains/AC wiring</li>
-                  </ul>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+          <div class="plc-col">
+            <div class="plc-wirecard">
+              <h5><strong>Wiring Checklist (AI)</strong></h5>
+              <ul class="plc-list" style="margin-top:8px;">
+                <li><strong>Signal:</strong> 0–10V</li>
+                <li><strong>Reference:</strong> connect sensor <strong>0V</strong> to <strong>AI GND</strong></li>
+                <li>Use a <strong>shared 0V/common ground</strong> between sensors and MiniPLC</li>
+                <li>For long runs, use a <strong>twisted pair</strong> (Signal + GND)</li>
+                <li>Keep analog wiring away from relay outputs and mains/AC wiring</li>
+              </ul>
+            </div>
+          </div>
+        </div>
 
         <hr class="plc-hr">
 
-        <h5><strong>Analog Output (AO) — 1 Channel</strong></h5>
+        <h4><strong>Analog Output (AO) — 1 Channel</strong></h4>
 
-        <h6><strong>Analog Output Specifications</strong></h6>
+        <h4><strong>Analog Output Specifications</strong></h4>
         <div class="plc-tablewrap">
           <table class="table table-bordered o_table">
             <thead>
@@ -837,54 +817,50 @@
           </table>
         </div>
 
-        <h6><strong>Analog Output Wiring</strong></h6>
-        <table class="plc-wiring-table" role="presentation">
-          <tbody>
-            <tr>
-              <td class="plc-wirecell" width="50%" valign="top">
-                <div class="plc-wirecard">
-                  <img
-                    src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/MiniPLC/Images/wiring_ao1.png"
-                    alt="Analog output wiring example (0–10V)"
-                    loading="lazy"
-                  >
-                  <div class="plc-caption">
-                    Example: 0–10V analog output connection to an external device.
-                  </div>
-                </div>
-              </td>
+        <h4><strong>Analog Output Wiring</strong></h4>
+        <div class="plc-grid">
+          <div class="plc-col">
+            <div class="plc-wirecard">
+              <img
+                src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/MiniPLC/Images/wiring_ao1.png"
+                alt="Analog output wiring example (0–10V)"
+                loading="lazy"
+              >
+              <div class="plc-caption">
+                Example: 0–10V analog output connection to an external device.
+              </div>
+            </div>
+          </div>
 
-              <td class="plc-wirecell" width="50%" valign="top">
-                <div class="plc-wirecard">
-                  <h6><strong>Wiring Checklist (AO)</strong></h6>
-                  <ul class="plc-list" style="margin-top:8px;">
-                    <li><strong>Signal:</strong> 0–10V</li>
-                    <li><strong>Reference ground:</strong> <strong>AO GND</strong></li>
-                    <li>Use a <strong>twisted pair</strong> (AO + AO GND) for long runs</li>
-                    <li>Keep AO wiring away from power switching and motor/VFD cables</li>
-                    <li class="plc-caption" style="list-style: none; margin-left:-18px; margin-top:10px;">
-                      Typical use cases: analog setpoints (VFD speed), valve/actuator positioning, controller reference signals.
-                    </li>
-                  </ul>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+          <div class="plc-col">
+            <div class="plc-wirecard">
+              <h5><strong>Wiring Checklist (AO)</strong></h5>
+              <ul class="plc-list" style="margin-top:8px;">
+                <li><strong>Signal:</strong> 0–10V</li>
+                <li><strong>Reference ground:</strong> <strong>AO GND</strong></li>
+                <li>Use a <strong>twisted pair</strong> (AO + AO GND) for long runs</li>
+                <li>Keep AO wiring away from power switching and motor/VFD cables</li>
+                <li class="plc-caption" style="list-style: none; margin-left:-18px; margin-top:10px;">
+                  Typical use cases: analog setpoints (VFD speed), valve/actuator positioning, controller reference signals.
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
       </div>
 
       <hr class="plc-hr">
 
       <!-- ===================== TEMPERATURE INPUTS ===================== -->
       <div class="plc-section">
-        <h4><strong>Temperature Inputs</strong></h4>
+        <h3 id="temperature-inputs"><strong>Temperature Inputs</strong></h3>
 
         <p>
           MiniPLC supports <strong>RTD sensors</strong> (PT100/PT1000) and <strong>1-Wire temperature sensors</strong> (DS18B20 or compatible)
           for reliable cabinet and process temperature monitoring.
         </p>
 
-        <h6><strong>Temperature Input Specifications</strong></h6>
+        <h4><strong>Temperature Input Specifications</strong></h4>
         <div class="plc-tablewrap">
           <table class="table table-bordered o_table">
             <thead>
@@ -905,68 +881,60 @@
           </table>
         </div>
 
-        <h6><strong>Wiring Examples</strong></h6>
-        <table class="plc-wiring-table" role="presentation">
-          <tbody>
-            <tr>
-              <td class="plc-wirecell" width="50%" valign="top">
-                <div class="plc-wirecard">
-                  <img
-                    src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/MiniPLC/Images/wiring_1wire2.png"
-                    alt="1-Wire wiring example"
-                    loading="lazy"
-                  >
-                  <div class="plc-caption">1-Wire wiring example.</div>
-                </div>
-              </td>
+        <h4><strong>Wiring Examples</strong></h4>
+        <div class="plc-grid">
+          <div class="plc-col">
+            <div class="plc-wirecard">
+              <img
+                src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/MiniPLC/Images/wiring_1wire2.png"
+                alt="1-Wire wiring example"
+                loading="lazy"
+              >
+              <div class="plc-caption">1-Wire wiring example.</div>
+            </div>
+          </div>
 
-              <td class="plc-wirecell" width="50%" valign="top">
-                <div class="plc-wirecard">
-                  <img
-                    src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/MiniPLC/Images/wiring_rtd4.png"
-                    alt="RTD wiring example: 4-wire circuit"
-                    loading="lazy"
-                  >
-                  <div class="plc-caption">RTD wiring example (4-wire).</div>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+          <div class="plc-col">
+            <div class="plc-wirecard">
+              <img
+                src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/MiniPLC/Images/wiring_rtd4.png"
+                alt="RTD wiring example: 4-wire circuit"
+                loading="lazy"
+              >
+              <div class="plc-caption">RTD wiring example (4-wire).</div>
+            </div>
+          </div>
+        </div>
 
-        <table class="plc-wiring-table" role="presentation" style="margin-top:10px;">
-          <tbody>
-            <tr>
-              <td class="plc-wirecell" width="50%" valign="top">
-                <div class="plc-wirecard">
-                  <img
-                    src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/MiniPLC/Images/wiring_rtd1.png"
-                    alt="RTD wiring example: 2-wire circuit"
-                    loading="lazy"
-                  >
-                  <div class="plc-caption">RTD wiring example (2-wire).</div>
-                </div>
-              </td>
+        <div class="plc-grid" style="margin-top:10px;">
+          <div class="plc-col">
+            <div class="plc-wirecard">
+              <img
+                src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/MiniPLC/Images/wiring_rtd1.png"
+                alt="RTD wiring example: 2-wire circuit"
+                loading="lazy"
+              >
+              <div class="plc-caption">RTD wiring example (2-wire).</div>
+            </div>
+          </div>
 
-              <td class="plc-wirecell" width="50%" valign="top">
-                <div class="plc-wirecard">
-                  <img
-                    src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/MiniPLC/Images/wiring_rtd2.png"
-                    alt="RTD wiring example: 3-wire circuit"
-                    loading="lazy"
-                  >
-                  <div class="plc-caption">RTD wiring example (3-wire).</div>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+          <div class="plc-col">
+            <div class="plc-wirecard">
+              <img
+                src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/MiniPLC/Images/wiring_rtd2.png"
+                alt="RTD wiring example: 3-wire circuit"
+                loading="lazy"
+              >
+              <div class="plc-caption">RTD wiring example (3-wire).</div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <hr class="plc-hr">
 
       <!-- -------- UI -------- -->
-      <h6><strong>User Interface</strong></h6>
+      <h3 id="user-interface"><strong>User Interface</strong></h3>
       <div class="plc-tablewrap">
         <table class="table table-bordered o_table">
           <thead>
@@ -994,7 +962,7 @@
 
       <!-- ===================== COMMUNICATION & PROTOCOLS ===================== -->
       <div class="plc-section">
-        <h4><strong>Communication &amp; Protocols</strong></h4>
+        <h3 id="communication-protocols"><strong>Communication &amp; Protocols</strong></h3>
 
         <ul class="plc-list">
           <li><strong>Modbus RTU (RS-485)</strong> – UART-based communication for expansion modules and field devices</li>
@@ -1002,7 +970,7 @@
           <li><strong>Ethernet</strong> – Optional via LAN8720 PHY</li>
         </ul>
 
-        <h6><strong>RS-485 Communication (Modbus RTU)</strong></h6>
+        <h4><strong>RS-485 Communication (Modbus RTU)</strong></h4>
 
         <p>
           The MiniPLC provides a <strong>half-duplex RS-485 interface</strong> with
@@ -1020,53 +988,49 @@
           <li>Bidirectional logic level shifting between MCU and transceiver</li>
         </ul>
 
-        <h6><strong>RS-485 Wiring</strong></h6>
-        <table class="plc-wiring-table" role="presentation">
-          <tbody>
-            <tr>
-              <td class="plc-wirecell">
-                <div class="plc-wirecard">
-                  <img
-                    src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/MiniPLC/Images/wiring_rs485_1.png"
-                    alt="RS-485 wiring example: bus connection (A/B/COM)"
-                    loading="lazy"
-                  >
-                  <div class="plc-caption">
-                    Connect <strong>A</strong>, <strong>B</strong>, and <strong>COM</strong> to the bus.
-                  </div>
-                </div>
-              </td>
+        <h4><strong>RS-485 Wiring</strong></h4>
+        <div class="plc-grid">
+          <div class="plc-col">
+            <div class="plc-wirecard">
+              <img
+                src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/MiniPLC/Images/wiring_rs485_1.png"
+                alt="RS-485 wiring example: bus connection (A/B/COM)"
+                loading="lazy"
+              >
+              <div class="plc-caption">
+                Connect <strong>A</strong>, <strong>B</strong>, and <strong>COM</strong> to the bus.
+              </div>
+            </div>
+          </div>
 
-              <td class="plc-wirecell">
-                <div class="plc-wirecard">
-                  <img
-                    src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/MiniPLC/Images/wiring_rs485_2.png"
-                    alt="RS-485 wiring example with 120 ohm termination"
-                    loading="lazy"
-                  >
-                  <div class="plc-caption">
-                    Add <strong>120Ω termination</strong> only at the two physical ends of the bus.
-                  </div>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+          <div class="plc-col">
+            <div class="plc-wirecard">
+              <img
+                src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/MiniPLC/Images/wiring_rs485_2.png"
+                alt="RS-485 wiring example with 120 ohm termination"
+                loading="lazy"
+              >
+              <div class="plc-caption">
+                Add <strong>120Ω termination</strong> only at the two physical ends of the bus.
+              </div>
+            </div>
+          </div>
+        </div>
 
-        <h6><strong>Termination &amp; Biasing</strong></h6>
+        <h4><strong>Termination &amp; Biasing</strong></h4>
         <ul class="plc-list">
           <li>Terminate with <strong>120 Ω</strong> only at the two ends of the line.</li>
           <li>Do not terminate intermediate devices.</li>
           <li>Fail-safe biasing is already provided inside the MiniPLC.</li>
         </ul>
 
-        <h6><strong>COM / Reference Ground</strong></h6>
+        <h4><strong>COM / Reference Ground</strong></h4>
         <ul class="plc-list">
           <li>Connect <strong>COM</strong> between all RS-485 nodes.</li>
           <li>This limits common-mode voltage and prevents communication faults.</li>
         </ul>
 
-        <h6><strong>Power Supply for Extension Modules</strong></h6>
+        <h4><strong>Power Supply for Extension Modules</strong></h4>
         <ul class="plc-list">
           <li><strong>Recommended:</strong> Use the <strong>same power supply</strong> for MiniPLC and all RS-485 extension modules.</li>
           <li>Distribute power in a <strong>star topology</strong> from the PSU.</li>
@@ -1088,35 +1052,35 @@
 
       <!-- ===================== CABLE RECOMMENDATIONS & SHIELD GROUNDING ===================== -->
       <div class="plc-section">
-        <h4><strong>Cable Recommendations &amp; Shield Grounding</strong></h4>
+        <h3 id="cable-recommendations-shield-grounding"><strong>Cable Recommendations &amp; Shield Grounding</strong></h3>
 
         <p class="plc-caption">
           This section applies to <strong>Analog (0–10V)</strong>, <strong>Temperature (RTD / 1-Wire)</strong>, and <strong>RS-485</strong>.
           Use shielded, twisted constructions and bond shields correctly to reduce EMI and ground-loop issues.
         </p>
 
-        <h5><strong>General Routing Rules</strong></h5>
+        <h4><strong>General Routing Rules</strong></h4>
         <ul class="plc-list">
           <li>Route low-level signal cables (Analog/RTD/1-Wire/RS-485) separately from mains, relay outputs, contactors, VFD motor cables, and power wiring.</li>
           <li>If crossing power cables is unavoidable, cross at <strong>90°</strong>.</li>
           <li>Keep cable runs as short as practical and avoid parallel runs with high-current conductors.</li>
         </ul>
 
-        <h5><strong>Analog (0–10V) Cable</strong></h5>
+        <h4><strong>Analog (0–10V) Cable</strong></h4>
         <ul class="plc-list">
           <li><strong>Construction:</strong> twisted pair (Signal + GND) per channel</li>
           <li><strong>Shielding:</strong> overall shield (standard) or individually shielded pairs (high-EMI)</li>
           <li><strong>Examples:</strong> <strong>J-Y(ST)Y</strong> (overall shield) or <strong>LI2YCY PIMF</strong> (shielded twisted pairs; one pair per channel)</li>
         </ul>
 
-        <h5><strong>Temperature Cable</strong></h5>
-        <h6><strong>RTD (PT100/PT1000)</strong></h6>
+        <h4><strong>Temperature Cable</strong></h4>
+        <h5><strong>RTD (PT100/PT1000)</strong></h5>
         <ul class="plc-list">
           <li><strong>Recommended:</strong> shielded multi-core for 2/3-wire; shielded pairs for best accuracy (4-wire)</li>
           <li><strong>Examples:</strong> <strong>J-Y(ST)Y</strong> (overall shield) or <strong>LI2YCY PIMF</strong> (pairs; e.g. 2×2×0.50 for 4-wire)</li>
         </ul>
 
-        <h6><strong>1-Wire (DS18B20)</strong></h6>
+        <h5><strong>1-Wire (DS18B20)</strong></h5>
         <ul class="plc-list">
           <li><strong>Recommended:</strong> shielded 3-core ( +5V / DATA / GND ) for typical installations</li>
           <li><strong>High-EMI / long runs:</strong> shielded pairs + overall shield (e.g. <strong>LI2YCY PIMF 2×2×0.50</strong>)</li>
@@ -1125,7 +1089,7 @@
           <li><strong>Pull-up (DATA):</strong> <strong>4.7&nbsp;kΩ</strong> typical; <strong>2.2–3.3&nbsp;kΩ</strong> for long/heavy loads.</li>
         </ul>
 
-        <h5><strong>RS-485 Cable</strong></h5>
+        <h4><strong>RS-485 Cable</strong></h4>
         <ul class="plc-list">
           <li><strong>Construction:</strong> twisted pair for <strong>A/B</strong></li>
           <li><strong>Characteristic impedance:</strong> <strong>120 Ω</strong> (recommended)</li>
@@ -1134,7 +1098,7 @@
           <li>Use one twisted pair for <strong>A/B</strong>. Use the second pair for <strong>COM (0V reference)</strong> or spare.</li>
         </ul>
 
-        <h5><strong>Shield Grounding</strong></h5>
+        <h4><strong>Shield Grounding</strong></h4>
         <ul class="plc-list">
           <li><strong>Default recommendation:</strong> bond cable shield(s) to cabinet <strong>PE/EMC ground at the PLC end only</strong>.</li>
           <li><strong>Do not</strong> connect shields to signal terminals (AI/AO/RTD/1-Wire/RS-485 A/B/COM).</li>
@@ -1145,36 +1109,32 @@
       <hr class="plc-hr">
 
       <!-- ===================== System Architecture & Pinout ===================== -->
-      <h4><strong>System Architecture &amp; Pinout</strong></h4>
+      <h2 id="system-architecture-pinout"><strong>System Architecture &amp; Pinout</strong></h2>
 
-      <table class="plc-wiring-table" width="100%" cellspacing="0" cellpadding="0" role="presentation">
-        <tbody>
-          <tr>
-            <td class="plc-wirecell" width="50%" valign="top">
-              <div class="plc-wirecard">
-                <img
-                  src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/MiniPLC/system_block_diagram.png"
-                  alt="ESP32 MiniPLC System Block Diagram"
-                  loading="lazy"
-                >
-                <div class="plc-caption">System block diagram showing internal architecture and interfaces.</div>
-              </div>
-            </td>
-            <td class="plc-wirecell" width="50%" valign="top">
-              <div class="plc-wirecard">
-                <img
-                  src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/MiniPLC/pinout.png"
-                  alt="ESP32 MiniPLC Pinout Diagram"
-                  loading="lazy"
-                >
-                <div class="plc-caption">Complete GPIO and connector pin assignments.</div>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <div class="plc-grid">
+        <div class="plc-col">
+          <div class="plc-wirecard">
+            <img
+              src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/MiniPLC/system_block_diagram.png"
+              alt="ESP32 MiniPLC System Block Diagram"
+              loading="lazy"
+            >
+            <div class="plc-caption">System block diagram showing internal architecture and interfaces.</div>
+          </div>
+        </div>
+        <div class="plc-col">
+          <div class="plc-wirecard">
+            <img
+              src="https://raw.githubusercontent.com/isystemsautomation/HOMEMASTER/main/MiniPLC/pinout.png"
+              alt="ESP32 MiniPLC Pinout Diagram"
+              loading="lazy"
+            >
+            <div class="plc-caption">Complete GPIO and connector pin assignments.</div>
+          </div>
+        </div>
+      </div>
 
-      <h6><strong>Pin Mapping (Default Firmware)</strong></h6>
+      <h3 id="pin-mapping"><strong>Pin Mapping (Default Firmware)</strong></h3>
       <div class="plc-tablewrap">
         <table class="table table-bordered o_table">
           <thead>

@@ -12,19 +12,37 @@
 .hm-plc .plc-wrap{max-width:1100px !important;margin:0 auto !important;}
 .hm-plc .plc-section{margin:16px 0 24px !important;padding:16px !important;border:1px solid #e6e8ee !important;background:#fff !important;border-radius:10px !important;}
 
-/* Headings: only h4–h6 */
-.hm-plc h4{font-size:1.15rem !important;font-weight:800 !important;margin:0 0 10px !important;}
-.hm-plc h5{font-size:1.02rem !important;font-weight:800 !important;margin:0 0 10px !important;}
-.hm-plc h6{font-size:.95rem !important;font-weight:800 !important;margin:12px 0 10px !important;color:#111827 !important;}
+/* Headings: h2–h6 with semantic hierarchy */
+.hm-plc h2{font-size:1.6rem !important;font-weight:800 !important;margin:18px 0 12px !important;}
+.hm-plc h3{font-size:1.25rem !important;font-weight:700 !important;margin:14px 0 10px !important;}
+.hm-plc h4{font-size:1.05rem !important;font-weight:700 !important;margin:10px 0 8px !important;}
+.hm-plc h5{font-size:0.95rem !important;font-weight:600 !important;margin:8px 0 6px !important;}
+.hm-plc h6{font-size:0.85rem !important;font-weight:600 !important;margin:6px 0 4px !important;}
 
 /* Text */
 .hm-plc p{margin:0 0 10px !important;color:#5b667a !important;line-height:1.6 !important;}
 .hm-plc ul,.hm-plc ol{margin:0 0 10px !important;padding-left:18px !important;}
 .hm-plc li{margin:6px 0 !important;color:#5b667a !important;}
 
-/* Two-column content (base) */
+/* Two-column content (base) - default unequal columns */
 .hm-plc .plc-grid{display:grid !important;grid-template-columns:1.15fr .85fr !important;gap:16px !important;align-items:start !important;}
 @media (max-width:900px){.hm-plc .plc-grid{grid-template-columns:1fr !important;}}
+
+/* Two-column equal grid for wiring layouts (replaces layout tables) */
+.hm-plc .plc-col{width:100% !important;}
+/* Use :has() if supported for grids with .plc-col children */
+.hm-plc .plc-grid:has(> .plc-col){grid-template-columns:repeat(2, 1fr) !important;}
+/* Fallback for browsers without :has() support - target grids in sections that are not hero */
+.hm-plc .plc-section > .plc-grid:not(.plc-hero-grid){grid-template-columns:repeat(2, 1fr) !important;}
+@media (max-width:768px){
+  .hm-plc .plc-grid:has(> .plc-col){grid-template-columns:1fr !important;}
+  .hm-plc .plc-section > .plc-grid:not(.plc-hero-grid){grid-template-columns:1fr !important;}
+}
+
+/* Hero grids use unequal columns (override) */
+.hm-plc .plc-hero-grid{grid-template-columns:1.15fr .85fr !important;}
+.hm-plc .plc-hero--v2 .plc-hero-grid{grid-template-columns:1fr 1fr !important;}
+@media (max-width:900px){.hm-plc .plc-hero-grid{grid-template-columns:1fr !important;}}
 
 /* Generic image card */
 .hm-plc .plc-img{border:1px solid #e6e8ee;border-radius:10px;padding:10px;background:#fff;}
