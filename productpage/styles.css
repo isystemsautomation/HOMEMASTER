@@ -1,11 +1,11 @@
 /* ===== HomeMaster MiniPLC – Minimal (Odoo-safe) | FIXED HERO v2 =====
    Main fix: your hero HTML uses .plc-hero--v2 + .plc-hero-grid + .plc-hero-cards,
    but your CSS was only targeting .plc-hero and .plc-bottom.
-   So the “symmetry” rules never applied to the new hero layout.
+   So the "symmetry" rules never applied to the new hero layout.
 */
 
-/* Scope */
-.hm-plc{color:#0b1220 !important;}
+/* TEST: If you see red background, CSS is loading */
+.hm-plc{background-color:#fff !important;color:#0b1220 !important;}
 .hm-plc a{color:#0b5ed7 !important;text-decoration:none !important;}
 .hm-plc a:hover{text-decoration:underline !important;}
 
