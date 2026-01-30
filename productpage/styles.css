@@ -5,37 +5,37 @@
 */
 
 /* Scope */
-.hm-plc{color:#0b1220;}
-.hm-plc a{color:#0b5ed7;text-decoration:none;}
-.hm-plc a:hover{text-decoration:underline;}
+.hm-plc{color:#0b1220 !important;}
+.hm-plc a{color:#0b5ed7 !important;text-decoration:none !important;}
+.hm-plc a:hover{text-decoration:underline !important;}
 
-.hm-plc .plc-wrap{max-width:1100px;margin:0 auto;}
-.hm-plc .plc-section{margin:16px 0 24px;padding:16px;border:1px solid #e6e8ee;background:#fff;border-radius:10px;}
+.hm-plc .plc-wrap{max-width:1100px !important;margin:0 auto !important;}
+.hm-plc .plc-section{margin:16px 0 24px !important;padding:16px !important;border:1px solid #e6e8ee !important;background:#fff !important;border-radius:10px !important;}
 
 /* Headings: only h4–h6 */
-.hm-plc h4{font-size:1.15rem;font-weight:800;margin:0 0 10px;}
-.hm-plc h5{font-size:1.02rem;font-weight:800;margin:0 0 10px;}
-.hm-plc h6{font-size:.95rem;font-weight:800;margin:12px 0 10px;color:#111827;}
+.hm-plc h4{font-size:1.15rem !important;font-weight:800 !important;margin:0 0 10px !important;}
+.hm-plc h5{font-size:1.02rem !important;font-weight:800 !important;margin:0 0 10px !important;}
+.hm-plc h6{font-size:.95rem !important;font-weight:800 !important;margin:12px 0 10px !important;color:#111827 !important;}
 
 /* Text */
-.hm-plc p{margin:0 0 10px;color:#5b667a;line-height:1.6;}
-.hm-plc ul,.hm-plc ol{margin:0 0 10px;padding-left:18px;}
-.hm-plc li{margin:6px 0;color:#5b667a;}
+.hm-plc p{margin:0 0 10px !important;color:#5b667a !important;line-height:1.6 !important;}
+.hm-plc ul,.hm-plc ol{margin:0 0 10px !important;padding-left:18px !important;}
+.hm-plc li{margin:6px 0 !important;color:#5b667a !important;}
 
 /* Two-column content (base) */
-.hm-plc .plc-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:16px;align-items:start;}
-@media (max-width:900px){.hm-plc .plc-grid{grid-template-columns:1fr;}}
+.hm-plc .plc-grid{display:grid !important;grid-template-columns:1.15fr .85fr !important;gap:16px !important;align-items:start !important;}
+@media (max-width:900px){.hm-plc .plc-grid{grid-template-columns:1fr !important;}}
 
 /* Generic image card */
 .hm-plc .plc-img{border:1px solid #e6e8ee;border-radius:10px;padding:10px;background:#fff;}
 .hm-plc .plc-img img{max-width:100%;width:100%;height:auto;display:block;border-radius:8px;}
 
 /* Tables (base) */
-.hm-plc .plc-tablewrap{border:1px solid #e6e8ee;border-radius:10px;overflow:hidden;background:#fff;}
-.hm-plc table{width:100%;border-collapse:collapse;font-size:.95rem;}
-.hm-plc th{background:#f6f7fb;color:#334155;font-weight:800;text-align:left;padding:12px 14px;border-bottom:1px solid #e6e8ee;}
-.hm-plc td{padding:12px 14px;border-bottom:1px solid #e6e8ee;vertical-align:top;}
-.hm-plc tr:last-child td{border-bottom:0;}
+.hm-plc .plc-tablewrap{border:1px solid #e6e8ee !important;border-radius:10px !important;overflow:hidden !important;background:#fff !important;}
+.hm-plc table{width:100% !important;border-collapse:collapse !important;font-size:.95rem !important;}
+.hm-plc th{background:#f6f7fb !important;color:#334155 !important;font-weight:800 !important;text-align:left !important;padding:12px 14px !important;border-bottom:1px solid #e6e8ee !important;}
+.hm-plc td{padding:12px 14px !important;border-bottom:1px solid #e6e8ee !important;vertical-align:top !important;}
+.hm-plc tr:last-child td{border-bottom:0 !important;}
 
 /* Captions */
 .hm-plc .plc-caption{font-size:.9rem;color:#5b667a;margin:8px 0 0;}
