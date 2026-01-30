@@ -115,6 +115,60 @@
       </div>
     </div>
 
+    <!-- ===================== ENVIRONMENTAL RATINGS ===================== -->
+    <div class="plc-section">
+      <h2 id="environmental-ratings"><strong>Environmental Ratings</strong></h2>
+
+      <ul class="plc-list plc-list--tight">
+        <li><strong>Operating temperature:</strong> −20 °C to +60 °C</li>
+        <li><strong>Storage temperature:</strong> −40 °C to +85 °C</li>
+        <li><strong>Humidity:</strong> 0–90% RH, non-condensing</li>
+        <li><strong>IP rating:</strong> IP20 (inside cabinet)</li>
+      </ul>
+
+      <p class="plc-caption">
+        <strong>Installation requirement:</strong> The module must be installed inside an indoor control cabinet. The cabinet must have a protective front plate that covers the wiring connection terminals. The cabinet must have a protective door to close the rack/enclosure. Ventilation is required to maintain the specified operating temperature range.
+      </p>
+    </div>
+
+    <!-- ===================== COMPLIANCE & CERTIFICATIONS ===================== -->
+    <div class="plc-section">
+      <h2 id="compliance-certifications">Compliance &amp; Certifications</h2>
+
+      <p>
+        The HomeMaster MiniPLC is designed for use in residential, commercial, and light-industrial control systems and complies with the applicable European Union directives and harmonised standards.
+      </p>
+
+      <h3>EU Directives</h3>
+      <p>
+        <strong>EMC</strong> 2014/30/EU ·
+        <strong>LVD</strong> 2014/35/EU ·
+        <strong>RED</strong> 2014/53/EU ·
+        <strong>RoHS</strong> 2011/65/EU
+      </p>
+
+      <h3>Harmonised Standards</h3>
+      <table class="plc-table-compact">
+        <tr><th>Area</th><th>Standards</th></tr>
+        <tr><td><strong>EMC</strong></td><td>EN 61000-6-1 (Immunity) · EN 61000-6-3 (Emissions)</td></tr>
+        <tr><td><strong>Electrical Safety</strong></td><td>EN 62368-1</td></tr>
+        <tr><td><strong>Radio (ESP32)</strong></td><td>EN 300 328 · EN 301 489-1 · EN 301 489-17</td></tr>
+        <tr><td><strong>RoHS</strong></td><td>EN IEC 63000</td></tr>
+      </table>
+
+      <h3>Radio compliance</h3>
+      <p>
+        Uses a <strong>pre-certified ESP32</strong> module (RED). Conformity is inherited when the approved antenna and reference layout are used.
+      </p>
+
+      <h3>Safety notice</h3>
+      <p>
+        <strong>L / N:</strong> hazardous voltage ·
+        <strong>24 V DC:</strong> SELV ·
+        Qualified personnel only
+      </p>
+    </div>
+
     <!-- ===================== HOME ASSISTANT / ESPHOME ===================== -->
     <div class="plc-section">
       <h2 id="home-assistant-esphome-integration"><strong>Home Assistant &amp; ESPHome Integration</strong></h2>
@@ -205,7 +259,7 @@
             </thead>
             <tbody>
               <tr>
-                <td><strong>Schematic (MCU Board)</strong></td>
+                <th scope="row">Schematic (MCU Board)</th>
                 <td>Main controller board schematic</td>
                 <td class="plc-docs-linkcol">
                   <a class="plc-docs-link plc-docs-link--pdf" href="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER@main/MiniPLC/Schematic/MCU_Board.pdf" target="_blank" rel="noopener">
@@ -214,7 +268,7 @@
                 </td>
               </tr>
               <tr>
-                <td><strong>Schematic (Relay Board)</strong></td>
+                <th scope="row">Schematic (Relay Board)</th>
                 <td>Relay and power section schematic</td>
                 <td class="plc-docs-linkcol">
                   <a class="plc-docs-link plc-docs-link--pdf" href="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER@main/MiniPLC/Schematic/Relay_Board.pdf" target="_blank" rel="noopener">
@@ -223,7 +277,7 @@
                 </td>
               </tr>
               <tr>
-                <td><strong>Schematic (USB Board)</strong></td>
+                <th scope="row">Schematic (USB Board)</th>
                 <td>USB-C interface and power management</td>
                 <td class="plc-docs-linkcol">
                   <a class="plc-docs-link plc-docs-link--pdf" href="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER@main/MiniPLC/Schematic/USB_Board.pdf" target="_blank" rel="noopener">
@@ -254,7 +308,7 @@
             </thead>
             <tbody>
               <tr>
-                <td><strong>Default ESPHome Config</strong></td>
+                <th scope="row">Default ESPHome Config</th>
                 <td>Pre-configured YAML for Home Assistant</td>
                 <td class="plc-docs-linkcol">
                   <a class="plc-docs-link plc-docs-link--yml" href="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER@main/MiniPLC/Firmware/miniplc.yaml" target="_blank" rel="noopener">
@@ -263,7 +317,7 @@
                 </td>
               </tr>
               <tr>
-                <td><strong>Firmware Source Code</strong></td>
+                <th scope="row">Firmware Source Code</th>
                 <td>Latest firmware builds and source</td>
                 <td class="plc-docs-linkcol">
                   <a class="plc-docs-link plc-docs-link--folder" href="https://github.com/isystemsautomation/HOMEMASTER/tree/main/MiniPLC/Firmware/" target="_blank" rel="noopener">
@@ -272,7 +326,7 @@
                 </td>
               </tr>
               <tr>
-                <td><strong>ESPHome Integration Guide</strong></td>
+                <th scope="row">ESPHome Integration Guide</th>
                 <td>Complete setup instructions</td>
                 <td class="plc-docs-linkcol">
                   <a class="plc-docs-link plc-docs-link--md" href="https://github.com/isystemsautomation/HOMEMASTER/tree/main/MiniPLC/README.md" target="_blank" rel="noopener">
@@ -303,7 +357,7 @@
             </thead>
             <tbody>
               <tr>
-                <td><strong>Datasheet</strong></td>
+                <th scope="row">Datasheet</th>
                 <td>Technical specifications and ratings</td>
                 <td class="plc-docs-linkcol">
                   <a class="plc-docs-link plc-docs-link--pdf" href="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER@main/MiniPLC/Manuals/Datasheet.pdf" target="_blank" rel="noopener">
@@ -312,7 +366,7 @@
                 </td>
               </tr>
               <tr>
-                <td><strong>User Manual</strong></td>
+                <th scope="row">User Manual</th>
                 <td>Installation and configuration guide</td>
                 <td class="plc-docs-linkcol">
                   <a class="plc-docs-link plc-docs-link--pdf" href="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER@main/MiniPLC/Manuals/User_Manual.pdf" target="_blank" rel="noopener">
