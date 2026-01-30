@@ -1,0 +1,232 @@
+<style>
+/* ===== HomeMaster MiniPLC – Minimal (Odoo-safe) | FIXED HERO v2 =====
+   Main fix: your hero HTML uses .plc-hero--v2 + .plc-hero-grid + .plc-hero-cards,
+   but your CSS was only targeting .plc-hero and .plc-bottom.
+   So the “symmetry” rules never applied to the new hero layout.
+*/
+
+/* Scope */
+.hm-plc{color:#0b1220;}
+.hm-plc a{color:#0b5ed7;text-decoration:none;}
+.hm-plc a:hover{text-decoration:underline;}
+
+.hm-plc .plc-wrap{max-width:1100px;margin:0 auto;}
+.hm-plc .plc-section{margin:16px 0 24px;padding:16px;border:1px solid #e6e8ee;background:#fff;border-radius:10px;}
+
+/* Headings: only h4–h6 */
+.hm-plc h4{font-size:1.15rem;font-weight:800;margin:0 0 10px;}
+.hm-plc h5{font-size:1.02rem;font-weight:800;margin:0 0 10px;}
+.hm-plc h6{font-size:.95rem;font-weight:800;margin:12px 0 10px;color:#111827;}
+
+/* Text */
+.hm-plc p{margin:0 0 10px;color:#5b667a;line-height:1.6;}
+.hm-plc ul,.hm-plc ol{margin:0 0 10px;padding-left:18px;}
+.hm-plc li{margin:6px 0;color:#5b667a;}
+
+/* Two-column content (base) */
+.hm-plc .plc-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:16px;align-items:start;}
+@media (max-width:900px){.hm-plc .plc-grid{grid-template-columns:1fr;}}
+
+/* Generic image card */
+.hm-plc .plc-img{border:1px solid #e6e8ee;border-radius:10px;padding:10px;background:#fff;}
+.hm-plc .plc-img img{max-width:100%;width:100%;height:auto;display:block;border-radius:8px;}
+
+/* Tables (base) */
+.hm-plc .plc-tablewrap{border:1px solid #e6e8ee;border-radius:10px;overflow:hidden;background:#fff;}
+.hm-plc table{width:100%;border-collapse:collapse;font-size:.95rem;}
+.hm-plc th{background:#f6f7fb;color:#334155;font-weight:800;text-align:left;padding:12px 14px;border-bottom:1px solid #e6e8ee;}
+.hm-plc td{padding:12px 14px;border-bottom:1px solid #e6e8ee;vertical-align:top;}
+.hm-plc tr:last-child td{border-bottom:0;}
+
+/* Captions */
+.hm-plc .plc-caption{font-size:.9rem;color:#5b667a;margin:8px 0 0;}
+
+/* Divider */
+.hm-plc .plc-hr{height:1px;background:#e6e8ee;border:0;margin:16px 0;}
+
+/* =========================================================
+   HERO / OVERVIEW v2 (THIS IS THE REAL FIX)
+   Targets your rebuilt markup:
+   - .plc-hero--v2
+   - .plc-hero-grid
+   - .plc-hero-cards
+   ========================================================= */
+
+.hm-plc .plc-hero--v2{padding:16px;}
+
+/* Make top row truly symmetrical 50/50 */
+.hm-plc .plc-hero--v2 .plc-hero-grid{
+  grid-template-columns:1fr 1fr; /* overrides base .plc-grid */
+  align-items:start;
+}
+@media (max-width:900px){
+  .hm-plc .plc-hero--v2 .plc-hero-grid{grid-template-columns:1fr;}
+}
+
+/* Ensure text uses full left column (no hidden max-width from older versions) */
+.hm-plc .plc-hero--v2 .plc-copy{max-width:none;}
+
+/* Right rail stack */
+.hm-plc .plc-hero--v2 .plc-rail{display:grid;gap:12px;width:100%;}
+
+/* Image sizing: fill the card visually (prevents “empty right side” feel) */
+.hm-plc .plc-hero--v2 .plc-heroimg img{
+  width:100%;
+  height:360px;
+  object-fit:contain;
+  display:block;
+  border-radius:8px;
+}
+@media (max-width:900px){
+  .hm-plc .plc-hero--v2 .plc-heroimg img{height:300px;}
+}
+
+/* Cards */
+.hm-plc .plc-card{
+  border:1px solid #e6e8ee;
+  border-radius:10px;
+  background:#fff;
+  padding:14px;
+}
+.hm-plc .plc-card h5{margin:0 0 10px 0;}
+
+/* Bottom row of the rebuilt hero: 3 equal cards */
+.hm-plc .plc-hero--v2 .plc-hero-cards{
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:14px;
+  margin-top:14px;
+  align-items:stretch;
+}
+@media (max-width:980px){
+  .hm-plc .plc-hero--v2 .plc-hero-cards{grid-template-columns:1fr;}
+}
+.hm-plc .plc-hero--v2 .plc-card--eq{height:100%;}
+
+/* Lists used in rebuilt hero */
+.hm-plc .plc-list{margin:0;padding-left:18px;}
+.hm-plc .plc-list--tight{margin:0;padding-left:18px;}
+.hm-plc .plc-list--tight li{margin:6px 0;color:#5b667a;}
+.hm-plc .plc-list--tight strong{color:#0b1220;}
+
+/* If any older “marketing” elements exist, hide them safely */
+.hm-plc .plc-kicker{display:none !important;}
+.hm-plc .plc-title{font-size:inherit;font-weight:inherit;line-height:inherit;letter-spacing:normal;color:inherit;}
+
+/* =========================================================
+   DOCUMENTATION section (filled file icons) – unchanged
+   ========================================================= */
+
+.hm-plc .plc-docs h4{margin-bottom:8px;}
+.hm-plc .plc-docs .plc-docs-intro{margin:0 0 14px 0;color:#5b667a;}
+
+.hm-plc .plc-docs-card{
+  background:#fff;
+  border:1px solid #e6e8ee;
+  border-radius:10px;
+  overflow:hidden;
+  margin:14px 0;
+  box-shadow:none;
+}
+.hm-plc .plc-docs-cardhead{
+  padding:12px 14px;
+  background:#f6f7fb;
+  border-bottom:1px solid #e6e8ee;
+}
+.hm-plc .plc-docs-title{
+  margin:0;
+  font-weight:800;
+  font-size:1.02rem;
+  color:#0b1220;
+}
+
+.hm-plc .plc-docs .plc-tablewrap{border:0;border-radius:0;overflow:hidden;background:#fff;}
+.hm-plc .plc-docs-table{width:100%;border-collapse:collapse;margin:0;font-size:.95rem;}
+
+.hm-plc .plc-docs-table thead th{
+  background:#f6f7fb;
+  color:#334155;
+  font-weight:800;
+  padding:12px 14px;
+  border-bottom:1px solid #e6e8ee;
+  white-space:nowrap;
+}
+.hm-plc .plc-docs-table td{
+  padding:12px 14px;
+  border-bottom:1px solid #eef2f7;
+  vertical-align:middle;
+  color:#0b1220;
+}
+.hm-plc .plc-docs-table tbody tr:last-child td{border-bottom:0;}
+
+.hm-plc .plc-docs-linkcol{width:220px;white-space:nowrap;}
+
+.hm-plc .plc-docs-link{
+  color:#0b5ed7;
+  text-decoration:none;
+  font-weight:800;
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+}
+.hm-plc .plc-docs-link:hover{text-decoration:underline;}
+
+.hm-plc .plc-docs-link::before{
+  content:"";
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:28px;
+  height:28px;
+  border-radius:6px;
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:.3px;
+  color:#fff;
+  border:0;
+}
+.hm-plc .plc-docs-link--pdf::before{content:"PDF";background:#dc2626;}
+.hm-plc .plc-docs-link--yml::before{content:"YML";background:#d97706;}
+.hm-plc .plc-docs-link--md::before{content:"MD";background:#2563eb;}
+.hm-plc .plc-docs-link--folder::before{content:"DIR";background:#1d4ed8;}
+
+.hm-plc .plc-docs-footer{margin:12px 0 0 0;color:#5b667a;}
+@media (max-width:640px){
+  .hm-plc .plc-docs-linkcol{width:auto;white-space:normal;}
+}
+
+/* =========================================================
+   Odoo-safe: side-by-side image pairs — TABLE layout
+   ========================================================= */
+
+.hm-plc .plc-wiring-table{
+  width:100%;
+  table-layout:fixed;
+  border-collapse:separate;
+  border-spacing:12px;
+  margin-top:12px;
+}
+.hm-plc .plc-wirecell{width:50%;vertical-align:top;}
+.hm-plc .plc-wirecard{
+  border:1px solid #e6e8ee;
+  border-radius:10px;
+  background:#fff;
+  padding:10px;
+}
+.hm-plc .plc-wirecard img{
+  max-width:100%;
+  width:100%;
+  height:280px;
+  object-fit:contain;
+  display:block;
+  border-radius:8px;
+}
+.hm-plc .plc-wirecard .plc-caption{margin-top:8px;}
+
+@media (max-width:560px){
+  .hm-plc .plc-wiring-table{border-spacing:0;}
+  .hm-plc .plc-wiring-table td{display:block;width:100% !important;}
+  .hm-plc .plc-wirecard{margin-top:12px;}
+  .hm-plc .plc-wiring-table td:first-child .plc-wirecard{margin-top:0;}
+}
+</style>
