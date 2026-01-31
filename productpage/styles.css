@@ -246,3 +246,23 @@
   .hm-plc .plc-wirecard{margin-top:12px;}
   .hm-plc .plc-wiring-table td:first-child .plc-wirecard{margin-top:0;}
 }
+
+/* =========================================================
+   MECHANICAL DIMENSIONS - Compact technical drawing
+   ========================================================= */
+.hm-plc .plc-figure {
+  margin: 12px auto 0;
+  max-width: 620px;
+}
+.hm-plc .plc-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 620px;
+}
+.hm-plc .plc-figcap {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.3;
+  opacity: 0.8;
+}
