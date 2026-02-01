@@ -59,7 +59,7 @@
       <div class="plc-grid plc-hero-grid">
         <!-- LEFT: Quick Overview -->
         <div class="plc-copy">
-          <h3 id="quick-overview"><strong>Quick Overview</strong></h3>
+          <h2 id="quick-overview"><strong>Quick Overview</strong></h2>
           <ul class="plc-list plc-list--tight">
             <li>Pre-installed <strong>ESPHome</strong> for native Home Assistant integration</li>
             <li>Industrial <strong>DIN-rail form factor</strong> with 24 V DC supply</li>
@@ -70,7 +70,7 @@
 
         <!-- RIGHT: Typical Applications -->
         <div class="plc-copy">
-          <h3 id="typical-applications"><strong>Typical Applications</strong></h3>
+          <h2 id="typical-applications"><strong>Typical Applications</strong></h2>
           <ul class="plc-list plc-list--tight">
             <li>Smart home central controller</li>
             <li>HVAC automation and plant control</li>
@@ -98,9 +98,18 @@
           </thead>
           <tbody>
             <tr><th scope="row">Microcontroller</th><td>ESP32-WROOM-32U (Dual-core)</td></tr>
-            <tr><th scope="row">Operating Voltage</th><td>24 V DC (wide range)</td></tr>
+            <tr>
+              <th scope="row">Power Input</th>
+              <td>
+                24 V DC nominal (V+ / 0V)
+                <strong>or</strong>
+                85–265 V AC (L / N)
+                <strong>or</strong>
+                120–370 V DC (L / N + / −)
+              </td>
+            </tr>
             <tr><th scope="row">Digital Inputs</th><td>4 × isolated, 24 V compatible</td></tr>
-            <tr><th scope="row">Relay Outputs</th><td>6 × SPDT, 10 A @ 250 V AC</td></tr>
+            <tr><th scope="row">Relay Outputs</th><td>6 × SPDT, ≤3 A continuous recommended<br>(relay contacts rated up to 12 A @ 250 V AC resistive; external protection required)</td></tr>
             <tr><th scope="row">Analog Inputs</th><td>4 × 0–10 V, 16-bit (ADS1115)</td></tr>
             <tr><th scope="row">Analog Output</th><td>1 × 0–10 V (MCP4725)</td></tr>
             <tr><th scope="row">Temperature Inputs</th><td>2 × RTD (MAX31865), 2 × 1-Wire</td></tr>
@@ -108,22 +117,101 @@
             <tr><th scope="row">RTC</th><td>PCF8563 with battery backup</td></tr>
             <tr><th scope="row">Communication</th><td>Wi-Fi, optional Ethernet, RS-485 Modbus RTU</td></tr>
             <tr><th scope="row">USB</th><td>USB-C for configuration</td></tr>
-            <tr><th scope="row">Dimensions</th><td>90 × 100 × 58 mm</td></tr>
-            <tr><th scope="row">Mounting</th><td>35 mm DIN rail</td></tr>
           </tbody>
         </table>
       </div>
     </div>
 
-    <!-- ===================== MECHANICAL DIMENSIONS ===================== -->
+    <!-- ===================== INSTALLATION, ENVIRONMENTAL & MECHANICAL ===================== -->
     <div class="plc-section">
-      <h2 id="mechanical-dimensions"><strong>Mechanical Dimensions</strong></h2>
+      <h2 id="installation-environment-dimensions">
+        <strong>Installation, Environmental &amp; Mechanical</strong>
+      </h2>
 
-      <p>
-        Mechanical envelope dimensions: <strong>90 × 100 × 58 mm</strong>.
-        The drawing below provides the front and side views with dimension lines (mm), including DIN-clip depth.
-      </p>
+      <!-- CONSOLIDATED TABLE -->
+      <div class="plc-tablewrap">
+        <table class="table table-bordered o_table">
+          <caption>Installation, Environmental &amp; Mechanical Specifications</caption>
+          <thead>
+            <tr>
+              <th scope="col">Category</th>
+              <th scope="col">Specification</th>
+              <th scope="col">Details</th>
+            </tr>
+          </thead>
+          <tbody>
 
+            <!-- Terminal Specifications -->
+            <tr><th scope="row" rowspan="6">Terminal Specifications</th>
+                <td>Terminal type</td>
+                <td>Pluggable screw terminal blocks (DB129V series), 5.08 mm pitch</td></tr>
+            <tr><td>Terminal pitch</td><td>5.08 mm</td></tr>
+            <tr><td>Wire cross-section</td><td>0.2–2.5 mm² (AWG 24–12)</td></tr>
+            <tr><td>Conductor type</td><td>Solid or stranded copper</td></tr>
+            <tr><td>Stranded wire</td><td>Ferrules recommended</td></tr>
+            <tr><td>Tightening torque</td><td>0.4 Nm (max)</td></tr>
+
+            <!-- Environmental Ratings -->
+            <tr><th scope="row" rowspan="6">Environmental Ratings</th>
+                <td>Operating temperature</td><td>−20 °C to +60 °C</td></tr>
+            <tr><td>Storage temperature</td><td>−40 °C to +85 °C</td></tr>
+            <tr><td>Relative humidity</td><td>0–90 % RH, non-condensing</td></tr>
+            <tr><td>Ingress protection</td><td><strong>IP20</strong> (inside cabinet)</td></tr>
+            <tr><td>Installation</td>
+                <td>Indoor control cabinet only; not for outdoor or exposed installation</td></tr>
+            <tr><td>Terminal protection</td>
+                <td>All wiring terminals must be protected against accidental contact</td></tr>
+
+            <!-- Mechanical / Packaging -->
+            <tr><th scope="row" rowspan="8">Mechanical &amp; Packaging</th>
+                <td>Product dimensions</td>
+                <td><strong>157.4 × 91 × 58.4 mm</strong>
+                    (6.2 × 3.58 × 2.3 in) (L × W × H)</td></tr>
+            <tr><td>DIN units</td><td>9 division units</td></tr>
+            <tr><td>Mounting</td><td>35 mm DIN rail</td></tr>
+            <tr><td>Net weight</td><td>300 g</td></tr>
+            <tr><td>Gross weight</td><td>450 g</td></tr>
+            <tr><td>Pack size</td>
+                <td>230 × 140 × 87 mm (9 × 5.5 × 3.4 in) (L × W × H)</td></tr>
+            <tr><td>Mechanical drawing</td>
+                <td>Front + side views with DIN-clip depth (see below)</td></tr>
+            <tr><td>Notes</td>
+                <td>All dimensions shown in millimeters unless stated otherwise</td></tr>
+
+          </tbody>
+        </table>
+      </div>
+
+      <!-- KEEP ORIGINAL TEXT BELOW (MOVED, NOT DELETED) -->
+      <div class="plc-text-preserved">
+        <p>
+          Mechanical envelope dimensions: <strong>157.4 × 91 × 58.4 mm (6.2 × 3.58 × 2.3 in) (L × W × H)</strong>.
+          The drawing below provides the front and side views with dimension lines (mm), including DIN-clip depth.
+        </p>
+
+        <p>
+          The HomeMaster MiniPLC uses pluggable screw terminal blocks (DB129V series, 5.08 mm pitch)
+          for all field wiring connections.
+        </p>
+
+        <p>
+          Only copper conductors are permitted. Do not use aluminum or mixed-metal wiring.
+        </p>
+
+        <p>
+          The HomeMaster MiniPLC is designed for installation in indoor control cabinets in residential, commercial, and light-industrial environments.
+        </p>
+
+        <p>
+          Install only inside a control cabinet with ventilation; the cabinet must include a protective front plate covering all module connection terminals and a closing protective door; not for outdoor or exposed installation.
+        </p>
+
+        <p>
+          <strong>All wiring terminals must be protected against accidental contact by an insulating front plate, wiring duct, or terminal cover. Exposed live terminals are not permitted.</strong>
+        </p>
+      </div>
+
+      <!-- KEEP THE EXISTING DRAWING -->
       <figure class="plc-figure">
         <img
           src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER@main/MiniPLC/Images/dimension.png"
@@ -144,7 +232,9 @@
       <h2 id="compliance-certifications">Compliance &amp; Certifications</h2>
 
       <p>
-        The HomeMaster MiniPLC is designed for use in residential, commercial, and light-industrial control systems and complies with the applicable European Union directives and harmonised standards.
+        The HomeMaster MiniPLC is <strong>CE marked</strong> and <strong>complies with applicable European Union directives</strong>.
+        The manufacturer is <strong>ISYSTEMS AUTOMATION</strong> (HomeMaster brand), who maintains the technical documentation
+        and a signed EU Declaration of Conformity (DoC).
       </p>
 
       <h3>EU Directives</h3>
@@ -160,66 +250,19 @@
         <tr><th>Area</th><th>Standards</th></tr>
         <tr><td><strong>EMC</strong></td><td>EN 61000-6-1 (Immunity) · EN 61000-6-3 (Emissions)</td></tr>
         <tr><td><strong>Electrical Safety</strong></td><td>EN 62368-1</td></tr>
-        <tr><td><strong>Radio (ESP32)</strong></td><td>EN 300 328 · EN 301 489-1 · EN 301 489-17</td></tr>
+        <tr><td><strong>Radio</strong></td><td>EN 300 328 · EN 301 489-1 · EN 301 489-17</td></tr>
         <tr><td><strong>RoHS</strong></td><td>EN IEC 63000</td></tr>
       </table>
 
-      <h3>Radio compliance</h3>
+      <h3>Radio note</h3>
       <p>
-        Uses a <strong>pre-certified ESP32</strong> module (RED). Conformity is inherited when the approved antenna and reference layout are used.
+        The product uses a pre-certified ESP32 radio module. Final product conformity is supported by system-level testing
+        and the maintained technical documentation.
       </p>
 
       <h3>Safety notice</h3>
       <p>
-        <strong>L / N:</strong> hazardous voltage ·
-        <strong>24 V DC:</strong> SELV ·
-        Qualified personnel only
-      </p>
-    </div>
-
-    <!-- ===================== ENVIRONMENTAL RATINGS ===================== -->
-    <div class="plc-section">
-      <h2 id="environmental-ratings"><strong>Environmental Ratings</strong></h2>
-
-      <p>
-        The HomeMaster MiniPLC is designed for installation in indoor control cabinets in residential, commercial, and light-industrial environments.
-      </p>
-
-      <ul class="plc-list plc-list--tight">
-        <li><strong>Operating temperature:</strong> −20 °C to +60 °C</li>
-        <li><strong>Storage temperature:</strong> −40 °C to +85 °C</li>
-        <li><strong>Relative humidity:</strong> 0–90 % RH, non-condensing</li>
-        <li><strong>Ingress protection:</strong> IP20 (inside cabinet)</li>
-      </ul>
-
-      <p>
-        Install only inside a control cabinet with ventilation; the cabinet must include a protective front plate covering all module connection terminals and a closing protective door; not for outdoor or exposed installation.
-      </p>
-
-      <p>
-        <strong>All wiring terminals must be protected against accidental contact by an insulating front plate, wiring duct, or terminal cover. Exposed live terminals are not permitted.</strong>
-      </p>
-    </div>
-
-    <!-- ===================== TERMINAL SPECIFICATIONS ===================== -->
-    <div class="plc-section">
-      <h2 id="terminal-specifications"><strong>Terminal Specifications</strong></h2>
-
-      <p>
-        The HomeMaster MiniPLC uses pluggable screw terminal blocks (DB129V series, 5.08 mm pitch)
-        for all field wiring connections.
-      </p>
-
-      <ul class="plc-list plc-list--tight">
-        <li><strong>Wire cross-section:</strong> 0.2–2.5 mm² (AWG 24–12)</li>
-        <li><strong>Conductor type:</strong> solid or stranded copper</li>
-        <li><strong>Stranded wire:</strong> use ferrules recommended</li>
-        <li><strong>Tightening torque:</strong> 0.4 Nm (max)</li>
-        <li><strong>Terminal pitch:</strong> 5.08 mm</li>
-      </ul>
-
-      <p>
-        Only copper conductors are permitted. Do not use aluminum or mixed-metal wiring.
+        <strong>L / N:</strong> hazardous voltage · <strong>24 V DC:</strong> SELV · Qualified personnel only
       </p>
     </div>
 
@@ -236,60 +279,49 @@
 
     <!-- ===================== WARRANTY & SUPPORT ===================== -->
     <div class="plc-section">
-      <h2 id="warranty-support"><strong>Warranty &amp; Support</strong></h2>
+      <h2 id="warranty-support"><strong>Warranty &amp; Returns</strong></h2>
 
-      <p>
-        The HomeMaster MiniPLC is covered by a limited manufacturer's warranty.
-        This commercial warranty applies to professional and business purchases.
-      </p>
-
-      <h3>EU Legal Guarantee (Consumers)</h3>
+      <h3>EU Consumer Legal Guarantee</h3>
       <p>
         For consumers (natural persons acting outside a business context) within the European Union,
-        this warranty does not limit or replace the statutory rights under Directive (EU) 2019/771.
-        A minimum 24-month legal guarantee applies for consumer purchases.
+        the seller is liable for any lack of conformity that becomes apparent within
+        <strong>at least 2 years</strong> from delivery, in accordance with Directive (EU) 2019/771.
+        National laws may provide longer periods or additional rights.
+      </p>
+      <p>
+        Remedies (repair, replacement, price reduction, or refund) are provided <strong>free of charge</strong>
+        as required by law.
       </p>
 
       <h3>Commercial Warranty (B2B)</h3>
       <p>
-        For professional or business use, the product is covered by a 12-month limited warranty
-        from the date of delivery.
+        For professional or business customers, the product is covered by a
+        <strong>12-month limited manufacturer's warranty</strong> from the date of delivery.
+      </p>
+      <p>
+        This commercial warranty is separate from and does not limit statutory consumer rights.
       </p>
 
-      <h3>What is covered</h3>
-      <ul>
-        <li>Manufacturing defects and hardware failures under normal intended use</li>
-        <li>Faults caused by defective components or materials</li>
+      <h3>30-Day Money-Back Guarantee (Voluntary Returns)</h3>
+      <p>
+        We offer a voluntary 30-day return period for unused products in original condition.
+        This policy is separate from and does not limit statutory rights.
+      </p>
+
+      <h3>Return Shipping</h3>
+      <ul class="plc-list plc-list--tight">
+        <li><strong>EU consumer legal claims:</strong> return shipping is handled in accordance with applicable law.</li>
+        <li><strong>Voluntary returns, B2B, or non-EU returns:</strong> return shipping is charged at cost.</li>
       </ul>
 
-      <h3>What is not covered</h3>
-      <ul>
-        <li>Incorrect wiring, misuse, or operation outside specified ratings</li>
-        <li>Unauthorized modifications, firmware changes, or repairs</li>
-        <li>Mechanical damage, liquids, ESD, or environmental exposure</li>
-      </ul>
-
-      <h3>Support &amp; Returns</h3>
+      <h3>Support &amp; Claims</h3>
       <p>
         If a fault is suspected, contact support with proof of purchase and a description of the issue.
         Troubleshooting may be required before a return is authorized.
       </p>
 
       <p>
-        Support contact: <strong>office@home-master.eu</strong>
-      </p>
-
-      <h3>Replacement &amp; Repair</h3>
-      <p>
-        At our discretion, a product covered under warranty will be repaired, replaced,
-        or refunded if repair is not possible. Replacement units may be new or refurbished
-        and carry the remaining warranty period.
-      </p>
-
-      <h3>Shipping</h3>
-      <p>
-        For EU consumer claims, return shipping is handled in accordance with applicable law.
-        For non-EU returns, return shipping is charged at cost.
+        Support contact: <strong><a href="/support">Contact Support</a></strong>
       </p>
     </div>
 
@@ -515,16 +547,22 @@
     <div class="plc-section">
       <h2 id="power-supply"><strong>Power Supply</strong></h2>
 
+      <div class="plc-alert plc-alert--danger" role="alert">
+        <strong>⚠️ Hazardous voltage:</strong> Terminals <strong>L / N</strong> may carry mains AC or high-voltage DC.
+        Wiring must be performed by qualified personnel. Disconnect power before wiring or servicing.
+        Provide external overcurrent protection per local electrical code.
+      </div>
+
       <p>
         MiniPLC supports <strong>one</strong> power input method at a time:
-        <strong>24&nbsp;V DC</strong> on <strong>V+ / 0V</strong> (recommended) <em>or</em>
+        <strong>24&nbsp;V DC nominal</strong> on <strong>V+ / 0V</strong> (recommended) <em>or</em>
         <strong>Mains AC / High-Voltage DC</strong> on <strong>L / N</strong> via the onboard isolated power module.
       </p>
 
-      <p class="plc-caption" style="margin-top:8px;">
-        <strong>⚠️ Safety:</strong> Terminals <strong>L / N</strong> may carry <strong>hazardous voltage</strong>.
-        Disconnect power before wiring or servicing. Mains/HVDC wiring must be performed by qualified personnel and
-        protected by an external fuse or circuit breaker per local electrical code.
+      <p class="plc-caption plc-callout plc-callout--warning" style="margin-top:8px;">
+        <strong>⚠️ Safety reminder:</strong> When using <strong>L / N</strong> terminals for mains AC or high-voltage DC,
+        ensure all power is disconnected before any wiring work. Installation and maintenance must be carried out by
+        qualified personnel in accordance with local electrical codes, including proper overcurrent protection.
       </p>
 
       <h3 id="power-input-specifications"><strong>Power Input Specifications</strong></h3>
@@ -618,7 +656,7 @@
         <strong>85–265&nbsp;V AC</strong> or <strong>120–370&nbsp;V DC</strong> on <strong>L / N</strong>.
       </p>
 
-      <p class="plc-caption" style="margin-top:8px;">
+      <p class="plc-caption plc-callout plc-callout--warning" style="margin-top:8px;">
         <strong>Mandatory upstream protection (L / N):</strong>
         install an external <strong>T0.5&nbsp;A (slow-blow) fuse</strong> or <strong>0.5&nbsp;A breaker</strong> upstream.
         Increase rating only if required by local code or to prevent nuisance trips due to inrush.
@@ -702,7 +740,7 @@
           </tbody>
         </table>
 
-        <p class="plc-caption" style="margin-top:10px;">
+        <p class="plc-caption plc-callout plc-callout--info" style="margin-top:10px;">
           <strong>Important:</strong> Use only one input method at a time:
           <strong>V+/0V</strong> or <strong>L/N</strong>.
         </p>
@@ -804,20 +842,28 @@
       <hr class="plc-hr">
 
       <!-- ===================== RELAY OUTPUTS ===================== -->
-      <div class="plc-section">
+      <div class="plc-subsection">
         <h3 id="relay-outputs"><strong>Relay Outputs</strong></h3>
 
         <p>
           The MiniPLC provides <strong>6 SPDT mechanical relays (HF115F/005-1ZS3)</strong> for switching AC or DC loads.
           Each relay exposes <strong>NO / NC / COM</strong> contacts and is driven via optocoupler-isolated control circuitry.
-          Relay contacts are rated by the manufacturer up to
-          <strong>12A @ 250V AC (resistive load)</strong>; however,
-          <strong>the allowable continuous load current is limited by PCB copper width and thermal constraints</strong>.
-          <strong>Loads approaching or exceeding 3A continuous current, or high-power loads with significant inrush,
-          shall be controlled via an external contactor or power relay</strong>, with the MiniPLC relay used as a control signal only.
         </p>
 
         <p>
+          <strong>Relay contact rating (component):</strong> 12 A @ 250 VAC resistive
+        </p>
+
+        <p>
+          <strong>Recommended continuous (system/PCB):</strong> ≤3 A
+        </p>
+
+        <p>
+          <strong>Use an external contactor or relay for loads above 3 A or with high inrush/inductive characteristics.</strong>
+          The MiniPLC relay may be used as a control signal for the external contactor.
+        </p>
+
+        <p class="plc-callout plc-callout--warning">
           <strong>⚠️ Overcurrent protection required:</strong>
           Relay output circuits are <strong>not internally fused</strong>.
           External overcurrent protection (fuse or circuit breaker) is mandatory for safe operation.
@@ -912,14 +958,14 @@
                 <li>Supports AC and DC switching (DC and inductive loads require derating)</li>
               </ul>
 
-              <p class="plc-caption" style="margin-top:10px;">
+              <p class="plc-caption plc-callout plc-callout--warning" style="margin-top:10px;">
                 <strong>⚠️ External protection rule:</strong>
                 Each relay output shall be protected by an external fuse or circuit breaker.
                 The rated current of the protective device shall not exceed
                 <strong>3A per relay output</strong>.
               </p>
 
-              <p class="plc-caption" style="margin-top:6px;">
+              <p class="plc-caption plc-callout plc-callout--warning" style="margin-top:6px;">
                 <strong>⚠️ Common protection warning:</strong>
                 If a <strong>single common fuse or circuit breaker</strong> is used to protect
                 multiple relay outputs (as shown in the wiring example),
@@ -942,7 +988,7 @@
       <hr class="plc-hr">
 
       <!-- ===================== ANALOG I/O ===================== -->
-      <div class="plc-section">
+      <div class="plc-subsection">
         <h3 id="analog-io"><strong>Analog I/O (0–10V)</strong></h3>
 
         <p>
@@ -1070,7 +1116,7 @@
       <hr class="plc-hr">
 
       <!-- ===================== TEMPERATURE INPUTS ===================== -->
-      <div class="plc-section">
+      <div class="plc-subsection">
         <h3 id="temperature-inputs"><strong>Temperature Inputs</strong></h3>
 
         <p>
@@ -1193,7 +1239,7 @@
       <hr class="plc-hr">
 
       <!-- ===================== COMMUNICATION & PROTOCOLS ===================== -->
-      <div class="plc-section">
+      <div class="plc-subsection">
         <h3 id="communication-protocols"><strong>Communication &amp; Protocols</strong></h3>
 
         <ul class="plc-list">
@@ -1280,7 +1326,7 @@
           A common 0V reference prevents RS-485 common-mode voltage errors and communication faults.
         </p>
 
-        <p class="plc-caption" style="margin-top:10px;">
+        <p class="plc-caption plc-callout plc-callout--info" style="margin-top:10px;">
           <strong>Tip:</strong> Cable recommendations, shield bonding, and routing rules are defined in the
           <strong>Cable Recommendations &amp; Shield Grounding</strong> section below.
         </p>
@@ -1289,7 +1335,7 @@
       <hr class="plc-hr">
 
       <!-- ===================== CABLE RECOMMENDATIONS & SHIELD GROUNDING ===================== -->
-      <div class="plc-section">
+      <div class="plc-subsection">
         <h3 id="cable-recommendations-shield-grounding"><strong>Cable Recommendations &amp; Shield Grounding</strong></h3>
 
         <p class="plc-caption">

@@ -270,3 +270,48 @@
   opacity: 0.8 !important;
   text-align: center !important;
 }
+
+/* =========================================================
+   CALLOUT STYLES - Safety warnings and informational tips
+   ========================================================= */
+.hm-plc .plc-callout {
+  padding: 10px 14px !important;
+  margin: 10px 0 !important;
+  border-left: 4px solid !important;
+  border-radius: 4px !important;
+  background-color: #fff !important;
+  border-top: 1px solid !important;
+  border-right: 1px solid !important;
+  border-bottom: 1px solid !important;
+  line-height: 1.5 !important;
+}
+
+/* Yellow/Warning callout for safety warnings */
+.hm-plc .plc-callout--warning {
+  border-left-color: #f59e0b !important;
+  background-color: #fffbeb !important;
+  border-color: #fde68a !important;
+  color: #78350f !important;
+}
+
+.hm-plc .plc-callout--warning strong {
+  color: #92400e !important;
+}
+
+/* Blue/Info callout for tips and notes */
+.hm-plc .plc-callout--info {
+  border-left-color: #3b82f6 !important;
+  background-color: #eff6ff !important;
+  border-color: #bfdbfe !important;
+  color: #1e3a8a !important;
+}
+
+.hm-plc .plc-callout--info strong {
+  color: #1e40af !important;
+}
+
+/* Ensure callouts work well when combined with caption class */
+.hm-plc .plc-caption.plc-callout {
+  margin-top: 10px !important;
+  margin-bottom: 10px !important;
+}
