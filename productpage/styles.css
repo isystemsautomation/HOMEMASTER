@@ -290,6 +290,11 @@
 }
 
 /* Yellow/Warning callout - highest specificity to override .hm-plc p and .plc-caption */
+.hm-plc .plc-section p.plc-caption.plc-callout.plc-callout--warning,
+.hm-plc .plc-section .plc-caption.plc-callout.plc-callout--warning,
+.hm-plc .plc-section p.plc-callout.plc-callout--warning,
+.hm-plc .plc-section p.plc-callout--warning,
+.hm-plc .plc-section .plc-caption.plc-callout--warning,
 .hm-plc p.plc-caption.plc-callout.plc-callout--warning,
 .hm-plc .plc-caption.plc-callout.plc-callout--warning,
 .hm-plc p.plc-callout.plc-callout--warning,
@@ -306,6 +311,11 @@
   color: #78350f !important;
 }
 
+.hm-plc .plc-section p.plc-caption.plc-callout.plc-callout--warning strong,
+.hm-plc .plc-section .plc-caption.plc-callout.plc-callout--warning strong,
+.hm-plc .plc-section p.plc-callout.plc-callout--warning strong,
+.hm-plc .plc-section p.plc-callout--warning strong,
+.hm-plc .plc-section .plc-caption.plc-callout--warning strong,
 .hm-plc p.plc-caption.plc-callout.plc-callout--warning strong,
 .hm-plc .plc-caption.plc-callout.plc-callout--warning strong,
 .hm-plc p.plc-callout.plc-callout--warning strong,
@@ -317,6 +327,11 @@
 }
 
 /* Blue/Info callout - highest specificity to override .hm-plc p and .plc-caption */
+.hm-plc .plc-section p.plc-caption.plc-callout.plc-callout--info,
+.hm-plc .plc-section .plc-caption.plc-callout.plc-callout--info,
+.hm-plc .plc-section p.plc-callout.plc-callout--info,
+.hm-plc .plc-section p.plc-callout--info,
+.hm-plc .plc-section .plc-caption.plc-callout--info,
 .hm-plc p.plc-caption.plc-callout.plc-callout--info,
 .hm-plc .plc-caption.plc-callout.plc-callout--info,
 .hm-plc p.plc-callout.plc-callout--info,
@@ -333,6 +348,11 @@
   color: #1e3a8a !important;
 }
 
+.hm-plc .plc-section p.plc-caption.plc-callout.plc-callout--info strong,
+.hm-plc .plc-section .plc-caption.plc-callout.plc-callout--info strong,
+.hm-plc .plc-section p.plc-callout.plc-callout--info strong,
+.hm-plc .plc-section p.plc-callout--info strong,
+.hm-plc .plc-section .plc-caption.plc-callout--info strong,
 .hm-plc p.plc-caption.plc-callout.plc-callout--info strong,
 .hm-plc .plc-caption.plc-callout.plc-callout--info strong,
 .hm-plc p.plc-callout.plc-callout--info strong,
