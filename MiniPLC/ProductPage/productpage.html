@@ -553,10 +553,22 @@
         Provide external overcurrent protection per local electrical code.
       </div>
 
+      <p class="plc-caption plc-callout plc-callout--warning" style="margin-top:8px;">
+        <strong>⚠️ Critical:</strong> Exactly <strong>ONE</strong> power input method may be used at a time.
+        <strong>V+ / 0V</strong> and <strong>L / N</strong> must <strong>never</strong> be connected simultaneously.
+      </p>
+
       <p>
         MiniPLC supports <strong>one</strong> power input method at a time:
         <strong>24&nbsp;V DC nominal</strong> on <strong>V+ / 0V</strong> (recommended) <em>or</em>
         <strong>Mains AC / High-Voltage DC</strong> on <strong>L / N</strong> via the onboard isolated power module.
+      </p>
+
+      <p>
+        <strong>When to use which:</strong>
+        <strong>24&nbsp;V DC</strong> is recommended when available, as it is safer and simpler to install.
+        <strong>Mains AC / High-Voltage DC</strong> on <strong>L / N</strong> is for installations where 24&nbsp;V DC is not available
+        and must be installed by qualified personnel in accordance with local electrical codes.
       </p>
 
       <p class="plc-caption plc-callout plc-callout--warning" style="margin-top:8px;">
@@ -606,12 +618,12 @@
       <h3 id="24v-dc-input"><strong>24&nbsp;V DC Input (V+ / 0V)</strong></h3>
 
       <ul class="plc-list">
-        <li><strong>Power draw:</strong> up to <strong>150&nbsp;mA @ 24&nbsp;V</strong> (≈ <strong>3.6&nbsp;W</strong>)</li>
+        <li><strong>Typical operating current:</strong> <strong>150&nbsp;mA @ 24&nbsp;V</strong> (≈ <strong>3.6&nbsp;W</strong>) — measured typical device power consumption</li>
         <li><strong>Internal rail:</strong> 24&nbsp;V input is conditioned into <strong>+24VDC_FUSED</strong></li>
         <li><strong>Input protection:</strong> surge suppression (TVS), EMI filtering, reverse-polarity / power-path protection</li>
         <li><strong>Internal service fuse:</strong> <strong>1.0&nbsp;A</strong> (soldered) — service replacement required if blown</li>
         <li><strong>Upstream protection (recommended):</strong> external <strong>0.5&nbsp;A</strong> slow-blow fuse or <strong>0.5&nbsp;A</strong> breaker on <strong>V+</strong>
-          so the external device clears before the internal service fuse</li>
+          so the external device clears before the internal service fuse. Recommended for 24&nbsp;V DC installations to protect wiring and simplify troubleshooting.</li>
       </ul>
 
       <div class="plc-grid">
@@ -656,10 +668,11 @@
         <strong>85–265&nbsp;V AC</strong> or <strong>120–370&nbsp;V DC</strong> on <strong>L / N</strong>.
       </p>
 
-      <p class="plc-caption plc-callout plc-callout--warning" style="margin-top:8px;">
+        <p class="plc-caption plc-callout plc-callout--warning" style="margin-top:8px;">
         <strong>Mandatory upstream protection (L / N):</strong>
         install an external <strong>T0.5&nbsp;A (slow-blow) fuse</strong> or <strong>0.5&nbsp;A breaker</strong> upstream.
         Increase rating only if required by local code or to prevent nuisance trips due to inrush.
+        External protection is <strong>required</strong> for mains AC / high-voltage DC installations due to safety regulations and the higher fault current available from these sources.
       </p>
 
       <div class="plc-grid">
@@ -731,7 +744,7 @@
             </tr>
             <tr>
               <th scope="row">Output</th>
-              <td>24&nbsp;V DC auxiliary rail (up to <strong>220&nbsp;mA</strong>)</td>
+              <td>24&nbsp;V DC auxiliary rail — maximum capacity <strong>220&nbsp;mA</strong> (power module rating, not typical device draw)</td>
             </tr>
             <tr>
               <th scope="row">Protection</th>
@@ -739,6 +752,13 @@
             </tr>
           </tbody>
         </table>
+
+        <p class="plc-caption" style="margin-top:10px;">
+          <strong>Current draw clarification:</strong>
+          The <strong>150&nbsp;mA</strong> figure is the typical operating current drawn by the MiniPLC device itself.
+          The <strong>220&nbsp;mA</strong> figure is the maximum output capacity rating of the onboard isolated power module.
+          Current is drawn by the load (the MiniPLC); the higher number represents the module's capacity limit, not additional current consumption.
+        </p>
 
         <p class="plc-caption plc-callout plc-callout--info" style="margin-top:10px;">
           <strong>Important:</strong> Use only one input method at a time:
