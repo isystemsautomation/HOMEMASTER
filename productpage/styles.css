@@ -275,7 +275,10 @@
 
 /* =========================================================
    CALLOUT STYLES - Safety warnings and informational tips
+   Odoo-safe with maximum specificity to override all defaults
    ========================================================= */
+
+/* Base callout structure */
 .hm-plc .plc-callout,
 .hm-plc p.plc-callout,
 .hm-plc .plc-caption.plc-callout {
@@ -284,26 +287,28 @@
   border-radius: 4px !important;
   line-height: 1.5 !important;
   display: block !important;
-  /* Background and border colors are set in variant classes below */
 }
 
-/* Yellow/Warning callout for safety warnings - maximum specificity to override paragraph defaults */
-.hm-plc p.plc-callout.plc-callout--warning,
+/* Yellow/Warning callout - highest specificity to override .hm-plc p and .plc-caption */
+.hm-plc p.plc-caption.plc-callout.plc-callout--warning,
 .hm-plc .plc-caption.plc-callout.plc-callout--warning,
+.hm-plc p.plc-callout.plc-callout--warning,
 .hm-plc p.plc-callout--warning,
 .hm-plc .plc-caption.plc-callout--warning,
 .hm-plc .plc-callout.plc-callout--warning,
 .hm-plc .plc-callout--warning {
   border-left: 4px solid #f59e0b !important;
   background-color: #fffbeb !important;
+  background: #fffbeb !important;
   border-top: 1px solid #fde68a !important;
   border-right: 1px solid #fde68a !important;
   border-bottom: 1px solid #fde68a !important;
   color: #78350f !important;
 }
 
-.hm-plc p.plc-callout.plc-callout--warning strong,
+.hm-plc p.plc-caption.plc-callout.plc-callout--warning strong,
 .hm-plc .plc-caption.plc-callout.plc-callout--warning strong,
+.hm-plc p.plc-callout.plc-callout--warning strong,
 .hm-plc p.plc-callout--warning strong,
 .hm-plc .plc-caption.plc-callout--warning strong,
 .hm-plc .plc-callout.plc-callout--warning strong,
@@ -311,23 +316,26 @@
   color: #92400e !important;
 }
 
-/* Blue/Info callout for tips and notes - maximum specificity to override paragraph defaults */
-.hm-plc p.plc-callout.plc-callout--info,
+/* Blue/Info callout - highest specificity to override .hm-plc p and .plc-caption */
+.hm-plc p.plc-caption.plc-callout.plc-callout--info,
 .hm-plc .plc-caption.plc-callout.plc-callout--info,
+.hm-plc p.plc-callout.plc-callout--info,
 .hm-plc p.plc-callout--info,
 .hm-plc .plc-caption.plc-callout--info,
 .hm-plc .plc-callout.plc-callout--info,
 .hm-plc .plc-callout--info {
   border-left: 4px solid #3b82f6 !important;
   background-color: #eff6ff !important;
+  background: #eff6ff !important;
   border-top: 1px solid #bfdbfe !important;
   border-right: 1px solid #bfdbfe !important;
   border-bottom: 1px solid #bfdbfe !important;
   color: #1e3a8a !important;
 }
 
-.hm-plc p.plc-callout.plc-callout--info strong,
+.hm-plc p.plc-caption.plc-callout.plc-callout--info strong,
 .hm-plc .plc-caption.plc-callout.plc-callout--info strong,
+.hm-plc p.plc-callout.plc-callout--info strong,
 .hm-plc p.plc-callout--info strong,
 .hm-plc .plc-caption.plc-callout--info strong,
 .hm-plc .plc-callout.plc-callout--info strong,
