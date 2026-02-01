@@ -367,17 +367,45 @@
   margin-bottom: 10px !important;
 }
 
-/* Force override any potential caption color/background conflicts */
+/* Force override any potential caption color/background conflicts - ULTRA SPECIFIC */
+.hm-plc .plc-section p.plc-caption.plc-callout.plc-callout--warning,
+.hm-plc .plc-section .plc-caption.plc-callout.plc-callout--warning,
+.hm-plc .plc-wrap .plc-section p.plc-caption.plc-callout.plc-callout--warning,
+.hm-plc .plc-wrap .plc-section .plc-caption.plc-callout.plc-callout--warning,
+.hm-plc p.plc-caption.plc-callout.plc-callout--warning,
 .hm-plc .plc-caption.plc-callout.plc-callout--warning,
-.hm-plc p.plc-caption.plc-callout.plc-callout--warning {
+p.plc-caption.plc-callout.plc-callout--warning,
+.plc-caption.plc-callout.plc-callout--warning {
+  border-left: 4px solid #f59e0b !important;
   background-color: #fffbeb !important;
   background: #fffbeb !important;
+  border-top: 1px solid #fde68a !important;
+  border-right: 1px solid #fde68a !important;
+  border-bottom: 1px solid #fde68a !important;
   color: #78350f !important;
+  padding: 10px 14px !important;
+  margin: 10px 0 !important;
+  border-radius: 4px !important;
+  display: block !important;
 }
 
+.hm-plc .plc-section p.plc-caption.plc-callout.plc-callout--info,
+.hm-plc .plc-section .plc-caption.plc-callout.plc-callout--info,
+.hm-plc .plc-wrap .plc-section p.plc-caption.plc-callout.plc-callout--info,
+.hm-plc .plc-wrap .plc-section .plc-caption.plc-callout.plc-callout--info,
+.hm-plc p.plc-caption.plc-callout.plc-callout--info,
 .hm-plc .plc-caption.plc-callout.plc-callout--info,
-.hm-plc p.plc-caption.plc-callout.plc-callout--info {
+p.plc-caption.plc-callout.plc-callout--info,
+.plc-caption.plc-callout.plc-callout--info {
+  border-left: 4px solid #3b82f6 !important;
   background-color: #eff6ff !important;
   background: #eff6ff !important;
+  border-top: 1px solid #bfdbfe !important;
+  border-right: 1px solid #bfdbfe !important;
+  border-bottom: 1px solid #bfdbfe !important;
   color: #1e3a8a !important;
+  padding: 10px 14px !important;
+  margin: 10px 0 !important;
+  border-radius: 4px !important;
+  display: block !important;
 }
