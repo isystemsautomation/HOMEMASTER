@@ -6,8 +6,6 @@
 
 /* TEST: If you see red background, CSS is loading */
 .hm-plc{background-color:#fff !important;color:#0b1220 !important;}
-
-/* TEST: Callout styles should show yellow/blue backgrounds */
 .hm-plc a{color:#0b5ed7 !important;text-decoration:none !important;}
 .hm-plc a:hover{text-decoration:underline !important;}
 
