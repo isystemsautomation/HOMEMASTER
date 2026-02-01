@@ -274,7 +274,9 @@
 /* =========================================================
    CALLOUT STYLES - Safety warnings and informational tips
    ========================================================= */
-.hm-plc .plc-callout {
+.hm-plc .plc-callout,
+.hm-plc p.plc-callout,
+.hm-plc .plc-caption.plc-callout {
   padding: 10px 14px !important;
   margin: 10px 0 !important;
   border-left: 4px solid !important;
@@ -286,27 +288,43 @@
   line-height: 1.5 !important;
 }
 
-/* Yellow/Warning callout for safety warnings */
-.hm-plc .plc-callout--warning {
+/* Yellow/Warning callout for safety warnings - increased specificity */
+.hm-plc .plc-callout--warning,
+.hm-plc p.plc-callout--warning,
+.hm-plc .plc-caption.plc-callout--warning,
+.hm-plc p.plc-callout.plc-callout--warning,
+.hm-plc .plc-caption.plc-callout.plc-callout--warning {
   border-left-color: #f59e0b !important;
   background-color: #fffbeb !important;
-  border-color: #fde68a !important;
+  border-top-color: #fde68a !important;
+  border-right-color: #fde68a !important;
+  border-bottom-color: #fde68a !important;
   color: #78350f !important;
 }
 
-.hm-plc .plc-callout--warning strong {
+.hm-plc .plc-callout--warning strong,
+.hm-plc p.plc-callout--warning strong,
+.hm-plc .plc-caption.plc-callout--warning strong {
   color: #92400e !important;
 }
 
-/* Blue/Info callout for tips and notes */
-.hm-plc .plc-callout--info {
+/* Blue/Info callout for tips and notes - increased specificity */
+.hm-plc .plc-callout--info,
+.hm-plc p.plc-callout--info,
+.hm-plc .plc-caption.plc-callout--info,
+.hm-plc p.plc-callout.plc-callout--info,
+.hm-plc .plc-caption.plc-callout.plc-callout--info {
   border-left-color: #3b82f6 !important;
   background-color: #eff6ff !important;
-  border-color: #bfdbfe !important;
+  border-top-color: #bfdbfe !important;
+  border-right-color: #bfdbfe !important;
+  border-bottom-color: #bfdbfe !important;
   color: #1e3a8a !important;
 }
 
-.hm-plc .plc-callout--info strong {
+.hm-plc .plc-callout--info strong,
+.hm-plc p.plc-callout--info strong,
+.hm-plc .plc-caption.plc-callout--info strong {
   color: #1e40af !important;
 }
 
