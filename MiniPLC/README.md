@@ -127,7 +127,23 @@ The MiniPLC supports **one power input method at a time**: **24 V DC nominal** o
 
 ### 24 V DC Input (V+ / 0V)
 
-![24V DC Wiring](Images/wiring_ps_dc.png)
+<table>
+<tr>
+<td width="50%">
+<img src="Images/wiring_ps_dc.png" alt="24V DC Wiring" width="300" />
+<br><small>Connect <strong>+</strong> to <strong>V+</strong> and <strong>−</strong> to <strong>0V</strong>.</small>
+</td>
+<td width="50%">
+<strong>Installation Checklist:</strong>
+<ul>
+<li>Use a regulated <strong>24 V DC</strong> supply</li>
+<li>Install <strong>0.5 A</strong> fuse/breaker upstream of <strong>V+</strong></li>
+<li>Observe polarity: <strong>V+ / 0V</strong></li>
+<li>Route power wiring away from low-level analog signal wiring</li>
+</ul>
+</td>
+</tr>
+</table>
 
 **Specifications:**
 - **Typical operating current:** 150 mA @ 24 V (≈ 3.6 W) — measured typical device power consumption
@@ -136,18 +152,22 @@ The MiniPLC supports **one power input method at a time**: **24 V DC nominal** o
 - **Internal service fuse:** 1.0 A (soldered) — service replacement required if blown
 - **Upstream protection (recommended):** external 0.5 A slow-blow fuse or 0.5 A breaker on **V+** so the external device clears before the internal service fuse. Recommended for 24 V DC installations to protect wiring and simplify troubleshooting.
 
-**Installation Checklist:**
-- Use a regulated **24 V DC** supply
-- Install **0.5 A** fuse/breaker upstream of **V+**
-- Observe polarity: **V+ / 0V**
-- Route power wiring away from low-level analog signal wiring
-
 ### Mains AC / High-Voltage DC Input (L / N)
 
 The onboard isolated power module generates the internal **24 V** rail from **85–265 V AC** or **120–370 V DC** on **L / N**.
 
-![Mains AC Wiring](Images/wiring_ps_ac1.png)
-![High-Voltage DC Wiring](Images/wiring_ps_ac2.png)
+<table>
+<tr>
+<td width="50%">
+<img src="Images/wiring_ps_ac1.png" alt="Mains AC Wiring" width="300" />
+<br><small><strong>85–265 V AC (L / N)</strong></small>
+</td>
+<td width="50%">
+<img src="Images/wiring_ps_ac2.png" alt="High-Voltage DC Wiring" width="300" />
+<br><small><strong>120–370 V DC (L / N + / −)</strong></small>
+</td>
+</tr>
+</table>
 
 > ⚠️ **Mandatory upstream protection (L / N):** Install an external **T0.5 A (slow-blow) fuse** or **0.5 A breaker** upstream. Increase rating only if required by local code or to prevent nuisance trips due to inrush. External protection is **required** for mains AC / high-voltage DC installations due to safety regulations and the higher fault current available from these sources.
 
@@ -171,8 +191,18 @@ The onboard isolated power module generates the internal **24 V** rail from **85
 
 ### Digital Inputs (4 channels)
 
-![Digital Input Wiring 1](Images/wiring_DI_2.png)
-![Digital Input Wiring 2](Images/wiring_DI_3.png)
+<table>
+<tr>
+<td width="50%">
+<img src="Images/wiring_DI_2.png" alt="Digital Input Wiring 1" width="300" />
+<br><small>Wiring example: dry contact wiring to DI inputs.</small>
+</td>
+<td width="50%">
+<img src="Images/wiring_DI_3.png" alt="Digital Input Wiring 2" width="300" />
+<br><small>Wiring example: shared common wiring approach.</small>
+</td>
+</tr>
+</table>
 
 | Channel | Pin | Type | Voltage | Description |
 |---------|-----|------|---------|-------------|
@@ -193,7 +223,22 @@ The onboard isolated power module generates the internal **24 V** rail from **85
 
 ### Relay Outputs
 
-![Relay Wiring](Images/wiring_relays1.png)
+<table>
+<tr>
+<td width="50%">
+<img src="Images/wiring_relays1.png" alt="Relay Wiring" width="300" />
+<br><small>Example wiring using <strong>Normally Open (NO)</strong> and <strong>Normally Closed (NC)</strong> relay contacts.</small>
+</td>
+<td width="50%">
+<ul>
+<li>Each relay has <strong>COM / NO / NC</strong> terminals</li>
+<li><strong>3 A MAX per output</strong> (system limit)</li>
+<li>External fuse/breaker required (max 3 A per channel)</li>
+<li>For loads above 3 A, use external contactor</li>
+</ul>
+</td>
+</tr>
+</table>
 
 The MiniPLC provides **6 SPDT mechanical relays (HF115F/005-1ZS3)** for switching AC or DC loads. Each relay exposes **NO / NC / COM** contacts and is driven via optocoupler-isolated control circuitry.
 
@@ -218,8 +263,18 @@ The MiniPLC provides **6 SPDT mechanical relays (HF115F/005-1ZS3)** for switchin
 
 MiniPLC provides **4 analog inputs** and **1 analog output** with a standard **0–10V** signal range.
 
-![Analog Input Wiring](Images/wiring_ai1.png)
-![Analog Output Wiring](Images/wiring_ao1.png)
+<table>
+<tr>
+<td width="50%">
+<img src="Images/wiring_ai1.png" alt="Analog Input Wiring" width="300" />
+<br><small>Example: multiple 0–10V sensors powered from a shared supply (PS) with common 0V/GND.</small>
+</td>
+<td width="50%">
+<img src="Images/wiring_ao1.png" alt="Analog Output Wiring" width="300" />
+<br><small>Example: 0–10V analog output connection to an external device.</small>
+</td>
+</tr>
+</table>
 
 **Analog Inputs (AI) — 4 Channels:**
 
@@ -247,10 +302,28 @@ MiniPLC provides **4 analog inputs** and **1 analog output** with a standard **0
 
 MiniPLC supports **RTD sensors** (PT100/PT1000) and **1-Wire temperature sensors** (DS18B20 or compatible) for reliable cabinet and process temperature monitoring.
 
-![1-Wire Wiring](Images/wiring_1wire2.png)
-![RTD 4-Wire Wiring](Images/wiring_rtd4.png)
-![RTD 2-Wire Wiring](Images/wiring_rtd1.png)
-![RTD 3-Wire Wiring](Images/wiring_rtd2.png)
+<table>
+<tr>
+<td width="50%">
+<img src="Images/wiring_1wire2.png" alt="1-Wire Wiring" width="300" />
+<br><small>1-Wire wiring example.</small>
+</td>
+<td width="50%">
+<img src="Images/wiring_rtd4.png" alt="RTD 4-Wire Wiring" width="300" />
+<br><small>RTD wiring example (4-wire).</small>
+</td>
+</tr>
+<tr>
+<td width="50%">
+<img src="Images/wiring_rtd1.png" alt="RTD 2-Wire Wiring" width="300" />
+<br><small>RTD wiring example (2-wire).</small>
+</td>
+<td width="50%">
+<img src="Images/wiring_rtd2.png" alt="RTD 3-Wire Wiring" width="300" />
+<br><small>RTD wiring example (3-wire).</small>
+</td>
+</tr>
+</table>
 
 | Type | Channel | Sensor / Interface | Range | Accuracy |
 |------|---------|-------------------|-------|----------|
@@ -285,8 +358,18 @@ MiniPLC supports **RTD sensors** (PT100/PT1000) and **1-Wire temperature sensors
 
 The MiniPLC provides a **half-duplex RS-485 interface** with integrated protection and fail-safe biasing. The interface is available on the **A / B / COM** terminals.
 
-![RS-485 Wiring 1](Images/wiring_rs485_1.png)
-![RS-485 Wiring 2](Images/wiring_rs485_2.png)
+<table>
+<tr>
+<td width="50%">
+<img src="Images/wiring_rs485_1.png" alt="RS-485 Wiring 1" width="300" />
+<br><small>Connect <strong>A</strong>, <strong>B</strong>, and <strong>COM</strong> to the bus.</small>
+</td>
+<td width="50%">
+<img src="Images/wiring_rs485_2.png" alt="RS-485 Wiring 2" width="300" />
+<br><small>Add <strong>120Ω termination</strong> only at the two physical ends of the bus.</small>
+</td>
+</tr>
+</table>
 
 **Hardware Features:**
 - RS-485 transceiver: **MAX485** (half-duplex)
@@ -357,8 +440,18 @@ This section applies to **Analog (0–10V)**, **Temperature (RTD / 1-Wire)**, an
 
 ### System Architecture & Pinout
 
-![System Block Diagram](system_block_diagram.png)
-![Pinout Diagram](pinout.png)
+<table>
+<tr>
+<td width="50%">
+<img src="system_block_diagram.png" alt="System Block Diagram" width="400" />
+<br><small>System block diagram showing internal architecture and interfaces.</small>
+</td>
+<td width="50%">
+<img src="pinout.png" alt="Pinout Diagram" width="400" />
+<br><small>Complete GPIO and connector pin assignments.</small>
+</td>
+</tr>
+</table>
 
 #### Pin Mapping
 
