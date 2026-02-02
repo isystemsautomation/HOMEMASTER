@@ -19,18 +19,15 @@
           <h2><strong>HomeMaster MiniPLC (ESP32)</strong></h2>
 
           <p>
-            The <strong>HomeMaster MiniPLC</strong> is an <strong>open-source DIN-rail industrial controller</strong>
-            for smart buildings, HVAC, laboratories, and energy systems.
+            The <strong>HomeMaster MiniPLC</strong> is a professional, open-source DIN rail controller built around the ESP32 platform, designed for robust and scalable smart automation in residential, commercial, and light industrial environments. It combines extensive onboard I/O—including relays, digital and analog inputs, temperature sensors, and a user interface—with native Home Assistant integration via pre-installed ESPHome.
           </p>
 
           <p>
-            It combines industrial I/O, <strong>ESPHome pre-installed</strong> for native Home Assistant integration,
-            and local automation logic in a compact 24 V DC controller.
+            Engineered for reliability and flexibility, the MiniPLC supports multiple power input options (24V DC or wide-range AC/DC) and features an isolated RS-485 Modbus interface for expansion with a wide range of compatible I/O modules. Its local processing capability ensures continued operation even when network or cloud connectivity is lost, making it suitable for mission-critical applications.
           </p>
 
           <p>
-            MiniPLC continues operating even if the network or Home Assistant is unavailable,
-            making it suitable for mission-critical installations.
+            This controller operates as a complete standalone automation system using its comprehensive onboard I/O, while also offering seamless expansion via the RS-485 bus to connect HomeMaster smart modules for energy metering, lighting control, security, and more. It provides a versatile, ready-to-integrate platform for HVAC control, energy management, security systems, lighting automation, and custom industrial applications.
           </p>
         </div>
 
@@ -109,7 +106,7 @@
               </td>
             </tr>
             <tr><th scope="row">Digital Inputs</th><td>4 × isolated, 24 V compatible</td></tr>
-            <tr><th scope="row">Relay Outputs</th><td>6 × SPDT, ≤3 A continuous recommended<br>(relay contacts rated up to 12 A @ 250 V AC resistive; external protection required)</td></tr>
+            <tr><th scope="row">Relay Outputs</th><td>6 × SPDT, <strong>3 A max continuous per channel</strong> (system/PCB limit)<br>Relay contact component rating: 12 A @ 250 V AC resistive (NOT usable as system output; external protection required)</td></tr>
             <tr><th scope="row">Analog Inputs</th><td>4 × 0–10 V, 16-bit (ADS1115)</td></tr>
             <tr><th scope="row">Analog Output</th><td>1 × 0–10 V (MCP4725)</td></tr>
             <tr><th scope="row">Temperature Inputs</th><td>2 × RTD (MAX31865), 2 × 1-Wire</td></tr>
@@ -877,16 +874,20 @@
         </p>
 
         <p>
-          <strong>Relay contact rating (component):</strong> 12 A @ 250 VAC resistive
+          <strong>System/PCB rating:</strong> <strong>3 A max continuous per channel</strong> (hard limit).
+          Exceeding this limit can cause PCB overheating, damage to traces, and component failure.
         </p>
 
         <p>
-          <strong>Recommended continuous (system/PCB):</strong> ≤3 A
+          <strong>Relay contact (component) rating:</strong> 12 A @ 250 VAC resistive.
+          <strong>This is the relay component specification only and is NOT a usable system output rating.</strong>
+          The PCB design limits the actual usable current to 3 A continuous per channel.
         </p>
 
         <p>
-          <strong>Use an external contactor or relay for loads above 3 A or with high inrush/inductive characteristics.</strong>
-          The MiniPLC relay may be used as a control signal for the external contactor.
+          <strong>For loads above 3 A or with high inrush/inductive characteristics:</strong>
+          Use an external contactor or relay. The MiniPLC relay may be used as a control signal for the external contactor.
+          <strong>Do not attempt to switch loads above 3 A directly through the MiniPLC relay outputs.</strong>
         </p>
 
         <p class="plc-callout plc-callout--warning">
@@ -913,42 +914,42 @@
                 <td>Relay #1</td>
                 <td>PCF8574B:2</td>
                 <td>SPDT</td>
-                <td>12A @ 250V AC (relay contact rating)<br>Recommended continuous current: ≤ 3A</td>
+                <td>12A @ 250V AC (relay contact component rating, NOT system limit)<br>System/PCB max continuous: 3A (hard limit)</td>
                 <td>General purpose relay output 1 (NO/NC/COM)</td>
               </tr>
               <tr>
                 <td>Relay #2</td>
                 <td>PCF8574B:1</td>
                 <td>SPDT</td>
-                <td>12A @ 250V AC (relay contact rating)<br>Recommended continuous current: ≤ 3A</td>
+                <td>12A @ 250V AC (relay contact component rating, NOT system limit)<br>System/PCB max continuous: 3A (hard limit)</td>
                 <td>General purpose relay output 2 (NO/NC/COM)</td>
               </tr>
               <tr>
                 <td>Relay #3</td>
                 <td>PCF8574B:0</td>
                 <td>SPDT</td>
-                <td>12A @ 250V AC (relay contact rating)<br>Recommended continuous current: ≤ 3A</td>
+                <td>12A @ 250V AC (relay contact component rating, NOT system limit)<br>System/PCB max continuous: 3A (hard limit)</td>
                 <td>General purpose relay output 3 (NO/NC/COM)</td>
               </tr>
               <tr>
                 <td>Relay #4</td>
                 <td>PCF8574A:6</td>
                 <td>SPDT</td>
-                <td>12A @ 250V AC (relay contact rating)<br>Recommended continuous current: ≤ 3A</td>
+                <td>12A @ 250V AC (relay contact component rating, NOT system limit)<br>System/PCB max continuous: 3A (hard limit)</td>
                 <td>General purpose relay output 4 (NO/NC/COM)</td>
               </tr>
               <tr>
                 <td>Relay #5</td>
                 <td>PCF8574A:5</td>
                 <td>SPDT</td>
-                <td>12A @ 250V AC (relay contact rating)<br>Recommended continuous current: ≤ 3A</td>
+                <td>12A @ 250V AC (relay contact component rating, NOT system limit)<br>System/PCB max continuous: 3A (hard limit)</td>
                 <td>General purpose relay output 5 (NO/NC/COM)</td>
               </tr>
               <tr>
                 <td>Relay #6</td>
                 <td>PCF8574A:4</td>
                 <td>SPDT</td>
-                <td>12A @ 250V AC (relay contact rating)<br>Recommended continuous current: ≤ 3A</td>
+                <td>12A @ 250V AC (relay contact component rating, NOT system limit)<br>System/PCB max continuous: 3A (hard limit)</td>
                 <td>General purpose relay output 6 (NO/NC/COM)</td>
               </tr>
             </tbody>
@@ -988,7 +989,7 @@
                 <strong>⚠️ External protection rule:</strong>
                 Each relay output shall be protected by an external fuse or circuit breaker.
                 The rated current of the protective device shall not exceed
-                <strong>3A per relay output</strong>.
+                <strong>3 A per relay output</strong> (system/PCB maximum continuous limit).
               </p>
 
               <p class="plc-caption plc-callout plc-callout--warning" style="margin-top:6px;">
