@@ -50,6 +50,67 @@ This controller operates as a complete standalone automation system using its co
 
 > **Note:** Relay outputs are not internally fused. Use external overcurrent protection per local code and use an external contactor/relay for loads above 3 A or with high inrush/inductive characteristics.
 
+## Installation & Environmental
+
+- **Mounting:** 35 mm DIN rail
+- **Dimensions:** 157.4 × 91 × 58.4 mm (6.2 × 3.58 × 2.3 in) (L × W × H)
+- **DIN units:** 9 division units (≈ 90 mm DIN rail mounting width)
+- **Weight:** 300 g (net), 450 g (gross)
+- **Operating Temperature:** 0 °C to +40 °C
+- **Storage Temperature:** -10 °C to 55 °C
+- **Relative Humidity:** 0–90 % RH, non-condensing
+- **Ingress Protection:** IP20 (inside cabinet)
+- **Installation:** Indoor control cabinet only; not for outdoor or exposed installation
+
+> **Safety:** All wiring terminals must be protected against accidental contact by an insulating front plate, wiring duct, or terminal cover. Exposed live terminals are not permitted.
+
+## Home Assistant & ESPHome Integration
+
+The MiniPLC comes with **ESPHome pre-installed** and can be integrated directly into Home Assistant without flashing custom firmware.
+
+### Quick Setup Process (Improv Wi-Fi)
+
+1. **Mount & Power** – Install on a 35mm DIN rail and connect power.
+2. **Open Improv** – Go to [improv-wifi.com](https://improv-wifi.com).
+3. **Connect** – Use USB-C (Serial) or Bluetooth LE.
+4. **Enter Wi-Fi** – Input SSID and password, then press Connect.
+5. **Auto-Discovery** – Device appears in Home Assistant & ESPHome Dashboard.
+
+### One-Click Import (ESPHome Dashboard)
+
+Once connected to Wi-Fi, the MiniPLC is automatically discovered in the ESPHome Dashboard. Click **"Take Control"** to import the official configuration directly from GitHub.
+
+### USB Type-C Manual Flashing (Optional)
+
+1. Connect the MiniPLC to your computer using USB Type-C.
+2. Open ESPHome Dashboard and add the device.
+3. Import the configuration from [miniplc.yaml](Firmware/miniplc.yaml).
+4. Compile and flash the firmware.
+5. The device reboots automatically and runs the new firmware.
+
+See [Firmware/miniplc.yaml](Firmware/miniplc.yaml) for the complete ESPHome configuration file with all sensors, switches, and I/O properly configured.
+
+## Documentation & Resources
+
+### Hardware Design Files
+
+- [Schematic (MCU Board)](Schematic/MCU_Board.pdf) - Main controller board schematic
+- [Schematic (Relay Board)](Schematic/Relay_Board.pdf) - Relay and power section schematic
+- [Schematic (USB Board)](Schematic/USB_Board.pdf) - USB-C interface and power management
+
+### Firmware & Software
+
+- [Default ESPHome Config](Firmware/miniplc.yaml) - Pre-configured YAML for Home Assistant
+- [Firmware Source Code](Firmware/) - Latest firmware builds and source
+- [ESPHome Integration Guide](README.md) - Complete setup instructions (this file)
+
+### Manuals & Datasheets
+
+- [Datasheet](Manuals/Datasheet.pdf) - Technical specifications and ratings
+- [User Manual](Manuals/User_Manual.pdf) - Installation and configuration guide
+
+All design files and documentation are available in the [HomeMaster GitHub repository](https://github.com/isystemsautomation/HOMEMASTER/tree/main/MiniPLC).
+
 ## Power Supply
 
 The MiniPLC supports **one power input method at a time**: **24 V DC nominal** on **V+ / 0V** (recommended) **OR** **Mains AC / High-Voltage DC** on **L / N** via the onboard isolated power module.
@@ -214,13 +275,13 @@ MiniPLC supports **RTD sensors** (PT100/PT1000) and **1-Wire temperature sensors
 - OLED displays time, sensor readings, and system status
 - Buzzer provides audible feedback for alarms or notifications
 
-## Communication & Protocols
+### Communication & Protocols
 
 - **Modbus RTU (RS-485)** – UART-based communication for expansion modules and field devices
 - **Wi-Fi** – ESP32 integrated (Improv onboarding supported)
 - **Ethernet** – Optional via LAN8720 PHY
 
-### RS-485 Communication (Modbus RTU)
+#### RS-485 Communication (Modbus RTU)
 
 The MiniPLC provides a **half-duplex RS-485 interface** with integrated protection and fail-safe biasing. The interface is available on the **A / B / COM** terminals.
 
@@ -251,23 +312,23 @@ The MiniPLC provides a **half-duplex RS-485 interface** with integrated protecti
 
 A common 0V reference prevents RS-485 common-mode voltage errors and communication faults.
 
-## Cable Recommendations & Shield Grounding
+### Cable Recommendations & Shield Grounding
 
 This section applies to **Analog (0–10V)**, **Temperature (RTD / 1-Wire)**, and **RS-485**. Use shielded, twisted constructions and bond shields correctly to reduce EMI and ground-loop issues.
 
-### General Routing Rules
+#### General Routing Rules
 
 - Route low-level signal cables (Analog/RTD/1-Wire/RS-485) separately from mains, relay outputs, contactors, VFD motor cables, and power wiring.
 - If crossing power cables is unavoidable, cross at **90°**.
 - Keep cable runs as short as practical and avoid parallel runs with high-current conductors.
 
-### Analog (0–10V) Cable
+#### Analog (0–10V) Cable
 
 - **Construction:** twisted pair (Signal + GND) per channel
 - **Shielding:** overall shield (standard) or individually shielded pairs (high-EMI)
 - **Examples:** **J-Y(ST)Y** (overall shield) or **LI2YCY PIMF** (shielded twisted pairs; one pair per channel)
 
-### Temperature Cable
+#### Temperature Cable
 
 **RTD (PT100/PT1000):**
 - **Recommended:** shielded multi-core for 2/3-wire; shielded pairs for best accuracy (4-wire)
@@ -280,7 +341,7 @@ This section applies to **Analog (0–10V)**, **Temperature (RTD / 1-Wire)**, an
 - **Stubs:** keep sensor stubs ≤ **0.5 m**.
 - **Pull-up (DATA):** **4.7 kΩ** typical; **2.2–3.3 kΩ** for long/heavy loads.
 
-### RS-485 Cable
+#### RS-485 Cable
 
 - **Construction:** twisted pair for **A/B**
 - **Characteristic impedance:** **120 Ω** (recommended)
@@ -288,86 +349,27 @@ This section applies to **Analog (0–10V)**, **Temperature (RTD / 1-Wire)**, an
 - **Examples:** **J-Y(ST)Y 2×2×0.5 mm²** or **LI2YCY PiMF 2×2×0.50**
 - Use one twisted pair for **A/B**. Use the second pair for **COM (0V reference)** or spare.
 
-### Shield Grounding
+#### Shield Grounding
 
 - **Default recommendation:** bond cable shield(s) to cabinet **PE/EMC ground at the PLC end only**.
 - **Do not** connect shields to signal terminals (AI/AO/RTD/1-Wire/RS-485 A/B/COM).
 - If both ends are in equipotential bonded cabinets, shields may be bonded at both ends using proper 360° clamps.
 
-## System Architecture & Pinout
+### System Architecture & Pinout
 
 ![System Block Diagram](system_block_diagram.png)
 ![Pinout Diagram](pinout.png)
 
-## Installation & Environmental
+#### Pin Mapping
 
-- **Mounting:** 35 mm DIN rail
-- **Dimensions:** 157.4 × 91 × 58.4 mm (6.2 × 3.58 × 2.3 in) (L × W × H)
-- **DIN units:** 9 division units (≈ 90 mm DIN rail mounting width)
-- **Weight:** 300 g (net), 450 g (gross)
-- **Operating Temperature:** 0 °C to +40 °C
-- **Storage Temperature:** -10 °C to 55 °C
-- **Relative Humidity:** 0–90 % RH, non-condensing
-- **Ingress Protection:** IP20 (inside cabinet)
-- **Installation:** Indoor control cabinet only; not for outdoor or exposed installation
-
-> **Safety:** All wiring terminals must be protected against accidental contact by an insulating front plate, wiring duct, or terminal cover. Exposed live terminals are not permitted.
-
-## Home Assistant & ESPHome Integration
-
-The MiniPLC comes with **ESPHome pre-installed** and can be integrated directly into Home Assistant without flashing custom firmware.
-
-### Quick Setup Process (Improv Wi-Fi)
-
-1. **Mount & Power** – Install on a 35mm DIN rail and connect power.
-2. **Open Improv** – Go to [improv-wifi.com](https://improv-wifi.com).
-3. **Connect** – Use USB-C (Serial) or Bluetooth LE.
-4. **Enter Wi-Fi** – Input SSID and password, then press Connect.
-5. **Auto-Discovery** – Device appears in Home Assistant & ESPHome Dashboard.
-
-### One-Click Import (ESPHome Dashboard)
-
-Once connected to Wi-Fi, the MiniPLC is automatically discovered in the ESPHome Dashboard. Click **"Take Control"** to import the official configuration directly from GitHub.
-
-### USB Type-C Manual Flashing (Optional)
-
-1. Connect the MiniPLC to your computer using USB Type-C.
-2. Open ESPHome Dashboard and add the device.
-3. Import the configuration from [miniplc.yaml](Firmware/miniplc.yaml).
-4. Compile and flash the firmware.
-5. The device reboots automatically and runs the new firmware.
-
-## Documentation & Resources
-
-### Hardware Design Files
-
-- [Schematic (MCU Board)](Schematic/MCU_Board.pdf) - Main controller board schematic
-- [Schematic (Relay Board)](Schematic/Relay_Board.pdf) - Relay and power section schematic
-- [Schematic (USB Board)](Schematic/USB_Board.pdf) - USB-C interface and power management
-
-### Firmware & Software
-
-- [Default ESPHome Config](Firmware/miniplc.yaml) - Pre-configured YAML for Home Assistant
-- [Firmware Source Code](Firmware/) - Latest firmware builds and source
-- [ESPHome Integration Guide](README.md) - Complete setup instructions (this file)
-
-### Manuals & Datasheets
-
-- [Datasheet](Manuals/Datasheet.pdf) - Technical specifications and ratings
-- [User Manual](Manuals/User_Manual.pdf) - Installation and configuration guide
-
-All design files and documentation are available in the [HomeMaster GitHub repository](https://github.com/isystemsautomation/HOMEMASTER/tree/main/MiniPLC).
-
-## Pin Mapping
-
-### I2C Bus
+**I2C Bus:**
 
 | Signal | GPIO |
 |--------|------|
 | SDA    | GPIO32 |
 | SCL    | GPIO33 |
 
-### I2C Addresses
+**I2C Addresses:**
 
 | Device | Address |
 |--------|---------|
@@ -377,7 +379,7 @@ All design files and documentation are available in the [HomeMaster GitHub repos
 | SH1106 128x64 | 0x3C |
 | PCF8563   | 0x51 |
 
-### SPI Bus
+**SPI Bus:**
 
 | Signal | GPIO |
 |--------|------|
@@ -385,7 +387,7 @@ All design files and documentation are available in the [HomeMaster GitHub repos
 | MOSI   | GPIO13 |
 | CLK    | GPIO14 |
 
-### SPI Chip Select Pins
+**SPI Chip Select Pins:**
 
 | Device | GPIO |
 |--------|------|
@@ -393,7 +395,7 @@ All design files and documentation are available in the [HomeMaster GitHub repos
 | MAX31865 RTD2 | GPIO03 |
 | SD Card       | GPIO15 |
 
-### Digital Inputs
+**Digital Inputs:**
 
 | Input | GPIO |
 |-------|------|
@@ -402,51 +404,19 @@ All design files and documentation are available in the [HomeMaster GitHub repos
 | DI3   | GPIO34 |
 | DI4   | GPIO35 |
 
-### RS-485 Modbus
+**RS-485 Modbus:**
 
 | Signal | GPIO |
 |--------|------|
 | TX     | GPIO17 |
 | RX     | GPIO16 |
 
-### 1-Wire Temperature Sensors
+**1-Wire Temperature Sensors:**
 
 | Bus | GPIO |
 |-----|------|
 | 1-Wire 1 | GPIO05 |
 | 1-Wire 2 | GPIO04 |
-
-## Basic ESPHome Configuration
-
-See [Firmware/miniplc.yaml](Firmware/miniplc.yaml) for the complete ESPHome configuration file with all sensors, switches, and I/O properly configured.
-
-## Compliance & Certifications
-
-The HomeMaster MiniPLC is **CE marked** and designed to comply with the applicable European Union directives. The manufacturer, **ISYSTEMS AUTOMATION** (HomeMaster brand), maintains the technical documentation and a signed EU Declaration of Conformity (DoC).
-
-### EU Directives
-
-- **EMC** 2014/30/EU
-- **LVD** 2014/35/EU
-- **RED** 2014/53/EU
-- **RoHS** 2011/65/EU
-
-### Harmonised Standards
-
-| Area | Standards |
-|------|-----------|
-| **EMC** | EN 61000-6-1 (Immunity) · EN 61000-6-3 (Emissions) |
-| **Electrical Safety** | EN 62368-1 |
-| **Radio** | EN 300 328 · EN 301 489-1 · EN 301 489-17 |
-| **RoHS** | EN IEC 63000 |
-
-### Radio
-
-The product integrates a pre-certified ESP32 Wi-Fi radio module (2.4 GHz). Final product conformity with the Radio Equipment Directive is demonstrated by the maintained technical documentation and conformity assessment of the complete device.
-
-### Safety Notice
-
-**L / N:** hazardous voltage · **24 V DC:** SELV · Qualified personnel only
 
 ## Links
 
