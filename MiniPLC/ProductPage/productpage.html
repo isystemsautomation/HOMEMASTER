@@ -94,29 +94,49 @@
             <tr><th scope="col">Specification</th><th scope="col">Details</th></tr>
           </thead>
           <tbody>
-            <tr><th scope="row">Microcontroller</th><td>ESP32-WROOM-32U (Dual-core)</td></tr>
+            <tr><th scope="row">Microcontroller</th><td>ESP32-WROOM-32U (dual-core)</td></tr>
             <tr>
               <th scope="row">Power Input</th>
               <td>
-                24 V DC nominal (V+ / 0V)
-                <strong>or</strong>
-                85–265 V AC (L / N)
-                <strong>or</strong>
-                120–370 V DC (L / N + / −)
+                24 V DC nominal (V+ / 0V) <strong>OR</strong> 85–265 V AC (L / N) <strong>OR</strong> 120–370 V DC (L / N + / −)
               </td>
             </tr>
-            <tr><th scope="row">Digital Inputs</th><td>4 × isolated, 24 V compatible</td></tr>
-            <tr><th scope="row">Relay Outputs</th><td>6 × SPDT, <strong>3 A max continuous per channel</strong> (system/PCB limit)<br>Relay contact component rating: 12 A @ 250 V AC resistive (NOT usable as system output; external protection required)</td></tr>
+            <tr><th scope="row">Digital Inputs</th><td>4 × isolated, 24 V DC compatible</td></tr>
+            <tr>
+              <th scope="row">Relay Outputs</th>
+              <td>
+                6 × SPDT — <strong>3 A MAX continuous per output</strong> (board/system limit).<br>
+                Relay component contacts rated up to 12 A @ 250 V AC (resistive).
+              </td>
+            </tr>
             <tr><th scope="row">Analog Inputs</th><td>4 × 0–10 V, 16-bit (ADS1115)</td></tr>
-            <tr><th scope="row">Analog Output</th><td>1 × 0–10 V (MCP4725)</td></tr>
-            <tr><th scope="row">Temperature Inputs</th><td>2 × RTD (MAX31865), 2 × 1-Wire</td></tr>
+            <tr><th scope="row">Analog Output</th><td>1 × 0–10 V, 12-bit (MCP4725)</td></tr>
+            <tr><th scope="row">Temperature Inputs</th><td>2 × RTD (PT100/PT1000 via MAX31865), 2 × 1-Wire (DS18B20 compatible)</td></tr>
             <tr><th scope="row">Display</th><td>128 × 64 OLED (SH1106)</td></tr>
+            <tr>
+              <th scope="row">User Interface</th>
+              <td>
+                4 buttons, 3 user LEDs, 1 status LED, onboard buzzer (GPIO2, PWM)
+              </td>
+            </tr>
+            <tr><th scope="row">Wi-Fi</th><td>Wi-Fi (ESP32)</td></tr>
+            <tr><th scope="row">Ethernet</th><td>Optional Ethernet (LAN8720 PHY)</td></tr>
+            <tr>
+              <th scope="row">RS-485</th>
+              <td>
+                RS-485 Modbus RTU (MAX485, half-duplex) with TVS surge protection, PTC fuses, EMI choke, and fail-safe biasing
+              </td>
+            </tr>
+            <tr><th scope="row">Storage</th><td>MicroSD card (SPI interface, power-switched 3.3 V rail)</td></tr>
+            <tr><th scope="row">USB</th><td>USB-C (ESD protected, CC detection, data to ESP32)</td></tr>
             <tr><th scope="row">RTC</th><td>PCF8563 with battery backup</td></tr>
-            <tr><th scope="row">Communication</th><td>Wi-Fi, optional Ethernet, RS-485 Modbus RTU</td></tr>
-            <tr><th scope="row">USB</th><td>USB-C for configuration</td></tr>
           </tbody>
         </table>
       </div>
+
+      <p class="plc-caption" style="margin-top:10px;">
+        <strong>Note:</strong> Relay outputs are not internally fused. Use external overcurrent protection per local code and use an external contactor/relay for loads above 3 A or with high inrush/inductive characteristics.
+      </p>
     </div>
 
     <!-- ===================== INSTALLATION, ENVIRONMENTAL & MECHANICAL ===================== -->
@@ -141,7 +161,7 @@
             <!-- Terminal Specifications -->
             <tr><th scope="row" rowspan="6">Terminal Specifications</th>
                 <td>Terminal type</td>
-                <td>Pluggable screw terminal blocks (DB129V series), 5.08 mm pitch</td></tr>
+                <td>Pluggable screw terminal blocks, 5.08 mm pitch</td></tr>
             <tr><td>Terminal pitch</td><td>5.08 mm</td></tr>
             <tr><td>Wire cross-section</td><td>0.2–2.5 mm² (AWG 24–12)</td></tr>
             <tr><td>Conductor type</td><td>Solid or stranded copper</td></tr>
@@ -150,8 +170,8 @@
 
             <!-- Environmental Ratings -->
             <tr><th scope="row" rowspan="6">Environmental Ratings</th>
-                <td>Operating temperature</td><td>−20 °C to +60 °C</td></tr>
-            <tr><td>Storage temperature</td><td>−40 °C to +85 °C</td></tr>
+                <td>Operating temperature</td><td>0 °C to +40 °C</td></tr>
+            <tr><td>Storage temperature</td><td>-10 °C to 55 °C</td></tr>
             <tr><td>Relative humidity</td><td>0–90 % RH, non-condensing</td></tr>
             <tr><td>Ingress protection</td><td><strong>IP20</strong> (inside cabinet)</td></tr>
             <tr><td>Installation</td>
@@ -179,31 +199,8 @@
         </table>
       </div>
 
-      <p class="plc-caption" style="margin-top:10px;">
-        <strong>Dimension clarification:</strong>
-        The <strong>157.4 × 91 × 58.4 mm</strong> dimensions refer to the complete product enclosure (overall size).
-        The <strong>9 division units (≈ 90 mm)</strong> describes only the DIN rail mounting width, not the overall product size.
-      </p>
-
-      <!-- KEEP ORIGINAL TEXT BELOW (MOVED, NOT DELETED) -->
+            <!-- KEEP ORIGINAL TEXT BELOW (MOVED, NOT DELETED) -->
       <div class="plc-text-preserved">
-        <p>
-          Mechanical envelope dimensions: <strong>157.4 × 91 × 58.4 mm (6.2 × 3.58 × 2.3 in) (L × W × H)</strong>.
-          The drawing below provides the front and side views with dimension lines (mm), including DIN-clip depth.
-        </p>
-
-        <p>
-          The HomeMaster MiniPLC uses pluggable screw terminal blocks (DB129V series, 5.08 mm pitch)
-          for all field wiring connections.
-        </p>
-
-        <p>
-          Only copper conductors are permitted. Do not use aluminum or mixed-metal wiring.
-        </p>
-
-        <p>
-          The HomeMaster MiniPLC is designed for installation in indoor control cabinets in residential, commercial, and light-industrial environments.
-        </p>
 
         <p>
           Install only inside a control cabinet with ventilation; the cabinet must include a protective front plate covering all module connection terminals and a closing protective door; not for outdoor or exposed installation.
@@ -230,104 +227,6 @@
       </figure>
     </div>
 
-    <!-- ===================== COMPLIANCE & CERTIFICATIONS ===================== -->
-    <div class="plc-section">
-      <h2 id="compliance-certifications">Compliance &amp; Certifications</h2>
-
-      <p>
-        The HomeMaster MiniPLC is <strong>CE marked</strong> and <strong>complies with applicable European Union directives</strong>.
-        The manufacturer is <strong>ISYSTEMS AUTOMATION</strong> (HomeMaster brand), who maintains the technical documentation
-        and a signed EU Declaration of Conformity (DoC).
-      </p>
-
-      <h3>EU Directives</h3>
-      <p>
-        <strong>EMC</strong> 2014/30/EU ·
-        <strong>LVD</strong> 2014/35/EU ·
-        <strong>RED</strong> 2014/53/EU ·
-        <strong>RoHS</strong> 2011/65/EU
-      </p>
-
-      <h3>Harmonised Standards</h3>
-      <table class="plc-table-compact">
-        <tr><th>Area</th><th>Standards</th></tr>
-        <tr><td><strong>EMC</strong></td><td>EN 61000-6-1 (Immunity) · EN 61000-6-3 (Emissions)</td></tr>
-        <tr><td><strong>Electrical Safety</strong></td><td>EN 62368-1</td></tr>
-        <tr><td><strong>Radio</strong></td><td>EN 300 328 · EN 301 489-1 · EN 301 489-17</td></tr>
-        <tr><td><strong>RoHS</strong></td><td>EN IEC 63000</td></tr>
-      </table>
-
-      <h3>Radio note</h3>
-      <p>
-        The product uses a pre-certified ESP32 radio module. Final product conformity is supported by system-level testing
-        and the maintained technical documentation.
-      </p>
-
-      <h3>Safety notice</h3>
-      <p>
-        <strong>L / N:</strong> hazardous voltage · <strong>24 V DC:</strong> SELV · Qualified personnel only
-      </p>
-    </div>
-
-    <!-- ===================== WHAT'S IN THE BOX ===================== -->
-    <div class="plc-section">
-      <h2 id="whats-in-the-box"><strong>What's in the Box</strong></h2>
-
-      <ul class="plc-list plc-list--tight">
-        <li><strong>1×</strong> HomeMaster MiniPLC controller</li>
-        <li><strong>1×</strong> External Wi-Fi antenna</li>
-        <li><strong>1×</strong> User Manual &amp; Datasheet</li>
-      </ul>
-    </div>
-
-    <!-- ===================== WARRANTY & SUPPORT ===================== -->
-    <div class="plc-section">
-      <h2 id="warranty-support"><strong>Warranty &amp; Returns</strong></h2>
-
-      <h3>EU Consumer Legal Guarantee</h3>
-      <p>
-        For consumers (natural persons acting outside a business context) within the European Union,
-        the seller is liable for any lack of conformity that becomes apparent within
-        <strong>at least 2 years</strong> from delivery, in accordance with Directive (EU) 2019/771.
-        National laws may provide longer periods or additional rights.
-      </p>
-      <p>
-        Remedies (repair, replacement, price reduction, or refund) are provided <strong>free of charge</strong>
-        as required by law.
-      </p>
-
-      <h3>Commercial Warranty (B2B)</h3>
-      <p>
-        For professional or business customers, the product is covered by a
-        <strong>12-month limited manufacturer's warranty</strong> from the date of delivery.
-      </p>
-      <p>
-        This commercial warranty is separate from and does not limit statutory consumer rights.
-      </p>
-
-      <h3>30-Day Money-Back Guarantee (Voluntary Returns)</h3>
-      <p>
-        We offer a voluntary 30-day return period for unused products in original condition.
-        This policy is separate from and does not limit statutory rights.
-      </p>
-
-      <h3>Return Shipping</h3>
-      <ul class="plc-list plc-list--tight">
-        <li><strong>EU consumer legal claims:</strong> return shipping is handled in accordance with applicable law.</li>
-        <li><strong>Voluntary returns, B2B, or non-EU returns:</strong> return shipping is charged at cost.</li>
-      </ul>
-
-      <h3>Support &amp; Claims</h3>
-      <p>
-        If a fault is suspected, contact support with proof of purchase and a description of the issue.
-        Troubleshooting may be required before a return is authorized.
-      </p>
-
-      <p>
-        Support contact: <strong><a href="/support">Contact Support</a></strong>
-      </p>
-    </div>
-
     <!-- ===================== HOME ASSISTANT / ESPHOME ===================== -->
     <div class="plc-section">
       <h2 id="home-assistant-esphome-integration"><strong>Home Assistant &amp; ESPHome Integration</strong></h2>
@@ -342,8 +241,8 @@
 
           <h3 id="quick-setup-process"><strong>Quick Setup Process (Improv Wi-Fi)</strong></h3>
           <ol class="plc-steps">
-            <li><strong>Mount &amp; Power</strong> – Install on a 35mm DIN rail and connect 24V DC power.</li>
-            <li><strong>Open Improv</strong> – Go to <a href="https://improv-wifi.com" target="_blank" rel="noopener">improv-wifi.com</a> (Chrome/Edge).</li>
+            <li><strong>Mount &amp; Power</strong> – Install on a 35mm DIN rail and connect power.</li>
+            <li><strong>Open Improv</strong> – Go to <a href="https://improv-wifi.com" target="_blank" rel="noopener">improv-wifi.com</a>.</li>
             <li><strong>Connect</strong> – Use USB-C (Serial) or Bluetooth LE.</li>
             <li><strong>Enter Wi-Fi</strong> – Input SSID and password, then press Connect.</li>
             <li><strong>Auto-Discovery</strong> – Device appears in Home Assistant &amp; ESPHome Dashboard.</li>
@@ -874,26 +773,28 @@
         </p>
 
         <p>
-          <strong>System/PCB rating:</strong> <strong>3 A max continuous per channel</strong> (hard limit).
-          Exceeding this limit can cause PCB overheating, damage to traces, and component failure.
+          <strong>System/board rating:</strong> <strong>3 A MAX per output</strong> (system limit).
+          The MiniPLC board/system can safely carry ONLY 3 A per relay output.
+          Using more than 3 A directly can overheat and permanently damage the board.
         </p>
 
         <p>
-          <strong>Relay contact (component) rating:</strong> 12 A @ 250 VAC resistive.
-          <strong>This is the relay component specification only and is NOT a usable system output rating.</strong>
-          The PCB design limits the actual usable current to 3 A continuous per channel.
+          <strong>Relay contact (component) rating:</strong> 12 A @ 250 V AC (resistive).
+          <strong>This value belongs ONLY to the relay component itself and is NOT usable as a system output rating.</strong>
+          The MiniPLC must NOT be used above 3 A.
         </p>
 
         <p>
-          <strong>For loads above 3 A or with high inrush/inductive characteristics:</strong>
-          Use an external contactor or relay. The MiniPLC relay may be used as a control signal for the external contactor.
-          <strong>Do not attempt to switch loads above 3 A directly through the MiniPLC relay outputs.</strong>
+          <strong>Loads above 3 A (or inductive/inrush loads) MUST be switched using an external contactor or power relay.</strong>
+          The MiniPLC relay may be used as a control signal for the external contactor.
+          Do not attempt to switch loads above 3 A directly through the MiniPLC relay outputs.
         </p>
 
         <p class="plc-callout plc-callout--warning">
-          <strong>⚠️ Overcurrent protection required:</strong>
+          <strong>⚠️ External protection required:</strong>
+          Every relay output MUST be protected by an external fuse or circuit breaker (max 3 A per channel).
           Relay output circuits are <strong>not internally fused</strong>.
-          External overcurrent protection (fuse or circuit breaker) is mandatory for safe operation.
+          External overcurrent protection is mandatory for safe operation.
         </p>
 
         <h4 id="relay-specifications"><strong>Relay Specifications</strong></h4>
@@ -914,42 +815,42 @@
                 <td>Relay #1</td>
                 <td>PCF8574B:2</td>
                 <td>SPDT</td>
-                <td>12A @ 250V AC (relay contact component rating, NOT system limit)<br>System/PCB max continuous: 3A (hard limit)</td>
+                <td>12A @ 250V AC (relay component rating, NOT usable as system output)<br>3 A MAX per output (board/system limit)</td>
                 <td>General purpose relay output 1 (NO/NC/COM)</td>
               </tr>
               <tr>
                 <td>Relay #2</td>
                 <td>PCF8574B:1</td>
                 <td>SPDT</td>
-                <td>12A @ 250V AC (relay contact component rating, NOT system limit)<br>System/PCB max continuous: 3A (hard limit)</td>
+                <td>12A @ 250V AC (relay component rating, NOT usable as system output)<br>3 A MAX per output (board/system limit)</td>
                 <td>General purpose relay output 2 (NO/NC/COM)</td>
               </tr>
               <tr>
                 <td>Relay #3</td>
                 <td>PCF8574B:0</td>
                 <td>SPDT</td>
-                <td>12A @ 250V AC (relay contact component rating, NOT system limit)<br>System/PCB max continuous: 3A (hard limit)</td>
+                <td>12A @ 250V AC (relay component rating, NOT usable as system output)<br>3 A MAX per output (board/system limit)</td>
                 <td>General purpose relay output 3 (NO/NC/COM)</td>
               </tr>
               <tr>
                 <td>Relay #4</td>
                 <td>PCF8574A:6</td>
                 <td>SPDT</td>
-                <td>12A @ 250V AC (relay contact component rating, NOT system limit)<br>System/PCB max continuous: 3A (hard limit)</td>
+                <td>12A @ 250V AC (relay component rating, NOT usable as system output)<br>3 A MAX per output (board/system limit)</td>
                 <td>General purpose relay output 4 (NO/NC/COM)</td>
               </tr>
               <tr>
                 <td>Relay #5</td>
                 <td>PCF8574A:5</td>
                 <td>SPDT</td>
-                <td>12A @ 250V AC (relay contact component rating, NOT system limit)<br>System/PCB max continuous: 3A (hard limit)</td>
+                <td>12A @ 250V AC (relay component rating, NOT usable as system output)<br>3 A MAX per output (board/system limit)</td>
                 <td>General purpose relay output 5 (NO/NC/COM)</td>
               </tr>
               <tr>
                 <td>Relay #6</td>
                 <td>PCF8574A:4</td>
                 <td>SPDT</td>
-                <td>12A @ 250V AC (relay contact component rating, NOT system limit)<br>System/PCB max continuous: 3A (hard limit)</td>
+                <td>12A @ 250V AC (relay component rating, NOT usable as system output)<br>3 A MAX per output (board/system limit)</td>
                 <td>General purpose relay output 6 (NO/NC/COM)</td>
               </tr>
             </tbody>
@@ -987,9 +888,9 @@
 
               <p class="plc-caption plc-callout plc-callout--warning" style="margin-top:10px;">
                 <strong>⚠️ External protection rule:</strong>
-                Each relay output shall be protected by an external fuse or circuit breaker.
+                Every relay output MUST be protected by an external fuse or circuit breaker.
                 The rated current of the protective device shall not exceed
-                <strong>3 A per relay output</strong> (system/PCB maximum continuous limit).
+                <strong>3 A MAX per output</strong> (board/system limit).
               </p>
 
               <p class="plc-caption plc-callout plc-callout--warning" style="margin-top:6px;">
@@ -998,7 +899,7 @@
                 multiple relay outputs (as shown in the wiring example),
                 the protective device <strong>shall NOT be sized by summing relay outputs</strong>.
                 The rating of the common protective device shall not exceed
-                <strong>the maximum permissible current of a single relay output</strong>.
+                <strong>3 A MAX per output</strong> (board/system limit).
               </p>
 
               <p class="plc-caption" style="margin-top:6px;">
@@ -1451,53 +1352,42 @@
         </div>
       </div>
 
-      <h3 id="pin-mapping"><strong>Pin Mapping (Default Firmware)</strong></h3>
-      <div class="plc-tablewrap">
-        <table class="table table-bordered o_table">
-          <caption>Pin Mapping (Default Firmware)</caption>
-          <thead>
-            <tr><th scope="col">Pin Name</th><th scope="col">GPIO</th><th scope="col">Function</th></tr>
-          </thead>
-          <tbody>
-            <tr><th scope="row">DI1</th><td>GPIO36</td><td>Digital Input 1</td></tr>
-            <tr><th scope="row">DI2</th><td>GPIO39</td><td>Digital Input 2</td></tr>
-            <tr><th scope="row">DI3</th><td>GPIO34</td><td>Digital Input 3</td></tr>
-            <tr><th scope="row">DI4</th><td>GPIO35</td><td>Digital Input 4</td></tr>
-
-            <tr><th scope="row">RS485_TX</th><td>GPIO17</td><td>Modbus TX</td></tr>
-            <tr><th scope="row">RS485_RX</th><td>GPIO16</td><td>Modbus RX</td></tr>
-
-            <tr><th scope="row">1-Wire 1</th><td>GPIO05</td><td>Temperature bus 1</td></tr>
-            <tr><th scope="row">1-Wire 2</th><td>GPIO04</td><td>Temperature bus 2</td></tr>
-
-            <tr><th scope="row">I2C SDA</th><td>GPIO32</td><td>I2C Data</td></tr>
-            <tr><th scope="row">I2C SCL</th><td>GPIO33</td><td>I2C Clock</td></tr>
-
-            <tr><th scope="row">SPI CLK</th><td>GPIO14</td><td>SPI Clock</td></tr>
-            <tr><th scope="row">SPI MISO</th><td>GPIO12</td><td>SPI MISO</td></tr>
-            <tr><th scope="row">SPI MOSI</th><td>GPIO13</td><td>SPI MOSI</td></tr>
-
-            <tr><th scope="row">RTD1_CS</th><td>GPIO01</td><td>MAX31865 Chip Select 1</td></tr>
-            <tr><th scope="row">RTD2_CS</th><td>GPIO03</td><td>MAX31865 Chip Select 2</td></tr>
-
-            <tr><th scope="row">SD_CS</th><td>GPIO15</td><td>SD Card Chip Select</td></tr>
-
-            <tr><th scope="row">Button 1</th><td>PCF8574A:0</td><td>Front Panel Button 1</td></tr>
-            <tr><th scope="row">Button 2</th><td>PCF8574A:1</td><td>Front Panel Button 2</td></tr>
-            <tr><th scope="row">Button 3</th><td>PCF8574A:2</td><td>Front Panel Button 3</td></tr>
-            <tr><th scope="row">Button 4</th><td>PCF8574A:3</td><td>Front Panel Button 4</td></tr>
-
-            <tr><th scope="row">Relay 1</th><td>PCF8574B:2</td><td>Relay Output 1</td></tr>
-            <tr><th scope="row">Relay 2</th><td>PCF8574B:1</td><td>Relay Output 2</td></tr>
-            <tr><th scope="row">Relay 3</th><td>PCF8574B:0</td><td>Relay Output 3</td></tr>
-            <tr><th scope="row">Relay 4</th><td>PCF8574A:6</td><td>Relay Output 4</td></tr>
-            <tr><th scope="row">Relay 5</th><td>PCF8574A:5</td><td>Relay Output 5</td></tr>
-            <tr><th scope="row">Relay 6</th><td>PCF8574A:4</td><td>Relay Output 6</td></tr>
-          </tbody>
-        </table>
-      </div>
-
     </div><!-- /Inputs & Outputs -->
+
+    <!-- ===================== COMPLIANCE & CERTIFICATIONS ===================== -->
+    <div class="plc-section">
+      <h2 id="compliance-certifications">Compliance &amp; Certifications</h2>
+
+      <p>
+        The HomeMaster MiniPLC is <strong>CE marked</strong> and designed to comply with the applicable European Union directives.
+        The manufacturer, <strong>ISYSTEMS AUTOMATION</strong> (HomeMaster brand), maintains the technical documentation and a signed EU Declaration of Conformity (DoC).
+      </p>
+
+      <h3>EU Directives</h3>
+      <p>
+        <strong>EMC</strong> 2014/30/EU · <strong>LVD</strong> 2014/35/EU · <strong>RED</strong> 2014/53/EU · <strong>RoHS</strong> 2011/65/EU
+      </p>
+
+      <h3>Harmonised Standards</h3>
+      <table class="plc-table-compact">
+        <tr><th>Area</th><th>Standards</th></tr>
+        <tr><td><strong>EMC</strong></td><td>EN 61000-6-1 (Immunity) · EN 61000-6-3 (Emissions)</td></tr>
+        <tr><td><strong>Electrical Safety</strong></td><td>EN 62368-1</td></tr>
+        <tr><td><strong>Radio</strong></td><td>EN 300 328 · EN 301 489-1 · EN 301 489-17</td></tr>
+        <tr><td><strong>RoHS</strong></td><td>EN IEC 63000</td></tr>
+      </table>
+
+      <h3>Radio</h3>
+      <p>
+        The product integrates a pre-certified ESP32 Wi-Fi radio module (2.4 GHz).
+        Final product conformity with the Radio Equipment Directive is demonstrated by the maintained technical documentation and conformity assessment of the complete device.
+      </p>
+
+      <h3>Safety notice</h3>
+      <p>
+        <strong>L / N:</strong> hazardous voltage · <strong>24 V DC:</strong> SELV · Qualified personnel only
+      </p>
+    </div>
   </div><!-- /plc-wrap -->
 </div><!-- /hm-plc -->
 
