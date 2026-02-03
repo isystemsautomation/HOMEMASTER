@@ -682,9 +682,13 @@ The MiniPLC exposes a **half‑duplex RS‑485 bus** on the A/B/COM terminals, d
 This bus is used for **Modbus RTU** communication with external expansion modules such as DIO‑430‑R1, DIM‑420‑R1, and ENM‑223‑R1.
 
 - The `uart:` block configures the physical RS‑485 port (GPIO pins, baud rate, parity, stop bits).  
-- The `modbus:` block defines a shared Modbus bus instance that all extension modules attach to via `modbus_controller:` or `packages:`.\
-  You normally only change the **baud_rate** (default `19200`) and, if required, `parity`/`stop_bits` to match your Modbus network.\
-  The TX/RX pins are fixed by hardware and must remain **GPIO17/16**.
+- The `modbus:` block defines a shared Modbus bus instance that all extension modules attach to via `modbus_controller:` or `packages:`.
+
+You normally only change the **baud_rate** (default `19200`) and, if required, `parity`/`stop_bits` to match your Modbus network.  
+The TX/RX pins are fixed by hardware and must remain **GPIO17/16**.  
+Each extension module must have a unique Modbus address set in its own WebConfig (DIP/menu) and referenced in the YAML.
+
+**Base RS‑485 + Modbus bus configuration:**
 
 ```yaml
 uart:
@@ -700,13 +704,45 @@ modbus:
   uart_id: uart_modbus
 ```
 
+##### Example: DIO‑430‑R1 Digital I/O Module
+
+Minimal controller-side YAML on the MiniPLC to talk to one DIO‑430‑R1 using the official package:
+
+```yaml
+uart:
+  id: uart_modbus
+  tx_pin: 17
+  rx_pin: 16
+  baud_rate: 19200
+  parity: NONE
+  stop_bits: 1
+
+modbus:
+  id: modbus_bus
+  uart_id: uart_modbus
+
+packages:
+  dio1:
+    url: https://github.com/isystemsautomation/HOMEMASTER
+    ref: main
+    files:
+      - path: DIO-430-R1/Firmware/default_dio_430_r1_plc/default_dio_430_r1_plc.yaml
+        vars:
+          dio_prefix: "DIO#1"   # Shown in Home Assistant entity names
+          dio_id: dio_1         # Internal unique ID in ESPHome
+          dio_address: 4        # Modbus address set in the DIO WebConfig
+    refresh: 1d
+```
+
+For multiple DIO‑430‑R1 units, duplicate the `dio1:` block (`dio2:`, `dio3:`, …) with unique `dio_id`, `dio_prefix`, and `dio_address` values.
+
+> **Note:** Detailed instructions for wiring, Modbus addressing, and YAML options for each expansion module (DIO‑430‑R1, DIM‑420‑R1, ENM‑223‑R1, ALM‑173‑R1, etc.) are provided in their respective `README.md` files in the `HOMEMASTER` repository. Always refer to the module‑specific README for coil/register maps, entities, and recommended settings.
+
 #### 1-Wire
 
-**What it does:** Configures two independent 1-Wire buses for DS18B20 temperature sensors. Bus #1 uses GPIO5, Bus #2 uses GPIO4.
+The MiniPLC provides two independent 1-Wire buses for DS18B20 temperature sensors. The hardware pinout is fixed: **Bus #1 uses GPIO5**, **Bus #2 uses GPIO4**. These pins cannot be changed as they are defined by the PCB design.
 
-**When to enable:** Enable when you have DS18B20 sensors connected. Uncomment the sensor blocks and configure addresses.
-
-**How to modify:** Change `pin` assignments if using different GPIO pins. Add sensor blocks with specific addresses for each DS18B20 device.
+To use 1-Wire sensors, uncomment the sensor blocks in the YAML and configure the sensor addresses. You can adjust `update_interval` and customize sensor `name` values, but the GPIO pins are hardware-defined.
 
 ```yaml
 one_wire:
@@ -733,11 +769,9 @@ sensor:
 
 #### SPI
 
-**What it does:** Configures the SPI bus used by microSD card and MAX31865 RTD temperature sensors.
+The MiniPLC SPI bus is used by the microSD card and MAX31865 RTD temperature sensors. The hardware pinout is fixed: **GPIO12 (MISO)**, **GPIO13 (MOSI)**, **GPIO14 (SCLK)**. These pins cannot be changed as they are defined by the PCB design.
 
-**When to enable:** Enable when using microSD card or RTD sensors. Uncomment the spi block.
-
-**How to modify:** Change pin assignments if using different GPIO pins. Adjust SPI mode if required by your devices.
+To use SPI devices (microSD or RTD sensors), uncomment the `spi:` block. The pin assignments are hardware-defined and must match the PCB layout.
 
 ```yaml
 spi:
@@ -748,11 +782,9 @@ spi:
 
 #### Digital Inputs
 
-**What it does:** Configures the four 24V isolated digital inputs (DI #1 through DI #4) using GPIO36, GPIO39, GPIO34, and GPIO35.
+The MiniPLC provides four 24V isolated digital inputs (DI #1 through DI #4). The hardware pinout is fixed: **GPIO36 (DI #1)**, **GPIO39 (DI #2)**, **GPIO34 (DI #3)**, **GPIO35 (DI #4)**. These pins cannot be changed as they are defined by the PCB design.
 
-**When to enable:** Always enabled by default. These are core MiniPLC inputs.
-
-**How to modify:** Change `name` to customize sensor names in Home Assistant. Add `inverted: true` if input logic is inverted. Adjust `filters` for debouncing or other signal processing.
+You can reconfigure the `name` values for Home Assistant, add `inverted: true` if input logic needs inversion, and adjust `filters` for debouncing or signal processing. The GPIO pin assignments are hardware-defined.
 
 ```yaml
 binary_sensor:
@@ -780,11 +812,9 @@ binary_sensor:
 
 #### Relays
 
-**What it does:** Configures the six SPDT relay outputs controlled via PCF8574B and PCF8574A I/O expanders.
+The MiniPLC provides six SPDT relay outputs controlled via PCF8574B and PCF8574A I/O expanders. The hardware pinout is fixed: **Relay #1 (PCF8574B:2)**, **Relay #2 (PCF8574B:1)**, **Relay #3 (PCF8574B:0)**, **Relay #4 (PCF8574A:6)**, **Relay #5 (PCF8574A:5)**, **Relay #6 (PCF8574A:4)**. These PCF8574 pin assignments cannot be changed as they are defined by the PCB design.
 
-**When to enable:** Always enabled by default. These are core MiniPLC outputs.
-
-**How to modify:** Change `name` to customize switch names in Home Assistant. The `inverted: true` setting ensures correct relay operation. Modify PCF8574 pin numbers if hardware configuration differs.
+You can reconfigure the `name` values for Home Assistant. The `inverted: true` setting is required for correct relay operation and must not be changed. The PCF8574 pin numbers are hardware-defined.
 
 ```yaml
 switch:
@@ -840,11 +870,9 @@ switch:
 
 #### Buttons
 
-**What it does:** Configures the four front panel buttons connected to PCF8574A pins P0-P3 as binary sensors.
+The MiniPLC provides four front panel buttons connected to PCF8574A pins P0-P3. The hardware pinout is fixed: **Button #1 (P0)**, **Button #2 (P1)**, **Button #3 (P2)**, **Button #4 (P3)**. These PCF8574 pin assignments cannot be changed as they are defined by the PCB design.
 
-**When to enable:** Always enabled by default. Buttons are core MiniPLC user interface.
-
-**How to modify:** Change `name` to customize button names. The `inverted: true` setting accounts for button pull-up configuration. Add `on_press` or `on_release` actions to trigger automations.
+You can reconfigure the `name` values for Home Assistant. The `inverted: true` setting is required due to the button pull-up configuration and must not be changed. You can add `on_press` or `on_release` actions to trigger automations. The PCF8574 pin numbers are hardware-defined.
 
 ```yaml
 binary_sensor:
@@ -879,11 +907,9 @@ binary_sensor:
 
 #### LEDs
 
-**What it does:** Configures the three user LEDs (LED #1, #2, #3) and status LED connected to PCF8574A pins P4-P7 as switch outputs.
+The MiniPLC provides three user LEDs (LED #1, #2, #3) and one status LED connected to PCF8574A pins P4-P7. The hardware pinout is fixed: **LED #1 (P4)**, **LED #2 (P5)**, **LED #3 (P6)**, **Status LED (P7)**. These PCF8574 pin assignments cannot be changed as they are defined by the PCB design.
 
-**When to enable:** Always enabled by default. LEDs are core MiniPLC user interface.
-
-**How to modify:** Change `name` to customize LED names. The `inverted: true` setting ensures correct LED operation. Modify pin numbers if hardware configuration differs.
+You can reconfigure the `name` values for Home Assistant. The `inverted: true` setting is required for correct LED operation and must not be changed. The PCF8574 pin numbers are hardware-defined.
 
 ```yaml
 switch:
@@ -923,11 +949,9 @@ status_led:
 
 #### RTC
 
-**What it does:** Configures the PCF8563 real-time clock at I²C address 0x51 for timekeeping and synchronization with Home Assistant.
+The MiniPLC includes a PCF8563 real-time clock at I²C address **0x51**. The I²C address is fixed by the PCB design and cannot be changed.
 
-**When to enable:** Always enabled by default. RTC provides time reference for the device.
-
-**How to modify:** Change `address` if using a different I²C address. Modify synchronization settings in the `homeassistant` time platform block.
+You can modify synchronization settings in the `homeassistant` time platform block to adjust how the RTC syncs with Home Assistant time.
 
 ```yaml
 time:
@@ -942,11 +966,9 @@ time:
 
 #### OLED
 
-**What it does:** Configures the SH1106 128×64 OLED display at I²C address 0x3C for showing time and system information.
+The MiniPLC includes a SH1106 128×64 OLED display at I²C address **0x3C**. The I²C address is fixed by the PCB design and cannot be changed.
 
-**When to enable:** Always enabled by default. OLED provides local status display.
-
-**How to modify:** Change `address` if using a different I²C address. Modify `rotation` to change display orientation (0, 90, 180, 270). Adjust `contrast` percentage. Customize the `lambda` function to change displayed content.
+You can reconfigure `rotation` to change display orientation (0, 90, 180, 270), adjust `contrast` percentage, and customize the `lambda` function to change displayed content. The I²C address is hardware-defined.
 
 ```yaml
 display:
@@ -964,11 +986,9 @@ display:
 
 #### ADC
 
-**What it does:** Configures the ADS1115 16-bit analog-to-digital converter for reading four 0-10V analog inputs (AI1-AI4).
+The MiniPLC includes an ADS1115 16-bit analog-to-digital converter at I²C address **0x48** for reading four 0-10V analog inputs (AI1-AI4). The I²C address and channel-to-terminal mapping are fixed by the PCB design: **A0 → AI0**, **A1 → AI1**, **A2 → AI2**, **A3 → AI3**.
 
-**When to enable:** Always enabled by default. ADC provides analog input functionality.
-
-**How to modify:** Change `multiplexer` setting to select different input channels ('A0_GND', 'A1_GND', 'A2_GND', 'A3_GND'). Adjust `gain` for different input ranges (2/3, 1, 2, 4, 8, 16). Modify `filters` multiplier to scale voltage readings. Change `update_interval` for different sampling rates.
+You can reconfigure the `multiplexer` setting to select different input channels ('A0_GND', 'A1_GND', 'A2_GND', 'A3_GND'), adjust `gain` for different input ranges (2/3, 1, 2, 4, 8, 16), modify `filters` multiplier to scale voltage readings, and change `update_interval` for different sampling rates. The I²C address and channel assignments are hardware-defined.
 
 ```yaml
 ads1115:
@@ -1007,11 +1027,9 @@ sensor:
 
 #### DAC
 
-**What it does:** Configures the MCP4725 12-bit digital-to-analog converter for generating 0-10V analog output (AO1).
+The MiniPLC includes an MCP4725 12-bit digital-to-analog converter at I²C address **0x60** for generating 0-10V analog output (AO1). The I²C address is fixed by the PCB design and cannot be changed.
 
-**When to enable:** Always enabled by default. DAC provides analog output functionality.
-
-**How to modify:** Change I²C `address` if using a different MCP4725 address. The DAC is exposed as a fan component for speed control. Modify the fan configuration to change output behavior.
+The DAC is exposed as a fan component for speed control. You can modify the fan configuration to change output behavior, but the I²C address is hardware-defined.
 
 ```yaml
 output:
@@ -1028,11 +1046,9 @@ fan:
 
 #### Buzzer
 
-**What it does:** Configures the buzzer on GPIO2 as a PWM output for audible notifications and alarms.
+The MiniPLC includes a buzzer connected to **GPIO2** as a PWM output for audible notifications and alarms. The GPIO pin is fixed by the PCB design and cannot be changed.
 
-**When to enable:** Always enabled by default. Buzzer provides audio feedback.
-
-**How to modify:** Change `pin` if using a different GPIO. Adjust `frequency` in the switch action to change tone. Modify `level` percentage to change volume. Add multiple switch actions for different tones.
+You can reconfigure the `frequency` in the switch action to change tone, modify `level` percentage to change volume, and add multiple switch actions for different tones. The GPIO pin assignment is hardware-defined.
 
 ```yaml
 output:
@@ -1056,72 +1072,11 @@ switch:
       - output.turn_off: buzzer_output
 ```
 
-#### Modbus
-
-Modbus RTU runs over the MiniPLC RS‑485 bus (UART on GPIO17/16) and is used to communicate with external expansion modules such as DIO‑430‑R1, DIM‑420‑R1, and ENM‑223‑R1.
-The UART block (see **RS‑485 UART**) must be present, and a single `modbus:` bus is shared by all extension modules.
-Each extension module then attaches via a `modbus_controller:` or `packages:` block with its own Modbus address.
-
-**Base RS‑485 + Modbus bus (MiniPLC side):**
-
-```yaml
-uart:
-  id: uart_modbus
-  tx_pin: 17
-  rx_pin: 16
-  baud_rate: 19200
-  parity: NONE
-  stop_bits: 1
-
-modbus:
-  id: modbus_bus
-  uart_id: uart_modbus
-```
-
-You normally do **not** change the pins; only adjust `baud_rate`, `parity`, and `stop_bits` to match your Modbus network.  
-Each extension module must have a unique Modbus address set in its own WebConfig (DIP/menu) and referenced in the YAML.
-
-##### Example: DIO‑430‑R1 Digital I/O Module
-
-Minimal controller-side YAML on the MiniPLC to talk to one DIO‑430‑R1 using the official package:
-
-```yaml
-uart:
-  id: uart_modbus
-  tx_pin: 17
-  rx_pin: 16
-  baud_rate: 19200
-  parity: NONE
-  stop_bits: 1
-
-modbus:
-  id: modbus_bus
-  uart_id: uart_modbus
-
-packages:
-  dio1:
-    url: https://github.com/isystemsautomation/HOMEMASTER
-    ref: main
-    files:
-      - path: DIO-430-R1/Firmware/default_dio_430_r1_plc/default_dio_430_r1_plc.yaml
-        vars:
-          dio_prefix: "DIO#1"   # Shown in Home Assistant entity names
-          dio_id: dio_1         # Internal unique ID in ESPHome
-          dio_address: 4        # Modbus address set in the DIO WebConfig
-    refresh: 1d
-```
-
-For multiple DIO‑430‑R1 units, duplicate the `dio1:` block (`dio2:`, `dio3:`, …) with unique `dio_id`, `dio_prefix`, and `dio_address` values.
-
-> **Note:** Detailed instructions for wiring, Modbus addressing, and YAML options for each expansion module (DIO‑430‑R1, DIM‑420‑R1, ENM‑223‑R1, ALM‑173‑R1, etc.) are provided in their respective `README.md` files in the `HOMEMASTER` repository. Always refer to the module‑specific README for coil/register maps, entities, and recommended settings.
-
 #### RTD
 
-**What it does:** Configures MAX31865 RTD-to-digital converters for PT100/PT1000 temperature sensors on SPI bus.
+The MiniPLC provides two MAX31865 RTD-to-digital converters for PT100/PT1000 temperature sensors on the SPI bus. The hardware pinout is fixed: **RTD #1 uses GPIO1 (CS)**, **RTD #2 uses GPIO3 (CS)**. These CS pins cannot be changed as they are defined by the PCB design.
 
-**When to enable:** Enable when you have RTD sensors connected. Uncomment the sensor blocks and configure resistance values.
-
-**How to modify:** Change `cs_pin` to GPIO1 for RTD #1 or GPIO3 for RTD #2. Adjust `reference_resistance` to match your RTD board (400Ω for PT100, 4000Ω for PT1000). Set `rtd_nominal_resistance` to 100Ω for PT100 or 1000Ω for PT1000. Modify `update_interval` for different sampling rates.
+To use RTD sensors, uncomment the sensor blocks and configure resistance values. You can adjust `reference_resistance` to match your RTD board (400Ω for PT100, 4000Ω for PT1000), set `rtd_nominal_resistance` to 100Ω for PT100 or 1000Ω for PT1000, and modify `update_interval` for different sampling rates. The CS pin assignments are hardware-defined.
 
 ```yaml
 # Requires SPI configuration (see SPI section)
@@ -1142,11 +1097,9 @@ sensor:
 
 #### microSD
 
-**What it does:** Configures the microSD card interface on SPI bus for data logging and file storage.
+The MiniPLC provides a microSD card interface on the SPI bus. The hardware pinout is fixed: **CS pin is GPIO15**. This CS pin cannot be changed as it is defined by the PCB design.
 
-**When to enable:** Enable when you need SD card functionality. Uncomment the SD card configuration block.
-
-**How to modify:** Change `cs_pin` if using a different GPIO (default GPIO15). Adjust mount point path. Modify logging configuration to enable file logging.
+To use the SD card, uncomment the SD card configuration block. You can adjust the mount point path and modify logging configuration to enable file logging. The CS pin assignment is hardware-defined.
 
 ```yaml
 # Requires SPI configuration (see SPI section)
