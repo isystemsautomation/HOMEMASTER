@@ -629,33 +629,13 @@ The default configuration includes all essential components enabled, while optio
 | A2 | AI2 | Analog Input 3 |
 | A3 | AI3 | Analog Input 4 |
 
-### YAML Configuration Manual (Step-by-Step)
-
-#### Wi-Fi
-
-**What it does:** Configures the ESP32 Wi-Fi interface for network connectivity. Enables access point mode, fast connect option, and domain settings.
-
-**When to enable:** Always enabled by default. Required for Home Assistant integration and OTA updates.
-
-**How to modify:** Adjust `wifi_fast_connect` in substitutions to `"true"` for faster reconnection. Modify `dns_domain` to change mDNS suffix. Add `ssid` and `password` for static Wi-Fi configuration.
-
-```yaml
-wifi:
-  ap: {}                                # Access point mode (fallback)
-  fast_connect: "${wifi_fast_connect}" # Fast reconnect option
-  domain: "${dns_domain}"               # mDNS domain suffix
-  # Optional: Static Wi-Fi configuration
-  # ssid: "YourWiFiSSID"
-  # password: "YourWiFiPassword"
-```
-
 #### Ethernet
 
-**What it does:** Configures the LAN8720 Ethernet PHY for wired network connectivity using RMII interface.
+**What it does:** Configures the LAN8720 Ethernet PHY for wired network connectivity using the RMII interface.
 
-**When to enable:** Enable when you want to use Ethernet instead of or in addition to Wi-Fi. Uncomment the ethernet block.
+**When to enable:** Enable when you want to use Ethernet **instead of** Wi-Fi. The MiniPLC hardware and ESPHome configuration do **not** support using Wi-Fi and Ethernet at the same time. To use Ethernet, you must **comment out** the `wifi:` block that is normally configured via Improv (Serial/BLE) and **uncomment** the `ethernet:` block in `miniplc.yaml`.
 
-**How to modify:** The configuration uses GPIO23 for MDC, GPIO18 for MDIO, and GPIO0 for clock output. PHY address is set to 1. Modify `clk_mode` if using different clock configuration.
+**How to modify:** Wi-Fi credentials are normally set via Improv (Serial/BLE) and do not require changes to the YAML. If you need to force static Wi-Fi configuration instead of Improv, you can manually edit the `wifi:` block in `miniplc.yaml` (SSID, password, static IP, gateway, subnet, DNS). The Ethernet block uses fixed hardware pins as defined in the MiniPLC schematics: GPIO23 for MDC, GPIO18 for MDIO, GPIO0 for the 50 MHz RMII reference clock, and PHY address 1. These pins and `clk_mode` are part of the MiniPLC hardware design and **must not be changed**.
 
 ```yaml
 ethernet:
