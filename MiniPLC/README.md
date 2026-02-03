@@ -676,20 +676,28 @@ i2c:
     scan: true
 ```
 
-#### RS-485 UART
+#### RS-485 UART & Modbus
 
-**What it does:** Configures the UART interface for RS-485 Modbus RTU communication. Uses GPIO17 for TX and GPIO16 for RX.
+The MiniPLC exposes a **half‑duplex RS‑485 bus** on the A/B/COM terminals, driven by the ESP32 UART on **GPIO17 (TX)** and **GPIO16 (RX)**.  
+This bus is used for **Modbus RTU** communication with external expansion modules such as DIO‑430‑R1, DIM‑420‑R1, and ENM‑223‑R1.
 
-**When to enable:** Always enabled by default. Required for Modbus RTU communication with expansion modules.
-
-**How to modify:** Adjust `baud_rate` to match your Modbus network speed (default 19200). Change `tx_pin` and `rx_pin` if using different GPIO pins.
+- The `uart:` block configures the physical RS‑485 port (GPIO pins, baud rate, parity, stop bits).  
+- The `modbus:` block defines a shared Modbus bus instance that all extension modules attach to via `modbus_controller:` or `packages:`.\
+  You normally only change the **baud_rate** (default `19200`) and, if required, `parity`/`stop_bits` to match your Modbus network.\
+  The TX/RX pins are fixed by hardware and must remain **GPIO17/16**.
 
 ```yaml
 uart:
+  id: uart_modbus
   tx_pin: 17
   rx_pin: 16
   baud_rate: 19200
-  id: uart_modbus
+  parity: NONE
+  stop_bits: 1
+
+modbus:
+  id: modbus_bus
+  uart_id: uart_modbus
 ```
 
 #### 1-Wire
@@ -1105,73 +1113,7 @@ packages:
 
 For multiple DIO‑430‑R1 units, duplicate the `dio1:` block (`dio2:`, `dio3:`, …) with unique `dio_id`, `dio_prefix`, and `dio_address` values.
 
-##### Example: DIM‑420‑R1 Dimming Module
-
-Minimal controller-side YAML on the MiniPLC to talk to one DIM‑420‑R1 using the official package:
-
-```yaml
-uart:
-  id: uart_modbus
-  tx_pin: 17
-  rx_pin: 16
-  baud_rate: 19200
-  parity: NONE
-  stop_bits: 1
-
-modbus:
-  id: modbus_bus
-  uart_id: uart_modbus
-
-packages:
-  dim1:
-    url: https://github.com/isystemsautomation/HOMEMASTER
-    ref: main
-    files:
-      - path: DIM-420-R1/Firmware/default_dim_420_r1_plc/default_dim_420_r1_plc.yaml
-        vars:
-          dim_prefix: "DIM#1"   # Shown in Home Assistant entity names
-          dim_id: dim_1         # Internal unique ID in ESPHome
-          dim_address: 5        # Modbus address set in the DIM WebConfig
-    refresh: 1d
-```
-
-Again, for multiple DIM‑420‑R1 modules, duplicate the `dim1:` package block with unique IDs and Modbus addresses.
-
-##### Example: ENM‑223‑R1 Energy Meter
-
-Minimal controller-side YAML on the MiniPLC to talk to one ENM‑223‑R1 using the official package:
-
-```yaml
-uart:
-  id: uart_modbus
-  tx_pin: 17
-  rx_pin: 16
-  baud_rate: 19200
-  stop_bits: 1
-
-modbus:
-  id: rtu_bus
-  uart_id: uart_modbus
-
-modbus_controller:
-  - id: enm223_1
-    address: 4           # Modbus ID configured in the ENM WebConfig
-    modbus_id: rtu_bus
-    update_interval: 1s
-
-packages:
-  enm223_1:
-    url: https://github.com/isystemsautomation/HOMEMASTER
-    ref: main
-    files:
-      - path: ENM-223-R1/Firmware/default_enm_223_r1_plc.yaml
-        vars:
-          enm_id: enm223_1
-          enm_address: 4
-          enm_prefix: "ENM #1"
-```
-
-You can attach multiple ENM‑223‑R1 devices by adding more `modbus_controller:` entries and `packages:` blocks with distinct IDs (`enm223_2`, `enm223_3`, …) and unique `address` / `enm_address` values.
+> **Note:** Detailed instructions for wiring, Modbus addressing, and YAML options for each expansion module (DIO‑430‑R1, DIM‑420‑R1, ENM‑223‑R1, ALM‑173‑R1, etc.) are provided in their respective `README.md` files in the `HOMEMASTER` repository. Always refer to the module‑specific README for coil/register maps, entities, and recommended settings.
 
 #### RTD
 
