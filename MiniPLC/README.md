@@ -629,13 +629,16 @@ The default configuration includes all essential components enabled, while optio
 | A2 | AI2 | Analog Input 3 |
 | A3 | AI3 | Analog Input 4 |
 
+#### WiFi
+
+Wi‑Fi credentials by default YAML config are set via **Improv (Serial/BLE)** and do not require changes to the YAML.  
+If you need to force static Wi‑Fi configuration instead of Improv, you can manually edit the `wifi:` block in `miniplc.yaml` (SSID, password, static IP, gateway, subnet, DNS).
+
 #### Ethernet
 
-**What it does:** Configures the LAN8720 Ethernet PHY for wired network connectivity using the RMII interface.
+Enable when you want to use Ethernet **instead of** Wi‑Fi. The ESPHome stack and ESP32‑WROOM do **not** support using Wi‑Fi and Ethernet at the same time. To use Ethernet, you must **comment out** the `wifi:` block that is normally configured via Improv (Serial/BLE) and **uncomment** the `ethernet:` block in `miniplc.yaml`.
 
-**When to enable:** Enable when you want to use Ethernet **instead of** Wi-Fi. The MiniPLC hardware and ESPHome configuration do **not** support using Wi-Fi and Ethernet at the same time. To use Ethernet, you must **comment out** the `wifi:` block that is normally configured via Improv (Serial/BLE) and **uncomment** the `ethernet:` block in `miniplc.yaml`.
-
-**How to modify:** Wi-Fi credentials are normally set via Improv (Serial/BLE) and do not require changes to the YAML. If you need to force static Wi-Fi configuration instead of Improv, you can manually edit the `wifi:` block in `miniplc.yaml` (SSID, password, static IP, gateway, subnet, DNS). The Ethernet block uses fixed hardware pins as defined in the MiniPLC schematics: GPIO23 for MDC, GPIO18 for MDIO, GPIO0 for the 50 MHz RMII reference clock, and PHY address 1. These pins and `clk_mode` are part of the MiniPLC hardware design and **must not be changed**.
+The Ethernet block uses fixed hardware pins as defined in the MiniPLC schematics: GPIO23 for MDC, GPIO18 for MDIO, GPIO0 for the 50 MHz RMII reference clock, and PHY address 1. These pins and `clk_mode` are part of the MiniPLC hardware design and **must not be changed**.
 
 ```yaml
 ethernet:
@@ -648,11 +651,9 @@ ethernet:
 
 #### I²C
 
-**What it does:** Configures the I²C bus used by OLED display, RTC (PCF8563), ADC (ADS1115), DAC (MCP4725), and PCF8574 I/O expanders.
-
-**When to enable:** Always enabled by default. Required for most MiniPLC functionality.
-
-**How to modify:** Change `frequency` to adjust I²C speed (default 400kHz). Modify `timeout` for bus timeout. Set `scan: true` to scan for devices on boot.
+The I²C bus is used by the OLED display, RTC (PCF8563), ADC (ADS1115), DAC (MCP4725), and PCF8574 I/O expanders.  
+It is enabled by default and required for most MiniPLC functionality.  
+Change `frequency` to adjust I²C speed (default **400 kHz**). Modify `timeout` for bus timeout. Set `scan: true` to scan for devices on boot.
 
 ```yaml
 i2c:
