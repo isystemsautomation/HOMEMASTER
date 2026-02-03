@@ -1050,25 +1050,128 @@ switch:
 
 #### Modbus
 
-**What it does:** Configures Modbus RTU over RS-485 for communication with expansion modules and field devices.
+Modbus RTU runs over the MiniPLC RS‑485 bus (UART on GPIO17/16) and is used to communicate with external expansion modules such as DIO‑430‑R1, DIM‑420‑R1, and ENM‑223‑R1.
+The UART block (see **RS‑485 UART**) must be present, and a single `modbus:` bus is shared by all extension modules.
+Each extension module then attaches via a `modbus_controller:` or `packages:` block with its own Modbus address.
 
-**When to enable:** Enable when you need Modbus RTU functionality. Requires the UART configuration and Modbus component.
-
-**How to modify:** Adjust `uart_id` to match your UART configuration. Change `address` to set device Modbus address. Modify `update_interval` for polling rate. Add register configurations for your specific Modbus devices.
+**Base RS‑485 + Modbus bus (MiniPLC side):**
 
 ```yaml
-# Requires UART configuration (see RS-485 UART section)
+uart:
+  id: uart_modbus
+  tx_pin: 17
+  rx_pin: 16
+  baud_rate: 19200
+  parity: NONE
+  stop_bits: 1
+
 modbus:
-  - uart_id: uart_modbus
-    address: 1
-    update_interval: 1s
-    # Example: Read holding registers
-    # sensor:
-    #   - platform: modbus_controller
-    #     modbus_controller_id: modbus1
-    #     address: 0
-    #     name: "Modbus Register 0"
+  id: modbus_bus
+  uart_id: uart_modbus
 ```
+
+You normally do **not** change the pins; only adjust `baud_rate`, `parity`, and `stop_bits` to match your Modbus network.  
+Each extension module must have a unique Modbus address set in its own WebConfig (DIP/menu) and referenced in the YAML.
+
+##### Example: DIO‑430‑R1 Digital I/O Module
+
+Minimal controller-side YAML on the MiniPLC to talk to one DIO‑430‑R1 using the official package:
+
+```yaml
+uart:
+  id: uart_modbus
+  tx_pin: 17
+  rx_pin: 16
+  baud_rate: 19200
+  parity: NONE
+  stop_bits: 1
+
+modbus:
+  id: modbus_bus
+  uart_id: uart_modbus
+
+packages:
+  dio1:
+    url: https://github.com/isystemsautomation/HOMEMASTER
+    ref: main
+    files:
+      - path: DIO-430-R1/Firmware/default_dio_430_r1_plc/default_dio_430_r1_plc.yaml
+        vars:
+          dio_prefix: "DIO#1"   # Shown in Home Assistant entity names
+          dio_id: dio_1         # Internal unique ID in ESPHome
+          dio_address: 4        # Modbus address set in the DIO WebConfig
+    refresh: 1d
+```
+
+For multiple DIO‑430‑R1 units, duplicate the `dio1:` block (`dio2:`, `dio3:`, …) with unique `dio_id`, `dio_prefix`, and `dio_address` values.
+
+##### Example: DIM‑420‑R1 Dimming Module
+
+Minimal controller-side YAML on the MiniPLC to talk to one DIM‑420‑R1 using the official package:
+
+```yaml
+uart:
+  id: uart_modbus
+  tx_pin: 17
+  rx_pin: 16
+  baud_rate: 19200
+  parity: NONE
+  stop_bits: 1
+
+modbus:
+  id: modbus_bus
+  uart_id: uart_modbus
+
+packages:
+  dim1:
+    url: https://github.com/isystemsautomation/HOMEMASTER
+    ref: main
+    files:
+      - path: DIM-420-R1/Firmware/default_dim_420_r1_plc/default_dim_420_r1_plc.yaml
+        vars:
+          dim_prefix: "DIM#1"   # Shown in Home Assistant entity names
+          dim_id: dim_1         # Internal unique ID in ESPHome
+          dim_address: 5        # Modbus address set in the DIM WebConfig
+    refresh: 1d
+```
+
+Again, for multiple DIM‑420‑R1 modules, duplicate the `dim1:` package block with unique IDs and Modbus addresses.
+
+##### Example: ENM‑223‑R1 Energy Meter
+
+Minimal controller-side YAML on the MiniPLC to talk to one ENM‑223‑R1 using the official package:
+
+```yaml
+uart:
+  id: uart_modbus
+  tx_pin: 17
+  rx_pin: 16
+  baud_rate: 19200
+  stop_bits: 1
+
+modbus:
+  id: rtu_bus
+  uart_id: uart_modbus
+
+modbus_controller:
+  - id: enm223_1
+    address: 4           # Modbus ID configured in the ENM WebConfig
+    modbus_id: rtu_bus
+    update_interval: 1s
+
+packages:
+  enm223_1:
+    url: https://github.com/isystemsautomation/HOMEMASTER
+    ref: main
+    files:
+      - path: ENM-223-R1/Firmware/default_enm_223_r1_plc.yaml
+        vars:
+          enm_id: enm223_1
+          enm_address: 4
+          enm_prefix: "ENM #1"
+```
+
+You can attach multiple ENM‑223‑R1 devices by adding more `modbus_controller:` entries and `packages:` blocks with distinct IDs (`enm223_2`, `enm223_3`, …) and unique `address` / `enm_address` values.
 
 #### RTD
 
