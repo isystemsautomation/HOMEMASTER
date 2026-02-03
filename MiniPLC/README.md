@@ -655,6 +655,17 @@ The I²C bus is used by the OLED display, RTC (PCF8563), ADC (ADS1115), DAC (MCP
 It is enabled by default and required for most MiniPLC functionality.  
 Change `frequency` to adjust I²C speed (default **400 kHz**). Modify `timeout` for bus timeout. Set `scan: true` to scan for devices on boot.
 
+**MiniPLC I²C Address Map**
+
+| Device | I²C Address | YAML ID / Usage | Function |
+|--------|-------------|-----------------|----------|
+| **OLED (SH1106 128×64)** | `0x3C` | `display:` | Status screen |
+| **RTC (PCF8563)** | `0x51` | `time:` | Real-time clock |
+| **ADC (ADS1115)** | `0x48` | `ads1115:` | 4× analog inputs (AI0–AI3) |
+| **IO Expander A (PCF8574)** | `0x38` | `pcf8574_hub_a` | Buttons + LEDs |
+| **IO Expander B (PCF8574)** | `0x39` | `pcf8574_hub_b` | Relays |
+| **DAC (MCP4725)** | `0x60` | `output:` | 0–10 V analog output (AO) |
+
 ```yaml
 i2c:
   - id: bus_a
