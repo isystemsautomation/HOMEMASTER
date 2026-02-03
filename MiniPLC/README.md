@@ -551,6 +551,584 @@ This section applies to **Analog (0–10V)**, **Temperature (RTD / 1-Wire)**, an
 </tr>
 </table>
 
+## ESPHome YAML Configuration & Hardware Pinout Manual
+
+### Introduction
+
+The HomeMaster MiniPLC behavior is defined by the `miniplc.yaml` configuration file. This file contains all hardware definitions, sensor configurations, and I/O mappings for the device. The configuration is structured with commented blocks that represent optional hardware features. These optional features can be enabled by uncommenting the relevant sections when the corresponding hardware is installed or when you want to activate specific functionality.
+
+The default configuration includes all essential components enabled, while optional features such as Ethernet, RTD temperature sensors, 1-Wire sensors, microSD card, and web server are commented out. To enable any optional feature, simply remove the `#` comment markers from the beginning of the relevant configuration block and adjust parameters as needed for your specific installation.
+
+### ESP32 GPIO Pinout (MiniPLC)
+
+| GPIO | Net Name | Function | Used By |
+|------|----------|----------|---------|
+| GPIO36 | DI24V-1 | Digital Input 1 | 24V DI #1 |
+| GPIO39 | DI24V-2 | Digital Input 2 | 24V DI #2 |
+| GPIO34 | DI24V-3 | Digital Input 3 | 24V DI #3 |
+| GPIO35 | DI24V-4 | Digital Input 4 | 24V DI #4 |
+| GPIO32 | ESP_SDA | I²C SDA | OLED, RTC, ADC, DAC, PCF8574 |
+| GPIO33 | ESP_SDL | I²C SCL | OLED, RTC, ADC, DAC, PCF8574 |
+| GPIO17 | TXD_RS0 | UART TX | RS-485 |
+| GPIO16 | RXD_RS0 | UART RX | RS-485 |
+| GPIO5 | 1-WIRE1 | 1-Wire Bus #1 | DS18B20 |
+| GPIO4 | 1-WIRE2 | 1-Wire Bus #2 | DS18B20 |
+| GPIO2 | BUZZER | PWM Output | Buzzer |
+| GPIO12 | MISO | SPI MISO | SD / RTD |
+| GPIO13 | MOSI | SPI MOSI | SD / RTD |
+| GPIO14 | SCLK | SPI Clock | SD / RTD |
+| GPIO15 | SD_CS | SPI CS | microSD |
+| GPIO23 | ETH_MDC | RMII MDC | Ethernet PHY |
+| GPIO18 | ETH_MDIO | RMII MDIO | Ethernet PHY |
+| GPIO19 | ETH_TXD0 | RMII TXD0 | Ethernet PHY |
+| GPIO22 | ETH_TXD1 | RMII TXD1 | Ethernet PHY |
+| GPIO21 | ETH_TXEN | RMII TXEN | Ethernet PHY |
+| GPIO26 | ETH_RXD0 | RMII RXD0 | Ethernet PHY |
+| GPIO25 | ETH_RXD1 | RMII RXD1 | Ethernet PHY |
+| GPIO27 | ETH_CRS_DV | RMII CRS_DV | Ethernet PHY |
+| GPIO0 | ETH_CLK | RMII 50 MHz REF | Ethernet Clock |
+| GPIO1 | CS_RTD1 | SPI CS | MAX31865 #1 |
+| GPIO3 | CS_RTD2 | SPI CS | MAX31865 #2 |
+
+### PCF8574 Mapping
+
+#### PCF8574A (0x38)
+
+| Pin | Signal | Function |
+|-----|--------|----------|
+| P0 | BTN1 | Button 1 |
+| P1 | BTN2 | Button 2 |
+| P2 | BTN3 | Button 3 |
+| P3 | BTN4 | Button 4 |
+| P4 | LED1 | User LED 1 |
+| P5 | LED2 | User LED 2 |
+| P6 | LED3 | User LED 3 |
+| P7 | LED_STATUS | Status LED |
+
+#### PCF8574B (0x39)
+
+| Pin | Relay |
+|-----|-------|
+| P0 | Relay 3 |
+| P1 | Relay 2 |
+| P2 | Relay 1 |
+| P4 | Relay 6 |
+| P5 | Relay 5 |
+| P6 | Relay 4 |
+
+### ADS1115 Analog Inputs
+
+| Channel | Terminal | ESPHome Name |
+|---------|----------|--------------|
+| A0 | AI0 | Analog Input 1 |
+| A1 | AI1 | Analog Input 2 |
+| A2 | AI2 | Analog Input 3 |
+| A3 | AI3 | Analog Input 4 |
+
+### YAML Configuration Manual (Step-by-Step)
+
+#### Wi-Fi
+
+**What it does:** Configures the ESP32 Wi-Fi interface for network connectivity. Enables access point mode, fast connect option, and domain settings.
+
+**When to enable:** Always enabled by default. Required for Home Assistant integration and OTA updates.
+
+**How to modify:** Adjust `wifi_fast_connect` in substitutions to `"true"` for faster reconnection. Modify `dns_domain` to change mDNS suffix. Add `ssid` and `password` for static Wi-Fi configuration.
+
+```yaml
+wifi:
+  ap: {}                                # Access point mode (fallback)
+  fast_connect: "${wifi_fast_connect}" # Fast reconnect option
+  domain: "${dns_domain}"               # mDNS domain suffix
+  # Optional: Static Wi-Fi configuration
+  # ssid: "YourWiFiSSID"
+  # password: "YourWiFiPassword"
+```
+
+#### Ethernet
+
+**What it does:** Configures the LAN8720 Ethernet PHY for wired network connectivity using RMII interface.
+
+**When to enable:** Enable when you want to use Ethernet instead of or in addition to Wi-Fi. Uncomment the ethernet block.
+
+**How to modify:** The configuration uses GPIO23 for MDC, GPIO18 for MDIO, and GPIO0 for clock output. PHY address is set to 1. Modify `clk_mode` if using different clock configuration.
+
+```yaml
+ethernet:
+  type: LAN8720
+  mdc_pin: GPIO23
+  mdio_pin: GPIO18
+  clk_mode: GPIO0_OUT
+  phy_addr: 1
+```
+
+#### I²C
+
+**What it does:** Configures the I²C bus used by OLED display, RTC (PCF8563), ADC (ADS1115), DAC (MCP4725), and PCF8574 I/O expanders.
+
+**When to enable:** Always enabled by default. Required for most MiniPLC functionality.
+
+**How to modify:** Change `frequency` to adjust I²C speed (default 400kHz). Modify `timeout` for bus timeout. Set `scan: true` to scan for devices on boot.
+
+```yaml
+i2c:
+  - id: bus_a
+    sda: 32
+    scl: 33
+    frequency: 400kHz
+    timeout: 1s
+    scan: true
+```
+
+#### RS-485 UART
+
+**What it does:** Configures the UART interface for RS-485 Modbus RTU communication. Uses GPIO17 for TX and GPIO16 for RX.
+
+**When to enable:** Always enabled by default. Required for Modbus RTU communication with expansion modules.
+
+**How to modify:** Adjust `baud_rate` to match your Modbus network speed (default 19200). Change `tx_pin` and `rx_pin` if using different GPIO pins.
+
+```yaml
+uart:
+  tx_pin: 17
+  rx_pin: 16
+  baud_rate: 19200
+  id: uart_modbus
+```
+
+#### 1-Wire
+
+**What it does:** Configures two independent 1-Wire buses for DS18B20 temperature sensors. Bus #1 uses GPIO5, Bus #2 uses GPIO4.
+
+**When to enable:** Enable when you have DS18B20 sensors connected. Uncomment the sensor blocks and configure addresses.
+
+**How to modify:** Change `pin` assignments if using different GPIO pins. Add sensor blocks with specific addresses for each DS18B20 device.
+
+```yaml
+one_wire:
+  - platform: gpio
+    pin: GPIO05
+    id: hub_1
+  - platform: gpio
+    pin: GPIO04
+    id: hub_2
+
+# Example sensor configuration:
+sensor:
+  - platform: dallas_temp
+    one_wire_id: hub_1
+    address: 0x0000000000000000  # Replace with actual sensor address
+    name: "1-WIRE Dallas temperature BUS1"
+    update_interval: 60s
+  - platform: dallas_temp
+    one_wire_id: hub_2
+    address: 0x0000000000000000  # Replace with actual sensor address
+    name: "1-WIRE Dallas temperature BUS2"
+    update_interval: 60s
+```
+
+#### SPI
+
+**What it does:** Configures the SPI bus used by microSD card and MAX31865 RTD temperature sensors.
+
+**When to enable:** Enable when using microSD card or RTD sensors. Uncomment the spi block.
+
+**How to modify:** Change pin assignments if using different GPIO pins. Adjust SPI mode if required by your devices.
+
+```yaml
+spi:
+  miso_pin: GPIO12
+  mosi_pin: GPIO13
+  clk_pin: GPIO14
+```
+
+#### Digital Inputs
+
+**What it does:** Configures the four 24V isolated digital inputs (DI #1 through DI #4) using GPIO36, GPIO39, GPIO34, and GPIO35.
+
+**When to enable:** Always enabled by default. These are core MiniPLC inputs.
+
+**How to modify:** Change `name` to customize sensor names in Home Assistant. Add `inverted: true` if input logic is inverted. Adjust `filters` for debouncing or other signal processing.
+
+```yaml
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO36
+    name: "DI #1"
+    # Optional: Add filters for debouncing
+    # filters:
+    #   - delayed_on: 50ms
+    #   - delayed_off: 50ms
+  - platform: gpio
+    pin:
+      number: GPIO39
+    name: "DI #2"
+  - platform: gpio
+    pin:
+      number: GPIO34
+    name: "DI #3"
+  - platform: gpio
+    pin:
+      number: GPIO35
+    name: "DI #4"
+```
+
+#### Relays
+
+**What it does:** Configures the six SPDT relay outputs controlled via PCF8574B and PCF8574A I/O expanders.
+
+**When to enable:** Always enabled by default. These are core MiniPLC outputs.
+
+**How to modify:** Change `name` to customize switch names in Home Assistant. The `inverted: true` setting ensures correct relay operation. Modify PCF8574 pin numbers if hardware configuration differs.
+
+```yaml
+switch:
+  - platform: gpio
+    name: "RELAY #1"
+    pin:
+      pcf8574: pcf8574_hub_b
+      number: 2
+      mode:
+        output: true
+      inverted: true
+  - platform: gpio
+    name: "RELAY #2"
+    pin:
+      pcf8574: pcf8574_hub_b
+      number: 1
+      mode:
+        output: true
+      inverted: true
+  - platform: gpio
+    name: "RELAY #3"
+    pin:
+      pcf8574: pcf8574_hub_b
+      number: 0
+      mode:
+        output: true
+      inverted: true
+  - platform: gpio
+    name: "RELAY #4"
+    pin:
+      pcf8574: pcf8574_hub_a
+      number: 6
+      mode:
+        output: true
+      inverted: true
+  - platform: gpio
+    name: "RELAY #5"
+    pin:
+      pcf8574: pcf8574_hub_a
+      number: 5
+      mode:
+        output: true
+      inverted: true
+  - platform: gpio
+    name: "RELAY #6"
+    pin:
+      pcf8574: pcf8574_hub_a
+      number: 4
+      mode:
+        output: true
+      inverted: true
+```
+
+#### Buttons
+
+**What it does:** Configures the four front panel buttons connected to PCF8574A pins P0-P3 as binary sensors.
+
+**When to enable:** Always enabled by default. Buttons are core MiniPLC user interface.
+
+**How to modify:** Change `name` to customize button names. The `inverted: true` setting accounts for button pull-up configuration. Add `on_press` or `on_release` actions to trigger automations.
+
+```yaml
+binary_sensor:
+  - platform: gpio
+    name: "Button #1"
+    pin:
+      pcf8574: pcf8574_hub_a
+      number: 0
+      inverted: true
+    # Optional: Add actions
+    # on_press:
+    #   - switch.toggle: relay_1
+  - platform: gpio
+    name: "Button #2"
+    pin:
+      pcf8574: pcf8574_hub_a
+      number: 1
+      inverted: true
+  - platform: gpio
+    name: "Button #3"
+    pin:
+      pcf8574: pcf8574_hub_a
+      number: 2
+      inverted: true
+  - platform: gpio
+    name: "Button #4"
+    pin:
+      pcf8574: pcf8574_hub_a
+      number: 3
+      inverted: true
+```
+
+#### LEDs
+
+**What it does:** Configures the three user LEDs (LED #1, #2, #3) and status LED connected to PCF8574A pins P4-P7 as switch outputs.
+
+**When to enable:** Always enabled by default. LEDs are core MiniPLC user interface.
+
+**How to modify:** Change `name` to customize LED names. The `inverted: true` setting ensures correct LED operation. Modify pin numbers if hardware configuration differs.
+
+```yaml
+switch:
+  - platform: gpio
+    name: "LED #1"
+    pin:
+      pcf8574: pcf8574_hub_a
+      number: 4
+      mode:
+        output: true
+      inverted: true
+  - platform: gpio
+    name: "LED #2"
+    pin:
+      pcf8574: pcf8574_hub_a
+      number: 5
+      mode:
+        output: true
+      inverted: true
+  - platform: gpio
+    name: "LED #3"
+    pin:
+      pcf8574: pcf8574_hub_a
+      number: 6
+      mode:
+        output: true
+      inverted: true
+
+status_led:
+  pin:
+    pcf8574: pcf8574_hub_a
+    number: 7
+    mode:
+      output: true
+    inverted: false
+```
+
+#### RTC
+
+**What it does:** Configures the PCF8563 real-time clock at I²C address 0x51 for timekeeping and synchronization with Home Assistant.
+
+**When to enable:** Always enabled by default. RTC provides time reference for the device.
+
+**How to modify:** Change `address` if using a different I²C address. Modify synchronization settings in the `homeassistant` time platform block.
+
+```yaml
+time:
+  - platform: pcf8563
+    id: pcf8563_time
+    address: 0x51
+  - platform: homeassistant
+    on_time_sync:
+      then:
+        pcf8563.write_time:
+```
+
+#### OLED
+
+**What it does:** Configures the SH1106 128×64 OLED display at I²C address 0x3C for showing time and system information.
+
+**When to enable:** Always enabled by default. OLED provides local status display.
+
+**How to modify:** Change `address` if using a different I²C address. Modify `rotation` to change display orientation (0, 90, 180, 270). Adjust `contrast` percentage. Customize the `lambda` function to change displayed content.
+
+```yaml
+display:
+  - platform: ssd1306_i2c
+    model: "SH1106 128x64"
+    address: 0x3C
+    rotation: 180
+    contrast: 100%
+    id: oled_display
+    update_interval: 1s
+    lambda: |-
+      it.printf(64, 0, id(font1), TextAlign::TOP_CENTER, "HOMEMASTER");
+      it.strftime(0, 60, id(font2), TextAlign::BASELINE_LEFT, "%H:%M", id(pcf8563_time).now());
+```
+
+#### ADC
+
+**What it does:** Configures the ADS1115 16-bit analog-to-digital converter for reading four 0-10V analog inputs (AI1-AI4).
+
+**When to enable:** Always enabled by default. ADC provides analog input functionality.
+
+**How to modify:** Change `multiplexer` setting to select different input channels ('A0_GND', 'A1_GND', 'A2_GND', 'A3_GND'). Adjust `gain` for different input ranges (2/3, 1, 2, 4, 8, 16). Modify `filters` multiplier to scale voltage readings. Change `update_interval` for different sampling rates.
+
+```yaml
+ads1115:
+  - address: 0x48
+
+sensor:
+  - platform: ads1115
+    multiplexer: 'A0_GND'  # Analog Input 1 (AI0 terminal)
+    gain: 6.144            # ±6.144V range
+    name: "ADC AI4"
+    update_interval: 60s
+    filters:
+      - multiply: 3         # Scale to 0-10V range
+  - platform: ads1115
+    multiplexer: 'A1_GND'  # Analog Input 2 (AI1 terminal)
+    gain: 6.144
+    name: "ADC AI3"
+    update_interval: 60s
+    filters:
+      - multiply: 3
+  - platform: ads1115
+    multiplexer: 'A2_GND'  # Analog Input 3 (AI2 terminal)
+    gain: 6.144
+    name: "ADC AI2"
+    update_interval: 60s
+    filters:
+      - multiply: 3
+  - platform: ads1115
+    multiplexer: 'A3_GND'  # Analog Input 4 (AI3 terminal)
+    gain: 6.144
+    name: "ADC AI1"
+    update_interval: 60s
+    filters:
+      - multiply: 3
+```
+
+#### DAC
+
+**What it does:** Configures the MCP4725 12-bit digital-to-analog converter for generating 0-10V analog output (AO1).
+
+**When to enable:** Always enabled by default. DAC provides analog output functionality.
+
+**How to modify:** Change I²C `address` if using a different MCP4725 address. The DAC is exposed as a fan component for speed control. Modify the fan configuration to change output behavior.
+
+```yaml
+output:
+  - platform: mcp4725
+    id: dac_output
+
+fan:
+  - platform: speed
+    output: dac_output
+    name: "DAC 0-10V"
+    # Optional: Add speed levels
+    # speed_count: 100
+```
+
+#### Buzzer
+
+**What it does:** Configures the buzzer on GPIO2 as a PWM output for audible notifications and alarms.
+
+**When to enable:** Always enabled by default. Buzzer provides audio feedback.
+
+**How to modify:** Change `pin` if using a different GPIO. Adjust `frequency` in the switch action to change tone. Modify `level` percentage to change volume. Add multiple switch actions for different tones.
+
+```yaml
+output:
+  - platform: ledc
+    pin: GPIO02
+    id: buzzer_output
+
+switch:
+  - platform: template
+    name: "Switch buzzer"
+    optimistic: true
+    turn_on_action:
+      - output.turn_on: buzzer_output
+      - output.ledc.set_frequency:
+          id: buzzer_output
+          frequency: "2441Hz"
+      - output.set_level:
+          id: buzzer_output
+          level: "75%"
+    turn_off_action:
+      - output.turn_off: buzzer_output
+```
+
+#### Modbus
+
+**What it does:** Configures Modbus RTU over RS-485 for communication with expansion modules and field devices.
+
+**When to enable:** Enable when you need Modbus RTU functionality. Requires the UART configuration and Modbus component.
+
+**How to modify:** Adjust `uart_id` to match your UART configuration. Change `address` to set device Modbus address. Modify `update_interval` for polling rate. Add register configurations for your specific Modbus devices.
+
+```yaml
+# Requires UART configuration (see RS-485 UART section)
+modbus:
+  - uart_id: uart_modbus
+    address: 1
+    update_interval: 1s
+    # Example: Read holding registers
+    # sensor:
+    #   - platform: modbus_controller
+    #     modbus_controller_id: modbus1
+    #     address: 0
+    #     name: "Modbus Register 0"
+```
+
+#### RTD
+
+**What it does:** Configures MAX31865 RTD-to-digital converters for PT100/PT1000 temperature sensors on SPI bus.
+
+**When to enable:** Enable when you have RTD sensors connected. Uncomment the sensor blocks and configure resistance values.
+
+**How to modify:** Change `cs_pin` to GPIO1 for RTD #1 or GPIO3 for RTD #2. Adjust `reference_resistance` to match your RTD board (400Ω for PT100, 4000Ω for PT1000). Set `rtd_nominal_resistance` to 100Ω for PT100 or 1000Ω for PT1000. Modify `update_interval` for different sampling rates.
+
+```yaml
+# Requires SPI configuration (see SPI section)
+sensor:
+  - platform: max31865
+    name: "MAX 31865 Temperature 1"
+    cs_pin: GPIO1
+    reference_resistance: 400 Ω      # For PT100 board
+    rtd_nominal_resistance: 100 Ω    # For PT100 sensor
+    update_interval: 60s
+  - platform: max31865
+    name: "MAX 31865 Temperature 2"
+    cs_pin: GPIO3
+    reference_resistance: 4000 Ω     # For PT1000 board
+    rtd_nominal_resistance: 1000 Ω   # For PT1000 sensor
+    update_interval: 60s
+```
+
+#### microSD
+
+**What it does:** Configures the microSD card interface on SPI bus for data logging and file storage.
+
+**When to enable:** Enable when you need SD card functionality. Uncomment the SD card configuration block.
+
+**How to modify:** Change `cs_pin` if using a different GPIO (default GPIO15). Adjust mount point path. Modify logging configuration to enable file logging.
+
+```yaml
+# Requires SPI configuration (see SPI section)
+spi:
+  miso_pin: GPIO12
+  mosi_pin: GPIO13
+  clk_pin: GPIO14
+
+# SD Card configuration
+# sdcard:
+#   spi_id: spi_bus
+#   cs_pin: GPIO15
+#   mount_point: /sdcard
+#   mode: SPI
+
+# Optional: Enable file logging
+# logger:
+#   baud_rate: 115200
+#   level: DEBUG
+#   logs:
+#     file: /sdcard/log.txt
+```
+
 ## Links
 
 - **Product Page:** [home-master.eu/shop/esp32-miniplc-55](https://www.home-master.eu/shop/esp32-miniplc-55)
