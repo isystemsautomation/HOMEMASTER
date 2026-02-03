@@ -1072,22 +1072,43 @@ These are fixed by the PCB design.
 
 #### DAC
 
-The MiniPLC includes an MCP4725 12-bit digital-to-analog converter at I²C address **0x60** for generating 0-10V analog output (AO1). The I²C address is fixed by the PCB design and cannot be changed.
+The MiniPLC includes an **MCP4725 12-bit I²C DAC** at address **0x60** for generating a **single 0–10 V analog output (AO)**.
 
-The DAC is exposed as a fan component for speed control. You can modify the fan configuration to change output behavior, but the I²C address is hardware-defined.
+The DAC output is hardware conditioned by an **LM224 op-amp stage and resistor scaling network** that converts the MCP4725's 0–3.3 V output range into a field-level **0–10 V signal**.
+
+The I²C address (**0x60**) and output channel are **fixed by the PCB design** and cannot be changed in software.
+
+**Signal path (hardware):**  
+MCP4725 DAC → RC filter → LM224 amplifier → scaling network → AO terminal
+
+**ESPHome configuration:**
 
 ```yaml
 output:
   - platform: mcp4725
     id: dac_output
+```
 
+The DAC is exposed in ESPHome as a 0.0–1.0 normalized analog output.
+
+**Example (0–10 V control):**
+
+```yaml
 fan:
   - platform: speed
     output: dac_output
-    name: "DAC 0-10V"
-    # Optional: Add speed levels
-    # speed_count: 100
+    name: "DAC 0–10V"
+    speed_count: 100
 ```
+
+| Fan speed | Output voltage |
+|-----------|----------------|
+| 0% | 0 V |
+| 50% | ~5 V |
+| 100% | ~10 V |
+
+**Configurable in YAML:** `speed_count`, automations, `output.set_level`  
+**Fixed by hardware:** I²C address, output range, scaling
 
 #### Buzzer
 
