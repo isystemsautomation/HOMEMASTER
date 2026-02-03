@@ -555,9 +555,13 @@ This section applies to **Analog (0–10V)**, **Temperature (RTD / 1-Wire)**, an
 
 ### Introduction
 
-The HomeMaster MiniPLC behavior is defined by the `miniplc.yaml` configuration file. This file contains all hardware definitions, sensor configurations, and I/O mappings for the device. The configuration is structured with commented blocks that represent optional hardware features. These optional features can be enabled by uncommenting the relevant sections when the corresponding hardware is installed or when you want to activate specific functionality.
+The HomeMaster MiniPLC has **ESPHome preinstalled**, and the behavior is defined by the `miniplc.yaml` configuration file. This file contains all hardware definitions, sensor configurations, and I/O mappings for the device.
 
-The default configuration includes all essential components enabled, while optional features such as Ethernet, RTD temperature sensors, 1-Wire sensors, microSD card, and web server are commented out. To enable any optional feature, simply remove the `#` comment markers from the beginning of the relevant configuration block and adjust parameters as needed for your specific installation.
+The default configuration can be downloaded from GitHub:
+
+- [`miniplc.yaml` on GitHub](https://github.com/isystemsautomation/HOMEMASTER/blob/main/MiniPLC/Firmware/miniplc.yaml)
+
+The default configuration includes all essential components enabled, while optional features such as Ethernet, RTD temperature sensors, 1-Wire sensors, microSD card, and web server are commented out. To enable any optional feature, remove the `#` comment markers from the beginning of the relevant configuration block and adjust parameters as needed for your specific installation.
 
 ### ESP32 GPIO Pinout (MiniPLC)
 
