@@ -984,46 +984,91 @@ display:
       it.strftime(0, 60, id(font2), TextAlign::BASELINE_LEFT, "%H:%M", id(pcf8563_time).now());
 ```
 
-#### ADC
+#### ADC (Analog Inputs)
 
-The MiniPLC includes an ADS1115 16-bit analog-to-digital converter at I²C address **0x48** for reading four 0-10V analog inputs (AI1-AI4). The I²C address and channel-to-terminal mapping are fixed by the PCB design: **A0 → AI0**, **A1 → AI1**, **A2 → AI2**, **A3 → AI3**.
+The MiniPLC includes an ADS1115 16-bit I²C ADC at address **0x48** for reading four single-ended 0–10 V analog inputs.
 
-You can reconfigure the `multiplexer` setting to select different input channels ('A0_GND', 'A1_GND', 'A2_GND', 'A3_GND'), adjust `gain` for different input ranges (2/3, 1, 2, 4, 8, 16), modify `filters` multiplier to scale voltage readings, and change `update_interval` for different sampling rates. The I²C address and channel assignments are hardware-defined.
+Each channel is hardware conditioned by an LM224 op-amp buffer and resistor divider that scales the external 0–10 V signal into the ADS1115 input range.
+
+**Channel mapping (fixed by PCB)**
+
+| ADS1115 Channel | Internal Net | Terminal |
+|-----------------|--------------|----------|
+| AIN0 | AI0_ADC | AI0 |
+| AIN1 | AI1_ADC | AI1 |
+| AIN2 | AI2_ADC | AI2 |
+| AIN3 | AI3_ADC | AI3 |
+
+This mapping is hardwired on the PCB and cannot be changed in software.
+
+**Signal path (hardware)**
+
+External 0–10 V input →  
+resistor divider (47 kΩ / 47 kΩ network) →  
+LM224 buffer →  
+Schottky input clamps →  
+ADS1115 AINx
+
+(see schematic, page 2, "ADC")
+
+**ESPHome configuration**
 
 ```yaml
 ads1115:
   - address: 0x48
+    id: adc_hub
 
 sensor:
   - platform: ads1115
-    multiplexer: 'A0_GND'  # Analog Input 1 (AI0 terminal)
-    gain: 6.144            # ±6.144V range
-    name: "ADC AI4"
-    update_interval: 60s
+    ads1115_id: adc_hub
+    multiplexer: A0_GND
+    gain: 1
+    name: "AI0"
     filters:
-      - multiply: 3         # Scale to 0-10V range
+      - multiply: 0.00305
+
   - platform: ads1115
-    multiplexer: 'A1_GND'  # Analog Input 2 (AI1 terminal)
-    gain: 6.144
-    name: "ADC AI3"
-    update_interval: 60s
+    ads1115_id: adc_hub
+    multiplexer: A1_GND
+    gain: 1
+    name: "AI1"
     filters:
-      - multiply: 3
+      - multiply: 0.00305
+
   - platform: ads1115
-    multiplexer: 'A2_GND'  # Analog Input 3 (AI2 terminal)
-    gain: 6.144
-    name: "ADC AI2"
-    update_interval: 60s
+    ads1115_id: adc_hub
+    multiplexer: A2_GND
+    gain: 1
+    name: "AI2"
     filters:
-      - multiply: 3
+      - multiply: 0.00305
+
   - platform: ads1115
-    multiplexer: 'A3_GND'  # Analog Input 4 (AI3 terminal)
-    gain: 6.144
-    name: "ADC AI1"
-    update_interval: 60s
+    ads1115_id: adc_hub
+    multiplexer: A3_GND
+    gain: 1
+    name: "AI3"
     filters:
-      - multiply: 3
+      - multiply: 0.00305
 ```
+
+**What can be configured in YAML**
+
+| Parameter | Purpose |
+|-----------|---------|
+| `multiplexer` | Selects AIN0–AIN3 |
+| `gain` | Input range (must match hardware scaling) |
+| `filters.multiply` | Converts raw ADC value to volts |
+| `update_interval` | Sampling rate |
+
+**What cannot be changed**
+
+- I²C address (0x48)
+- Channel-to-terminal mapping
+- Input range (0–10 V)
+- Analog front-end scaling
+
+These are fixed by the PCB design.
 
 #### DAC
 
