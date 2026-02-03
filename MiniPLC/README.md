@@ -1234,34 +1234,6 @@ sensor:
 - Update interval and filtering
 - Alarm thresholds
 
-#### microSD
-
-The MiniPLC provides a microSD card interface on the SPI bus. The hardware pinout is fixed: **CS pin is GPIO15**. This CS pin cannot be changed as it is defined by the PCB design.
-
-To use the SD card, uncomment the SD card configuration block. You can adjust the mount point path and modify logging configuration to enable file logging. The CS pin assignment is hardware-defined.
-
-```yaml
-# Requires SPI configuration (see SPI section)
-spi:
-  miso_pin: GPIO12
-  mosi_pin: GPIO13
-  clk_pin: GPIO14
-
-# SD Card configuration
-# sdcard:
-#   spi_id: spi_bus
-#   cs_pin: GPIO15
-#   mount_point: /sdcard
-#   mode: SPI
-
-# Optional: Enable file logging
-# logger:
-#   baud_rate: 115200
-#   level: DEBUG
-#   logs:
-#     file: /sdcard/log.txt
-```
-
 ## Links
 
 - **Product Page:** [home-master.eu/shop/esp32-miniplc-55](https://www.home-master.eu/shop/esp32-miniplc-55)
