@@ -1138,28 +1138,101 @@ switch:
       - output.turn_off: buzzer_output
 ```
 
-#### RTD
+## RTD Inputs (RTD1 & RTD2)
 
-The MiniPLC provides two MAX31865 RTD-to-digital converters for PT100/PT1000 temperature sensors on the SPI bus. The hardware pinout is fixed: **RTD #1 uses GPIO1 (CS)**, **RTD #2 uses GPIO3 (CS)**. These CS pins cannot be changed as they are defined by the PCB design.
+The MiniPLC includes **two MAX31865 RTD interface ICs** for direct connection of **PT100 and PT1000 sensors** in **2-, 3-, or 4-wire** configurations.
 
-To use RTD sensors, uncomment the sensor blocks and configure resistance values. You can adjust `reference_resistance` to match your RTD board (400Ω for PT100, 4000Ω for PT1000), set `rtd_nominal_resistance` to 100Ω for PT100 or 1000Ω for PT1000, and modify `update_interval` for different sampling rates. The CS pin assignments are hardware-defined.
+Each RTD channel has an on-board **8-position DIP switch block**  
+(SW1 = RTD1, SW2 = RTD2) that configures the complete RTD bias, sense, and compensation network.
+
+**Every switch position is functional.**  
+There is no unused or "default OFF" position — the **entire 8-switch pattern** must match the selected sensor type and wiring mode.
+
+---
+
+### Factory DIP switch configuration (all 8 positions)
+
+#### RTD1 → PT100, 2-wire
+
+| Switch | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+|--------|---|---|---|---|---|---|---|---|
+| State  | **ON** | **ON** | **OFF** | **OFF** | **ON** | **ON** | **OFF** | **ON** |
+
+#### RTD2 → PT1000, 2-wire
+
+| Switch | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+|--------|---|---|---|---|---|---|---|---|
+| State  | **ON** | **OFF** | **ON** | **OFF** | **ON** | **OFF** | **ON** | **ON** |
+
+---
+
+### DIP switch logic (per channel)
+
+| Switch | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+|--------|---|---|---|---|---|---|---|---|
+| **PT100** | – | ON | OFF | – | – | ON | OFF | – |
+| **PT1000** | – | OFF | ON | – | – | OFF | ON | – |
+| **2-wire** | ON | – | – | OFF | ON | – | – | ON |
+| **3-wire** | OFF | – | – | ON | OFF | – | – | ON |
+| **4-wire** | OFF | – | – | OFF | ON | – | – | OFF |
+
+---
+
+### Terminal mapping (fixed by PCB)
+
+| Terminal | Signal |
+|----------|--------|
+| 1 | FORCE+ |
+| 2 | RTDIN+ |
+| 3 | RTDIN− |
+| 4 | FORCE− |
+
+---
+
+### ESPHome YAML configuration
 
 ```yaml
-# Requires SPI configuration (see SPI section)
+spi:
+  miso_pin: GPIO12
+  mosi_pin: GPIO13
+  clk_pin: GPIO14
+
 sensor:
   - platform: max31865
-    name: "MAX 31865 Temperature 1"
+    name: "RTD1 Temperature"
     cs_pin: GPIO1
-    reference_resistance: 400 Ω      # For PT100 board
-    rtd_nominal_resistance: 100 Ω    # For PT100 sensor
-    update_interval: 60s
+    rtd_nominal_resistance: 100
+    reference_resistance: 400
+    wires: 2
+
   - platform: max31865
-    name: "MAX 31865 Temperature 2"
+    name: "RTD2 Temperature"
     cs_pin: GPIO3
-    reference_resistance: 4000 Ω     # For PT1000 board
-    rtd_nominal_resistance: 1000 Ω   # For PT1000 sensor
-    update_interval: 60s
+    rtd_nominal_resistance: 1000
+    reference_resistance: 400
+    wires: 2
 ```
+
+**How to change sensor type or wiring**
+
+1. Power OFF the MiniPLC
+2. Set all 8 DIP positions according to the table above
+3. Update YAML (`rtd_nominal_resistance` and `wires`)
+4. Power ON and verify temperature
+
+**Fixed by hardware**
+
+- MAX31865 IC
+- SPI pins and CS pins
+- Reference resistor network
+- Terminal order
+
+**Configurable in YAML**
+
+- Sensor type (PT100 / PT1000)
+- Wiring mode (2/3/4 wire)
+- Update interval and filtering
+- Alarm thresholds
 
 #### microSD
 
