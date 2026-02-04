@@ -1176,6 +1176,8 @@ There is no unused or "default OFF" position — the **entire 8-switch pattern**
 | **3-wire** | OFF | – | – | ON | OFF | – | – | ON |
 | **4-wire** | OFF | – | – | OFF | ON | – | – | OFF |
 
+<img src="Images/jumpers.png" alt="RTD DIP Switch Configuration" width="400" />
+
 ---
 
 ### Terminal mapping (fixed by PCB)
