@@ -6,26 +6,25 @@
 
 ## Overview
 
-The **HomeMaster MiniPLC** is a professional, open-source DIN rail controller built around the ESP32 platform, designed for robust and scalable smart automation in residential, commercial, and light industrial environments. It combines extensive onboard I/O—including relays, digital and analog inputs, temperature sensors, and a user interface—with native Home Assistant integration via pre-installed ESPHome.
+The **HomeMaster MiniPLC** is a professional, open-source DIN rail controller built around the ESP32 platform, designed for robust and scalable smart automation in residential, commercial, and light industrial environments. It combines industrial digital inputs, relay outputs, RS-485 communication, real-time clock functionality, and USB programming interface.
 
-Engineered for reliability and flexibility, the MiniPLC supports multiple power input options (24V DC or wide-range AC/DC) and features RS-485 Modbus interface for expansion with a wide range of compatible I/O modules. Its local processing capability ensures continued operation even when network or cloud connectivity is lost, making it suitable for mission-critical applications.
+Engineered for reliability and flexibility, the MiniPLC supports 24 V DC industrial power input and features an integrated RS-485 Modbus interface for expansion with compatible industrial I/O modules and field devices. Its local processing capability ensures continued operation even when network or cloud connectivity is lost, making it suitable for mission-critical applications.
 
-This controller operates as a complete standalone automation system using its comprehensive onboard I/O, while also offering seamless expansion via the RS-485 bus to connect HomeMaster smart modules for energy metering, lighting control, security, and more. It provides a versatile, ready-to-integrate platform for HVAC control, energy management, security systems, lighting automation, and custom industrial applications.
+This controller operates as a complete standalone automation system using its onboard relay and digital input channels, while also offering seamless expansion via the RS-485 bus to connect additional industrial modules for automation, monitoring, and control. It provides a versatile, ready-to-integrate platform for HVAC control, energy management, security systems, lighting automation, and custom industrial applications.
 
 ## Quick Overview
 
-- Pre-installed **ESPHome** for native Home Assistant integration
+- **ESP32 industrial controller platform**
 - Industrial **DIN-rail form factor** with 24 V DC supply
-- Runs **locally and offline** without cloud or HA
+- Runs **locally and offline** without cloud dependency
 - **Expandable** via RS-485 Modbus field devices
 
 ## Typical Applications
 
-- Smart home central controller
+- Industrial automation controller
 - HVAC automation and plant control
-- Solar and energy management systems
-- Laboratory automation
-- Industrial I/O gateway
+- Energy management systems
+- Industrial I/O controller
 - Building management systems (BMS)
 - SCADA edge controller
 - RS-485 Modbus master / field gateway
