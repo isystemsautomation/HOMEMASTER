@@ -19,15 +19,15 @@
           <h2><strong>HomeMaster MicroPLC (ESP32)</strong></h2>
 
           <p>
-            The <strong>HomeMaster MicroPLC</strong> is a professional, open-source DIN rail controller built around the ESP32 platform, designed for robust and scalable smart automation in residential, commercial, and light industrial environments. It combines industrial digital inputs, relay outputs, RS-485 communication, real-time clock functionality, and USB programming interface.
+            The <strong>HomeMaster MicroPLC</strong> is a professional, open-source DIN rail controller built around the ESP32 platform, designed for robust and scalable smart automation in residential, commercial, and light industrial environments. It combines digital inputs, relay outputs, RS-485 communication, real-time clock functionality, and USB programming interface.
           </p>
 
           <p>
-            Engineered for reliability and flexibility, the MicroPLC supports 24 V DC industrial power input and features an integrated RS-485 Modbus interface for expansion with compatible industrial I/O modules and field devices. Its local processing capability ensures continued operation even when network or cloud connectivity is lost, making it suitable for mission-critical applications.
+            Engineered for reliability and flexibility, the MicroPLC supports 24 V DC power input and features an integrated RS-485 Modbus interface for expansion with compatible I/O modules and field devices. Its local processing capability ensures continued operation even when network or cloud connectivity is lost, making it suitable for mission-critical applications.
           </p>
 
           <p>
-            This controller operates as a complete standalone automation system using its onboard relay and digital input channels, while also offering seamless expansion via the RS-485 bus to connect additional industrial modules for automation, monitoring, and control. It provides a versatile, ready-to-integrate platform for HVAC control, energy management, security systems, lighting automation, and custom industrial applications.
+            This controller operates as a complete standalone automation system using its onboard relay and digital input channels, while also offering seamless expansion via the RS-485 bus to connect additional modules for automation, monitoring, and control. It provides a versatile, ready-to-integrate platform for HVAC control, energy management, security systems, lighting automation, and custom applications.
           </p>
         </div>
 
@@ -93,7 +93,9 @@
             <tr><th scope="col">Specification</th><th scope="col">Details</th></tr>
           </thead>
           <tbody>
-            <tr><th scope="row">Microcontroller</th><td>ESP32-WROOM-32U (dual-core)</td></tr>
+            <tr><th scope="row">Microcontroller</th><td>ESP32-WROOM-32U-N16 (dual-core)</td></tr>
+            <tr><th scope="row">Flash Memory</th><td>16 MB SPI flash</td></tr>
+            <tr><th scope="row">SRAM</th><td>536 KB SRAM</td></tr>
             <tr>
               <th scope="row">Power Input</th>
               <td>24 V DC nominal (24VDC)</td>
@@ -109,6 +111,7 @@
               <td>1 button, status LEDs</td>
             </tr>
             <tr><th scope="row">Wi-Fi</th><td>Integrated Wi-Fi (ESP32)</td></tr>
+            <tr><th scope="row">Wi-Fi standard</th><td>IEEE 802.11 b/g/n (2.4 GHz)</td></tr>
             <tr>
               <th scope="row">RS-485</th>
               <td>RS-485 Modbus RTU (MAX485 transceiver, half-duplex)</td>
@@ -527,6 +530,7 @@
         <p>
           <strong>System/board rating:</strong> <strong>3 A MAX per output</strong> (system limit).
           The MicroPLC board/system can safely carry ONLY 3 A per relay output.
+          This limit is determined by PCB trace width, terminal block rating, and thermal constraints, not the relay component rating.
           Using more than 3 A directly can overheat and permanently damage the board.
         </p>
 
@@ -677,6 +681,14 @@
             </div>
           </div>
         </div>
+
+        <h4 id="1-wire-limitations"><strong>Limitations / Notes</strong></h4>
+        <ul class="plc-list">
+          <li><strong>Recommended topology:</strong> daisy-chain configuration (see wiring example above)</li>
+          <li><strong>Maximum number of sensors (recommended):</strong> ≤ 10 sensors per bus</li>
+          <li><strong>Typical maximum cable length (recommended):</strong> ≤ 50 m using shielded cable with proper topology</li>
+          <li><strong>Power mode:</strong> External power using +5V/GND is recommended. Parasitic power mode is not recommended for long cable runs or multiple sensors.</li>
+        </ul>
       </div>
 
       <hr class="plc-hr">
@@ -798,6 +810,13 @@
         <p class="plc-caption">
           A common 0V reference prevents RS-485 common-mode voltage errors and communication faults.
         </p>
+
+        <h4 id="rs-485-practical-limits"><strong>Practical Limits (Recommended)</strong></h4>
+        <ul class="plc-list">
+          <li><strong>Baud rates:</strong> 9,600–115,200 bps recommended</li>
+          <li><strong>Bus length:</strong> Up to 1200 m at low baud rates (RS-485 standard), but typical cabinet runs are much shorter</li>
+          <li><strong>Devices:</strong> Up to 32 standard unit loads; more devices require repeaters or low-load transceivers</li>
+        </ul>
 
         <p class="plc-caption plc-callout plc-callout--info" style="margin-top:10px;">
           <strong>Tip:</strong> Cable recommendations, shield bonding, and routing rules are defined in the
