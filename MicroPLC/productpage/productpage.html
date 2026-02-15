@@ -703,21 +703,24 @@
             <tr><th scope="col">Component</th><th scope="col">Quantity</th><th scope="col">Control</th><th scope="col">Description</th></tr>
           </thead>
           <tbody>
-            <tr><th scope="row">Front Panel Buttons</th><td>1</td><td>PCF8574A:0-3</td><td>Tactile buttons for local control</td></tr>
-            <tr><th scope="row">User LEDs</th><td>3</td><td>PCF8574A:4-6</td><td>Configurable indicator LEDs</td></tr>
-            <tr><th scope="row">Status LED</th><td>1</td><td>PCF8574A:7</td><td>System status indicator</td></tr>
-            <tr><th scope="row">OLED Display</th><td>1</td><td>I²C (0x3C)</td><td>128×64 pixel SH1106 display</td></tr>
-            <tr><th scope="row">Buzzer</th><td>1</td><td>GPIO2</td><td>Audible alarm/notification</td></tr>
+            <tr><th scope="row">Button</th><td>1</td><td>BUTTON</td><td>User button for local control</td></tr>
+            <tr><th scope="row">LED1</th><td>1</td><td>+5V rail</td><td>+5V power indicator</td></tr>
+            <tr><th scope="row">LED2</th><td>1</td><td>RLED</td><td>Relay status LED</td></tr>
+            <tr><th scope="row">LED3</th><td>1</td><td>LED</td><td>Firmware-configurable status LED</td></tr>
+            <tr><th scope="row">LED4</th><td>1</td><td>DI</td><td>Digital input status indicator</td></tr>
+            <tr><th scope="row">LED5</th><td>1</td><td>RS-485 RX</td><td>RS-485 receive activity indicator</td></tr>
+            <tr><th scope="row">LED6</th><td>1</td><td>RS-485 TX</td><td>RS-485 transmit activity indicator</td></tr>
           </tbody>
         </table>
       </div>
 
       <p><strong>Features:</strong></p>
       <ul>
-        <li>Buttons can be mapped to toggle relays, trigger scenes, or custom actions</li>
-        <li>LEDs can show relay status, system state, or custom patterns</li>
-        <li>OLED displays time, sensor readings, and system status</li>
-        <li>Buzzer provides audible feedback for alarms or notifications</li>
+        <li>1× user button for local control (BUTTON)</li>
+        <li>LED1 indicates internal +5V power</li>
+        <li>LED3 are firmware-configurable status LED</li>
+        <li>LED4 indicates digital input state (DI)</li>
+        <li>LED5/LED6 indicate RS-485 RX/TX activity</li>
       </ul>
 
       <hr class="plc-hr">
