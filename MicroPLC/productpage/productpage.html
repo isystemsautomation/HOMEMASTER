@@ -460,10 +460,10 @@
       <h2 id="inputs-outputs"><strong>Inputs &amp; Outputs</strong></h2>
 
       <!-- -------- DI -------- -->
-      <h3 id="digital-inputs"><strong>Digital Inputs (4 channels)</strong></h3>
+      <h3 id="digital-inputs"><strong>Digital Inputs (1 channel)</strong></h3>
       <div class="plc-tablewrap">
         <table class="table table-bordered o_table">
-          <caption>Digital Inputs (4 channels)</caption>
+          <caption>Digital Inputs (1 channel)</caption>
           <thead>
             <tr>
               <th scope="col">Channel</th>
@@ -476,28 +476,7 @@
           <tbody>
             <tr>
               <th scope="row">DI #1</th>
-              <td>GPIO36</td>
-              <td>Sourcing</td>
-              <td>24&nbsp;V DC</td>
-              <td>Isolated 24&nbsp;V digital input with internal field supply, dry contact</td>
-            </tr>
-            <tr>
-              <th scope="row">DI #2</th>
-              <td>GPIO39</td>
-              <td>Sourcing</td>
-              <td>24&nbsp;V DC</td>
-              <td>Isolated 24&nbsp;V digital input with internal field supply, dry contact</td>
-            </tr>
-            <tr>
-              <th scope="row">DI #3</th>
-              <td>GPIO34</td>
-              <td>Sourcing</td>
-              <td>24&nbsp;V DC</td>
-              <td>Isolated 24&nbsp;V digital input with internal field supply, dry contact</td>
-            </tr>
-            <tr>
-              <th scope="row">DI #4</th>
-              <td>GPIO35</td>
+              <td>DI24V (ESP32 GPIO via ISO1212)</td>
               <td>Sourcing</td>
               <td>24&nbsp;V DC</td>
               <td>Isolated 24&nbsp;V digital input with internal field supply, dry contact</td>
@@ -508,7 +487,7 @@
 
       <p><strong>Features:</strong></p>
       <ul>
-        <li>4× isolated 24&nbsp;V DC digital inputs using ISO1212 digital input receivers</li>
+        <li>1× isolated 24&nbsp;V DC digital input using ISO1212 digital input receiver</li>
         <li>Internal fused 24&nbsp;V field supply for dry-contact sensing</li>
         <li>Sourcing-type inputs for passive devices (relay contacts, open-collector outputs)</li>
         <li>Separate field ground and logic ground domains</li>
@@ -522,7 +501,7 @@
         <div class="plc-col">
           <div class="plc-wirecard">
             <img
-              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/MiniPLC/Images/wiring_DI_2.png"
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/MicroPLC/Images/wiring_DI_2.png"
               alt="Wiring example: dry contact wiring to DI inputs"
               loading="lazy"
               width="600"
@@ -535,7 +514,7 @@
         <div class="plc-col">
           <div class="plc-wirecard">
             <img
-              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/MiniPLC/Images/wiring_DI_3.png"
+              src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/MicroPLC/Images/wiring_DI_3.png"
               alt="Wiring example: shared common wiring approach"
               loading="lazy"
               width="600"
@@ -554,26 +533,26 @@
         <h3 id="relay-outputs"><strong>Relay Outputs</strong></h3>
 
         <p>
-          The MiniPLC provides <strong>6 SPDT mechanical relays (HF115F/005-1ZS3)</strong> for switching AC or DC loads.
-          Each relay exposes <strong>NO / NC / COM</strong> contacts and is driven via optocoupler-isolated control circuitry.
+          The MicroPLC provides <strong>1 SPDT mechanical relay (HF115F-005-1ZS3)</strong> for switching AC or DC loads.
+          The relay exposes <strong>NO / NC / COM</strong> contacts and is driven via optocoupler-isolated control circuitry.
         </p>
 
         <p>
           <strong>System/board rating:</strong> <strong>3 A MAX per output</strong> (system limit).
-          The MiniPLC board/system can safely carry ONLY 3 A per relay output.
+          The MicroPLC board/system can safely carry ONLY 3 A per relay output.
           Using more than 3 A directly can overheat and permanently damage the board.
         </p>
 
         <p>
           <strong>Relay contact (component) rating:</strong> 12 A @ 250 V AC (resistive).
           <strong>This value belongs ONLY to the relay component itself and is NOT usable as a system output rating.</strong>
-          The MiniPLC must NOT be used above 3 A.
+          The MicroPLC must NOT be used above 3 A.
         </p>
 
         <p>
           <strong>Loads above 3 A (or inductive/inrush loads) MUST be switched using an external contactor or power relay.</strong>
-          The MiniPLC relay may be used as a control signal for the external contactor.
-          Do not attempt to switch loads above 3 A directly through the MiniPLC relay outputs.
+          The MicroPLC relay may be used as a control signal for the external contactor.
+          Do not attempt to switch loads above 3 A directly through the MicroPLC relay outputs.
         </p>
 
         <p class="plc-callout plc-callout--warning">
@@ -599,45 +578,10 @@
             <tbody>
               <tr>
                 <td>Relay #1</td>
-                <td>PCF8574B:2</td>
+                <td>RELAY (ESP32 GPIO via optocoupler driver)</td>
                 <td>SPDT</td>
                 <td>12A @ 250V AC (relay component rating, NOT usable as system output)<br>3 A MAX per output (board/system limit)</td>
                 <td>General purpose relay output 1 (NO/NC/COM)</td>
-              </tr>
-              <tr>
-                <td>Relay #2</td>
-                <td>PCF8574B:1</td>
-                <td>SPDT</td>
-                <td>12A @ 250V AC (relay component rating, NOT usable as system output)<br>3 A MAX per output (board/system limit)</td>
-                <td>General purpose relay output 2 (NO/NC/COM)</td>
-              </tr>
-              <tr>
-                <td>Relay #3</td>
-                <td>PCF8574B:0</td>
-                <td>SPDT</td>
-                <td>12A @ 250V AC (relay component rating, NOT usable as system output)<br>3 A MAX per output (board/system limit)</td>
-                <td>General purpose relay output 3 (NO/NC/COM)</td>
-              </tr>
-              <tr>
-                <td>Relay #4</td>
-                <td>PCF8574A:6</td>
-                <td>SPDT</td>
-                <td>12A @ 250V AC (relay component rating, NOT usable as system output)<br>3 A MAX per output (board/system limit)</td>
-                <td>General purpose relay output 4 (NO/NC/COM)</td>
-              </tr>
-              <tr>
-                <td>Relay #5</td>
-                <td>PCF8574A:5</td>
-                <td>SPDT</td>
-                <td>12A @ 250V AC (relay component rating, NOT usable as system output)<br>3 A MAX per output (board/system limit)</td>
-                <td>General purpose relay output 5 (NO/NC/COM)</td>
-              </tr>
-              <tr>
-                <td>Relay #6</td>
-                <td>PCF8574A:4</td>
-                <td>SPDT</td>
-                <td>12A @ 250V AC (relay component rating, NOT usable as system output)<br>3 A MAX per output (board/system limit)</td>
-                <td>General purpose relay output 6 (NO/NC/COM)</td>
               </tr>
             </tbody>
           </table>
@@ -648,7 +592,7 @@
           <div class="plc-col">
             <div class="plc-wirecard">
               <img
-                src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/MiniPLC/Images/wiring_relays1.png"
+                src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/MicroPLC/Images/wiring_relays1.png"
                 alt="Relay wiring example NO and NC contacts"
                 loading="lazy"
                 width="600"
@@ -701,140 +645,13 @@
 
       <hr class="plc-hr">
 
-      <!-- ===================== ANALOG I/O ===================== -->
-      <div class="plc-subsection">
-        <h3 id="analog-io"><strong>Analog I/O (0–10V)</strong></h3>
-
-        <p>
-          MiniPLC provides <strong>4 analog inputs</strong> and <strong>1 analog output</strong> with a standard <strong>0–10V</strong> signal range.
-          Use these channels for common sensors, transmitters, and control devices that accept/produce 0–10V signals.
-        </p>
-
-        <h4 id="analog-inputs-ai"><strong>Analog Inputs (AI) — 4 Channels</strong></h4>
-
-        <h4 id="analog-input-specifications"><strong>Analog Input Specifications</strong></h4>
-        <div class="plc-tablewrap">
-          <table class="table table-bordered o_table">
-            <caption>Analog Input Specifications</caption>
-            <thead>
-              <tr>
-                <th scope="col">Channel</th>
-                <th scope="col">Signal Range</th>
-                <th scope="col">Resolution</th>
-                <th scope="col">Description</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr><th scope="row">AI #1</th><td>0–10V</td><td>16-bit</td><td>Analog input 1</td></tr>
-              <tr><th scope="row">AI #2</th><td>0–10V</td><td>16-bit</td><td>Analog input 2</td></tr>
-              <tr><th scope="row">AI #3</th><td>0–10V</td><td>16-bit</td><td>Analog input 3</td></tr>
-              <tr><th scope="row">AI #4</th><td>0–10V</td><td>16-bit</td><td>Analog input 4</td></tr>
-            </tbody>
-          </table>
-        </div>
-
-        <h4 id="analog-input-wiring"><strong>Analog Input Wiring</strong></h4>
-        <div class="plc-grid">
-          <div class="plc-col">
-            <div class="plc-wirecard">
-              <img
-                src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/MiniPLC/Images/wiring_ai1.png"
-                alt="Analog input wiring example (0–10V sensors with common power supply)"
-                loading="lazy"
-                width="600"
-                height="400"
-                decoding="async"
-              >
-              <div class="plc-caption">
-                Example: multiple 0–10V sensors powered from a shared supply (PS) with common 0V/GND.
-              </div>
-            </div>
-          </div>
-
-          <div class="plc-col">
-            <div class="plc-wirecard">
-              <h5 id="wiring-checklist-ai"><strong>Wiring Checklist (AI)</strong></h5>
-              <ul class="plc-list" style="margin-top:8px;">
-                <li><strong>Signal:</strong> 0–10V</li>
-                <li><strong>Reference:</strong> connect sensor <strong>0V</strong> to <strong>AI GND</strong></li>
-                <li>Use a <strong>shared 0V/common ground</strong> between sensors and MiniPLC</li>
-                <li>For long runs, use a <strong>twisted pair</strong> (Signal + GND)</li>
-                <li>Keep analog wiring away from relay outputs and mains/AC wiring</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-
-        <hr class="plc-hr">
-
-        <h4 id="analog-output-ao"><strong>Analog Output (AO) — 1 Channel</strong></h4>
-
-        <h4 id="analog-output-specifications"><strong>Analog Output Specifications</strong></h4>
-        <div class="plc-tablewrap">
-          <table class="table table-bordered o_table">
-            <caption>Analog Output Specifications</caption>
-            <thead>
-              <tr>
-                <th scope="col">Channel</th>
-                <th scope="col">Signal Range</th>
-                <th scope="col">Resolution</th>
-                <th scope="col">Description</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <th scope="row">AO #1</th>
-                <td>0–10V</td>
-                <td>12-bit (4096 steps)</td>
-                <td>Analog output for control signals</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <h4 id="analog-output-wiring"><strong>Analog Output Wiring</strong></h4>
-        <div class="plc-grid">
-          <div class="plc-col">
-            <div class="plc-wirecard">
-              <img
-                src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/MiniPLC/Images/wiring_ao1.png"
-                alt="Analog output wiring example (0–10V)"
-                loading="lazy"
-                width="600"
-                height="400"
-                decoding="async"
-              >
-              <div class="plc-caption">
-                Example: 0–10V analog output connection to an external device.
-              </div>
-            </div>
-          </div>
-
-          <div class="plc-col">
-            <div class="plc-wirecard">
-              <h5 id="wiring-checklist-ao"><strong>Wiring Checklist (AO)</strong></h5>
-              <ul class="plc-list" style="margin-top:8px;">
-                <li><strong>Signal:</strong> 0–10V</li>
-                <li><strong>Reference ground:</strong> <strong>AO GND</strong></li>
-                <li>Use a <strong>twisted pair</strong> (AO + AO GND) for long runs</li>
-                <li>Keep AO wiring away from power switching and motor/VFD cables</li>
-                <li class="plc-caption" style="list-style: none; margin-left:-18px; margin-top:10px;">
-                  Typical use cases: analog setpoints (VFD speed), valve/actuator positioning, controller reference signals.
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <hr class="plc-hr">
 
       <!-- ===================== TEMPERATURE INPUTS ===================== -->
       <div class="plc-subsection">
         <h3 id="temperature-inputs"><strong>Temperature Inputs</strong></h3>
 
         <p>
-          MiniPLC supports <strong>RTD sensors</strong> (PT100/PT1000) and <strong>1-Wire temperature sensors</strong> (DS18B20 or compatible)
+          MicroPLC supports <strong>1-Wire temperature sensors</strong> (DS18B20 or compatible)
           for reliable cabinet and process temperature monitoring.
         </p>
 
@@ -852,10 +669,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr><th scope="row">RTD</th><td>RTD #1</td><td>PT100/PT1000 (SPI front-end)</td><td>-200°C to +850°C</td><td>±0.5°C typical</td></tr>
-              <tr><th scope="row">RTD</th><td>RTD #2</td><td>PT100/PT1000 (SPI front-end)</td><td>-200°C to +850°C</td><td>±0.5°C typical</td></tr>
-              <tr><th scope="row">1-Wire</th><td>BUS #1</td><td>DS18B20 (or compatible)</td><td>-55°C to +125°C</td><td>±0.5°C</td></tr>
-              <tr><th scope="row">1-Wire</th><td>BUS #2</td><td>DS18B20 (or compatible)</td><td>-55°C to +125°C</td><td>±0.5°C</td></tr>
+              <tr><th scope="row">1-Wire</th><td>BUS #1</td><td>1-WIRE</td><td>-55°C to +125°C</td><td>±0.5°C</td></tr>
             </tbody>
           </table>
         </div>
@@ -865,7 +679,7 @@
           <div class="plc-col">
             <div class="plc-wirecard">
               <img
-                src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/MiniPLC/Images/wiring_1wire2.png"
+                src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/MicroPLC/Images/wiring_1wire2.png"
                 alt="1-Wire wiring example"
                 loading="lazy"
                 width="600"
@@ -873,50 +687,6 @@
                 decoding="async"
               >
               <div class="plc-caption">1-Wire wiring example.</div>
-            </div>
-          </div>
-
-          <div class="plc-col">
-            <div class="plc-wirecard">
-              <img
-                src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/MiniPLC/Images/wiring_rtd4.png"
-                alt="RTD wiring example: 4-wire circuit"
-                loading="lazy"
-                width="600"
-                height="400"
-                decoding="async"
-              >
-              <div class="plc-caption">RTD wiring example (4-wire).</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="plc-grid" style="margin-top:10px;">
-          <div class="plc-col">
-            <div class="plc-wirecard">
-              <img
-                src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/MiniPLC/Images/wiring_rtd1.png"
-                alt="RTD wiring example: 2-wire circuit"
-                loading="lazy"
-                width="600"
-                height="400"
-                decoding="async"
-              >
-              <div class="plc-caption">RTD wiring example (2-wire).</div>
-            </div>
-          </div>
-
-          <div class="plc-col">
-            <div class="plc-wirecard">
-              <img
-                src="https://cdn.jsdelivr.net/gh/isystemsautomation/HOMEMASTER/MiniPLC/Images/wiring_rtd2.png"
-                alt="RTD wiring example: 3-wire circuit"
-                loading="lazy"
-                width="600"
-                height="400"
-                decoding="async"
-              >
-              <div class="plc-caption">RTD wiring example (3-wire).</div>
             </div>
           </div>
         </div>
@@ -933,7 +703,7 @@
             <tr><th scope="col">Component</th><th scope="col">Quantity</th><th scope="col">Control</th><th scope="col">Description</th></tr>
           </thead>
           <tbody>
-            <tr><th scope="row">Front Panel Buttons</th><td>4</td><td>PCF8574A:0-3</td><td>Tactile buttons for local control</td></tr>
+            <tr><th scope="row">Front Panel Buttons</th><td>1</td><td>PCF8574A:0-3</td><td>Tactile buttons for local control</td></tr>
             <tr><th scope="row">User LEDs</th><td>3</td><td>PCF8574A:4-6</td><td>Configurable indicator LEDs</td></tr>
             <tr><th scope="row">Status LED</th><td>1</td><td>PCF8574A:7</td><td>System status indicator</td></tr>
             <tr><th scope="row">OLED Display</th><td>1</td><td>I²C (0x3C)</td><td>128×64 pixel SH1106 display</td></tr>
