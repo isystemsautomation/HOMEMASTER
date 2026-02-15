@@ -416,7 +416,7 @@
         <li><strong>Typical operating current:</strong> <strong>150&nbsp;mA @ 24&nbsp;V</strong> (≈ <strong>3.6&nbsp;W</strong>) — measured typical device power consumption</li>
         <li><strong>Internal rail:</strong> 24&nbsp;V input is conditioned into <strong>+24VDC_FUSED</strong></li>
         <li><strong>Input protection:</strong> surge suppression (TVS), EMI filtering, reverse-polarity / power-path protection</li>
-        <li><strong>Internal service fuse:</strong> <strong>1.0&nbsp;A</strong> (soldered) — service replacement required if blown</li>
+        <li><strong>Internal protection:</strong> <strong>1.0&nbsp;A</strong> soldered service fuse and resettable PTC protection devices</li>
         <li><strong>Upstream protection (recommended):</strong> external <strong>0.5&nbsp;A</strong> slow-blow fuse or <strong>0.5&nbsp;A</strong> breaker on <strong>V+</strong>
           so the external device clears before the internal service fuse. Recommended to protect wiring and simplify troubleshooting.</li>
       </ul>
@@ -521,7 +521,7 @@
 
         <p>
           The MicroPLC provides <strong>1 SPDT mechanical relay (HF115F-005-1ZS3)</strong> for switching AC or DC loads.
-          The relay exposes <strong>NO / NC / COM</strong> contacts and is driven via optocoupler-isolated control circuitry.
+          The relay provides SPDT switching contacts (<strong>NO / NC / COM</strong>) available on the relay output terminals and is driven via optocoupler-isolated control circuitry.
         </p>
 
         <p>
@@ -692,7 +692,7 @@
           <tbody>
             <tr><th scope="row">Button</th><td>1</td><td>BUTTON</td><td>User button for local control</td></tr>
             <tr><th scope="row">LED1</th><td>1</td><td>+5V rail</td><td>+5V power indicator</td></tr>
-            <tr><th scope="row">LED2</th><td>1</td><td>RLED</td><td>Relay status LED</td></tr>
+            <tr><th scope="row">LED2</th><td>1</td><td>RLED</td><td>Relay status LED (hardware-driven)</td></tr>
             <tr><th scope="row">LED3</th><td>1</td><td>LED</td><td>Firmware-configurable status LED</td></tr>
             <tr><th scope="row">LED4</th><td>1</td><td>DI</td><td>Digital input status indicator</td></tr>
             <tr><th scope="row">LED5</th><td>1</td><td>RS-485 RX</td><td>RS-485 receive activity indicator</td></tr>
@@ -705,7 +705,7 @@
       <ul>
         <li>1× user button for local control (BUTTON)</li>
         <li>LED1 indicates internal +5V power</li>
-        <li>LED3 are firmware-configurable status LED</li>
+        <li>LED3 is a firmware-configurable status LED</li>
         <li>LED4 indicates digital input state (DI)</li>
         <li>LED5/LED6 indicate RS-485 RX/TX activity</li>
       </ul>
