@@ -732,7 +732,6 @@
         <ul class="plc-list">
           <li><strong>Modbus RTU (RS-485)</strong> – UART-based communication for expansion modules and field devices</li>
           <li><strong>Wi-Fi</strong> – ESP32 integrated (Improv onboarding supported)</li>
-          <li><strong>Ethernet</strong> – Optional via LAN8720 PHY</li>
         </ul>
 
         <h4 id="rs-485-communication-modbus-rtu"><strong>RS-485 Communication (Modbus RTU)</strong></h4>
@@ -835,20 +834,6 @@
           <li>Route low-level signal cables (Analog/RTD/1-Wire/RS-485) separately from mains, relay outputs, contactors, VFD motor cables, and power wiring.</li>
           <li>If crossing power cables is unavoidable, cross at <strong>90°</strong>.</li>
           <li>Keep cable runs as short as practical and avoid parallel runs with high-current conductors.</li>
-        </ul>
-
-        <h4 id="analog-0-10v-cable"><strong>Analog (0–10V) Cable</strong></h4>
-        <ul class="plc-list">
-          <li><strong>Construction:</strong> twisted pair (Signal + GND) per channel</li>
-          <li><strong>Shielding:</strong> overall shield (standard) or individually shielded pairs (high-EMI)</li>
-          <li><strong>Examples:</strong> <strong>J-Y(ST)Y</strong> (overall shield) or <strong>LI2YCY PIMF</strong> (shielded twisted pairs; one pair per channel)</li>
-        </ul>
-
-        <h4><strong>Temperature Cable</strong></h4>
-        <h5><strong>RTD (PT100/PT1000)</strong></h5>
-        <ul class="plc-list">
-          <li><strong>Recommended:</strong> shielded multi-core for 2/3-wire; shielded pairs for best accuracy (4-wire)</li>
-          <li><strong>Examples:</strong> <strong>J-Y(ST)Y</strong> (overall shield) or <strong>LI2YCY PIMF</strong> (pairs; e.g. 2×2×0.50 for 4-wire)</li>
         </ul>
 
         <h5><strong>1-Wire (DS18B20)</strong></h5>
