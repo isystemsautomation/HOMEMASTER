@@ -47,14 +47,65 @@ output:
     register_type: coil
     id: dio_di1_enable
     address: 300
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    register_type: coil
+    id: dio_di2_enable
+    address: 301
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    register_type: coil
+    id: dio_di3_enable
+    address: 302
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    register_type: coil
+    id: dio_di4_enable
+    address: 303
   # DI DISABLE pulses (320..323)
   - platform: modbus_controller
     modbus_controller_id: ${dio_id}
     register_type: coil
     id: dio_di1_disable
     address: 320
-
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    register_type: coil
+    id: dio_di2_disable
+    address: 321
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    register_type: coil
+    id: dio_di3_disable
+    address: 322
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    register_type: coil
+    id: dio_di4_disable
+    address: 323
 
 # ─────────────────────────────────────────────────────────────────────────────
 # RELAY SWITCHES: Maintained coils (like WLD module)
 # ─────────────────────────────────────────────────────────────────────────────
+switch:
+  # Relay coils are maintained (not pulses). ESPHome can set ON/OFF directly.
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} Relay 1"
+    id: ${dio_id}_relay1
+    address: 200
+    register_type: coil
+
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} Relay 2"
+    id: ${dio_id}_relay2
+    address: 201
+    register_type: coil
+
+  - platform: modbus_controller
+    modbus_controller_id: ${dio_id}
+    name: "${dio_prefix} Relay 3"
+    id: ${dio_id}_relay3
+    address: 202
+    register_type: coil
