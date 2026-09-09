@@ -42,7 +42,7 @@ The **STR-3221-R1** is a **32-channel** low-side MOSFET LED controller for stair
 
 **One-line purpose:** a high-density stair/architectural lighting node with presence-driven sequences and local-first operation.
 
-> **Status:** STR-3221-R1 is in development and not yet released for production; firmware, Modbus map and ESPHome integration are being finalized.
+> **Status:** in production and shipping. Firmware **v0.1.0**, Modbus map and ESPHome package are released — see [§6](#6-modbus-rtu-communication) and [§7](#7-esphome-integration-guide).
 
 ## Key advantages
 
@@ -411,15 +411,28 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 
 ## 5.2 Power
 
-- Describe 24 VDC input
-- List expected current
-- Explain isolated sensor power if present
+The module needs **two separate supplies**, and mixing them up is the most common wiring mistake on this product.
+
+| Supply | Terminals | Purpose | Sizing |
+|---|---|---|---|
+| **Module logic** | **V+** / **0V** (1, 2) | MCU, inputs, RS-485, sensor rails | 20–30 V DC SELV, 60–100 mA quiescent — size for electronics only |
+| **LED load** | **LED PS +** / **−** (3, 4) | Feeds the nine output group rails | 12–24 V DC, sized for the total LED load; input path ≤20 A |
+
+The **+5 V SENS.A / SENS.B** rails for presence sensors are derived internally from the module supply and fused at **150 mA** each (**F9** / **F10**, 1206L150THWR). They are for sensor power only — never for LED segments.
+
+Both inputs are reverse-polarity and surge protected. Do not bridge **GND_FUSED** (field) and logic **GND** externally.
 
 ## 5.3 Communication
 
-- RS-485 pinout
-- Address & baudrate setup
-- Use of COM/GND reference
+| Item | Value |
+|---|---|
+| Terminal order on this module | **COM (5) – B (6) – A (7)** — read the silkscreen, the order differs across the HomeMaster range |
+| Default address | `21` |
+| Default baud | `115200`, 8N1 |
+| Supported baud rates | 9600 – 115200 |
+| Termination | 120 Ω at the two physical ends of the bus only |
+
+Address and baud rate are set in **WebConfig** over USB-C, or over Modbus at **HR 480** (address) and **HR 481** (baud). Run **COM** to every node — the port is not galvanically isolated, and COM is what bounds the common-mode voltage the transceiver sees. Full bus rules: [RS-485 / Modbus RTU](#rs-485--modbus-rtu).
 
 ## 5.4 Installation & Wiring
 
@@ -467,41 +480,184 @@ The **USB-C** port is for **WebConfig** setup and firmware update only; it is **
 
 ## 5.5 Software & UI Configuration
 
-Cover:
-- WebConfig setup (address, baud)
-- Input enable/invert/group
-- Relay logic mode (group/manual)
-- LED and Button mapping
+Configuration is done in the browser over USB-C — nothing to install. Open the
+[WebConfig tool](https://config.home-master.eu/STR-3221-R1/Firmware/v0.1.0/ConfigToolPage.html)
+in a Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+),
+connect the module and grant serial access.
+
+| Setting | What it does |
+|---|---|
+| **Modbus address** | Slave address on the RS-485 bus. Default `21`. Every module on the bus needs a unique one |
+| **Baud rate** | 9600–115200, 8N1. Default `115200`. Must match the controller |
+| **Input enable / invert** | Per channel for **DI**, **IN1**, **IN2** — enable unused channels off, invert for normally-closed sensors |
+| **Button mapping** | SW1–SW4 to manual test, override ON/OFF or user logic |
+| **LED mapping** | Status LEDs to power, bus activity or a logic state |
+| **Live I/O view** | Current input states and output values, for commissioning without a controller |
+
+Settings are written to on-device flash (**LittleFS**) and survive a power cut. Local
+overrides from the buttons take precedence over Modbus commands until released.
 
 ## 5.6 Getting Started
 
-Summarize steps in 3 phases:
-1. Wiring
-2. Configuration
-3. Integration
+**1. Wiring.** Mount on DIN rail. Connect the 24 V DC module supply to **V+ / 0V** and the
+LED PSU to **LED PS**. Wire LED segments to the output groups, sensors to **IN1 / IN2** with
+power from **SENS.A / SENS.B**, and **A / B / COM** to the bus. Fit 120 Ω at both ends of the
+bus only.
+
+**2. Configuration.** Connect USB-C, open WebConfig, set a unique Modbus address and the baud
+rate used on your bus. Enable the inputs you wired, invert where the sensor is
+normally-closed, and check live I/O to confirm the wiring before the controller is involved.
+
+**3. Integration.** Add the ESPHome package to your MiniPLC / MicroPLC configuration
+([§7](#7-esphome-integration-guide)) with `str_address` matching what you set in WebConfig.
+Entities appear in Home Assistant after the controller reboots. For a third-party Modbus
+master, use the register map in [§6](#6-modbus-rtu-communication) instead.
 
 ---
 
-
-
 # 6. Modbus RTU Communication
 
-Include:
-- Address range and map
-- Input/holding register layout
-- Coil/discrete inputs
-- Register use examples
-- Polling recommendations
+The module is a **Modbus RTU slave**. Default address `21`, default baud `115200` (8N1),
+supported range 9600–115200. Register numbers below are the addresses used on the wire, as
+consumed by the shipped ESPHome package.
+
+## 6.1 Register map
+
+### Discrete inputs (read)
+
+| Address | Name | Meaning |
+|---:|---|---|
+| 1 | IO1 | Module-wetted 24 V discrete input (**DI**, terminals 8–9) |
+| 2 | IO2 | Presence input **IN1** (terminal 11) |
+| 3 | IO3 | Presence input **IN2** (terminal 14) |
+| 20 | BUTTON1 | Front-panel SW1 |
+| 21 | BUTTON2 | Front-panel SW2 |
+| 22 | BUTTON3 | Front-panel SW3 |
+| 23 | BUTTON4 | Front-panel SW4 |
+| 90 | LED1 | Status LED 1 state |
+| 91 | LED2 | Status LED 2 state |
+
+### Holding registers (read / write)
+
+| Address | Name | Range | Meaning |
+|---:|---|---|---|
+| 400–431 | O1…O32 | 0–255 | Per-channel brightness. `400` = O1, `431` = O32. `0` = off, `255` = full |
+| 480 | Modbus address | 1–247 | Slave address; also settable in WebConfig |
+| 481 | Baud rate | — | Bus baud rate; also settable in WebConfig |
+
+### Input registers (read)
+
+| Address | Meaning |
+|---:|---|
+| 200–204 | Firmware identity |
+
+## 6.2 Usage notes
+
+- **Brightness is a byte, not a bit.** Writing `255` to HR 400 turns O1 fully on; writing an
+  intermediate value dims it via the TLC59208F PWM driver. There are no separate on/off coils
+  for the outputs.
+- **Outputs start OFF.** On power-up all 32 channels are off until the first Modbus write or
+  an internal script sets them.
+- **Buttons override.** A local override from SW1–SW4 takes precedence over Modbus writes
+  until it is released.
+- **Polling.** 1 s is sufficient for stair lighting. Faster polling on a long bus with many
+  modules will need the timing parameters described in [§7](#7-esphome-integration-guide).
+- **Changing address or baud over Modbus** (HR 480 / 481) takes effect on the module's own
+  terms — reconnect at the new settings afterwards.
 
 ---
 
 # 7. ESPHome Integration Guide
 
-Only if supported. Cover:
-- YAML setup (`uart`, `modbus`, `package`)
-- Entity list (inputs, relays, buttons, LEDs)
-- Acknowledge, override controls
-- Home Assistant integration tips
+The module is reached through a MiniPLC or MicroPLC running ESPHome. The controller holds the
+`uart` and `modbus` components; the package below adds the module's entities.
+
+## 7.1 Controller side
+
+Your controller configuration needs a Modbus bus with the id `modbus_bus`, which the package
+references:
+
+```yaml
+uart:
+  id: mod_uart
+  tx_pin: GPIO17
+  rx_pin: GPIO16
+  baud_rate: 115200
+  stop_bits: 1
+
+modbus:
+  id: modbus_bus
+  uart_id: mod_uart
+```
+
+Pin numbers are those of your controller — check the MiniPLC or MicroPLC README.
+
+## 7.2 Adding the module
+
+```yaml
+packages:
+  str1:
+    url: https://github.com/isystemsautomation/homemaster-dev
+    ref: main
+    files:
+      - path: STR-3221-R1/Firmware/v0.1.0/default_str_3221_r1_plc/default_str_3221_r1_plc.yaml
+        vars:
+          str_prefix: "STR#1"
+          str_id: str_1
+          str_address: 21
+```
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `str_prefix` | `STR` | Name prefix for every entity — use a distinct one per module |
+| `str_id` | `str` | Internal id for the `modbus_controller` — must be unique per module |
+| `str_address` | `3` | Slave address; **set it to match WebConfig** (factory default is `21`) |
+| `str_update_interval` | `1s` | Polling interval |
+| `str_command_throttle` | `0ms` | Minimum gap between commands |
+
+For a second module, include the package again with a different `str_prefix`, `str_id` and
+`str_address`.
+
+## 7.3 Entities created
+
+| Entity | Type | Source |
+|---|---|---|
+| `<prefix> IO1` | binary sensor | DI, discrete input 1 |
+| `<prefix> IO2` | binary sensor | Presence IN1, discrete input 2 |
+| `<prefix> IO3` | binary sensor | Presence IN2, discrete input 3 |
+| `<prefix> Button1…4` | binary sensor | SW1–SW4, discrete inputs 20–23 |
+| `<prefix> Status LED1…2` | binary sensor | Discrete inputs 90–91 |
+| `<prefix> O1 Light` … `O32 Light` | light (monochromatic) | HR 400–431, dimmable 0–255 |
+
+Each output is exposed as a **dimmable light**, not a switch — so a stair segment can be
+faded from Home Assistant or an ESPHome script. `gamma_correct` is set to `0.0` in the
+package: the TLC59208F already drives a linear PWM channel, and a second gamma curve on top
+would compress the low end.
+
+## 7.4 Timing on longer buses
+
+ESPHome **2026.7.0** changed the Modbus timing defaults. On a bus with several modules, or
+cable runs beyond a few metres, set these explicitly on the controller's `modbus` component
+rather than relying on the defaults:
+
+```yaml
+modbus:
+  id: modbus_bus
+  uart_id: mod_uart
+  send_wait_time: 250ms
+```
+
+and raise `str_command_throttle` if you see timeouts. Symptoms of timing that is too tight:
+entities going unavailable intermittently, or one module on the bus dropping out while the
+others stay up.
+
+## 7.5 Home Assistant
+
+Entities appear over the native ESPHome API — no MQTT broker and no register mapping inside
+Home Assistant. A typical stair automation triggers on `<prefix> IO2` or `IO3` (the presence
+inputs) and steps through the `O*` lights with a delay between them. Because the module keeps
+its configuration in flash, the wiring-level behaviour set in WebConfig continues to work
+when Home Assistant is unavailable.
 
 ---
 
@@ -615,6 +771,7 @@ If flashing fails or the module is unresponsive:
 | **Outputs not responding** | Check 24 V LED PS supply and output + rail. |
 | **Digital inputs not changing** | Wire potential-free contact between **Gnd** (8) and **24Vdc** (9); do not apply external voltage. Check WebConfig enable/invert/debounce. |
 | **WebConfig not connecting** | Use a Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+); allow serial access permission; reset module if busy. |
+| **Entities unavailable in Home Assistant, other modules fine** | Modbus timing too tight for the bus length — see [§7.4](#74-timing-on-longer-buses). |
 | **Reset Device** | Press **Buttons 3 + 4** for a hardware reboot. |
 | **Full Factory Reset** | Hold all **Buttons 1–4** on power-up to clear configuration. |
 
@@ -647,11 +804,12 @@ See LICENSE files in each directory for full terms.
 | Resource | Description |
 |-----------|-------------|
 | **🧠 Firmware (Arduino/PlatformIO)** | [`Firmware/v0.1.0/default_str_3221_r1/`](Firmware/v0.1.0/default_str_3221_r1/) — main sketch. |
+| **📦 Pre-built Firmware** | [`Firmware/v0.1.0/STR-3221-R1.uf2`](Firmware/v0.1.0/STR-3221-R1.uf2) — flash over USB-C in BOOT mode (Buttons 1 + 2). |
+| **⚙️ ESPHome package** | [`Firmware/v0.1.0/default_str_3221_r1_plc/`](Firmware/v0.1.0/default_str_3221_r1_plc/) — Modbus package for MiniPLC / MicroPLC. |
 | **🛠 WebConfig Tool** | [`Firmware/v0.1.0/ConfigToolPage.html`](Firmware/v0.1.0/ConfigToolPage.html) — browser-based USB-C setup. |
 | **📷 Images & Diagrams** | [`Images/`](Images/) — module photos, terminal maps, and block diagrams. |
 | **📐 Schematics (PDF)** | [`Schematics/`](Schematics/) — FieldBoard and MCUBoard schematics for hardware developers. |
 | **📄 Datasheet & Manual** | [`Manuals/`](Manuals/) — module datasheet and installation guide. |
-| **📦 Pre-built Firmware** | Not yet released. STR-3221-R1 is RP2350-based — the released binary will be a `.uf2` at `Firmware/v0.1.0/STR-3221-R1.uf2`. |
 
 ---
 
