@@ -18,7 +18,7 @@ packages:
         vars:
           str_prefix: "STR#1"
           str_id: str_1
-          str_address: 21
+          str_address: 3
 ```
 
 ## Version History
@@ -63,7 +63,7 @@ The **STR-3221-R1** is a **32-channel** low-side MOSFET LED controller for stair
 | **MOSFET Outputs** | 32 | Low-side **AO4882** dual N-channel MOSFET stages on FieldBoard (**O1…O32**), 12–24 V loads; grouped in fours, each group with its own **+** rail (nine groups). |
 | **LED Driver ICs** | 4 | **TLC59208F** on MCU board (U9–U12): I²C PWM channel drivers to FieldBoard output stages. |
 | **Buttons** | 4 | SW1–SW4 for test/override or user logic. |
-| **Status LEDs** | 4 | User-assignable (steady/blink) for power/activity/logic states. |
+| **Status LEDs** | 2 | On-board indicators (GPIO9 / GPIO8), user-assignable steady or blink; mirrored on discrete inputs 90–91. |
 | **Modbus RTU** | Yes | RS-485 via **MAX485** transceiver; activity LEDs. |
 | **USB-C** | Yes | **WebConfig over Web Serial** (Chromium-based: Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+); ESD-protected port. |
 | **Power** | 24 VDC | Reverse/surge-protected input; **AP64501** buck → **5 V**, **AMS1117-3.3** LDO → **3.3 V** logic. |
@@ -77,9 +77,9 @@ The **STR-3221-R1** is a **32-channel** low-side MOSFET LED controller for stair
 - **Connection to RS-485 bus:** wire controller **A/B/COM** to the module’s **A/B/COM** terminals (daisy-chain friendly, terminate the ends).  
 - **Operating mode:** **Modbus RTU slave**; can run simple local patterns/tests from buttons, while a PLC/SCADA/HA supervises over Modbus.  
 - **Polling:** Controller reads **DI**, **IN1**, and **IN2** state and writes/reads **O1…O32**; optional mirrors for LEDs/buttons.  
-- **Defaults (changeable in WebConfig):**
-  - **Address:** `21`
-  - **Baud:** `115200` (8N1)
+- **Factory defaults (changeable in WebConfig):**
+  - **Address:** `3`
+  - **Baud:** `19200` (8N1)
 
 ---
 
@@ -190,7 +190,7 @@ The **STR-3221-R1** is a **32-channel** low-side MOSFET LED controller for stair
 | **Digital Inputs** | 3 | **1 × module-wetted 24 V DC discrete input** (**Gnd** + **24Vdc**, **ISO1212**, F6/F7) plus **2 × opto-isolated presence inputs** (**IN1**/**IN2**, **SFH6156** U17/U18, **SMAJ6.8CA** clamp) |
 | **Outputs** | 32 | Low-side **AO4882** N-channel MOSFET stages, grouped in fours, each group with its own **+** rail (nine groups); PWM from MCU-board **TLC59208F** drivers. |
 | **Buttons** | 4 | Local control / override / test switches. |
-| **Status LEDs** | 4 | User-assignable (power, activity, or logic indicator). |
+| **Status LEDs** | 2 | On-board indicators, assignable to a logic state; steady or blink. |
 | **RS-485 (Modbus RTU)** | 1 | Communication bus; **A/B/COM** terminals. |
 | **USB-C (Setup Port)** | 1 | WebConfig / firmware interface (not for powering field devices). |
 | **Power Input** | 1 | **24 VDC (V+, 0V)**; reverse and surge-protected; onboard 5 V / 3.3 V regulation. |
@@ -211,7 +211,7 @@ The **STR-3221-R1** is a **32-channel** low-side MOSFET LED controller for stair
 | **Sensor Rail Output (SENS.A / SENS.B)** | — | 5 | — | VDC | **+5 V** via **F9**/**F10** (**1206L150THWR**); **≤150 mA** continuous per rail. |
 | **Output Type** | — | — | — | — | Low-side **AO4882** dual N-MOSFET; **≤1.5 A** per channel; **≤18 A** module total. |
 | **Output Protection** | — | — | — | — | Gate RC + ferrite per channel (FieldBoard schematic); inductive LED wiring per installation practice. |
-| **Communication** | — | — | — | — | RS-485 (**MAX485**), 9600–115200 bps. |
+| **Communication** | — | — | — | — | RS-485 (**MAX485**); 9600, 19200, 38400, 57600 or 115200 bps. |
 | **Input Front-Ends** | — | — | — | — | **DI:** **ISO1212** (module-wetted 24 V). **IN1/IN2:** **SFH6156** opto-isolated presence inputs. |
 | **Operating Temperature** | 0 | — | 40 | °C | 95 % RH non-condensing. |
 
@@ -226,14 +226,15 @@ The **STR-3221-R1** is a **32-channel** low-side MOSFET LED controller for stair
 
 | Function | Description |
 |-----------|-------------|
-| **Input Processing** | Debounced; logic reported via Modbus coils/registers. |
-| **Output Control** | 32 channels controlled via Modbus write commands; supports PWM dimming and timed activation sequences. |
-| **Button Actions** | Assignable in firmware: manual test, override ON/OFF, or reset function. |
-| **LED Feedback** | Configurable for steady, blink, or activity indication via TLC59208F drivers. |
-| **Override Priority** | Local overrides (buttons) take precedence over Modbus commands until released. |
-| **WebConfig (USB-C)** | Provides Modbus address setup, baud-rate selection, live I/O status, and firmware update through Web Serial. |
-| **Startup Logic** | On power-up, outputs default to OFF until first Modbus command or internal script execution. |
-| **Fault Handling** | Overcurrent or thermal events trigger fault LED indication; recover automatically when condition clears. |
+| **Input Processing** | Per-channel enable and invert; logical state published on discrete inputs 1–3. A disabled channel always reads 0. |
+| **Output Control** | 32 channels driven from holding registers 400–431, 0–255 per channel (TLC59208F PWM). |
+| **Button Actions** | SW1–SW4 assignable in WebConfig; state also published on discrete inputs 20–23. |
+| **LED Feedback** | 2 on-board status LEDs, steady or blink, source selectable; state published on discrete inputs 90–91. |
+| **Override Priority** | Local overrides take precedence over Modbus commands until released. |
+| **WebConfig (USB-C)** | Modbus address and baud, input enable/invert, button and LED mapping, live I/O, output levels. |
+| **Startup Logic** | Configuration is restored from flash at power-up, including the last **saved** output levels. Levels written over Modbus are applied immediately but are **not** auto-persisted — save explicitly in WebConfig to make them the power-up state. Factory defaults are all channels at 0. |
+| **TLC59208F recovery** | If the I²C LED drivers do not answer at boot the module retries every 5 s, with a full bus scan every 30 s, and reports status over WebConfig. |
+| **Watchdog** | 4 s hardware watchdog; the module reboots itself if the main loop stalls. |
 
 ---
 
@@ -427,12 +428,17 @@ Both inputs are reverse-polarity and surge protected. Do not bridge **GND_FUSED*
 | Item | Value |
 |---|---|
 | Terminal order on this module | **COM (5) – B (6) – A (7)** — read the silkscreen, the order differs across the HomeMaster range |
-| Default address | `21` |
-| Default baud | `115200`, 8N1 |
-| Supported baud rates | 9600 – 115200 |
+| Factory default address | `3` |
+| Factory default baud | `19200`, 8N1 |
+| Supported baud rates | 9600, 19200, 38400, 57600, 115200 |
 | Termination | 120 Ω at the two physical ends of the bus only |
 
-Address and baud rate are set in **WebConfig** over USB-C, or over Modbus at **HR 480** (address) and **HR 481** (baud). Run **COM** to every node — the port is not galvanically isolated, and COM is what bounds the common-mode voltage the transceiver sees. Full bus rules: [RS-485 / Modbus RTU](#rs-485--modbus-rtu).
+A module straight out of the box answers at address **3**, **19200 baud** — set a unique address
+before putting a second module on the same bus. Address and baud are set in **WebConfig** over
+USB-C, or over Modbus at **HR 480** (address) and **HR 481** (baud); see the caveat on HR 481 in
+[§6.1](#61-register-map). Run **COM** to every node — the port is not galvanically isolated, and
+COM is what bounds the common-mode voltage the transceiver sees. Full bus rules:
+[RS-485 / Modbus RTU](#rs-485--modbus-rtu).
 
 ## 5.4 Installation & Wiring
 
@@ -487,15 +493,17 @@ connect the module and grant serial access.
 
 | Setting | What it does |
 |---|---|
-| **Modbus address** | Slave address on the RS-485 bus. Default `21`. Every module on the bus needs a unique one |
-| **Baud rate** | 9600–115200, 8N1. Default `115200`. Must match the controller |
-| **Input enable / invert** | Per channel for **DI**, **IN1**, **IN2** — enable unused channels off, invert for normally-closed sensors |
-| **Button mapping** | SW1–SW4 to manual test, override ON/OFF or user logic |
-| **LED mapping** | Status LEDs to power, bus activity or a logic state |
-| **Live I/O view** | Current input states and output values, for commissioning without a controller |
+| **Modbus address** | Slave address on the RS-485 bus. Factory default `3`, valid 1–247. Every module on the bus needs a unique one |
+| **Baud rate** | 9600, 19200, 38400, 57600 or 115200, 8N1. Factory default `19200`. Must match the controller |
+| **Input enable / invert** | Per channel for **DI**, **IN1**, **IN2** — switch unused channels off, invert for normally-closed sensors |
+| **Button mapping** | SW1–SW4 action assignment |
+| **LED mapping** | The two status LEDs: source and steady/blink mode |
+| **Output levels** | Set any of the 32 channels 0–255 for commissioning; save explicitly to keep them as the power-up state |
+| **Live I/O view** | Current input, button and LED states plus TLC59208F driver status |
+| **Identify** | Pulses the first output group for 5 s — useful to find one module in a full cabinet |
 
-Settings are written to on-device flash (**LittleFS**) and survive a power cut. Local
-overrides from the buttons take precedence over Modbus commands until released.
+Configuration is written to on-device flash (**LittleFS**) with a CRC and survives a power cut.
+Changes to inputs, buttons and LEDs auto-save after 1.5 s; **output levels do not** — use Save.
 
 ## 5.6 Getting Started
 
@@ -505,8 +513,9 @@ power from **SENS.A / SENS.B**, and **A / B / COM** to the bus. Fit 120 Ω at bo
 bus only.
 
 **2. Configuration.** Connect USB-C, open WebConfig, set a unique Modbus address and the baud
-rate used on your bus. Enable the inputs you wired, invert where the sensor is
-normally-closed, and check live I/O to confirm the wiring before the controller is involved.
+rate used on your bus — the factory setting is address 3 at 19200. Enable the inputs you wired,
+invert where the sensor is normally-closed, and check live I/O to confirm the wiring before the
+controller is involved.
 
 **3. Integration.** Add the ESPHome package to your MiniPLC / MicroPLC configuration
 ([§7](#7-esphome-integration-guide)) with `str_address` matching what you set in WebConfig.
@@ -517,53 +526,75 @@ master, use the register map in [§6](#6-modbus-rtu-communication) instead.
 
 # 6. Modbus RTU Communication
 
-The module is a **Modbus RTU slave**. Default address `21`, default baud `115200` (8N1),
-supported range 9600–115200. Register numbers below are the addresses used on the wire, as
-consumed by the shipped ESPHome package.
+The module is a **Modbus RTU slave**. Factory default address `3`, factory default baud `19200`
+(8N1); supported rates 9600, 19200, 38400, 57600 and 115200. Register numbers below are the
+addresses used on the wire, as consumed by the shipped ESPHome package.
 
 ## 6.1 Register map
 
-### Discrete inputs (read)
+### Discrete inputs — FC 02 (read)
 
 | Address | Name | Meaning |
 |---:|---|---|
-| 1 | IO1 | Module-wetted 24 V discrete input (**DI**, terminals 8–9) |
-| 2 | IO2 | Presence input **IN1** (terminal 11) |
-| 3 | IO3 | Presence input **IN2** (terminal 14) |
-| 20 | BUTTON1 | Front-panel SW1 |
+| 1 | IO1 | Module-wetted 24 V discrete input (**DI**, terminals 8–9), after enable and invert |
+| 2 | IO2 | Presence input **IN1** (terminal 11), after enable and invert |
+| 3 | IO3 | Presence input **IN2** (terminal 14), after enable and invert |
+| 20 | BUTTON1 | Front-panel SW1, 1 = pressed |
 | 21 | BUTTON2 | Front-panel SW2 |
 | 22 | BUTTON3 | Front-panel SW3 |
 | 23 | BUTTON4 | Front-panel SW4 |
-| 90 | LED1 | Status LED 1 state |
-| 91 | LED2 | Status LED 2 state |
+| 90 | LED1 | Status LED 1 physical state |
+| 91 | LED2 | Status LED 2 physical state |
 
-### Holding registers (read / write)
+### Command coils — FC 05 / 15 (write, self-clearing pulse)
+
+| Address | Meaning |
+|---:|---|
+| 300–302 | Enable input IO1 / IO2 / IO3 |
+| 320–322 | Disable input IO1 / IO2 / IO3 |
+
+Writing `1` performs the action and the coil clears itself; the new enable state is persisted to
+flash. This is the way to switch an input on or off from a controller without WebConfig.
+
+### Holding registers — FC 03 / 06 / 16 (read / write)
 
 | Address | Name | Range | Meaning |
 |---:|---|---|---|
 | 400–431 | O1…O32 | 0–255 | Per-channel brightness. `400` = O1, `431` = O32. `0` = off, `255` = full |
-| 480 | Modbus address | 1–247 | Slave address; also settable in WebConfig |
-| 481 | Baud rate | — | Bus baud rate; also settable in WebConfig |
+| 480 | Modbus address | 1–247 | Slave address. Values outside the range are clamped |
+| 481 | Baud rate | see note | Bus baud rate |
 
-### Input registers (read)
+> **HR 481 caveat.** The register holds the raw baud value, and 115200 does not fit in a 16-bit
+> register — at 115200 the register **reads back as `0`**. That is expected, not a fault. Set
+> 115200 through WebConfig rather than over Modbus.
 
-| Address | Meaning |
-|---:|---|
-| 200–204 | Firmware identity |
+### Input registers — FC 04 (read)
+
+| Address | Field | Value on this module |
+|---:|---|---|
+| 200 | MODEL_ID | `8` |
+| 201 | FW_MAJOR | `0` |
+| 202 | FW_MINOR | `1` |
+| 203 | FW_PATCH | `0` |
+| 204 | MAP_VERSION | `1` |
+
+Read 200–204 to identify a module and its register-map generation before trusting the rest of
+the map.
 
 ## 6.2 Usage notes
 
-- **Brightness is a byte, not a bit.** Writing `255` to HR 400 turns O1 fully on; writing an
-  intermediate value dims it via the TLC59208F PWM driver. There are no separate on/off coils
-  for the outputs.
-- **Outputs start OFF.** On power-up all 32 channels are off until the first Modbus write or
-  an internal script sets them.
-- **Buttons override.** A local override from SW1–SW4 takes precedence over Modbus writes
-  until it is released.
+- **Brightness is a byte, not a bit.** Writing `255` to HR 400 turns O1 fully on; an intermediate
+  value dims it via the TLC59208F PWM driver. There are no separate on/off coils for the outputs.
+- **Output levels are not auto-persisted.** Values written over Modbus take effect immediately
+  but are not saved; after a power cycle the module restores the last levels explicitly saved in
+  WebConfig (factory default: all channels 0).
+- **A disabled input always reads 0** on its discrete input, whatever the field wiring does.
+- **Buttons override.** A local override from SW1–SW4 takes precedence over Modbus writes until
+  it is released.
 - **Polling.** 1 s is sufficient for stair lighting. Faster polling on a long bus with many
-  modules will need the timing parameters described in [§7](#7-esphome-integration-guide).
-- **Changing address or baud over Modbus** (HR 480 / 481) takes effect on the module's own
-  terms — reconnect at the new settings afterwards.
+  modules needs the timing parameters in [§7.4](#74-timing-on-longer-buses).
+- **Changing address or baud** over HR 480 / 481 applies immediately — reconnect at the new
+  settings afterwards.
 
 ---
 
@@ -582,7 +613,7 @@ uart:
   id: mod_uart
   tx_pin: GPIO17
   rx_pin: GPIO16
-  baud_rate: 115200
+  baud_rate: 19200
   stop_bits: 1
 
 modbus:
@@ -590,7 +621,8 @@ modbus:
   uart_id: mod_uart
 ```
 
-Pin numbers are those of your controller — check the MiniPLC or MicroPLC README.
+Pin numbers are those of your controller — check the MiniPLC or MicroPLC README. The baud rate
+must match what the module is set to; a factory-fresh module is at **19200**.
 
 ## 7.2 Adding the module
 
@@ -604,14 +636,14 @@ packages:
         vars:
           str_prefix: "STR#1"
           str_id: str_1
-          str_address: 21
+          str_address: 3
 ```
 
 | Variable | Default | Purpose |
 |---|---|---|
 | `str_prefix` | `STR` | Name prefix for every entity — use a distinct one per module |
 | `str_id` | `str` | Internal id for the `modbus_controller` — must be unique per module |
-| `str_address` | `3` | Slave address; **set it to match WebConfig** (factory default is `21`) |
+| `str_address` | `3` | Slave address; matches the module's factory default. Change both here and in WebConfig when adding a second module |
 | `str_update_interval` | `1s` | Polling interval |
 | `str_command_throttle` | `0ms` | Minimum gap between commands |
 
@@ -633,6 +665,10 @@ Each output is exposed as a **dimmable light**, not a switch — so a stair segm
 faded from Home Assistant or an ESPHome script. `gamma_correct` is set to `0.0` in the
 package: the TLC59208F already drives a linear PWM channel, and a second gamma curve on top
 would compress the low end.
+
+The command coils (300–302 / 320–322) are not exposed by the package. Use them from a
+third-party Modbus master, or add `switch` entities of your own if you need them in Home
+Assistant.
 
 ## 7.4 Timing on longer buses
 
@@ -721,20 +757,30 @@ For Arduino or PlatformIO environments, include:
 | **Board** | Generic **RP2350** |
 | **Flash Size** | 2 MB (Sketch 1 MB / FS 1 MB) |
 | **Upload Port** | USB-C |
-| **Baud Rate** | 115200 |
+| **USB console baud** | 57600 |
 | **Libraries** | Modbus RTU, SimpleWebSerial, JSON, LittleFS, Wire |
 
 ### Pin Mapping Summary
 
+Taken from the shipped sketch (`default_str_3221_r1.ino`), which is authoritative over the
+board diagrams.
+
 | Peripheral | MCU Pin | Description |
 |-------------|----------|-------------|
-| **RS-485 TX / RX** | GPIO4 / GPIO5 | UART2 to **MAX485** (auto DE/RE) |
-| **Button 1–4** | GPIO16–GPIO19 | Local input buttons |
-| **LED 1–4** | I²C via TLC59208F | Status indicators |
-| **I²C SCL / SDA** | GPIO7 / GPIO6 | **TLC59208F** U9–U12 on MCU board |
-| **Field inputs IO1–IO3** | GPIO11 / GPIO10 / GPIO12 | From FieldBoard (**ISO1212** DI + **SFH6156** IN1/IN2) |
+| **RS-485 TX / RX** | GPIO4 / GPIO5 | UART2 to **MAX485**, auto DE/RE (`TxenPin = -1`) |
+| **I²C SDA / SCL** | GPIO6 / GPIO7 | `Wire1` / I2C1 — 4× **TLC59208F** (U9–U12) |
+| **Status LED1 / LED2** | GPIO9 / GPIO8 | On-board indicators — driven directly, **not** through the TLC59208F |
+| **DI1 — 24 V discrete** | GPIO11 | **ISO1212**; idle 0 V, active HIGH |
+| **DI2 — SENS.B (IN2)** | GPIO12 | **SFH6156** U17; idle 3 V, active LOW |
+| **DI3 — SENS.A (IN1)** | GPIO10 | **SFH6156** U18; idle 3 V, active LOW |
+| **Button 1–4** | GPIO16–GPIO19 | Active-HIGH via CD4069 (pressed = HIGH) |
 | **QSPI Flash** | GPIO55–60 | W25Q32 32 Mbit flash memory |
 | **USB D±** | GPIO51 / GPIO52 | USB-C data lines |
+
+**TLC59208F addressing.** The driver auto-binds from an I²C scan at boot: it prefers the block
+`0x20 0x21 0x22 0x23` (A1 strapped to SCL), falls back to `0x40 0x42 0x44 0x46` (GND/VCC strap),
+and otherwise verifies candidates in the `0x20…0x5E` range. Scan results are reported over
+WebConfig.
 
 ---
 
@@ -743,19 +789,19 @@ For Arduino or PlatformIO environments, include:
 ### How to Update
 1. Connect via **USB-C** to a PC.  
 2. Press **Buttons 1 + 2** to enter **BOOT mode**.  
-3. Upload new firmware (`default_str_3221_r1.ino` / UF2 when built) using:
+3. Upload new firmware — either the pre-built [`STR-3221-R1.uf2`](Firmware/v0.1.0/STR-3221-R1.uf2) or a build of `default_str_3221_r1.ino` from:
    - **Arduino IDE** → “Upload”
    - **PlatformIO** → `Upload and Monitor`
 4. After flashing, press **Buttons 3 + 4** for a safe hardware reset.
 
 ### Preserving Configuration
-All configuration parameters (address, baud, LED/button mappings, etc.) are stored in the MCU’s **non-volatile flash** and remain intact unless manually erased via WebConfig or serial command.
+All configuration parameters (address, baud, input, LED and button settings) are stored in the MCU’s **non-volatile flash** with a CRC and remain intact unless manually erased via WebConfig or serial command.
 
 ### Recovery Methods
 If flashing fails or the module is unresponsive:
 - Disconnect USB-C, wait 10 seconds, and reconnect while holding **Buttons 1 + 2** (force BOOT mode).
 - Reflash firmware again.
-- If configuration corruption occurs, select **“Factory Reset”** in WebConfig.
+- If configuration corruption occurs, select **“Factory Reset”** in WebConfig. Note this returns the module to **address 3, 19200 baud**.
 
 ---
 
@@ -766,12 +812,16 @@ If flashing fails or the module is unresponsive:
 | **PWR LED – steady ON** | Module powered and running normally. |
 | **TX/RX LEDs – blink** | Active Modbus communication on RS-485. |
 | **No TX/RX blink** | Check A/B polarity, COM reference, and termination resistors. |
-| **Buttons unresponsive** | Verify 3.3 V logic; reboot using **Buttons 3 + 4**. |
-| **No communication via USB-C** | Ensure a Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+); close other serial apps. |
-| **Outputs not responding** | Check 24 V LED PS supply and output + rail. |
-| **Digital inputs not changing** | Wire potential-free contact between **Gnd** (8) and **24Vdc** (9); do not apply external voltage. Check WebConfig enable/invert/debounce. |
-| **WebConfig not connecting** | Use a Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+); allow serial access permission; reset module if busy. |
+| **Module does not answer at all** | A factory-fresh or factory-reset module is at **address 3, 19200 baud** — not at whatever the rest of your bus uses. |
+| **Two modules answer at once** | Both are still at the default address 3. Disconnect one, set a unique address in WebConfig. |
+| **HR 481 reads 0** | Expected at 115200 — the raw value does not fit a 16-bit register. Not a fault. |
+| **Outputs not responding** | Check the LED PS supply and the output **+** group rail; then check TLC status in WebConfig live view. |
+| **WebConfig reports TLC59208F offline** | I²C drivers not answering; the module retries every 5 s with a full scan every 30 s. Check the MCU-board ribbon and run `i2c_scan` from WebConfig. |
+| **Digital inputs not changing** | Wire potential-free contact between **Gnd** (8) and **24Vdc** (9); do not apply external voltage. Check enable / invert in WebConfig — a disabled input always reads 0. |
+| **Output levels lost after power cycle** | Levels written over Modbus are not auto-persisted — save explicitly in WebConfig. |
+| **No communication via USB-C** | Use a Chromium-based browser (Chrome, Edge, Opera, Brave, Vivaldi; Chrome/Edge 89+, Opera 76+); close other serial apps. |
 | **Entities unavailable in Home Assistant, other modules fine** | Modbus timing too tight for the bus length — see [§7.4](#74-timing-on-longer-buses). |
+| **Which module is this?** | Use **Identify** in WebConfig — the first output group pulses for 5 s. |
 | **Reset Device** | Press **Buttons 3 + 4** for a hardware reboot. |
 | **Full Factory Reset** | Hold all **Buttons 1–4** on power-up to clear configuration. |
 
