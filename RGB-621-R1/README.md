@@ -43,6 +43,10 @@ New modules ship firmware **v0.2.0**. Add the ESPHome package to your **MicroPLC
 
 > **Reproducible firmware build (v0.2.0):** [Build environment (reproducible)](../README.md#build-environment-reproducible) · [`sketch.yaml`](Firmware/v0.2.0/default_rgb_621_r1/sketch.yaml)
 
+> **Documentation note (current board revision):** earlier documentation quoted
+> 5 A total and ≤ 1000 mA per channel. Both figures belong to a superseded
+> board revision and no longer apply. The current limit is 10 A, shared.
+
 # Hardware notes (current revision)
 
 1. **I.1/I.2 panel indicators swapped** — silkscreen only (I.1 shows DI2's state, I.2 shows DI1's); logical inputs, Modbus registers, and WebConfig are unaffected.
@@ -198,12 +202,22 @@ I/O counts only — full descriptions in [§1.2](#12-features--architecture).
 ## 2.5 Electrical & Environmental
 
 - **Supply:** 24 V DC ±10 % (SELV/PELV), ≈ 2 W (no LED load)  
-- **PWM Drive:** 5 × low-side channels, **≈1 kHz**, 12-bit; LED PS is a **separate 12/24 V** input (up to **10 A** per module on the shipping board). Size the LED PSU for strip length and W/m — do not share with module logic V+/0V. See [⚠️ IMPORTANT — POWER](#important-power)
+- **PWM Drive:** 5 × low-side channels, **≈1 kHz**, 12-bit; LED PS is a **separate 12/24 V** input, fused at **10 A**. The 10 A is a shared budget: a single channel may draw the full 10 A, or the current may be split across however many channels the installation uses. Size the LED PSU for strip length and W/m — do not share with module logic V+/0V. See [⚠️ IMPORTANT — POWER](#important-power)
 - **Relay:** 3 A @ 250 VAC / 30 VDC (module/PCB limit)  
 - **Digital inputs:** IEC 61131-2 front-end (ISO1212), **dry-contact (module-wetted)**; surge/EMI protected  
 - **RS-485:** 19200 bps 8N1 (default), 115.2 kbps max  
 - **USB-C:** WebConfig / firmware only, ESD-protected  
 - **Env.:** 0 – 40 °C, ≤ 95 % RH non-condensing
+
+**Where the 10 A comes from.** It is a design choice, not a component ceiling.
+The channel MOSFETs (AP9990GH-HF, TO-252) are rated 75 A by package and the
+reverse-polarity stage 89 A, so neither constrains the output. The binding
+limits are the pluggable terminal blocks (DB129V-5.08, 2.5 mm², 24 A per pole)
+and the thermal behaviour of a 3-DIN IP20 module in a cabinet. The 10 A fuse
+sits below both, and 240 W of strip at 24 V is what we consider a sensible
+maximum for a module of this size. Above that, split the strip across several
+modules — beyond that length, voltage drop along the strip becomes the
+limiting factor regardless of the controller.
 
 ---
 
@@ -227,7 +241,8 @@ I/O counts only — full descriptions in [§1.2](#12-features--architecture).
 | Supply Voltage | 21.6 V | 24 V | 26.4 V | 24 V DC ±10 % (SELV/PELV); input protected |
 | Power Use | — | 1.85 W | 3.0 W | No LED load |
 | Relay Contacts | — | — | 3 A @ 250 VAC / 30 VDC | Module/PCB limit (resistive) |
-| LED PS input | — | — | 10 A | Separate 12/24 V LED supply; shipping-board path ≤ 10 A/module. Strip load depends on length and W/m (not fixed by the module). EasyEDA fuse rating not published while project≠board. |
+| LED PS input (module total) | — | — | 10 A | Separate 12/24 V LED supply, fused at 10 A. Strip load depends on length and W/m (not fixed by the module). |
+| Any single PWM channel | — | — | 10 A | Same limit as the module: no channel-specific ceiling below the shared 10 A budget. |
 | RS-485 Rate | — | — | 115.2 kbps | Half-duplex |
 | USB Voltage | 4.75 V | 5 V | 5.25 V | Logic only |
 | Operating Temp | 0 °C | — | 40 °C | ≤ 95 % RH |
@@ -393,7 +408,7 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 <a id="important-power"></a>
 
 > ⚠️ **IMPORTANT — POWER**  
-> Module logic/RS-485/inputs: regulated **24 V DC ±10 % SELV/PELV** on V+/0V (or shared 24 V bus, fused per branch). LED strip: a **separate 12 V or 24 V DC LED PSU** on **LED PS** (+/−), up to **10 A** per module (shipping board). Size for strip length and W/m — the module does not imply a fixed strip wattage. **LED PS** = module terminal; **LED PSU** = external supply. Keep GND_FUSED (field) and GND (logic/USB) unbridged.
+> Module logic/RS-485/inputs: regulated **24 V DC ±10 % SELV/PELV** on V+/0V (or shared 24 V bus, fused per branch). LED strip: a **separate 12 V or 24 V DC LED PSU** on **LED PS** (+/−), **10 A** per module. Size for strip length and W/m — the module does not imply a fixed strip wattage. **LED PS** = module terminal; **LED PSU** = external supply. Keep GND_FUSED (field) and GND (logic/USB) unbridged.
 
 ## 5.1 What You Need
 
@@ -414,19 +429,19 @@ All HomeMaster controllers and modules share the same RS-485 front end.
 Power: see the [⚠️ IMPORTANT — POWER](#important-power) block in [§5](#5-installation--quick-start).
 
 - **LED path (LED PS → COM (LED+)):** the positive rail from the external LED PSU enters through:
-  - **Internal fusing** on LED PS path (protection only; fuse rating not published while EasyEDA≠board)  
-  - **Reverse-polarity protection** (Schottky)  
+  - **10 A fuse** on the LED PS path — this is the module's design limit  
+  - **Reverse-polarity protection** — ideal-diode stage (LM74610 controller driving an N-channel MOSFET), rated far above the fuse and contributing negligible forward drop  
   - **TVS surge suppression**  
   - Then feeds **COM (LED+)** directly — **not** through the onboard relay.
 
-- **PWM outputs (R / G / B / CW / WW):** **low-side PWM sinks** (AP9990GH-HF); strip must be **12/24 V common-anode**. LED PS input up to **10 A** per module (separate supply). Size strips by length and W/m.
+- **PWM outputs (R / G / B / CW / WW):** **low-side PWM sinks** (AP9990GH-HF, rated 75 A by package); strip must be **12/24 V common-anode**. No channel has a current ceiling of its own — the limits are the terminal blocks (DB129V-5.08, 24 A per pole) and board heat dissipation, and the **10 A** LED PS fuse sits below both. Size strips by length and W/m.
 
 - **Relay (Relay C / NO):** independent **SPST-NO dry-contact** rated **3 A @ 250 VAC / 30 VDC** (module/PCB limit); suitable for **230 VAC** loads when installed per [§4.1](#41-general-requirements). **Basic insulation** between SELV coil and contacts; external contactor for reinforced isolation or heavy/inductive loads. For **FOLLOW-mode** LED-PSU cut, wire **Relay C / NO** **externally in series** with the LED PSU (+) feed ([Use Case 2](#-use-case-2--relay-as-automatic-led-psu-power-cut-energy-saving)).
 
 - **Current consumption (typical):**
   - Logic + RS-485: ≈ 100 mA  
   - Relay coil: ≈ 30 mA (active)  
-  - LED load: dependent on connected strips (size LED PSU for strip length and W/m; LED PS ceiling **10 A**/module)
+  - LED load: dependent on connected strips (size LED PSU for strip length and W/m; LED PS ceiling **10 A**/module, shared across all channels in use)
 
 - **Module input protection (V+ / 0V):** PTC fuses (F1–F4), reverse-polarity diode (STPS340U), surge TVS (SMBJ33A).
 
@@ -909,7 +924,7 @@ For modifying or rebuilding the firmware.
 - **Relay won’t trigger:**  
   Confirm Modbus control vs. local override mode, verify coil/state in WebConfig, and ensure external wiring is on **Relay C / NO** (dry contact). Add snubber for inductive loads.
 - **LED channels do not light:**  
-  Verify **COM (LED+)** to strip, channel cathodes on **R/G/B/CW/WW**, correct polarity, and adequate **12/24 V** LED PSU sizing (up to **10 A** at LED PS; strip length and W/m decide the load).
+  Verify **COM (LED+)** to strip, channel cathodes on **R/G/B/CW/WW**, correct polarity, and adequate **12/24 V** LED PSU sizing (**10 A** at LED PS, shared across channels; strip length and W/m decide the load).
 - **Inputs not detected:**  
   Wire the contact between **I1/I2** and the **GND** terminal of the **DI 24Vdc** block (not **0V** of the power input, not the LED **COM**, not the **RS-485 COM**). Use a potential-free contact — do not apply external voltage. In WebConfig check the input is **Enabled**, **Inverted** is off, and **Debounce** (default 25 ms) is not set too high.
 - **USB not detected:**  
