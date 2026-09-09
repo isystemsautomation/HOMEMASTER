@@ -580,6 +580,7 @@ void setup() {
 
   // Apply restored PWM levels to outputs
   applyPwmFromHoldingRegs();
+  pwmAlignSlicePhases();
   hmWatchdogArm(4000);
 }
 

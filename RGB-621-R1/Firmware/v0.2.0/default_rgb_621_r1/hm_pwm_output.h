@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include <math.h>
+#include "hardware/pwm.h"
 
 #ifndef RGB_NUM_PWM
 #define RGB_NUM_PWM 5
@@ -134,4 +135,47 @@ inline void pwmServiceSlew(uint32_t now) {
     }
     pwmWriteHardware(ch, pwmCurrent[ch]);
   }
+}
+
+// Разводит PWM-слайсы по фазе, чтобы каналы не переключались синфазно.
+//
+// GPIO делят слайсы парами: слайс = (GPIO >> 1) & 7.
+//   WW=GP8  и R =GP9  -> слайс 4  (общий счётчик, фазу разделить нельзя)
+//   B =GP10 и CW=GP11 -> слайс 5
+//   G =GP12           -> слайс 6
+// Отсюда три фазы, не пять. Каналы внутри слайса остаются синфазными —
+// это свойство железа, не недоработка.
+//
+// Вызывать ОДИН РАЗ из setup(), после analogWriteResolution(12) и первого
+// pwmWriteHardware/analogWrite на каждый слайс (applyPowerOnOutputs).
+inline void pwmAlignSlicePhases() {
+  uint8_t slices[NUM_PWM];
+  uint8_t nSlices = 0;
+
+  for (uint8_t ch = 0; ch < NUM_PWM; ch++) {
+    const uint8_t s = pwm_gpio_to_slice_num(PWM_PINS[ch]);
+    bool seen = false;
+    for (uint8_t i = 0; i < nSlices; i++) {
+      if (slices[i] == s) { seen = true; break; }
+    }
+    if (!seen) slices[nSlices++] = s;
+  }
+  if (nSlices < 2) return;
+
+  uint32_t mask = 0;
+  for (uint8_t i = 0; i < nSlices; i++) mask |= (1u << slices[i]);
+
+  // Останавливаем только свои слайсы, чужие не трогаем.
+  const uint32_t en = pwm_hw->en;
+  pwm_hw->en = en & ~mask;
+
+  for (uint8_t i = 0; i < nSlices; i++) {
+    // TOP читаем из железа, а не считаем от разрешения: значение ставит
+    // ядро arduino-pico, и оно не обязано быть равно 4095.
+    const uint32_t period = (uint32_t)pwm_hw->slice[slices[i]].top + 1u;
+    pwm_set_counter(slices[i], (uint16_t)((period * i) / nSlices));
+  }
+
+  // Один запуск — слайсы стартуют в locked step и сохраняют сдвиг.
+  pwm_hw->en = en | mask;
 }
