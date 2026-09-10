@@ -1,0 +1,23 @@
+characteristic,value
+Sensor type Typical current How many fit PIR motion detector,10–20 mA 6–10
+Curtain PIR,10–15 mA 8–12
+Dual-technology detector (PIR + microwave),20–30 mA 4–6
+Glass-break detector,15–25 mA 6–8
+12 V smoke detector with relay output,20–50 mA 3–6
+Gas or CO detector with relay output,30–60 mA 2–4
+Infrared beam sensor or photoelectric barrier,20–40 mA 3–6
+Inductive or capacitive proximity sensor (NPN),5–15 mA 8–15
+Category Devices Openings,"Door and window reed contacts, gate contacts, garage door position, roller shutter end positions, mailbox contacts"
+Water and fluids,"Contact-type leak detectors, float switches, level switches, flow switches, pressure switches"
+Heating and HVAC,"Thermostat contacts, frost stats, boiler fault contacts, pump fault contacts, heat pump alarm outputs, burner lockout"
+Security,"Tamper switches, vibration and shock sensors, key switches, panic buttons, door strike and lock status"
+Controls,"Momentary wall switches, push buttons, rotary and toggle switches, limit switches"
+Equipment status,"UPS alarm contacts, generator run and fault contacts, machine fault relays, filter-blocked switches, belt-break detectors"
+Weather,Rain sensors and wind switches with contact output
+Signal / device Use instead Mains voltage on an input,Interposing contactor or relay — inputs are SELV and dry contact only
+Analogue sensors 0–10 V / 4–20 mA / PT100 / PT1000,AIO-422-R1
+Pulse counting from S0 meter outputs,DIO-430-R1
+Addressable fire alarm loops,Conventional detectors with relay output only
+End-of-line resistor supervision,Not supported — see the NC tip below
+Specification Details Microcontroller,RP2350A dual-core microcontroller
+Flash Memory,External QSPI Flash (W25Q32)
